@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { useJobs, Job, JobStatus, ServiceType } from '@/hooks/useJobs';
+import { useJobs, Job, ServiceType } from '@/hooks/useJobs';
+import { JobStage, STAGE_ORDER, STAGE_LABELS } from '@/hooks/useJobStages';
 import { JobCard } from '@/components/jobs/JobCard';
 import { JobForm } from '@/components/jobs/JobForm';
-import { TimeEntry, formatTime } from '@/components/jobs/TimeEntry';
+import { KanbanBoard } from '@/components/jobs/KanbanBoard';
+import { TimeEntry } from '@/components/jobs/TimeEntry';
+import { StageProgress } from '@/components/jobs/StageProgress';
+import { AdvanceStageButton } from '@/components/jobs/AdvanceStageButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, Clock } from 'lucide-react';
+import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns } from 'lucide-react';
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -22,7 +26,8 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
 export default function Jobs() {
   const { jobs, isLoading } = useJobs();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [stageFilter, setStageFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   const filteredJobs = jobs.filter((job) => {
@@ -31,14 +36,18 @@ export default function Jobs() {
       job.order_number?.toLowerCase().includes(search.toLowerCase()) ||
       job.description?.toLowerCase().includes(search.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
+    const jobStage = (job as any).stage as JobStage || 'received';
+    const matchesStage = stageFilter === 'all' || jobStage === stageFilter;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStage;
   });
 
-  const activeJobs = filteredJobs.filter(j => j.status === 'in_progress');
-  const pendingJobs = filteredJobs.filter(j => j.status === 'pending');
-  const completedJobs = filteredJobs.filter(j => j.status === 'completed');
+  // Count jobs by stage for tabs
+  const activeJobs = filteredJobs.filter(j => {
+    const stage = (j as any).stage as JobStage;
+    return stage && stage !== 'delivered';
+  });
+  const deliveredJobs = filteredJobs.filter(j => (j as any).stage === 'delivered');
 
   if (isLoading) {
     return (
@@ -58,7 +67,7 @@ export default function Jobs() {
         <JobForm />
       </div>
 
-      {/* Filters */}
+      {/* Filters and View Toggle */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -69,55 +78,69 @@ export default function Jobs() {
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue placeholder="Filter status" />
+        <Select value={stageFilter} onValueChange={setStageFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Filter stage" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="on_hold">On Hold</SelectItem>
+            <SelectItem value="all">All Stages</SelectItem>
+            {STAGE_ORDER.map((stage) => (
+              <SelectItem key={stage} value={stage}>
+                {STAGE_LABELS[stage]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
+        
+        {/* View Toggle */}
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('kanban')}
+            className="rounded-r-none"
+          >
+            <Columns className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+            className="rounded-l-none"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Jobs Tabs */}
-      <Tabs defaultValue="pending" className="space-y-4">
+      {/* Main Content */}
+      <Tabs defaultValue="active" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="pending">
-            Pending {pendingJobs.length > 0 && `(${pendingJobs.length})`}
-          </TabsTrigger>
           <TabsTrigger value="active">
-            In Progress {activeJobs.length > 0 && `(${activeJobs.length})`}
+            Active {activeJobs.length > 0 && `(${activeJobs.length})`}
           </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed {completedJobs.length > 0 && `(${completedJobs.length})`}
+          <TabsTrigger value="delivered">
+            Delivered {deliveredJobs.length > 0 && `(${deliveredJobs.length})`}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pending">
-          {pendingJobs.length === 0 ? (
-            <EmptyState message="No pending jobs." />
-          ) : (
-            <JobGrid jobs={pendingJobs} onSelect={setSelectedJob} />
-          )}
-        </TabsContent>
-
         <TabsContent value="active">
-          {activeJobs.length === 0 ? (
-            <EmptyState message="No jobs in progress." />
+          {viewMode === 'kanban' ? (
+            <KanbanBoard jobs={activeJobs} onSelectJob={setSelectedJob} />
           ) : (
-            <JobGrid jobs={activeJobs} onSelect={setSelectedJob} />
+            activeJobs.length === 0 ? (
+              <EmptyState message="No active jobs." />
+            ) : (
+              <JobGrid jobs={activeJobs} onSelect={setSelectedJob} />
+            )
           )}
         </TabsContent>
 
-        <TabsContent value="completed">
-          {completedJobs.length === 0 ? (
-            <EmptyState message="No completed jobs yet." />
+        <TabsContent value="delivered">
+          {deliveredJobs.length === 0 ? (
+            <EmptyState message="No delivered jobs yet." />
           ) : (
-            <JobGrid jobs={completedJobs} onSelect={setSelectedJob} />
+            <JobGrid jobs={deliveredJobs} onSelect={setSelectedJob} />
           )}
         </TabsContent>
       </Tabs>
@@ -140,6 +163,16 @@ export default function Jobs() {
               </SheetHeader>
               
               <div className="mt-6 space-y-6">
+                {/* Stage Progress */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">Job Progress</h4>
+                  <StageProgress currentStage={(selectedJob as any).stage || 'received'} />
+                  <AdvanceStageButton 
+                    jobId={selectedJob.id} 
+                    currentStage={(selectedJob as any).stage || 'received'} 
+                  />
+                </div>
+
                 <TimeEntry job={selectedJob} />
                 
                 {selectedJob.description && (
