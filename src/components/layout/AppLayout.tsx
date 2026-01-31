@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Plug,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -46,6 +47,7 @@ const adminNavigation = [
 // Financial access navigation (admin or manager)
 const financialNavigation = [
   { name: 'Financials', href: '/financials', icon: DollarSign },
+  { name: 'Integrations', href: '/integrations', icon: Plug },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

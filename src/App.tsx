@@ -17,6 +17,7 @@ import Leather from "./pages/Leather";
 import Settings from "./pages/Settings";
 import Team from "./pages/Team";
 import Financials from "./pages/Financials";
+import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -117,6 +118,16 @@ function App() {
                   <ProtectedRoute>
                     <AppLayout>
                       <Financials />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/integrations"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Integrations />
                     </AppLayout>
                   </ProtectedRoute>
                 }

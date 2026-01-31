@@ -1,1 +1,4 @@
 project_id = "cwwkkhcpbswvwghxbfgg"
+
+[functions.printavo-sync]
+verify_jwt = false
