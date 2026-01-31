@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          description: string | null
+          external_id: string | null
+          id: string
+          invoice_number: string | null
+          material_cost: number | null
+          order_number: string | null
+          quantity: number
+          sale_price: number | null
+          service_type: Database["public"]["Enums"]["service_type"]
+          source: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          time_tracked: number
+          timer_started_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          invoice_number?: string | null
+          material_cost?: number | null
+          order_number?: string | null
+          quantity?: number
+          sale_price?: number | null
+          service_type?: Database["public"]["Enums"]["service_type"]
+          source?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          time_tracked?: number
+          timer_started_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          invoice_number?: string | null
+          material_cost?: number | null
+          order_number?: string | null
+          quantity?: number
+          sale_price?: number | null
+          service_type?: Database["public"]["Enums"]["service_type"]
+          source?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          time_tracked?: number
+          timer_started_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -40,6 +109,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      time_entries: {
+        Row: {
+          created_at: string
+          duration: number | null
+          ended_at: string | null
+          id: string
+          job_id: string
+          notes: string | null
+          started_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration?: number | null
+          ended_at?: string | null
+          id?: string
+          job_id: string
+          notes?: string | null
+          started_at: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration?: number | null
+          ended_at?: string | null
+          id?: string
+          job_id?: string
+          notes?: string | null
+          started_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -77,6 +187,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "team"
+      job_status: "pending" | "in_progress" | "completed" | "on_hold"
+      service_type:
+        | "embroidery"
+        | "screen_print"
+        | "dtf"
+        | "leather_patch"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -205,6 +322,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "team"],
+      job_status: ["pending", "in_progress", "completed", "on_hold"],
+      service_type: [
+        "embroidery",
+        "screen_print",
+        "dtf",
+        "leather_patch",
+        "other",
+      ],
     },
   },
 } as const
