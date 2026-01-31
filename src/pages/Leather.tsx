@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
@@ -402,18 +402,26 @@ export default function Leather() {
                     <SelectValue placeholder="Select material..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Leather</div>
-                    {LEATHER_COLORS.map(c => (
-                      <SelectItem key={c} value={`Leather - ${c}`}>{c}</SelectItem>
-                    ))}
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Leatherette</div>
-                    {LEATHERETTE_COLORS.map(c => (
-                      <SelectItem key={c} value={`Leatherette - ${c}`}>{c}</SelectItem>
-                    ))}
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Custom</div>
-                    {CUSTOM_MATERIALS.map(c => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectLabel className="text-xs text-muted-foreground">Leather</SelectLabel>
+                      {LEATHER_COLORS.map((c) => (
+                        <SelectItem key={c} value={`Leather - ${c}`}>{c}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                    <SelectSeparator />
+                    <SelectGroup>
+                      <SelectLabel className="text-xs text-muted-foreground">Leatherette</SelectLabel>
+                      {LEATHERETTE_COLORS.map((c) => (
+                        <SelectItem key={c} value={`Leatherette - ${c}`}>{c}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                    <SelectSeparator />
+                    <SelectGroup>
+                      <SelectLabel className="text-xs text-muted-foreground">Custom</SelectLabel>
+                      {CUSTOM_MATERIALS.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <Input
