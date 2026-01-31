@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -32,6 +33,26 @@ export function useOverheadItems() {
     },
     enabled: !!user && hasFinancialAccess(role),
   });
+
+  // Real-time subscription for overhead items
+  useEffect(() => {
+    if (!user || !hasFinancialAccess(role)) return;
+
+    const channel = supabase
+      .channel('overhead-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'overhead_items' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['overhead-items'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, role, queryClient]);
 
   const createItem = useMutation({
     mutationFn: async (item: Omit<OverheadItem, 'id' | 'created_at' | 'updated_at'>) => {

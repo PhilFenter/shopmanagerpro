@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -54,6 +55,27 @@ export function useTimeEntries(jobId?: string) {
     },
     enabled: !!jobId,
   });
+
+  // Real-time subscription for time entries
+  useEffect(() => {
+    if (!jobId) return;
+
+    const channel = supabase
+      .channel(`time-entries-${jobId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'time_entries', filter: `job_id=eq.${jobId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['time-entries', jobId] });
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [jobId, queryClient]);
 
   const createTimeEntry = useMutation({
     mutationFn: async (input: CreateTimeEntryInput) => {
