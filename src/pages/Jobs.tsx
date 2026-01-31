@@ -4,7 +4,9 @@ import { JobStage, STAGE_ORDER, STAGE_LABELS } from '@/hooks/useJobStages';
 import { JobCard } from '@/components/jobs/JobCard';
 import { JobForm } from '@/components/jobs/JobForm';
 import { KanbanBoard } from '@/components/jobs/KanbanBoard';
-import { TimeEntry } from '@/components/jobs/TimeEntry';
+import { TimeEntryForm } from '@/components/jobs/TimeEntryForm';
+import { TimeEntriesList } from '@/components/jobs/TimeEntriesList';
+import { JobCostSummary } from '@/components/jobs/JobCostSummary';
 import { StageProgress } from '@/components/jobs/StageProgress';
 import { AdvanceStageButton } from '@/components/jobs/AdvanceStageButton';
 import { Button } from '@/components/ui/button';
@@ -176,7 +178,15 @@ export default function Jobs() {
                   />
                 </div>
 
-                <TimeEntry job={selectedJob} />
+                {/* Time Tracking */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">Time Tracking</h4>
+                  <TimeEntryForm jobId={selectedJob.id} />
+                  <TimeEntriesList jobId={selectedJob.id} />
+                </div>
+
+                {/* Cost Summary */}
+                <JobCostSummary job={selectedJob} />
                 
                 {selectedJob.description && (
                   <div>
