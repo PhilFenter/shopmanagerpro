@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Printavo GraphQL endpoint
@@ -12,31 +12,19 @@ const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 interface PrintavoInvoice {
   id: string;
   visualId: string;
-  customerDueAt: string;
-  productionNote: string;
-  status: {
+  customerDueAt?: string | null;
+  productionNote?: string | null;
+  status?: {
     id: string;
     name: string;
-  };
-  contact: {
+  } | null;
+  contact?: {
     id: string;
-    fullName: string;
-    email: string;
-    phone: string;
-    companyName: string;
-  };
-  lineItemGroups: {
-    nodes: Array<{
-      id: string;
-      lineItems: {
-        nodes: Array<{
-          quantity: number;
-          unitCost: number;
-        }>;
-      };
-    }>;
-  };
-  total: number;
+    fullName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  total?: number | null;
 }
 
 // Statuses that indicate the job is ready to work on (accepted/paid)
@@ -108,8 +96,8 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching orders from Printavo (limit: ${limit})`);
 
-    // GraphQL query using the orders union type with Invoice fragment
-    // Based on Printavo's actual API schema
+    // GraphQL query using the orders union type with an Invoice fragment.
+    // Keep this intentionally minimal to avoid schema drift issues.
     const query = `
       query GetOrders($first: Int!) {
         orders(first: $first) {
@@ -119,28 +107,8 @@ Deno.serve(async (req) => {
               visualId
               customerDueAt
               productionNote
-              status {
-                id
-                name
-              }
-              contact {
-                id
-                fullName
-                email
-                phone
-                companyName
-              }
-              lineItemGroups {
-                nodes {
-                  id
-                  lineItems {
-                    nodes {
-                      quantity
-                      unitCost
-                    }
-                  }
-                }
-              }
+              status { id name }
+              contact { id fullName email phone }
               total
             }
           }
@@ -194,10 +162,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Filter to only Invoice types (nodes with id field from our fragment)
+    // Filter to only Invoice types (nodes containing the Invoice fragment)
     const allNodes = printavoData.data?.orders?.nodes || [];
     const invoices: PrintavoInvoice[] = allNodes.filter(
-      (node: any) => node.id && node.visualId
+      (node: any) => node?.id && node?.visualId
     );
     console.log(`Found ${invoices.length} invoices from Printavo`);
 
@@ -223,21 +191,16 @@ Deno.serve(async (req) => {
     const newJobs = acceptedOrders
       .filter((invoice) => !existingIds.has(invoice.id))
       .map((invoice) => {
-        // Calculate total quantity from line items
-        const totalQty = invoice.lineItemGroups?.nodes?.reduce((sum, group) => {
-          const groupQty = group.lineItems?.nodes?.reduce(
-            (itemSum, item) => itemSum + (item.quantity || 0),
-            0
-          ) || 0;
-          return sum + groupQty;
-        }, 0) || 1;
+        // Printavo v2 GraphQL schema varies; avoid line-item quantity fields.
+        // We can enhance this later once we confirm the exact LineItem fields.
+        const totalQty = 1;
 
         return {
           external_id: invoice.id,
           source: "printavo",
           order_number: invoice.visualId,
           invoice_number: invoice.visualId,
-          customer_name: invoice.contact?.companyName || invoice.contact?.fullName || "Unknown",
+          customer_name: invoice.contact?.fullName || "Unknown",
           customer_email: invoice.contact?.email || null,
           customer_phone: invoice.contact?.phone || null,
           description: invoice.productionNote || null,
