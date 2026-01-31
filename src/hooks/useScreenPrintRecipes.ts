@@ -7,6 +7,8 @@ export interface PlatenSetup {
   position: number;
   active: boolean;
   shirt_size?: string;
+  equipment_type?: string;
+  settings?: any;
 }
 
 export interface InkColor {
@@ -22,7 +24,7 @@ export interface ScreenPrintRecipe {
   customer_name: string | null;
   print_type: 'single' | 'multi_rotation';
   platen_setup: PlatenSetup[];
-  rotation_sequence: any[] | null;
+  rotation_sequence: any;
   ink_colors: InkColor[] | null;
   squeegee_settings: string | null;
   flash_temp: number | null;
