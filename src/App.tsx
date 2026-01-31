@@ -10,6 +10,10 @@ import AppLayout from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Jobs from "./pages/Jobs";
+import Embroidery from "./pages/Embroidery";
+import ScreenPrint from "./pages/ScreenPrint";
+import DTF from "./pages/DTF";
+import Leather from "./pages/Leather";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -40,6 +44,46 @@ function App() {
                   <ProtectedRoute>
                     <AppLayout>
                       <Jobs />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/embroidery"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Embroidery />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/screen-print"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <ScreenPrint />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dtf"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <DTF />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leather"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Leather />
                     </AppLayout>
                   </ProtectedRoute>
                 }

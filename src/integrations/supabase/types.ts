@@ -14,6 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
+      dtf_recipes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          fabric_type: string
+          id: string
+          job_id: string | null
+          name: string
+          notes: string | null
+          peel_type: string | null
+          press_pressure: string | null
+          press_temp: number | null
+          press_time: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          fabric_type: string
+          id?: string
+          job_id?: string | null
+          name: string
+          notes?: string | null
+          peel_type?: string | null
+          press_pressure?: string | null
+          press_temp?: number | null
+          press_time?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          fabric_type?: string
+          id?: string
+          job_id?: string | null
+          name?: string
+          notes?: string | null
+          peel_type?: string | null
+          press_pressure?: string | null
+          press_temp?: number | null
+          press_time?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dtf_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      embroidery_recipes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          design_file: string | null
+          hoop_size: string | null
+          id: string
+          job_id: string | null
+          name: string
+          needle_setup: Json
+          notes: string | null
+          placement: string | null
+          stitch_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          design_file?: string | null
+          hoop_size?: string | null
+          id?: string
+          job_id?: string | null
+          name: string
+          needle_setup?: Json
+          notes?: string | null
+          placement?: string | null
+          stitch_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          design_file?: string | null
+          hoop_size?: string | null
+          id?: string
+          job_id?: string | null
+          name?: string
+          needle_setup?: Json
+          notes?: string | null
+          placement?: string | null
+          stitch_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "embroidery_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_line_items: {
         Row: {
           created_at: string
@@ -209,6 +321,71 @@ export type Database = {
         }
         Relationships: []
       }
+      leather_recipes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          id: string
+          job_id: string | null
+          laser_frequency: number | null
+          laser_power: number | null
+          laser_speed: number | null
+          material_cost_per_piece: number | null
+          material_type: string
+          name: string
+          notes: string | null
+          passes: number | null
+          patch_height: number | null
+          patch_width: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          id?: string
+          job_id?: string | null
+          laser_frequency?: number | null
+          laser_power?: number | null
+          laser_speed?: number | null
+          material_cost_per_piece?: number | null
+          material_type: string
+          name: string
+          notes?: string | null
+          passes?: number | null
+          patch_height?: number | null
+          patch_width?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          id?: string
+          job_id?: string | null
+          laser_frequency?: number | null
+          laser_power?: number | null
+          laser_speed?: number | null
+          material_cost_per_piece?: number | null
+          material_type?: string
+          name?: string
+          notes?: string | null
+          passes?: number | null
+          patch_height?: number | null
+          patch_width?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leather_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_settings: {
         Row: {
           created_at: string
@@ -268,6 +445,77 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      screen_print_recipes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          cure_temp: number | null
+          cure_time: number | null
+          customer_name: string | null
+          flash_temp: number | null
+          flash_time: number | null
+          id: string
+          ink_colors: Json | null
+          job_id: string | null
+          name: string
+          notes: string | null
+          platen_setup: Json
+          print_type: string
+          quality_rating: number | null
+          rotation_sequence: Json | null
+          squeegee_settings: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          cure_temp?: number | null
+          cure_time?: number | null
+          customer_name?: string | null
+          flash_temp?: number | null
+          flash_time?: number | null
+          id?: string
+          ink_colors?: Json | null
+          job_id?: string | null
+          name: string
+          notes?: string | null
+          platen_setup?: Json
+          print_type?: string
+          quality_rating?: number | null
+          rotation_sequence?: Json | null
+          squeegee_settings?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          cure_temp?: number | null
+          cure_time?: number | null
+          customer_name?: string | null
+          flash_temp?: number | null
+          flash_time?: number | null
+          id?: string
+          ink_colors?: Json | null
+          job_id?: string | null
+          name?: string
+          notes?: string | null
+          platen_setup?: Json
+          print_type?: string
+          quality_rating?: number | null
+          rotation_sequence?: Json | null
+          squeegee_settings?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screen_print_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       time_entries: {
         Row: {
