@@ -270,6 +270,8 @@ export type Database = {
         | "packaged"
         | "customer_notified"
         | "delivered"
+        | "picked_up"
+        | "shipped"
       job_status: "pending" | "in_progress" | "completed" | "on_hold"
       service_type:
         | "embroidery"
@@ -414,6 +416,8 @@ export const Constants = {
         "packaged",
         "customer_notified",
         "delivered",
+        "picked_up",
+        "shipped",
       ],
       job_status: ["pending", "in_progress", "completed", "on_hold"],
       service_type: [
