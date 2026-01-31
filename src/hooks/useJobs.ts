@@ -7,6 +7,9 @@ export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch
 export type JobStatus = 'pending' | 'in_progress' | 'completed' | 'on_hold';
 export type JobStage = 'received' | 'art_approved' | 'in_production' | 'production_complete' | 'qc_complete' | 'packaged' | 'customer_notified' | 'delivered' | 'picked_up' | 'shipped';
 
+// Helper to check if user has financial access
+export const hasFinancialAccess = (role: string | null) => role === 'admin' || role === 'manager';
+
 export interface Job {
   id: string;
   order_number: string | null;

@@ -1,5 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useJobs } from '@/hooks/useJobs';
+import { useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useJobAnalytics } from '@/hooks/useJobAnalytics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,7 +73,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {role === 'admin' && (
+        {hasFinancialAccess(role) && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -92,7 +92,7 @@ export default function Dashboard() {
       </div>
 
       {/* Analytics Charts */}
-      {role === 'admin' && (
+      {hasFinancialAccess(role) && (
         <div className="grid gap-4 lg:grid-cols-4">
           <JobVolumeChart data={analytics.dailyJobCounts} />
           <RevenueChart data={analytics.weeklyRevenue} />

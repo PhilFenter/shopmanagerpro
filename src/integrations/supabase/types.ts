@@ -92,6 +92,13 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "dtf_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
         ]
       }
       embroidery_recipes: {
@@ -148,6 +155,13 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "embroidery_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
         ]
       }
       job_line_items: {
@@ -192,6 +206,13 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "job_line_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
         ]
       }
       job_photos: {
@@ -230,6 +251,13 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "job_photos_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
         ]
       }
       job_stage_history: {
@@ -266,6 +294,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_stage_history_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
             referencedColumns: ["id"]
           },
         ]
@@ -406,6 +441,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leather_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
             referencedColumns: ["id"]
           },
         ]
@@ -578,6 +620,13 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "screen_print_recipes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
         ]
       }
       time_entries: {
@@ -626,6 +675,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "time_entries_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "time_entries_line_item_id_fkey"
             columns: ["line_item_id"]
             isOneToOne: false
@@ -637,6 +693,13 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "team_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -664,9 +727,123 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      jobs_with_access: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          description: string | null
+          external_id: string | null
+          id: string | null
+          invoice_number: string | null
+          material_cost: number | null
+          order_number: string | null
+          quantity: number | null
+          sale_price: number | null
+          service_type: Database["public"]["Enums"]["service_type"] | null
+          source: string | null
+          stage: Database["public"]["Enums"]["job_stage"] | null
+          stage_updated_at: string | null
+          status: Database["public"]["Enums"]["job_status"] | null
+          time_tracked: number | null
+          timer_started_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string | null
+          invoice_number?: string | null
+          material_cost?: never
+          order_number?: string | null
+          quantity?: number | null
+          sale_price?: never
+          service_type?: Database["public"]["Enums"]["service_type"] | null
+          source?: string | null
+          stage?: Database["public"]["Enums"]["job_stage"] | null
+          stage_updated_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          time_tracked?: number | null
+          timer_started_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string | null
+          invoice_number?: string | null
+          material_cost?: never
+          order_number?: string | null
+          quantity?: number | null
+          sale_price?: never
+          service_type?: Database["public"]["Enums"]["service_type"] | null
+          source?: string | null
+          stage?: Database["public"]["Enums"]["job_stage"] | null
+          stage_updated_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          time_tracked?: number | null
+          timer_started_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      team_members_public: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          hourly_rate: number | null
+          id: string | null
+          is_salary: boolean | null
+          monthly_salary: number | null
+          updated_at: string | null
+          user_id: string | null
+          weekly_hours: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          hourly_rate?: never
+          id?: string | null
+          is_salary?: never
+          monthly_salary?: never
+          updated_at?: string | null
+          user_id?: string | null
+          weekly_hours?: never
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          hourly_rate?: never
+          id?: string | null
+          is_salary?: never
+          monthly_salary?: never
+          updated_at?: string | null
+          user_id?: string | null
+          weekly_hours?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      has_financial_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -676,7 +853,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "team"
+      app_role: "admin" | "team" | "manager"
       job_stage:
         | "received"
         | "art_approved"
@@ -822,7 +999,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "team"],
+      app_role: ["admin", "team", "manager"],
       job_stage: [
         "received",
         "art_approved",

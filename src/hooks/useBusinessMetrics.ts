@@ -4,6 +4,7 @@ import { useOverheadItems } from './useOverheadItems';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { hasFinancialAccess } from './useJobs';
 
 const WORKING_DAYS_PER_MONTH = 22;
 const WORKING_HOURS_PER_DAY = 8;
@@ -41,7 +42,7 @@ export function useBusinessMetrics() {
       if (error) throw error;
       return (data?.value as { rate: number })?.rate ?? 0.165;
     },
-    enabled: !!user && role === 'admin',
+    enabled: !!user && hasFinancialAccess(role),
   });
 
   const payrollTaxRate = settingsQuery.data ?? 0.165;

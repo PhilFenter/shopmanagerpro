@@ -38,8 +38,13 @@ const navigation = [
   },
 ];
 
+// Admin-only navigation items
 const adminNavigation = [
   { name: 'Team', href: '/team', icon: Users },
+];
+
+// Financial access navigation (admin or manager)
+const financialNavigation = [
   { name: 'Financials', href: '/financials', icon: DollarSign },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -129,11 +134,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <NavItem key={item.name} item={item} mobile={mobile} />
         ))}
         
-        {role === 'admin' && (
+        {(role === 'admin' || role === 'manager') && (
           <>
             <div className="my-4 border-t" />
-            <p className="px-3 text-xs font-semibold uppercase text-muted-foreground">Admin</p>
-            {adminNavigation.map((item) => (
+            <p className="px-3 text-xs font-semibold uppercase text-muted-foreground">
+              {role === 'admin' ? 'Admin' : 'Management'}
+            </p>
+            {role === 'admin' && adminNavigation.map((item) => (
+              <NavItem key={item.name} item={item} mobile={mobile} />
+            ))}
+            {financialNavigation.map((item) => (
               <NavItem key={item.name} item={item} mobile={mobile} />
             ))}
           </>

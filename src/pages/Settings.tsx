@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { TeamMemberSettings } from '@/components/settings/TeamMemberSettings';
 import { OverheadSettings } from '@/components/settings/OverheadSettings';
 import { CostDashboard } from '@/components/settings/CostDashboard';
+import { hasFinancialAccess } from '@/hooks/useJobs';
 
 export default function Settings() {
   const { role, loading } = useAuth();
@@ -11,7 +12,7 @@ export default function Settings() {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
 
-  if (role !== 'admin') {
+  if (!hasFinancialAccess(role)) {
     return <Navigate to="/" replace />;
   }
 
