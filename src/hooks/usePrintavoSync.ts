@@ -7,6 +7,7 @@ interface SyncResult {
   success: boolean;
   imported: number;
   skipped: number;
+  filtered: number;
   total: number;
   error?: string;
 }
@@ -32,6 +33,7 @@ export function usePrintavoSync() {
           success: false,
           imported: 0,
           skipped: 0,
+          filtered: 0,
           total: 0,
           error: error.message,
         };
@@ -49,9 +51,10 @@ export function usePrintavoSync() {
 
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        const filteredMsg = result.filtered > 0 ? `, ${result.filtered} not yet accepted/paid` : '';
         toast({
           title: 'Printavo sync complete',
-          description: `Imported ${result.imported} new orders (${result.skipped} already existed)`,
+          description: `Imported ${result.imported} new orders (${result.skipped} already existed${filteredMsg})`,
         });
       } else {
         toast({
@@ -68,6 +71,7 @@ export function usePrintavoSync() {
         success: false,
         imported: 0,
         skipped: 0,
+        filtered: 0,
         total: 0,
         error: errorMessage,
       };

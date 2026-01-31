@@ -15,6 +15,11 @@ interface PrintavoOrder {
   orderedAt: string;
   customerDueAt: string;
   productionNote: string;
+  status: {
+    id: string;
+    name: string;
+  };
+  paymentStatus: string;
   customer: {
     id: string;
     companyName: string;
@@ -38,6 +43,20 @@ interface PrintavoOrder {
     subtotal: number;
   };
 }
+
+// Statuses that indicate the job is ready to work on (accepted/paid)
+// Adjust these based on your Printavo status names
+const ACCEPTED_STATUSES = [
+  "approved",
+  "accepted", 
+  "confirmed",
+  "in production",
+  "production",
+  "ready",
+  "paid",
+];
+
+const PAID_STATUSES = ["paid", "partial", "deposited"];
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -97,8 +116,7 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching orders from Printavo (limit: ${limit}, status: ${status})`);
 
-    // GraphQL query to fetch invoices (Printavo uses OrderUnion, so we use inline fragments)
-    // Using the invoices query directly since it returns Invoice type
+    // GraphQL query to fetch invoices with status and payment info
     const query = `
       query GetInvoices($first: Int!) {
         invoices(first: $first) {
@@ -108,6 +126,11 @@ Deno.serve(async (req) => {
             orderedAt
             customerDueAt
             productionNote
+            status {
+              id
+              name
+            }
+            paymentStatus
             customer {
               id
               companyName
@@ -192,8 +215,26 @@ Deno.serve(async (req) => {
 
     const existingIds = new Set(existingJobs?.map((j) => j.external_id) || []);
 
-    // Map Printavo orders to jobs
-    const newJobs = orders
+    // Filter to only accepted/paid orders
+    const acceptedOrders = orders.filter((order) => {
+      const statusName = order.status?.name?.toLowerCase() || "";
+      const paymentStatus = order.paymentStatus?.toLowerCase() || "";
+      
+      // Check if status indicates quote is accepted
+      const isAccepted = ACCEPTED_STATUSES.some(s => statusName.includes(s));
+      // Check if there's been some payment
+      const hasPaid = PAID_STATUSES.some(s => paymentStatus.includes(s));
+      
+      console.log(`Order ${order.visualId}: status="${statusName}", payment="${paymentStatus}", accepted=${isAccepted}, paid=${hasPaid}`);
+      
+      // Import if accepted OR paid (configurable - adjust logic as needed)
+      return isAccepted || hasPaid;
+    });
+
+    console.log(`${acceptedOrders.length} of ${orders.length} orders are accepted/paid`);
+
+    // Map Printavo orders to jobs (only accepted/paid ones)
+    const newJobs = acceptedOrders
       .filter((order) => !existingIds.has(order.id))
       .map((order) => {
         const contact = order.customer?.primaryContact;
@@ -218,7 +259,7 @@ Deno.serve(async (req) => {
         };
       });
 
-    console.log(`Creating ${newJobs.length} new jobs (${orders.length - newJobs.length} already exist)`);
+    console.log(`Creating ${newJobs.length} new jobs (${acceptedOrders.length - newJobs.length} already exist)`);
 
     // Insert new jobs
     let insertedCount = 0;
@@ -248,7 +289,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         imported: insertedCount,
-        skipped: orders.length - newJobs.length,
+        skipped: acceptedOrders.length - newJobs.length,
+        filtered: orders.length - acceptedOrders.length,
         total: orders.length,
       }),
       {

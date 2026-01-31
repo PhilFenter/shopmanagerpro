@@ -79,6 +79,9 @@ export function PrintavoSync() {
                   {lastResult.skipped > 0 && (
                     <span className="text-muted-foreground"> • {lastResult.skipped} already existed</span>
                   )}
+                  {lastResult.filtered > 0 && (
+                    <span className="text-muted-foreground"> • {lastResult.filtered} not accepted/paid</span>
+                  )}
                 </p>
               ) : (
                 <p className="text-sm text-destructive">{lastResult.error}</p>
@@ -90,8 +93,8 @@ export function PrintavoSync() {
         <div className="rounded-lg border bg-muted/50 p-4">
           <h4 className="font-medium mb-2">How it works</h4>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Pulls orders from your Printavo account</li>
-            <li>• Creates jobs with customer name, email, phone, and order details</li>
+            <li>• Only imports orders that are <strong>accepted or paid</strong></li>
+            <li>• Pulls customer name, email, phone, and order details</li>
             <li>• Skips orders that have already been imported</li>
             <li>• Jobs start at "Received" stage ready for production</li>
           </ul>
