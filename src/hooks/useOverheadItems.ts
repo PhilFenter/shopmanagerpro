@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { hasFinancialAccess } from './useJobs';
 
 export interface OverheadItem {
   id: string;
@@ -29,7 +30,7 @@ export function useOverheadItems() {
       if (error) throw error;
       return data as OverheadItem[];
     },
-    enabled: !!user && role === 'admin',
+    enabled: !!user && hasFinancialAccess(role),
   });
 
   const createItem = useMutation({
