@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Job, ServiceType, JobStatus } from '@/hooks/useJobs';
+import { Job, ServiceType } from '@/hooks/useJobs';
+import { JobStage, STAGE_LABELS, STAGE_ICONS } from '@/hooks/useJobStages';
+import { StageProgress } from './StageProgress';
+import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
-import { Package, Phone, Mail, Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Package, Clock } from 'lucide-react';
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -13,19 +15,14 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   other: 'Other',
 };
 
-const STATUS_STYLES: Record<JobStatus, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  on_hold: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-};
-
 interface JobCardProps {
   job: Job;
   onClick?: () => void;
 }
 
 export function JobCard({ job, onClick }: JobCardProps) {
+  const stage = (job as any).stage as JobStage || 'received';
+
   return (
     <Card 
       className="cursor-pointer transition-all hover:shadow-md"
@@ -46,13 +43,13 @@ export function JobCard({ job, onClick }: JobCardProps) {
             </div>
             <h3 className="font-semibold truncate">{job.customer_name}</h3>
           </div>
-          <Badge className={cn("shrink-0", STATUS_STYLES[job.status])}>
-            {job.status.replace('_', ' ')}
-          </Badge>
         </div>
       </CardHeader>
       
       <CardContent className="space-y-3">
+        {/* Stage Progress */}
+        <StageProgress currentStage={stage} compact />
+        
         {job.description && (
           <p className="text-sm text-muted-foreground line-clamp-2">
             {job.description}
@@ -71,28 +68,16 @@ export function JobCard({ job, onClick }: JobCardProps) {
             </div>
           )}
           {job.sale_price && (
-            <span className="font-medium text-foreground">
+            <span className="font-medium text-foreground ml-auto">
               ${Number(job.sale_price).toFixed(2)}
             </span>
           )}
         </div>
 
-        {(job.customer_phone || job.customer_email) && (
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            {job.customer_phone && (
-              <div className="flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                <span className="truncate">{job.customer_phone}</span>
-              </div>
-            )}
-            {job.customer_email && (
-              <div className="flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                <span className="truncate">{job.customer_email}</span>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Advance Button */}
+        <div onClick={(e) => e.stopPropagation()}>
+          <AdvanceStageButton jobId={job.id} currentStage={stage} size="sm" />
+        </div>
       </CardContent>
     </Card>
   );

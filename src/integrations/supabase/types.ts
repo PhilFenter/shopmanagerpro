@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      job_stage_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          from_stage: Database["public"]["Enums"]["job_stage"] | null
+          id: string
+          job_id: string
+          notes: string | null
+          to_stage: Database["public"]["Enums"]["job_stage"]
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: Database["public"]["Enums"]["job_stage"] | null
+          id?: string
+          job_id: string
+          notes?: string | null
+          to_stage: Database["public"]["Enums"]["job_stage"]
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: Database["public"]["Enums"]["job_stage"] | null
+          id?: string
+          job_id?: string
+          notes?: string | null
+          to_stage?: Database["public"]["Enums"]["job_stage"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_stage_history_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           completed_at: string | null
@@ -32,6 +70,8 @@ export type Database = {
           sale_price: number | null
           service_type: Database["public"]["Enums"]["service_type"]
           source: string | null
+          stage: Database["public"]["Enums"]["job_stage"]
+          stage_updated_at: string | null
           status: Database["public"]["Enums"]["job_status"]
           time_tracked: number
           timer_started_at: string | null
@@ -54,6 +94,8 @@ export type Database = {
           sale_price?: number | null
           service_type?: Database["public"]["Enums"]["service_type"]
           source?: string | null
+          stage?: Database["public"]["Enums"]["job_stage"]
+          stage_updated_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           time_tracked?: number
           timer_started_at?: string | null
@@ -76,9 +118,41 @@ export type Database = {
           sale_price?: number | null
           service_type?: Database["public"]["Enums"]["service_type"]
           source?: string | null
+          stage?: Database["public"]["Enums"]["job_stage"]
+          stage_updated_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           time_tracked?: number
           timer_started_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notification_settings: {
+        Row: {
+          created_at: string
+          email_template: string | null
+          id: string
+          notify_customer: boolean
+          sms_template: string | null
+          stage: Database["public"]["Enums"]["job_stage"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email_template?: string | null
+          id?: string
+          notify_customer?: boolean
+          sms_template?: string | null
+          stage: Database["public"]["Enums"]["job_stage"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email_template?: string | null
+          id?: string
+          notify_customer?: boolean
+          sms_template?: string | null
+          stage?: Database["public"]["Enums"]["job_stage"]
           updated_at?: string
         }
         Relationships: []
@@ -187,6 +261,15 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "team"
+      job_stage:
+        | "received"
+        | "art_approved"
+        | "in_production"
+        | "production_complete"
+        | "qc_complete"
+        | "packaged"
+        | "customer_notified"
+        | "delivered"
       job_status: "pending" | "in_progress" | "completed" | "on_hold"
       service_type:
         | "embroidery"
@@ -322,6 +405,16 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "team"],
+      job_stage: [
+        "received",
+        "art_approved",
+        "in_production",
+        "production_complete",
+        "qc_complete",
+        "packaged",
+        "customer_notified",
+        "delivered",
+      ],
       job_status: ["pending", "in_progress", "completed", "on_hold"],
       service_type: [
         "embroidery",
