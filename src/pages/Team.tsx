@@ -55,8 +55,8 @@ export default function Team() {
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Worker
+            <Plus className="mr-2 h-4 w-4" />
+              Add Team Member
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -74,7 +74,7 @@ export default function Team() {
                 />
               </div>
               <Button onClick={handleAddWorker} disabled={!newName.trim()} className="w-full">
-                Add Worker
+                Add Team Member
               </Button>
             </div>
           </DialogContent>
