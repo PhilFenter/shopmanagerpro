@@ -1,16 +1,22 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useJobs } from '@/hooks/useJobs';
+import { useJobAnalytics } from '@/hooks/useJobAnalytics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { JobForm } from '@/components/jobs/JobForm';
 import { JobCard } from '@/components/jobs/JobCard';
-import { Plus, Clock, TrendingUp, Activity, CheckCircle } from 'lucide-react';
+import { Plus, Clock, Activity, CheckCircle, DollarSign } from 'lucide-react';
 import { formatTime } from '@/components/jobs/TimeEntry';
 import { Link } from 'react-router-dom';
+import { JobVolumeChart } from '@/components/dashboard/JobVolumeChart';
+import { RevenueChart } from '@/components/dashboard/RevenueChart';
+import { ServiceBreakdownChart } from '@/components/dashboard/ServiceBreakdownChart';
+import { StageBreakdownChart } from '@/components/dashboard/StageBreakdownChart';
 
 export default function Dashboard() {
   const { role } = useAuth();
   const { jobs, isLoading } = useJobs();
+  const analytics = useJobAnalytics();
 
   const pendingJobs = jobs.filter(j => j.status === 'pending' || j.status === 'in_progress');
   const completedThisWeek = jobs.filter(j => {
@@ -70,16 +76,30 @@ export default function Dashboard() {
         {role === 'admin' && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Monthly Progress</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$0</div>
-              <p className="text-xs text-muted-foreground">Toward break-even</p>
+              <div className="text-2xl font-bold">
+                ${analytics.totalRevenue.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                ${analytics.totalProfit.toLocaleString()} profit
+              </p>
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Analytics Charts */}
+      {role === 'admin' && (
+        <div className="grid gap-4 lg:grid-cols-4">
+          <JobVolumeChart data={analytics.dailyJobCounts} />
+          <RevenueChart data={analytics.weeklyRevenue} />
+          <ServiceBreakdownChart data={analytics.serviceBreakdown} />
+          <StageBreakdownChart data={analytics.stageBreakdown} />
+        </div>
+      )}
 
       {/* Open Jobs */}
       <Card>
