@@ -945,7 +945,7 @@ export default function ScreenPrint() {
                 <SelectValue placeholder="All Ratings" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Ratings</SelectItem>
+                <SelectItem value="all">All Ratings</SelectItem>
                 {[5, 4, 3, 2, 1].map(r => (
                   <SelectItem key={r} value={r.toString()}>
                     {'★'.repeat(r)}{'☆'.repeat(5-r)}
