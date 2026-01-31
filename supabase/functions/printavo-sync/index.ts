@@ -117,12 +117,13 @@ Deno.serve(async (req) => {
     `;
 
     // Make GraphQL request to Printavo
-    const authBasic = btoa(`${printavoEmail}:${printavoToken}`);
+    // Per Printavo API v2 docs, auth is provided via `email` + `token` headers (not Basic auth).
     const printavoResponse = await fetch(PRINTAVO_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${authBasic}`,
+        email: printavoEmail,
+        token: printavoToken,
       },
       body: JSON.stringify({
         query,
