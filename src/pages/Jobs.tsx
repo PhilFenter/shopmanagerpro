@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { useJobs, Job, JobStatus, ServiceType } from '@/hooks/useJobs';
 import { JobCard } from '@/components/jobs/JobCard';
 import { JobForm } from '@/components/jobs/JobForm';
-import { JobTimer } from '@/components/jobs/JobTimer';
+import { TimeEntry, formatTime } from '@/components/jobs/TimeEntry';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar } from 'lucide-react';
+import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, Clock } from 'lucide-react';
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -36,8 +36,8 @@ export default function Jobs() {
     return matchesSearch && matchesStatus;
   });
 
-  const activeJobs = filteredJobs.filter(j => j.status === 'in_progress' || j.timer_started_at);
-  const pendingJobs = filteredJobs.filter(j => j.status === 'pending' && !j.timer_started_at);
+  const activeJobs = filteredJobs.filter(j => j.status === 'in_progress');
+  const pendingJobs = filteredJobs.filter(j => j.status === 'pending');
   const completedJobs = filteredJobs.filter(j => j.status === 'completed');
 
   if (isLoading) {
@@ -84,32 +84,32 @@ export default function Jobs() {
       </div>
 
       {/* Jobs Tabs */}
-      <Tabs defaultValue="active" className="space-y-4">
+      <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="active">
-            Active {activeJobs.length > 0 && `(${activeJobs.length})`}
-          </TabsTrigger>
           <TabsTrigger value="pending">
             Pending {pendingJobs.length > 0 && `(${pendingJobs.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="active">
+            In Progress {activeJobs.length > 0 && `(${activeJobs.length})`}
           </TabsTrigger>
           <TabsTrigger value="completed">
             Completed {completedJobs.length > 0 && `(${completedJobs.length})`}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active">
-          {activeJobs.length === 0 ? (
-            <EmptyState message="No active jobs. Start a timer to begin working." />
-          ) : (
-            <JobGrid jobs={activeJobs} onSelect={setSelectedJob} />
-          )}
-        </TabsContent>
-
         <TabsContent value="pending">
           {pendingJobs.length === 0 ? (
             <EmptyState message="No pending jobs." />
           ) : (
             <JobGrid jobs={pendingJobs} onSelect={setSelectedJob} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="active">
+          {activeJobs.length === 0 ? (
+            <EmptyState message="No jobs in progress." />
+          ) : (
+            <JobGrid jobs={activeJobs} onSelect={setSelectedJob} />
           )}
         </TabsContent>
 
@@ -140,7 +140,7 @@ export default function Jobs() {
               </SheetHeader>
               
               <div className="mt-6 space-y-6">
-                <JobTimer job={selectedJob} />
+                <TimeEntry job={selectedJob} />
                 
                 {selectedJob.description && (
                   <div>
@@ -169,27 +169,29 @@ export default function Jobs() {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Contact Info</h4>
-                  {selectedJob.customer_phone && (
-                    <a 
-                      href={`tel:${selectedJob.customer_phone}`}
-                      className="flex items-center gap-2 text-sm text-primary hover:underline"
-                    >
-                      <Phone className="h-4 w-4" />
-                      {selectedJob.customer_phone}
-                    </a>
-                  )}
-                  {selectedJob.customer_email && (
-                    <a 
-                      href={`mailto:${selectedJob.customer_email}`}
-                      className="flex items-center gap-2 text-sm text-primary hover:underline"
-                    >
-                      <Mail className="h-4 w-4" />
-                      {selectedJob.customer_email}
-                    </a>
-                  )}
-                </div>
+                {(selectedJob.customer_phone || selectedJob.customer_email) && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Contact Info</h4>
+                    {selectedJob.customer_phone && (
+                      <a 
+                        href={`tel:${selectedJob.customer_phone}`}
+                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <Phone className="h-4 w-4" />
+                        {selectedJob.customer_phone}
+                      </a>
+                    )}
+                    {selectedJob.customer_email && (
+                      <a 
+                        href={`mailto:${selectedJob.customer_email}`}
+                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <Mail className="h-4 w-4" />
+                        {selectedJob.customer_email}
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />

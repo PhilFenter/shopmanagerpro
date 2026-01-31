@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Job, ServiceType, JobStatus } from '@/hooks/useJobs';
-import { JobTimer } from './JobTimer';
-import { User, Package, Phone, Mail } from 'lucide-react';
+import { formatTime } from './TimeEntry';
+import { Package, Phone, Mail, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -26,14 +26,9 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onClick }: JobCardProps) {
-  const isRunning = !!job.timer_started_at;
-
   return (
     <Card 
-      className={cn(
-        "cursor-pointer transition-all hover:shadow-md",
-        isRunning && "ring-2 ring-primary"
-      )}
+      className="cursor-pointer transition-all hover:shadow-md"
       onClick={onClick}
     >
       <CardHeader className="pb-2">
@@ -69,6 +64,12 @@ export function JobCard({ job, onClick }: JobCardProps) {
             <Package className="h-4 w-4" />
             <span>Qty: {job.quantity}</span>
           </div>
+          {job.time_tracked > 0 && (
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              <span>{formatTime(job.time_tracked)}</span>
+            </div>
+          )}
           {job.sale_price && (
             <span className="font-medium text-foreground">
               ${Number(job.sale_price).toFixed(2)}
@@ -76,24 +77,22 @@ export function JobCard({ job, onClick }: JobCardProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          {job.customer_phone && (
-            <div className="flex items-center gap-1">
-              <Phone className="h-3 w-3" />
-              <span className="truncate">{job.customer_phone}</span>
-            </div>
-          )}
-          {job.customer_email && (
-            <div className="flex items-center gap-1">
-              <Mail className="h-3 w-3" />
-              <span className="truncate">{job.customer_email}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="pt-2 border-t" onClick={(e) => e.stopPropagation()}>
-          <JobTimer job={job} compact />
-        </div>
+        {(job.customer_phone || job.customer_email) && (
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            {job.customer_phone && (
+              <div className="flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                <span className="truncate">{job.customer_phone}</span>
+              </div>
+            )}
+            {job.customer_email && (
+              <div className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                <span className="truncate">{job.customer_email}</span>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import { JobForm } from '@/components/jobs/JobForm';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Plus, Clock, TrendingUp, Activity, CheckCircle } from 'lucide-react';
-import { formatTime } from '@/components/jobs/JobTimer';
+import { formatTime } from '@/components/jobs/TimeEntry';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
   const { role } = useAuth();
   const { jobs, isLoading } = useJobs();
 
-  const activeJobs = jobs.filter(j => j.status === 'in_progress' || j.timer_started_at);
+  const pendingJobs = jobs.filter(j => j.status === 'pending' || j.status === 'in_progress');
   const completedThisWeek = jobs.filter(j => {
     if (j.status !== 'completed' || !j.completed_at) return false;
     const weekAgo = new Date();
@@ -20,27 +20,14 @@ export default function Dashboard() {
     return new Date(j.completed_at) >= weekAgo;
   });
 
-  const todayTime = jobs.reduce((acc, job) => {
-    if (job.timer_started_at) {
-      const elapsed = Math.floor((Date.now() - new Date(job.timer_started_at).getTime()) / 1000);
-      return acc + elapsed;
-    }
-    return acc;
-  }, 0);
-
-  const totalTimeToday = jobs
-    .filter(j => {
-      const today = new Date().toDateString();
-      return new Date(j.updated_at).toDateString() === today;
-    })
-    .reduce((acc, job) => acc + job.time_tracked, 0) + todayTime;
+  const totalTimeThisWeek = completedThisWeek.reduce((acc, job) => acc + job.time_tracked, 0);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening today.</p>
+          <p className="text-muted-foreground">Welcome back! Here's what's happening.</p>
         </div>
         <JobForm />
       </div>
@@ -49,23 +36,23 @@ export default function Dashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+            <CardTitle className="text-sm font-medium">Open Jobs</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeJobs.length}</div>
-            <p className="text-xs text-muted-foreground">Jobs in progress</p>
+            <div className="text-2xl font-bold">{pendingJobs.length}</div>
+            <p className="text-xs text-muted-foreground">Pending or in progress</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Time Today</CardTitle>
+            <CardTitle className="text-sm font-medium">Time This Week</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatTime(totalTimeToday)}</div>
-            <p className="text-xs text-muted-foreground">Tracked today</p>
+            <div className="text-2xl font-bold">{formatTime(totalTimeThisWeek)}</div>
+            <p className="text-xs text-muted-foreground">On completed jobs</p>
           </CardContent>
         </Card>
         
@@ -94,12 +81,12 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Active Jobs */}
+      {/* Open Jobs */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Active Jobs</CardTitle>
-            <CardDescription>Jobs currently being worked on</CardDescription>
+            <CardTitle>Open Jobs</CardTitle>
+            <CardDescription>Jobs that need attention</CardDescription>
           </div>
           <Button variant="outline" size="sm" asChild>
             <Link to="/jobs">View All</Link>
@@ -108,25 +95,25 @@ export default function Dashboard() {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
-          ) : activeJobs.length === 0 ? (
+          ) : pendingJobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Activity className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-medium">No active jobs</h3>
+              <h3 className="mt-4 text-lg font-medium">No open jobs</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a timer on a job to begin tracking production.
+                All caught up! Create a job when new work comes in.
               </p>
               <JobForm 
                 trigger={
                   <Button className="mt-4">
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Your First Job
+                    Add Job
                   </Button>
                 }
               />
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {activeJobs.slice(0, 6).map((job) => (
+              {pendingJobs.slice(0, 6).map((job) => (
                 <JobCard key={job.id} job={job} />
               ))}
             </div>

@@ -19,7 +19,7 @@ export interface Job {
   sale_price: number | null;
   material_cost: number | null;
   status: JobStatus;
-  time_tracked: number;
+  time_tracked: number; // stored in minutes now
   timer_started_at: string | null;
   created_by: string | null;
   created_at: string;
@@ -77,7 +77,7 @@ export function useJobs() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      toast({ title: 'Job created successfully' });
+      toast({ title: 'Job created' });
     },
     onError: (error) => {
       toast({ variant: 'destructive', title: 'Failed to create job', description: error.message });
@@ -104,92 +104,14 @@ export function useJobs() {
     },
   });
 
-  const startTimer = useMutation({
-    mutationFn: async (jobId: string) => {
-      const { data, error } = await supabase
-        .from('jobs')
-        .update({ 
-          timer_started_at: new Date().toISOString(),
-          status: 'in_progress' as JobStatus,
-        })
-        .eq('id', jobId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Create time entry
-      await supabase.from('time_entries').insert({
-        job_id: jobId,
-        user_id: user?.id,
-        started_at: new Date().toISOString(),
-      });
-      
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    },
-  });
-
-  const stopTimer = useMutation({
-    mutationFn: async (job: Job) => {
-      if (!job.timer_started_at) return job;
-      
-      const startTime = new Date(job.timer_started_at).getTime();
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const newTimeTracked = job.time_tracked + elapsed;
-      
-      const { data, error } = await supabase
-        .from('jobs')
-        .update({ 
-          timer_started_at: null,
-          time_tracked: newTimeTracked,
-        })
-        .eq('id', job.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Update time entry
-      const { data: entries } = await supabase
-        .from('time_entries')
-        .select('*')
-        .eq('job_id', job.id)
-        .is('ended_at', null)
-        .order('started_at', { ascending: false })
-        .limit(1);
-      
-      if (entries && entries.length > 0) {
-        await supabase
-          .from('time_entries')
-          .update({ 
-            ended_at: new Date().toISOString(),
-            duration: elapsed,
-          })
-          .eq('id', entries[0].id);
-      }
-      
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    },
-  });
-
   const completeJob = useMutation({
     mutationFn: async (job: Job) => {
-      // Stop timer if running
-      if (job.timer_started_at) {
-        await stopTimer.mutateAsync(job);
-      }
-      
       const { data, error } = await supabase
         .from('jobs')
         .update({ 
           status: 'completed' as JobStatus,
           completed_at: new Date().toISOString(),
+          time_tracked: job.time_tracked,
         })
         .eq('id', job.id)
         .select()
@@ -204,14 +126,28 @@ export function useJobs() {
     },
   });
 
+  const deleteJob = useMutation({
+    mutationFn: async (jobId: string) => {
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', jobId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      toast({ title: 'Job deleted' });
+    },
+  });
+
   return {
     jobs: jobsQuery.data ?? [],
     isLoading: jobsQuery.isLoading,
     error: jobsQuery.error,
     createJob,
     updateJob,
-    startTimer,
-    stopTimer,
     completeJob,
+    deleteJob,
   };
 }
