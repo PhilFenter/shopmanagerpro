@@ -7,6 +7,7 @@ import { KanbanBoard } from '@/components/jobs/KanbanBoard';
 import { TimeEntryForm } from '@/components/jobs/TimeEntryForm';
 import { TimeEntriesList } from '@/components/jobs/TimeEntriesList';
 import { JobCostSummary } from '@/components/jobs/JobCostSummary';
+import { JobPhotoUpload } from '@/components/jobs/JobPhotoUpload';
 import { StageProgress } from '@/components/jobs/StageProgress';
 import { AdvanceStageButton } from '@/components/jobs/AdvanceStageButton';
 import { Button } from '@/components/ui/button';
@@ -187,7 +188,9 @@ export default function Jobs() {
 
                 {/* Cost Summary */}
                 <JobCostSummary job={selectedJob} />
-                
+
+                {/* Photos */}
+                <JobPhotoUpload jobId={selectedJob.id} />
                 {selectedJob.description && (
                   <div>
                     <h4 className="text-sm font-medium mb-1">Description</h4>
