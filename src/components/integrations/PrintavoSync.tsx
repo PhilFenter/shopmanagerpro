@@ -3,15 +3,17 @@ import { usePrintavoSync } from '@/hooks/usePrintavoSync';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, ArrowDownToLine } from 'lucide-react';
 
 export function PrintavoSync() {
   const { syncOrders, isSyncing, lastResult } = usePrintavoSync();
   const [limit, setLimit] = useState('25');
+  const [minOrderNumber, setMinOrderNumber] = useState('');
 
   const handleSync = () => {
-    syncOrders(parseInt(limit, 10));
+    syncOrders(parseInt(limit, 10), minOrderNumber || undefined);
   };
 
   return (
@@ -31,7 +33,7 @@ export function PrintavoSync() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-end gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Orders to fetch</label>
             <Select value={limit} onValueChange={setLimit}>
@@ -45,6 +47,16 @@ export function PrintavoSync() {
                 <SelectItem value="100">Last 100</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Start from order #</label>
+            <Input
+              type="text"
+              placeholder="e.g. 720"
+              value={minOrderNumber}
+              onChange={(e) => setMinOrderNumber(e.target.value)}
+              className="w-32"
+            />
           </div>
           <Button onClick={handleSync} disabled={isSyncing}>
             {isSyncing ? (
@@ -94,6 +106,7 @@ export function PrintavoSync() {
           <h4 className="font-medium mb-2">How it works</h4>
           <ul className="text-sm text-muted-foreground space-y-1">
             <li>• Only imports orders that are <strong>accepted or paid</strong></li>
+            <li>• Use "Start from order #" to skip older orders</li>
             <li>• Pulls customer name, email, phone, and order details</li>
             <li>• Skips orders that have already been imported</li>
             <li>• Jobs start at "Received" stage ready for production</li>
