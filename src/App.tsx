@@ -14,6 +14,7 @@ import Embroidery from "./pages/Embroidery";
 import ScreenPrint from "./pages/ScreenPrint";
 import DTF from "./pages/DTF";
 import Leather from "./pages/Leather";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -84,6 +85,16 @@ function App() {
                   <ProtectedRoute>
                     <AppLayout>
                       <Leather />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Settings />
                     </AppLayout>
                   </ProtectedRoute>
                 }
