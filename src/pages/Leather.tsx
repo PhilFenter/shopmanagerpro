@@ -402,15 +402,15 @@ export default function Leather() {
                     <SelectValue placeholder="Select material..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="" disabled>-- Leather --</SelectItem>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Leather</div>
                     {LEATHER_COLORS.map(c => (
                       <SelectItem key={c} value={`Leather - ${c}`}>{c}</SelectItem>
                     ))}
-                    <SelectItem value="" disabled>-- Leatherette --</SelectItem>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Leatherette</div>
                     {LEATHERETTE_COLORS.map(c => (
                       <SelectItem key={c} value={`Leatherette - ${c}`}>{c}</SelectItem>
                     ))}
-                    <SelectItem value="" disabled>-- Custom --</SelectItem>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Custom</div>
                     {CUSTOM_MATERIALS.map(c => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
