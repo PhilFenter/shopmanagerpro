@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       dtf_recipes: {
         Row: {
           created_at: string
@@ -416,6 +440,36 @@ export type Database = {
         }
         Relationships: []
       }
+      overhead_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          monthly_cost: number
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          monthly_cost?: number
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          monthly_cost?: number
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -423,8 +477,11 @@ export type Database = {
           full_name: string | null
           hourly_rate: number | null
           id: string
+          is_salary: boolean
+          monthly_salary: number | null
           updated_at: string
           user_id: string
+          weekly_hours: number
         }
         Insert: {
           avatar_url?: string | null
@@ -432,8 +489,11 @@ export type Database = {
           full_name?: string | null
           hourly_rate?: number | null
           id?: string
+          is_salary?: boolean
+          monthly_salary?: number | null
           updated_at?: string
           user_id: string
+          weekly_hours?: number
         }
         Update: {
           avatar_url?: string | null
@@ -441,8 +501,11 @@ export type Database = {
           full_name?: string | null
           hourly_rate?: number | null
           id?: string
+          is_salary?: boolean
+          monthly_salary?: number | null
           updated_at?: string
           user_id?: string
+          weekly_hours?: number
         }
         Relationships: []
       }
