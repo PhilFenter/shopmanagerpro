@@ -92,9 +92,9 @@ Deno.serve(async (req) => {
 
     // Parse request body for options
     const body = await req.json().catch(() => ({}));
-    const { limit = 25 } = body;
+    const { limit = 25, minOrderNumber = null } = body;
 
-    console.log(`Fetching orders from Printavo (limit: ${limit})`);
+    console.log(`Fetching orders from Printavo (limit: ${limit}, minOrderNumber: ${minOrderNumber})`);
 
     // GraphQL query using the orders union type with an Invoice fragment.
     // Keep this intentionally minimal to avoid schema drift issues.
@@ -165,10 +165,20 @@ Deno.serve(async (req) => {
 
     // Filter to only Invoice types (nodes containing the Invoice fragment)
     const allNodes = printavoData.data?.orders?.nodes || [];
-    const invoices: PrintavoInvoice[] = allNodes.filter(
+    let invoices: PrintavoInvoice[] = allNodes.filter(
       (node: any) => node?.id && node?.visualId
     );
     console.log(`Found ${invoices.length} invoices from Printavo`);
+
+    // Filter by minimum order number if specified
+    if (minOrderNumber) {
+      const minNum = parseInt(minOrderNumber, 10);
+      invoices = invoices.filter((inv) => {
+        const orderNum = parseInt(inv.visualId, 10);
+        return !isNaN(orderNum) && orderNum >= minNum;
+      });
+      console.log(`After minOrderNumber filter (>= ${minNum}): ${invoices.length} invoices`);
+    }
 
     // Get existing jobs to avoid duplicates
     const { data: existingJobs } = await supabase

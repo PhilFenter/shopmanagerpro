@@ -18,13 +18,13 @@ export function usePrintavoSync() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const syncOrders = async (limit = 25) => {
+  const syncOrders = async (limit = 25, minOrderNumber?: string) => {
     setIsSyncing(true);
     setLastResult(null);
 
     try {
       const { data, error } = await supabase.functions.invoke('printavo-sync', {
-        body: { limit },
+        body: { limit, minOrderNumber: minOrderNumber || null },
       });
 
       if (error) {
