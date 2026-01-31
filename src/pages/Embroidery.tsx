@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Loader2, Search, Trash2, Save, Scissors, RotateCcw, Camera, X, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Item types and their placements
 const ITEM_TYPES = [
@@ -62,6 +63,7 @@ export default function Embroidery() {
   const [search, setSearch] = useState('');
 
   // Job form state
+  const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
   const [jobId, setJobId] = useState(() => 'EMB-' + Date.now().toString().slice(-6));
   const [customer, setCustomer] = useState('');
   const [orderDate, setOrderDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -128,6 +130,7 @@ export default function Embroidery() {
 
   // Clear form
   const clearForm = () => {
+    setLinkedJobId(null);
     setJobId('EMB-' + Date.now().toString().slice(-6));
     setCustomer('');
     setOrderDate(format(new Date(), 'yyyy-MM-dd'));
@@ -175,6 +178,7 @@ export default function Embroidery() {
       const recipeData: any = {
         name: customer + ' - ' + (placement || itemType || 'Embroidery'),
         customer_name: customer,
+        job_id: linkedJobId,
         needle_setup: needleSetup,
         hoop_size: hoopType,
         placement: placement,
@@ -198,6 +202,7 @@ export default function Embroidery() {
 
   // Load recipe for reorder
   const loadRecipe = (recipe: EmbroideryRecipe) => {
+    setLinkedJobId(recipe.job_id);
     setJobId(recipe.id.slice(0, 10) + '-REORDER');
     setCustomer(recipe.customer_name || '');
     setOrderDate(format(new Date(), 'yyyy-MM-dd'));
@@ -258,7 +263,17 @@ export default function Embroidery() {
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Job Information</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <JobPicker
+                value={linkedJobId}
+                onChange={(id, info) => {
+                  setLinkedJobId(id);
+                  if (info) {
+                    setCustomer(info.customer);
+                    if (info.orderNumber) setJobId(`EMB-${info.orderNumber}`);
+                  }
+                }}
+              />
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <Label>Job ID:</Label>

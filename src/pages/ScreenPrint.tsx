@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Types for position settings
 type EquipmentType = 'printhead' | 'flash' | 'stampinator' | 'empty';
@@ -115,6 +116,7 @@ export default function ScreenPrint() {
   const [ratingFilter, setRatingFilter] = useState<string>('');
 
   // Job setup state
+  const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
   const [jobNumber, setJobNumber] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [operator, setOperator] = useState('');
@@ -248,6 +250,7 @@ export default function ScreenPrint() {
   const clearAll = () => {
     if (!confirm('Clear all settings? This will reset all fields.')) return;
     
+    setLinkedJobId(null);
     setJobNumber('');
     setJobDescription('');
     setOperator('');
@@ -303,6 +306,7 @@ export default function ScreenPrint() {
       const recipeData: any = {
         name: jobNumber || jobDescription,
         customer_name: jobDescription || null,
+        job_id: linkedJobId,
         print_type: printType === 'multi' ? 'multi_rotation' as const : 'single' as const,
         platen_setup: platenData,
         rotation_sequence: printType === 'multi' ? rotationData : null,
@@ -330,6 +334,7 @@ export default function ScreenPrint() {
 
   // Load saved job
   const loadRecipe = (recipe: ScreenPrintRecipe) => {
+    setLinkedJobId(recipe.job_id);
     setJobNumber(recipe.name);
     setJobDescription(recipe.customer_name || '');
     setPrintType(recipe.print_type === 'multi_rotation' ? 'multi' : 'single');
@@ -417,7 +422,17 @@ export default function ScreenPrint() {
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Job Information</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <JobPicker
+                value={linkedJobId}
+                onChange={(id, info) => {
+                  setLinkedJobId(id);
+                  if (info) {
+                    setJobDescription(info.customer);
+                    if (info.orderNumber) setJobNumber(info.orderNumber);
+                  }
+                }}
+              />
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <Label>Printavo Job #:</Label>

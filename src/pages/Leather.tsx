@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Plus, Loader2, Search, Trash2, Save, Zap, RotateCcw, Camera, X, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Extended material options from old code
 const LEATHER_COLORS = ['OG Chestnut', 'Fancy Chestnut', 'Hand Stained Brown', 'Black'];
@@ -65,6 +66,7 @@ export default function Leather() {
   const [search, setSearch] = useState('');
 
   // Job form state
+  const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
   const [jobId, setJobId] = useState(() => 'LP-' + Date.now().toString().slice(-6));
   const [customer, setCustomer] = useState('');
   const [orderDate, setOrderDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -167,6 +169,7 @@ export default function Leather() {
 
   // Clear form
   const clearForm = () => {
+    setLinkedJobId(null);
     setJobId('LP-' + Date.now().toString().slice(-6));
     setCustomer('');
     setOrderDate(format(new Date(), 'yyyy-MM-dd'));
@@ -215,6 +218,7 @@ export default function Leather() {
       const recipeData: any = {
         name: customer + ' - ' + (hatStyle || 'Leather Patch'),
         customer_name: customer,
+        job_id: linkedJobId,
         material_type: materialType,
         laser_power: power,
         laser_speed: speed,
@@ -241,6 +245,7 @@ export default function Leather() {
 
   // Load recipe
   const loadRecipe = (recipe: LeatherRecipe) => {
+    setLinkedJobId(recipe.job_id);
     setJobId(recipe.id.slice(0, 10) + '-REORDER');
     setCustomer(recipe.customer_name || '');
     setOrderDate(format(new Date(), 'yyyy-MM-dd'));
@@ -300,7 +305,17 @@ export default function Leather() {
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Job Information</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <JobPicker
+                value={linkedJobId}
+                onChange={(id, info) => {
+                  setLinkedJobId(id);
+                  if (info) {
+                    setCustomer(info.customer);
+                    if (info.orderNumber) setJobId(`LP-${info.orderNumber}`);
+                  }
+                }}
+              />
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <Label>Job ID:</Label>
