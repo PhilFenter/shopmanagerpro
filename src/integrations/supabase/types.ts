@@ -725,6 +725,63 @@ export type Database = {
         }
         Relationships: []
       }
+      workers: {
+        Row: {
+          created_at: string
+          hourly_rate: number | null
+          id: string
+          is_active: boolean
+          is_salary: boolean
+          monthly_salary: number | null
+          name: string
+          notes: string | null
+          profile_id: string | null
+          updated_at: string
+          weekly_hours: number
+        }
+        Insert: {
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          is_salary?: boolean
+          monthly_salary?: number | null
+          name: string
+          notes?: string | null
+          profile_id?: string | null
+          updated_at?: string
+          weekly_hours?: number
+        }
+        Update: {
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          is_salary?: boolean
+          monthly_salary?: number | null
+          name?: string
+          notes?: string | null
+          profile_id?: string | null
+          updated_at?: string
+          weekly_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "team_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       jobs_with_access: {

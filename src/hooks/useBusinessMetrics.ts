@@ -1,13 +1,11 @@
 import { useMemo } from 'react';
-import { useTeamMembers } from './useTeamMembers';
+import { useWorkers } from './useWorkers';
 import { useOverheadItems } from './useOverheadItems';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { hasFinancialAccess } from './useJobs';
 
-const WORKING_DAYS_PER_MONTH = 22;
-const WORKING_HOURS_PER_DAY = 8;
 const WEEKS_PER_MONTH = 4.33;
 
 export interface BusinessMetrics {
@@ -26,7 +24,7 @@ export interface BusinessMetrics {
 
 export function useBusinessMetrics() {
   const { user, role } = useAuth();
-  const { members } = useTeamMembers();
+  const { activeWorkers, monthlyLaborCost: workersLaborCost, totalMonthlyHours: workersTotalHours } = useWorkers();
   const { totalMonthlyOverhead } = useOverheadItems();
 
   // Fetch payroll tax rate from business settings
@@ -48,23 +46,8 @@ export function useBusinessMetrics() {
   const payrollTaxRate = settingsQuery.data ?? 0.165;
 
   const metrics = useMemo((): BusinessMetrics => {
-    let monthlyLaborCost = 0;
-    let totalMonthlyHours = 0;
-
-    members.forEach((member) => {
-      const weeklyHours = member.weekly_hours ?? 40;
-      const monthlyHours = weeklyHours * WEEKS_PER_MONTH;
-
-      if (member.is_salary) {
-        // Salary employee - use fixed monthly salary
-        monthlyLaborCost += member.monthly_salary ?? 0;
-      } else {
-        // Hourly employee - calculate from rate and hours
-        monthlyLaborCost += (member.hourly_rate ?? 0) * monthlyHours;
-      }
-
-      totalMonthlyHours += monthlyHours;
-    });
+    const monthlyLaborCost = workersLaborCost;
+    const totalMonthlyHours = workersTotalHours;
 
     // Calculate payroll tax burden (employer portion)
     const payrollTaxBurden = monthlyLaborCost * payrollTaxRate;
@@ -95,7 +78,7 @@ export function useBusinessMetrics() {
       trueCostPerHour,
       payrollTaxRate,
     };
-  }, [members, totalMonthlyOverhead, payrollTaxRate]);
+  }, [workersLaborCost, workersTotalHours, totalMonthlyOverhead, payrollTaxRate]);
 
   return {
     ...metrics,
