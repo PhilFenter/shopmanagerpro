@@ -1,399 +1,820 @@
 import { useState } from 'react';
 import { useLeatherRecipes, LEATHER_MATERIALS, LeatherRecipe } from '@/hooks/useLeatherRecipes';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Loader2, Search, Trash2, Save, Zap } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Plus, Loader2, Search, Trash2, Save, Zap, RotateCcw, Camera, X, Package } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+// Extended material options from old code
+const LEATHER_COLORS = ['OG Chestnut', 'Fancy Chestnut', 'Hand Stained Brown', 'Black'];
+const LEATHERETTE_COLORS = [
+  'Black/Silver', 'Brown/Gold', 'Navy/Silver', 'Red/Gold', 'Burgundy/Gold',
+  'Forest Green/Gold', 'Gray/Silver', 'Charcoal/Silver', 'Tan/Brown',
+  'Royal Blue/Silver', 'Dark Brown/Gold', 'Natural', 'White', 'Cream',
+];
+const CUSTOM_MATERIALS = ['Barn Wood', 'Cork', 'Acrylic', 'Metal'];
+
+const PATCH_DIMENSIONS = [
+  { value: '2x2', label: '2" x 2"' },
+  { value: '2.5x2.5', label: '2.5" x 2.5"' },
+  { value: '3x2', label: '3" x 2"' },
+  { value: '3x3', label: '3" x 3"' },
+  { value: '4x2', label: '4" x 2"' },
+  { value: 'custom', label: 'Custom' },
+];
+
+const PATCH_SHAPES = ['Rectangle', 'Square', 'Oval', 'Circle', 'Custom'];
+const ATTACHMENT_METHODS = ['Heat Press', 'Sew On', 'Adhesive Back', 'Velcro'];
+
+// Laser presets from old code
+const LASER_PRESETS: Record<string, { power: number; speed: number; frequency: number; passes: number; zOffset: number; airAssist: boolean }> = {
+  'thick-chestnut': { power: 65, speed: 18, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'leatherette-grey-black': { power: 45, speed: 30, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'og-chestnut-heat': { power: 70, speed: 15, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'alcantara': { power: 40, speed: 35, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'genuine-grey': { power: 50, speed: 25, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'black-leather': { power: 60, speed: 20, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'leatherette-black-gold': { power: 45, speed: 30, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'og-chestnut-dark': { power: 75, speed: 12, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+  'hand-stained-dark': { power: 55, speed: 22, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
+};
+
+interface PhotoSlot {
+  location: string;
+  file: File | null;
+  preview: string;
+}
+
+interface MaterialItem {
+  id: number;
+  type: string;
+  quantity: string;
+}
 
 export default function Leather() {
   const { recipes, isLoading, createRecipe, updateRecipe, deleteRecipe } = useLeatherRecipes();
+  const [activeTab, setActiveTab] = useState<'new-job' | 'saved' | 'materials'>('new-job');
   const [search, setSearch] = useState('');
-  const [selectedRecipe, setSelectedRecipe] = useState<LeatherRecipe | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
 
+  // Job form state
+  const [jobId, setJobId] = useState(() => 'LP-' + Date.now().toString().slice(-6));
+  const [customer, setCustomer] = useState('');
+  const [orderDate, setOrderDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [hatStyle, setHatStyle] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [designFile, setDesignFile] = useState('');
+
+  // Materials list
+  const [materials, setMaterials] = useState<MaterialItem[]>([]);
+  const [newMaterialType, setNewMaterialType] = useState('');
+  const [newMaterialQty, setNewMaterialQty] = useState('');
+
+  // Dimensions & shape
+  const [dimensions, setDimensions] = useState('');
+  const [customWidth, setCustomWidth] = useState<number | null>(null);
+  const [customHeight, setCustomHeight] = useState<number | null>(null);
+  const [shape, setShape] = useState('');
+  const [attachmentMethod, setAttachmentMethod] = useState('');
+
+  // Laser settings
+  const [laserPreset, setLaserPreset] = useState('');
+  const [power, setPower] = useState(50);
+  const [speed, setSpeed] = useState(25);
+  const [frequency, setFrequency] = useState(1000);
+  const [passes, setPasses] = useState(1);
+  const [zOffset, setZOffset] = useState(0);
+  const [airAssist, setAirAssist] = useState(true);
+
+  // Other
+  const [sampleApproved, setSampleApproved] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [costPerPiece, setCostPerPiece] = useState<number | null>(null);
+
+  // Photos
+  const [photos, setPhotos] = useState<PhotoSlot[]>([
+    { location: '', file: null, preview: '' },
+    { location: '', file: null, preview: '' },
+    { location: '', file: null, preview: '' },
+    { location: '', file: null, preview: '' },
+  ]);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
+
+  // Filter saved recipes
   const filteredRecipes = recipes.filter(r =>
+    !search || 
     r.name.toLowerCase().includes(search.toLowerCase()) ||
     r.customer_name?.toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Leather Patches</h1>
-          <p className="text-muted-foreground">Trotec laser settings and recipes</p>
-        </div>
-        <Button onClick={() => setIsCreating(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Recipe
-        </Button>
-      </div>
+  // Add material
+  const addMaterial = () => {
+    if (!newMaterialType.trim()) return;
+    setMaterials(prev => [...prev, { 
+      id: Date.now(), 
+      type: newMaterialType, 
+      quantity: newMaterialQty 
+    }]);
+    setNewMaterialType('');
+    setNewMaterialQty('');
+  };
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search recipes..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+  // Remove material
+  const removeMaterial = (id: number) => {
+    setMaterials(prev => prev.filter(m => m.id !== id));
+  };
 
-      {/* Recipe Grid */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : filteredRecipes.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Zap className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-medium">No recipes yet</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Create your first leather patch recipe
-            </p>
-            <Button className="mt-4" onClick={() => setIsCreating(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Recipe
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredRecipes.map((recipe) => (
-            <Card 
-              key={recipe.id} 
-              className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => setSelectedRecipe(recipe)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline">
-                    {LEATHER_MATERIALS.find(m => m.value === recipe.material_type)?.label || recipe.material_type}
-                  </Badge>
-                </div>
-                <CardTitle className="text-lg">{recipe.name}</CardTitle>
-                {recipe.customer_name && (
-                  <CardDescription>{recipe.customer_name}</CardDescription>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Power:</span>{' '}
-                    <span className="font-mono">{recipe.laser_power ?? '—'}%</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Speed:</span>{' '}
-                    <span className="font-mono">{recipe.laser_speed ?? '—'}%</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Freq:</span>{' '}
-                    <span className="font-mono">{recipe.laser_frequency ?? '—'} Hz</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Passes:</span>{' '}
-                    <span className="font-mono">{recipe.passes}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Recipe Editor Sheet */}
-      <RecipeEditor
-        recipe={selectedRecipe}
-        open={!!selectedRecipe || isCreating}
-        onClose={() => {
-          setSelectedRecipe(null);
-          setIsCreating(false);
-        }}
-        onCreate={createRecipe.mutateAsync}
-        onUpdate={updateRecipe.mutateAsync}
-        onDelete={deleteRecipe.mutateAsync}
-        isNew={isCreating}
-      />
-    </div>
-  );
-}
-
-interface RecipeEditorProps {
-  recipe: LeatherRecipe | null;
-  open: boolean;
-  onClose: () => void;
-  onCreate: (data: Partial<LeatherRecipe>) => Promise<any>;
-  onUpdate: (data: Partial<LeatherRecipe> & { id: string }) => Promise<any>;
-  onDelete: (id: string) => Promise<void>;
-  isNew: boolean;
-}
-
-function RecipeEditor({ recipe, open, onClose, onCreate, onUpdate, onDelete, isNew }: RecipeEditorProps) {
-  const [name, setName] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [materialType, setMaterialType] = useState('chestnut_natural');
-  const [power, setPower] = useState(50);
-  const [speed, setSpeed] = useState(50);
-  const [frequency, setFrequency] = useState(1000);
-  const [passes, setPasses] = useState(1);
-  const [width, setWidth] = useState<number | undefined>();
-  const [height, setHeight] = useState<number | undefined>();
-  const [costPerPiece, setCostPerPiece] = useState<number | undefined>();
-  const [notes, setNotes] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Reset form when recipe changes
-  useState(() => {
-    if (recipe) {
-      setName(recipe.name);
-      setCustomerName(recipe.customer_name || '');
-      setMaterialType(recipe.material_type);
-      setPower(recipe.laser_power ?? 50);
-      setSpeed(recipe.laser_speed ?? 50);
-      setFrequency(recipe.laser_frequency ?? 1000);
-      setPasses(recipe.passes);
-      setWidth(recipe.patch_width ?? undefined);
-      setHeight(recipe.patch_height ?? undefined);
-      setCostPerPiece(recipe.material_cost_per_piece ?? undefined);
-      setNotes(recipe.notes || '');
-    } else {
-      setName('');
-      setCustomerName('');
-      setMaterialType('chestnut_natural');
-      setPower(50);
-      setSpeed(50);
-      setFrequency(1000);
-      setPasses(1);
-      setWidth(undefined);
-      setHeight(undefined);
-      setCostPerPiece(undefined);
-      setNotes('');
+  // Load laser preset
+  const loadPreset = (preset: string) => {
+    setLaserPreset(preset);
+    const settings = LASER_PRESETS[preset];
+    if (settings) {
+      setPower(settings.power);
+      setSpeed(settings.speed);
+      setFrequency(settings.frequency);
+      setPasses(settings.passes);
+      setZOffset(settings.zOffset);
+      setAirAssist(settings.airAssist);
     }
-  });
+  };
 
+  // Handle photo upload
+  const handlePhotoUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotos(prev => prev.map((p, i) => 
+        i === index ? { ...p, file, preview: e.target?.result as string } : p
+      ));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Remove photo
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.map((p, i) => 
+      i === index ? { location: '', file: null, preview: '' } : p
+    ));
+  };
+
+  // Clear form
+  const clearForm = () => {
+    setJobId('LP-' + Date.now().toString().slice(-6));
+    setCustomer('');
+    setOrderDate(format(new Date(), 'yyyy-MM-dd'));
+    setHatStyle('');
+    setQuantity(1);
+    setDesignFile('');
+    setMaterials([]);
+    setNewMaterialType('');
+    setNewMaterialQty('');
+    setDimensions('');
+    setCustomWidth(null);
+    setCustomHeight(null);
+    setShape('');
+    setAttachmentMethod('');
+    setLaserPreset('');
+    setPower(50);
+    setSpeed(25);
+    setFrequency(1000);
+    setPasses(1);
+    setZOffset(0);
+    setAirAssist(true);
+    setSampleApproved(false);
+    setNotes('');
+    setCostPerPiece(null);
+    setPhotos([
+      { location: '', file: null, preview: '' },
+      { location: '', file: null, preview: '' },
+      { location: '', file: null, preview: '' },
+      { location: '', file: null, preview: '' },
+    ]);
+    setEditingRecipeId(null);
+  };
+
+  // Save job
   const handleSave = async () => {
-    if (!name.trim()) return;
-    
+    if (!customer.trim()) {
+      alert('Please enter customer name');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const data = {
-        name: name.trim(),
-        customer_name: customerName.trim() || null,
+      // Determine material type for database
+      const materialType = materials.length > 0 ? materials[0].type : 'custom';
+
+      const recipeData: any = {
+        name: customer + ' - ' + (hatStyle || 'Leather Patch'),
+        customer_name: customer,
         material_type: materialType,
         laser_power: power,
         laser_speed: speed,
         laser_frequency: frequency,
-        passes,
-        patch_width: width,
-        patch_height: height,
+        passes: passes,
+        patch_width: dimensions === 'custom' ? customWidth : parseFloat(dimensions?.split('x')[0] || '0'),
+        patch_height: dimensions === 'custom' ? customHeight : parseFloat(dimensions?.split('x')[1] || '0'),
         material_cost_per_piece: costPerPiece,
-        notes: notes.trim() || null,
+        notes: `Shape: ${shape}\nAttachment: ${attachmentMethod}\nPreset: ${laserPreset}\nZ-Offset: ${zOffset}\nAir Assist: ${airAssist ? 'On' : 'Off'}\nMaterials: ${materials.map(m => m.type + (m.quantity ? ` (${m.quantity})` : '')).join(', ')}\n\n${notes}`,
       };
 
-      if (recipe) {
-        await onUpdate({ id: recipe.id, ...data });
+      if (editingRecipeId) {
+        await updateRecipe.mutateAsync({ id: editingRecipeId, ...recipeData });
       } else {
-        await onCreate(data);
+        await createRecipe.mutateAsync(recipeData);
       }
-      onClose();
+      
+      clearForm();
+      setActiveTab('saved');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!recipe) return;
-    if (confirm('Delete this recipe?')) {
-      await onDelete(recipe.id);
-      onClose();
+  // Load recipe
+  const loadRecipe = (recipe: LeatherRecipe) => {
+    setJobId(recipe.id.slice(0, 10) + '-REORDER');
+    setCustomer(recipe.customer_name || '');
+    setOrderDate(format(new Date(), 'yyyy-MM-dd'));
+    setPower(recipe.laser_power || 50);
+    setSpeed(recipe.laser_speed || 25);
+    setFrequency(recipe.laser_frequency || 1000);
+    setPasses(recipe.passes || 1);
+    setCostPerPiece(recipe.material_cost_per_piece);
+    setNotes(recipe.notes || '');
+    setEditingRecipeId(recipe.id);
+
+    // Set dimensions
+    if (recipe.patch_width && recipe.patch_height) {
+      const preset = PATCH_DIMENSIONS.find(d => 
+        d.value === `${recipe.patch_width}x${recipe.patch_height}`
+      );
+      if (preset) {
+        setDimensions(preset.value);
+      } else {
+        setDimensions('custom');
+        setCustomWidth(recipe.patch_width);
+        setCustomHeight(recipe.patch_height);
+      }
     }
+
+    setActiveTab('new-job');
+  };
+
+  // Delete recipe
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this saved job?')) return;
+    await deleteRecipe.mutateAsync(id);
   };
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{isNew ? 'New Recipe' : 'Edit Recipe'}</SheetTitle>
-        </SheetHeader>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Leather Patches</h1>
+          <p className="text-muted-foreground">Trotec Laser Settings & Recipes</p>
+        </div>
+      </div>
 
-        <div className="mt-6 space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <div>
-              <Label>Recipe Name *</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Hat Patch - Dark Burn"
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label>Customer</Label>
-              <Input
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Customer name"
-                className="mt-1"
-              />
-            </div>
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+        <TabsList>
+          <TabsTrigger value="new-job">New Job</TabsTrigger>
+          <TabsTrigger value="saved">Saved Jobs</TabsTrigger>
+          <TabsTrigger value="materials">Materials</TabsTrigger>
+        </TabsList>
 
-            <div>
-              <Label>Material Type</Label>
-              <Select value={materialType} onValueChange={setMaterialType}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LEATHER_MATERIALS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
+        {/* NEW JOB TAB */}
+        <TabsContent value="new-job" className="space-y-6">
+          {/* Job Information */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Job Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <Label>Job ID:</Label>
+                  <Input value={jobId} onChange={(e) => setJobId(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Customer Name: *</Label>
+                  <Input
+                    value={customer}
+                    onChange={(e) => setCustomer(e.target.value)}
+                    placeholder="Enter customer name"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Order Date:</Label>
+                  <Input
+                    type="date"
+                    value={orderDate}
+                    onChange={(e) => setOrderDate(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Hat Style:</Label>
+                  <Input
+                    value={hatStyle}
+                    onChange={(e) => setHatStyle(e.target.value)}
+                    placeholder="e.g., Richardson 112"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+                <div>
+                  <Label>Quantity:</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Design File:</Label>
+                  <Input
+                    value={designFile}
+                    onChange={(e) => setDesignFile(e.target.value)}
+                    placeholder="filename.ai"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Cost per Piece ($):</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={costPerPiece ?? ''}
+                    onChange={(e) => setCostPerPiece(e.target.value ? parseFloat(e.target.value) : null)}
+                    placeholder="0.75"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Materials */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Materials
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Material list */}
+              {materials.length > 0 && (
+                <div className="space-y-2">
+                  {materials.map(m => (
+                    <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <span className="font-medium">{m.type}</span>
+                        {m.quantity && <span className="text-muted-foreground ml-2">({m.quantity})</span>}
+                      </div>
+                      <Button size="sm" variant="destructive" onClick={() => removeMaterial(m.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+                </div>
+              )}
+
+              {/* Add material */}
+              <div className="flex gap-2">
+                <Select value={newMaterialType} onValueChange={setNewMaterialType}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select material..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="" disabled>-- Leather --</SelectItem>
+                    {LEATHER_COLORS.map(c => (
+                      <SelectItem key={c} value={`Leather - ${c}`}>{c}</SelectItem>
+                    ))}
+                    <SelectItem value="" disabled>-- Leatherette --</SelectItem>
+                    {LEATHERETTE_COLORS.map(c => (
+                      <SelectItem key={c} value={`Leatherette - ${c}`}>{c}</SelectItem>
+                    ))}
+                    <SelectItem value="" disabled>-- Custom --</SelectItem>
+                    {CUSTOM_MATERIALS.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  value={newMaterialQty}
+                  onChange={(e) => setNewMaterialQty(e.target.value)}
+                  placeholder="Qty"
+                  className="w-24"
+                />
+                <Button onClick={addMaterial}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dimensions & Shape */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Patch Specifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <Label>Dimensions:</Label>
+                  <Select value={dimensions} onValueChange={setDimensions}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PATCH_DIMENSIONS.map(d => (
+                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {dimensions === 'custom' && (
+                  <>
+                    <div>
+                      <Label>Width (in):</Label>
+                      <Input
+                        type="number"
+                        step="0.125"
+                        value={customWidth ?? ''}
+                        onChange={(e) => setCustomWidth(e.target.value ? parseFloat(e.target.value) : null)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Height (in):</Label>
+                      <Input
+                        type="number"
+                        step="0.125"
+                        value={customHeight ?? ''}
+                        onChange={(e) => setCustomHeight(e.target.value ? parseFloat(e.target.value) : null)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <Label>Shape:</Label>
+                  <Select value={shape} onValueChange={setShape}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select shape" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PATCH_SHAPES.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Attachment Method:</Label>
+                  <Select value={attachmentMethod} onValueChange={setAttachmentMethod}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ATTACHMENT_METHODS.map(m => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Laser Settings */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              Laser Settings
-            </h4>
-
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <Label>Power</Label>
-                <span className="font-mono">{power}%</span>
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Trotec Laser Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Preset selector */}
+              <div>
+                <Label>Load Preset:</Label>
+                <Select value={laserPreset} onValueChange={loadPreset}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select a preset..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(LASER_PRESETS).map(key => (
+                      <SelectItem key={key} value={key}>
+                        {key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Slider
-                value={[power]}
-                onValueChange={([v]) => setPower(v)}
-                min={0}
-                max={100}
-                step={1}
+
+              {/* Power slider */}
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <Label>Power</Label>
+                  <span className="font-mono">{power}%</span>
+                </div>
+                <Slider
+                  value={[power]}
+                  onValueChange={([v]) => setPower(v)}
+                  min={0}
+                  max={100}
+                  step={1}
+                />
+              </div>
+
+              {/* Speed slider */}
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <Label>Speed</Label>
+                  <span className="font-mono">{speed}%</span>
+                </div>
+                <Slider
+                  value={[speed]}
+                  onValueChange={([v]) => setSpeed(v)}
+                  min={0}
+                  max={100}
+                  step={1}
+                />
+              </div>
+
+              {/* Other settings */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <Label>Frequency (Hz):</Label>
+                  <Input
+                    type="number"
+                    value={frequency}
+                    onChange={(e) => setFrequency(parseInt(e.target.value) || 1000)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Passes:</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={passes}
+                    onChange={(e) => setPasses(parseInt(e.target.value) || 1)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Z-Offset:</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={zOffset}
+                    onChange={(e) => setZOffset(parseFloat(e.target.value) || 0)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Air Assist:</Label>
+                  <Select value={airAssist ? 'on' : 'off'} onValueChange={(v) => setAirAssist(v === 'on')}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="on">On</SelectItem>
+                      <SelectItem value="off">Off</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notes & Approval */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Production Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Label>Sample Approved:</Label>
+                <Button
+                  type="button"
+                  variant={sampleApproved ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSampleApproved(!sampleApproved)}
+                >
+                  {sampleApproved ? '✓ Yes' : 'No'}
+                </Button>
+              </div>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Production notes, special handling..."
+                rows={3}
+                className="resize-none"
               />
-            </div>
+            </CardContent>
+          </Card>
 
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <Label>Speed</Label>
-                <span className="font-mono">{speed}%</span>
+          {/* Photos */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                Production Photos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {photos.map((photo, index) => (
+                  <div key={index} className="space-y-2">
+                    <Input
+                      value={photo.location}
+                      onChange={(e) => setPhotos(prev => prev.map((p, i) => i === index ? { ...p, location: e.target.value } : p))}
+                      placeholder={`Location ${index + 1}`}
+                    />
+                    <div className="relative border-2 border-dashed rounded-lg aspect-square flex items-center justify-center bg-muted/30 overflow-hidden">
+                      {photo.preview ? (
+                        <>
+                          <img src={photo.preview} alt="" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => removePhoto(index)}
+                            className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <label className="flex flex-col items-center gap-2 cursor-pointer p-4 text-center">
+                          <Camera className="h-8 w-8 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Click to upload</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => e.target.files?.[0] && handlePhotoUpload(index, e.target.files[0])}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Slider
-                value={[speed]}
-                onValueChange={([v]) => setSpeed(v)}
-                min={0}
-                max={100}
-                step={1}
-              />
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Frequency (Hz)</Label>
-                <Input
-                  type="number"
-                  value={frequency}
-                  onChange={(e) => setFrequency(parseInt(e.target.value) || 0)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Passes</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={passes}
-                  onChange={(e) => setPasses(parseInt(e.target.value) || 1)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Dimensions & Cost */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">Dimensions & Cost</h4>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Width (in)</Label>
-                <Input
-                  type="number"
-                  step="0.125"
-                  value={width ?? ''}
-                  onChange={(e) => setWidth(e.target.value ? parseFloat(e.target.value) : undefined)}
-                  placeholder="2.5"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Height (in)</Label>
-                <Input
-                  type="number"
-                  step="0.125"
-                  value={height ?? ''}
-                  onChange={(e) => setHeight(e.target.value ? parseFloat(e.target.value) : undefined)}
-                  placeholder="2.5"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Material Cost/Piece ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={costPerPiece ?? ''}
-                onChange={(e) => setCostPerPiece(e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder="0.75"
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <Label>Notes</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Special handling, tips, etc."
-              className="mt-1 resize-none"
-              rows={3}
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-4">
-            {recipe && (
-              <Button variant="destructive" size="icon" onClick={handleDelete}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            <Button className="flex-1" onClick={handleSave} disabled={!name.trim() || isSaving}>
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={clearForm}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Clear Form
+            </Button>
+            <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Save Recipe
+              {editingRecipeId ? 'Update Job' : 'Save Job'}
             </Button>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </TabsContent>
+
+        {/* SAVED JOBS TAB */}
+        <TabsContent value="saved" className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search jobs..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredRecipes.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Zap className="h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-medium">No saved jobs yet</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Create a job and save it
+                </p>
+                <Button className="mt-4" onClick={() => setActiveTab('new-job')}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Job
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredRecipes.map((recipe) => (
+                <Card key={recipe.id} className="hover:border-primary/50 transition-colors">
+                  <CardHeader className="pb-2">
+                    <Badge variant="outline">
+                      {LEATHER_MATERIALS.find(m => m.value === recipe.material_type)?.label || recipe.material_type}
+                    </Badge>
+                    <CardTitle className="text-lg">{recipe.name}</CardTitle>
+                    {recipe.customer_name && (
+                      <p className="text-sm text-muted-foreground">{recipe.customer_name}</p>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-2 text-sm mb-4">
+                      <div>
+                        <span className="text-muted-foreground">Power:</span>{' '}
+                        <span className="font-mono">{recipe.laser_power ?? '—'}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Speed:</span>{' '}
+                        <span className="font-mono">{recipe.laser_speed ?? '—'}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Freq:</span>{' '}
+                        <span className="font-mono">{recipe.laser_frequency ?? '—'} Hz</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Passes:</span>{' '}
+                        <span className="font-mono">{recipe.passes}</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground mb-4">
+                      {format(new Date(recipe.updated_at), 'MMM d, yyyy')}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1" onClick={() => loadRecipe(recipe)}>
+                        Load for Reorder
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(recipe.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* MATERIALS TAB */}
+        <TabsContent value="materials" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Available Materials</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium mb-3">Genuine Leather</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {LEATHER_COLORS.map(c => (
+                      <Badge key={c} variant="secondary">{c}</Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-3">Leatherette</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {LEATHERETTE_COLORS.map(c => (
+                      <Badge key={c} variant="outline">{c}</Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-3">Custom Materials</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {CUSTOM_MATERIALS.map(c => (
+                      <Badge key={c} variant="outline">{c}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
