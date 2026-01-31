@@ -45,9 +45,12 @@ export default function Jobs() {
   // Count jobs by stage for tabs
   const activeJobs = filteredJobs.filter(j => {
     const stage = (j as any).stage as JobStage;
-    return stage && stage !== 'delivered';
+    return stage && stage !== 'picked_up' && stage !== 'shipped';
   });
-  const deliveredJobs = filteredJobs.filter(j => (j as any).stage === 'delivered');
+  const completedJobs = filteredJobs.filter(j => {
+    const stage = (j as any).stage as JobStage;
+    return stage === 'picked_up' || stage === 'shipped';
+  });
 
   if (isLoading) {
     return (
@@ -119,8 +122,8 @@ export default function Jobs() {
           <TabsTrigger value="active">
             Active {activeJobs.length > 0 && `(${activeJobs.length})`}
           </TabsTrigger>
-          <TabsTrigger value="delivered">
-            Delivered {deliveredJobs.length > 0 && `(${deliveredJobs.length})`}
+          <TabsTrigger value="completed">
+            Completed {completedJobs.length > 0 && `(${completedJobs.length})`}
           </TabsTrigger>
         </TabsList>
 
@@ -136,11 +139,11 @@ export default function Jobs() {
           )}
         </TabsContent>
 
-        <TabsContent value="delivered">
-          {deliveredJobs.length === 0 ? (
-            <EmptyState message="No delivered jobs yet." />
+        <TabsContent value="completed">
+          {completedJobs.length === 0 ? (
+            <EmptyState message="No completed jobs yet." />
           ) : (
-            <JobGrid jobs={deliveredJobs} onSelect={setSelectedJob} />
+            <JobGrid jobs={completedJobs} onSelect={setSelectedJob} />
           )}
         </TabsContent>
       </Tabs>

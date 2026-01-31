@@ -11,8 +11,10 @@ export type JobStage =
   | 'qc_complete'
   | 'packaged'
   | 'customer_notified'
-  | 'delivered';
+  | 'picked_up'
+  | 'shipped';
 
+// Main progression order (up to customer_notified, then branches)
 export const STAGE_ORDER: JobStage[] = [
   'received',
   'art_approved',
@@ -21,8 +23,10 @@ export const STAGE_ORDER: JobStage[] = [
   'qc_complete',
   'packaged',
   'customer_notified',
-  'delivered',
 ];
+
+// Final stages (after customer_notified, pick one)
+export const FINAL_STAGES: JobStage[] = ['picked_up', 'shipped'];
 
 export const STAGE_LABELS: Record<JobStage, string> = {
   received: 'Received',
@@ -32,7 +36,8 @@ export const STAGE_LABELS: Record<JobStage, string> = {
   qc_complete: 'QC Complete',
   packaged: 'Packaged',
   customer_notified: 'Customer Notified',
-  delivered: 'Delivered',
+  picked_up: 'Picked Up',
+  shipped: 'Shipped',
 };
 
 export const STAGE_ICONS: Record<JobStage, string> = {
@@ -43,18 +48,41 @@ export const STAGE_ICONS: Record<JobStage, string> = {
   qc_complete: '🔍',
   packaged: '📦',
   customer_notified: '📧',
-  delivered: '🚚',
+  picked_up: '🏪',
+  shipped: '🚚',
 };
 
 export function getNextStage(currentStage: JobStage): JobStage | null {
-  const currentIndex = STAGE_ORDER.indexOf(currentStage);
-  if (currentIndex === -1 || currentIndex === STAGE_ORDER.length - 1) {
+  // If at final stage, no next
+  if (FINAL_STAGES.includes(currentStage)) {
     return null;
   }
+  
+  const currentIndex = STAGE_ORDER.indexOf(currentStage);
+  if (currentIndex === -1) {
+    return null;
+  }
+  
+  // If at last main stage (customer_notified), next stage is chosen by user
+  if (currentIndex === STAGE_ORDER.length - 1) {
+    return null; // User picks between picked_up and shipped
+  }
+  
   return STAGE_ORDER[currentIndex + 1];
 }
 
+export function isAtFinalChoice(stage: JobStage): boolean {
+  return stage === 'customer_notified';
+}
+
+export function isFinalStage(stage: JobStage): boolean {
+  return FINAL_STAGES.includes(stage);
+}
+
 export function getStageIndex(stage: JobStage): number {
+  if (FINAL_STAGES.includes(stage)) {
+    return STAGE_ORDER.length; // Final stages are after the main progression
+  }
   return STAGE_ORDER.indexOf(stage);
 }
 
@@ -67,15 +95,30 @@ export function useAdvanceStage() {
     mutationFn: async ({ 
       jobId, 
       currentStage, 
+      targetStage,
       notes 
     }: { 
       jobId: string; 
       currentStage: JobStage; 
+      targetStage?: JobStage; // For choosing between picked_up/shipped
       notes?: string;
     }) => {
-      const nextStage = getNextStage(currentStage);
-      if (!nextStage) {
-        throw new Error('Job is already at final stage');
+      // Determine next stage - use targetStage if provided, otherwise calculate
+      let nextStage: JobStage;
+      
+      if (targetStage) {
+        // Validate targetStage is valid for current position
+        if (isAtFinalChoice(currentStage) && FINAL_STAGES.includes(targetStage)) {
+          nextStage = targetStage;
+        } else {
+          throw new Error('Invalid target stage');
+        }
+      } else {
+        const calculatedNext = getNextStage(currentStage);
+        if (!calculatedNext) {
+          throw new Error('Job is already at final stage');
+        }
+        nextStage = calculatedNext;
       }
 
       // Update job stage
@@ -85,7 +128,7 @@ export function useAdvanceStage() {
           stage: nextStage,
           stage_updated_at: new Date().toISOString(),
           // Also update status for backwards compatibility
-          status: nextStage === 'delivered' ? 'completed' : 
+          status: isFinalStage(nextStage) ? 'completed' : 
                   nextStage === 'in_production' ? 'in_progress' : 'pending',
         })
         .eq('id', jobId);

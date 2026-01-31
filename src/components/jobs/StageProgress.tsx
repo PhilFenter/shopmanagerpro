@@ -1,4 +1,4 @@
-import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, getStageIndex } from '@/hooks/useJobStages';
+import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, getStageIndex, isFinalStage } from '@/hooks/useJobStages';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 
@@ -9,6 +9,7 @@ interface StageProgressProps {
 
 export function StageProgress({ currentStage, compact = false }: StageProgressProps) {
   const currentIndex = getStageIndex(currentStage);
+  const isComplete = isFinalStage(currentStage);
 
   if (compact) {
     // Compact version for cards - just shows current stage with progress dots
@@ -28,6 +29,13 @@ export function StageProgress({ currentStage, compact = false }: StageProgressPr
               )}
             />
           ))}
+          {/* Final stage indicator */}
+          <div
+            className={cn(
+              "w-2 h-2 rounded-full transition-colors",
+              isComplete ? "bg-green-500" : "bg-muted"
+            )}
+          />
         </div>
       </div>
     );
@@ -35,23 +43,23 @@ export function StageProgress({ currentStage, compact = false }: StageProgressPr
 
   // Full version for detail view
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         {STAGE_ORDER.map((stage, index) => {
-          const isComplete = index < currentIndex;
-          const isCurrent = index === currentIndex;
+          const stageComplete = index < currentIndex || isComplete;
+          const isCurrent = index === currentIndex && !isComplete;
           
           return (
             <div key={stage} className="flex flex-col items-center gap-1 flex-1">
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all",
-                  isComplete && "bg-primary text-primary-foreground",
+                  stageComplete && "bg-primary text-primary-foreground",
                   isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2",
-                  !isComplete && !isCurrent && "bg-muted text-muted-foreground"
+                  !stageComplete && !isCurrent && "bg-muted text-muted-foreground"
                 )}
               >
-                {isComplete ? (
+                {stageComplete ? (
                   <Check className="w-4 h-4" />
                 ) : (
                   STAGE_ICONS[stage]
@@ -74,9 +82,19 @@ export function StageProgress({ currentStage, compact = false }: StageProgressPr
       <div className="relative h-1 bg-muted rounded-full overflow-hidden">
         <div 
           className="absolute left-0 top-0 h-full bg-primary transition-all duration-300"
-          style={{ width: `${(currentIndex / (STAGE_ORDER.length - 1)) * 100}%` }}
+          style={{ width: `${isComplete ? 100 : (currentIndex / STAGE_ORDER.length) * 100}%` }}
         />
       </div>
+
+      {/* Final stage indicator */}
+      {isComplete && (
+        <div className="flex items-center justify-center gap-2 p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+          <span className="text-lg">{STAGE_ICONS[currentStage]}</span>
+          <span className="font-medium text-green-700 dark:text-green-300">
+            {STAGE_LABELS[currentStage]}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
