@@ -15,6 +15,8 @@ import ScreenPrint from "./pages/ScreenPrint";
 import DTF from "./pages/DTF";
 import Leather from "./pages/Leather";
 import Settings from "./pages/Settings";
+import Team from "./pages/Team";
+import Financials from "./pages/Financials";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -95,6 +97,26 @@ function App() {
                   <ProtectedRoute>
                     <AppLayout>
                       <Settings />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/team"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Team />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financials"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Financials />
                     </AppLayout>
                   </ProtectedRoute>
                 }
