@@ -97,10 +97,11 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching orders from Printavo (limit: ${limit}, status: ${status})`);
 
-    // GraphQL query to fetch orders
+    // GraphQL query to fetch invoices (Printavo uses OrderUnion, so we use inline fragments)
+    // Using the invoices query directly since it returns Invoice type
     const query = `
-      query GetOrders($first: Int!) {
-        orders(first: $first) {
+      query GetInvoices($first: Int!) {
+        invoices(first: $first) {
           nodes {
             id
             visualId
@@ -180,8 +181,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const orders: PrintavoOrder[] = printavoData.data?.orders?.nodes || [];
-    console.log(`Found ${orders.length} orders from Printavo`);
+    const orders: PrintavoOrder[] = printavoData.data?.invoices?.nodes || [];
+    console.log(`Found ${orders.length} invoices from Printavo`);
 
     // Get existing jobs to avoid duplicates
     const { data: existingJobs } = await supabase
