@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { JobStage, getNextStage, STAGE_LABELS, STAGE_ICONS, useAdvanceStage } from '@/hooks/useJobStages';
+import { JobStage, getNextStage, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, isAtFinalChoice, isFinalStage, useAdvanceStage } from '@/hooks/useJobStages';
 import { ArrowRight, Loader2 } from 'lucide-react';
 
 interface AdvanceStageButtonProps {
@@ -12,12 +12,45 @@ export function AdvanceStageButton({ jobId, currentStage, size = 'default' }: Ad
   const advanceStage = useAdvanceStage();
   const nextStage = getNextStage(currentStage);
 
-  if (!nextStage) {
+  // Already at a final stage
+  if (isFinalStage(currentStage)) {
     return (
       <Button variant="outline" size={size} disabled>
         ✓ Complete
       </Button>
     );
+  }
+
+  // At customer_notified - show two options: Picked Up or Shipped
+  if (isAtFinalChoice(currentStage)) {
+    return (
+      <div className="flex gap-2">
+        {FINAL_STAGES.map((finalStage) => (
+          <Button
+            key={finalStage}
+            size={size}
+            variant="default"
+            onClick={() => advanceStage.mutate({ jobId, currentStage, targetStage: finalStage })}
+            disabled={advanceStage.isPending}
+            className="flex-1"
+          >
+            {advanceStage.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <span className="mr-1">{STAGE_ICONS[finalStage]}</span>
+                {STAGE_LABELS[finalStage]}
+              </>
+            )}
+          </Button>
+        ))}
+      </div>
+    );
+  }
+
+  // Normal progression
+  if (!nextStage) {
+    return null;
   }
 
   return (

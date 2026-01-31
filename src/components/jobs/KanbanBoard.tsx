@@ -1,5 +1,5 @@
 import { Job } from '@/hooks/useJobs';
-import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, useAdvanceStage, getNextStage } from '@/hooks/useJobStages';
+import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, useAdvanceStage, getNextStage, isAtFinalChoice, isFinalStage } from '@/hooks/useJobStages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,14 @@ const SERVICE_TYPE_COLORS: Record<string, string> = {
   other: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
 };
 
+// All stages to display in kanban (main + final)
+const ALL_KANBAN_STAGES: JobStage[] = [...STAGE_ORDER, ...FINAL_STAGES];
+
 export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
   const advanceStage = useAdvanceStage();
 
   // Group jobs by stage
-  const jobsByStage = STAGE_ORDER.reduce((acc, stage) => {
+  const jobsByStage = ALL_KANBAN_STAGES.reduce((acc, stage) => {
     acc[stage] = jobs.filter(job => (job as any).stage === stage);
     return acc;
   }, {} as Record<JobStage, Job[]>);
@@ -32,12 +35,18 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
   return (
     <ScrollArea className="w-full">
       <div className="flex gap-4 pb-4" style={{ minWidth: 'max-content' }}>
-        {STAGE_ORDER.map((stage) => (
+        {ALL_KANBAN_STAGES.map((stage) => (
           <div 
             key={stage} 
-            className="w-72 flex-shrink-0"
+            className={cn(
+              "flex-shrink-0",
+              isFinalStage(stage) ? "w-56" : "w-72"
+            )}
           >
-            <div className="bg-muted/50 rounded-lg p-3 h-full min-h-[400px]">
+            <div className={cn(
+              "bg-muted/50 rounded-lg p-3 h-full min-h-[400px]",
+              isFinalStage(stage) && "bg-green-50 dark:bg-green-950/30"
+            )}>
               {/* Column Header */}
               <div className="flex items-center gap-2 mb-3 pb-2 border-b">
                 <span className="text-lg">{STAGE_ICONS[stage]}</span>
@@ -55,9 +64,10 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
                     job={job} 
                     stage={stage}
                     onSelect={() => onSelectJob(job)}
-                    onAdvance={() => advanceStage.mutate({ 
+                    onAdvance={(targetStage) => advanceStage.mutate({ 
                       jobId: job.id, 
-                      currentStage: stage 
+                      currentStage: stage,
+                      targetStage 
                     })}
                     isAdvancing={advanceStage.isPending}
                   />
@@ -82,12 +92,14 @@ interface KanbanCardProps {
   job: Job;
   stage: JobStage;
   onSelect: () => void;
-  onAdvance: () => void;
+  onAdvance: (targetStage?: JobStage) => void;
   isAdvancing: boolean;
 }
 
 function KanbanCard({ job, stage, onSelect, onAdvance, isAdvancing }: KanbanCardProps) {
   const nextStage = getNextStage(stage);
+  const atFinalChoice = isAtFinalChoice(stage);
+  const atFinalStage = isFinalStage(stage);
 
   return (
     <Card 
@@ -121,7 +133,35 @@ function KanbanCard({ job, stage, onSelect, onAdvance, isAdvancing }: KanbanCard
           )}
         </div>
 
-        {nextStage && (
+        {/* Show final stage options at customer_notified */}
+        {atFinalChoice && (
+          <div className="flex gap-1 mt-2">
+            {FINAL_STAGES.map((finalStage) => (
+              <Button
+                key={finalStage}
+                size="sm"
+                variant="ghost"
+                className="flex-1 h-7 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdvance(finalStage);
+                }}
+                disabled={isAdvancing}
+              >
+                {isAdvancing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    {STAGE_ICONS[finalStage]}
+                  </>
+                )}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {/* Normal next stage button */}
+        {nextStage && !atFinalChoice && !atFinalStage && (
           <Button
             size="sm"
             variant="ghost"
