@@ -10,6 +10,7 @@ import { JobCostSummary } from '@/components/jobs/JobCostSummary';
 import { JobPhotoUpload } from '@/components/jobs/JobPhotoUpload';
 import { StageProgress } from '@/components/jobs/StageProgress';
 import { AdvanceStageButton } from '@/components/jobs/AdvanceStageButton';
+import { JobRecipesList } from '@/components/jobs/JobRecipesList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -184,6 +185,12 @@ export default function Jobs() {
                   <h4 className="text-sm font-medium">Time Tracking</h4>
                   <TimeEntryForm jobId={selectedJob.id} />
                   <TimeEntriesList jobId={selectedJob.id} />
+                </div>
+
+                {/* Production Recipes */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">Production Recipes</h4>
+                  <JobRecipesList jobId={selectedJob.id} />
                 </div>
 
                 {/* Cost Summary */}

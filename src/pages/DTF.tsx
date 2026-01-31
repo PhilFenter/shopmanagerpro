@@ -13,6 +13,7 @@ import { Plus, Loader2, Search, Trash2, Save, Thermometer, RotateCcw, Clock, Gau
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
+import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Garment types for DTF
 const GARMENT_TYPES = [
@@ -47,7 +48,8 @@ export default function DTF() {
   const [ratingFilter, setRatingFilter] = useState('all');
 
   // Job form state
-  const [jobId, setJobId] = useState(() => 'DTF-' + Date.now().toString().slice(-6));
+  const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
+  const [recipeName, setRecipeName] = useState(() => 'DTF-' + Date.now().toString().slice(-6));
   const [customer, setCustomer] = useState('');
   const [orderDate, setOrderDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [garmentType, setGarmentType] = useState('');
@@ -111,7 +113,8 @@ export default function DTF() {
 
   // Clear form
   const clearForm = () => {
-    setJobId('DTF-' + Date.now().toString().slice(-6));
+    setLinkedJobId(null);
+    setRecipeName('DTF-' + Date.now().toString().slice(-6));
     setCustomer('');
     setOrderDate(format(new Date(), 'yyyy-MM-dd'));
     setGarmentType('');
@@ -141,7 +144,8 @@ export default function DTF() {
   // Load recipe for editing
   const loadRecipe = (recipe: DTFRecipe) => {
     setEditingRecipeId(recipe.id);
-    setJobId(recipe.name);
+    setLinkedJobId(recipe.job_id);
+    setRecipeName(recipe.name);
     setCustomer(recipe.customer_name || '');
     setFabricType(recipe.fabric_type);
     setPressTemp(recipe.press_temp ?? 320);
@@ -154,12 +158,12 @@ export default function DTF() {
 
   // Save recipe
   const handleSave = async () => {
-    if (!jobId.trim()) return;
+    if (!recipeName.trim()) return;
 
     setIsSaving(true);
     try {
       const data = {
-        name: jobId.trim(),
+        name: recipeName.trim(),
         customer_name: customer.trim() || null,
         fabric_type: fabricType,
         press_temp: pressTemp,
@@ -167,6 +171,7 @@ export default function DTF() {
         press_pressure: pressure,
         peel_type: peelType,
         notes: notes.trim() || null,
+        job_id: linkedJobId,
       };
 
       if (editingRecipeId) {
@@ -216,12 +221,24 @@ export default function DTF() {
               <CardTitle className="text-lg">Job Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Job Link */}
+              <JobPicker
+                value={linkedJobId}
+                onChange={(id, info) => {
+                  setLinkedJobId(id);
+                  if (info) {
+                    setCustomer(info.customer);
+                    if (info.orderNumber) setRecipeName(`DTF-${info.orderNumber}`);
+                  }
+                }}
+              />
+              
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <Label>Job ID</Label>
+                  <Label>Recipe Name</Label>
                   <Input
-                    value={jobId}
-                    onChange={(e) => setJobId(e.target.value)}
+                    value={recipeName}
+                    onChange={(e) => setRecipeName(e.target.value)}
                     placeholder="DTF-001"
                     className="mt-1"
                   />
