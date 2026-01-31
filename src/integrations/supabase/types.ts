@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      job_line_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          job_id: string
+          material_cost: number | null
+          quantity: number
+          sale_price: number | null
+          service_type: Database["public"]["Enums"]["service_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_id: string
+          material_cost?: number | null
+          quantity?: number
+          sale_price?: number | null
+          service_type?: Database["public"]["Enums"]["service_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_id?: string
+          material_cost?: number | null
+          quantity?: number
+          sale_price?: number | null
+          service_type?: Database["public"]["Enums"]["service_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_line_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_stage_history: {
         Row: {
           changed_by: string | null
@@ -162,6 +206,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           full_name: string | null
+          hourly_rate: number | null
           id: string
           updated_at: string
           user_id: string
@@ -170,6 +215,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
+          hourly_rate?: number | null
           id?: string
           updated_at?: string
           user_id: string
@@ -178,6 +224,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
+          hourly_rate?: number | null
           id?: string
           updated_at?: string
           user_id?: string
@@ -191,9 +238,11 @@ export type Database = {
           ended_at: string | null
           id: string
           job_id: string
+          line_item_id: string | null
           notes: string | null
           started_at: string
           user_id: string | null
+          worker_id: string | null
         }
         Insert: {
           created_at?: string
@@ -201,9 +250,11 @@ export type Database = {
           ended_at?: string | null
           id?: string
           job_id: string
+          line_item_id?: string | null
           notes?: string | null
           started_at: string
           user_id?: string | null
+          worker_id?: string | null
         }
         Update: {
           created_at?: string
@@ -211,9 +262,11 @@ export type Database = {
           ended_at?: string | null
           id?: string
           job_id?: string
+          line_item_id?: string | null
           notes?: string | null
           started_at?: string
           user_id?: string | null
+          worker_id?: string | null
         }
         Relationships: [
           {
@@ -221,6 +274,20 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_line_item_id_fkey"
+            columns: ["line_item_id"]
+            isOneToOne: false
+            referencedRelation: "job_line_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
