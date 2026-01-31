@@ -9,43 +9,37 @@ const corsHeaders = {
 // Printavo GraphQL endpoint
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
-interface PrintavoOrder {
+interface PrintavoInvoice {
   id: string;
   visualId: string;
-  orderedAt: string;
   customerDueAt: string;
   productionNote: string;
   status: {
     id: string;
     name: string;
   };
-  paymentStatus: string;
-  customer: {
+  contact: {
     id: string;
+    fullName: string;
+    email: string;
+    phone: string;
     companyName: string;
-    primaryContact?: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string;
-    };
   };
   lineItemGroups: {
     nodes: Array<{
       id: string;
-      name: string;
-      totalQuantity: number;
-      totalPrice: number;
+      lineItems: {
+        nodes: Array<{
+          quantity: number;
+          unitCost: number;
+        }>;
+      };
     }>;
   };
-  invoiceInformation: {
-    total: number;
-    subtotal: number;
-  };
+  total: number;
 }
 
 // Statuses that indicate the job is ready to work on (accepted/paid)
-// Adjust these based on your Printavo status names
 const ACCEPTED_STATUSES = [
   "approved",
   "accepted", 
@@ -55,8 +49,6 @@ const ACCEPTED_STATUSES = [
   "ready",
   "paid",
 ];
-
-const PAID_STATUSES = ["paid", "partial", "deposited"];
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -112,46 +104,44 @@ Deno.serve(async (req) => {
 
     // Parse request body for options
     const body = await req.json().catch(() => ({}));
-    const { limit = 25, status = null } = body;
+    const { limit = 25 } = body;
 
-    console.log(`Fetching orders from Printavo (limit: ${limit}, status: ${status})`);
+    console.log(`Fetching orders from Printavo (limit: ${limit})`);
 
-    // GraphQL query to fetch invoices with status and payment info
+    // GraphQL query using the orders union type with Invoice fragment
+    // Based on Printavo's actual API schema
     const query = `
-      query GetInvoices($first: Int!) {
-        invoices(first: $first) {
+      query GetOrders($first: Int!) {
+        orders(first: $first) {
           nodes {
-            id
-            visualId
-            orderedAt
-            customerDueAt
-            productionNote
-            status {
+            ... on Invoice {
               id
-              name
-            }
-            paymentStatus
-            customer {
-              id
-              companyName
-              primaryContact {
-                firstName
-                lastName
-                email
-                phone
-              }
-            }
-            lineItemGroups {
-              nodes {
+              visualId
+              customerDueAt
+              productionNote
+              status {
                 id
                 name
-                totalQuantity
-                totalPrice
               }
-            }
-            invoiceInformation {
+              contact {
+                id
+                fullName
+                email
+                phone
+                companyName
+              }
+              lineItemGroups {
+                nodes {
+                  id
+                  lineItems {
+                    nodes {
+                      quantity
+                      unitCost
+                    }
+                  }
+                }
+              }
               total
-              subtotal
             }
           }
         }
@@ -204,8 +194,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const orders: PrintavoOrder[] = printavoData.data?.invoices?.nodes || [];
-    console.log(`Found ${orders.length} invoices from Printavo`);
+    // Filter to only Invoice types (nodes with id field from our fragment)
+    const allNodes = printavoData.data?.orders?.nodes || [];
+    const invoices: PrintavoInvoice[] = allNodes.filter(
+      (node: any) => node.id && node.visualId
+    );
+    console.log(`Found ${invoices.length} invoices from Printavo`);
 
     // Get existing jobs to avoid duplicates
     const { data: existingJobs } = await supabase
@@ -215,46 +209,41 @@ Deno.serve(async (req) => {
 
     const existingIds = new Set(existingJobs?.map((j) => j.external_id) || []);
 
-    // Filter to only accepted/paid orders
-    const acceptedOrders = orders.filter((order) => {
-      const statusName = order.status?.name?.toLowerCase() || "";
-      const paymentStatus = order.paymentStatus?.toLowerCase() || "";
-      
-      // Check if status indicates quote is accepted
+    // Filter to only accepted orders based on status
+    const acceptedOrders = invoices.filter((invoice) => {
+      const statusName = invoice.status?.name?.toLowerCase() || "";
       const isAccepted = ACCEPTED_STATUSES.some(s => statusName.includes(s));
-      // Check if there's been some payment
-      const hasPaid = PAID_STATUSES.some(s => paymentStatus.includes(s));
-      
-      console.log(`Order ${order.visualId}: status="${statusName}", payment="${paymentStatus}", accepted=${isAccepted}, paid=${hasPaid}`);
-      
-      // Import if accepted OR paid (configurable - adjust logic as needed)
-      return isAccepted || hasPaid;
+      console.log(`Invoice ${invoice.visualId}: status="${statusName}", accepted=${isAccepted}`);
+      return isAccepted;
     });
 
-    console.log(`${acceptedOrders.length} of ${orders.length} orders are accepted/paid`);
+    console.log(`${acceptedOrders.length} of ${invoices.length} orders are accepted`);
 
-    // Map Printavo orders to jobs (only accepted/paid ones)
+    // Map Printavo invoices to jobs
     const newJobs = acceptedOrders
-      .filter((order) => !existingIds.has(order.id))
-      .map((order) => {
-        const contact = order.customer?.primaryContact;
-        const totalQty = order.lineItemGroups?.nodes?.reduce(
-          (sum, g) => sum + (g.totalQuantity || 0),
-          0
-        ) || 1;
+      .filter((invoice) => !existingIds.has(invoice.id))
+      .map((invoice) => {
+        // Calculate total quantity from line items
+        const totalQty = invoice.lineItemGroups?.nodes?.reduce((sum, group) => {
+          const groupQty = group.lineItems?.nodes?.reduce(
+            (itemSum, item) => itemSum + (item.quantity || 0),
+            0
+          ) || 0;
+          return sum + groupQty;
+        }, 0) || 1;
 
         return {
-          external_id: order.id,
+          external_id: invoice.id,
           source: "printavo",
-          order_number: order.visualId,
-          invoice_number: order.visualId,
-          customer_name: order.customer?.companyName || "Unknown",
-          customer_email: contact?.email || null,
-          customer_phone: contact?.phone || null,
-          description: order.productionNote || null,
+          order_number: invoice.visualId,
+          invoice_number: invoice.visualId,
+          customer_name: invoice.contact?.companyName || invoice.contact?.fullName || "Unknown",
+          customer_email: invoice.contact?.email || null,
+          customer_phone: invoice.contact?.phone || null,
+          description: invoice.productionNote || null,
           service_type: "other" as const,
           quantity: totalQty,
-          sale_price: order.invoiceInformation?.total || 0,
+          sale_price: invoice.total || 0,
           created_by: userId,
         };
       });
@@ -290,8 +279,8 @@ Deno.serve(async (req) => {
         success: true,
         imported: insertedCount,
         skipped: acceptedOrders.length - newJobs.length,
-        filtered: orders.length - acceptedOrders.length,
-        total: orders.length,
+        filtered: invoices.length - acceptedOrders.length,
+        total: invoices.length,
       }),
       {
         status: 200,
