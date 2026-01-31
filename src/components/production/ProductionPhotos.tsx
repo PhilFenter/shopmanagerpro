@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Camera, X } from 'lucide-react';
+import { Camera, X, Loader2, Cloud, CloudOff } from 'lucide-react';
+import { usePhotoStorage, StoredPhoto } from '@/hooks/usePhotoStorage';
+import { cn } from '@/lib/utils';
 
 export interface PhotoSlot {
   location: string;
   file: File | null;
   preview: string;
+  /** If uploaded to cloud, this contains the storage info */
+  stored?: StoredPhoto;
 }
 
 interface ProductionPhotosProps {
@@ -21,6 +25,10 @@ interface ProductionPhotosProps {
   editableLabels?: boolean;
   /** Fixed labels for each slot (overrides editable labels) */
   fixedLabels?: string[];
+  /** Job ID for organizing photos in storage */
+  jobId?: string;
+  /** Enable cloud upload (default true) */
+  cloudUpload?: boolean;
 }
 
 export default function ProductionPhotos({
@@ -30,8 +38,14 @@ export default function ProductionPhotos({
   videoAspect = false,
   editableLabels = true,
   fixedLabels,
+  jobId,
+  cloudUpload = true,
 }: ProductionPhotosProps) {
-  const handlePhotoUpload = (index: number, file: File) => {
+  const { uploadPhoto, deletePhoto, isUploading } = usePhotoStorage();
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+
+  const handlePhotoUpload = async (index: number, file: File) => {
+    // First show local preview immediately
     const reader = new FileReader();
     reader.onload = (e) => {
       onPhotosChange(
@@ -41,12 +55,35 @@ export default function ProductionPhotos({
       );
     };
     reader.readAsDataURL(file);
+
+    // Then upload to cloud if enabled
+    if (cloudUpload) {
+      setUploadingIndex(index);
+      const location = fixedLabels?.[index] || photos[index]?.location || `Photo ${index + 1}`;
+      const stored = await uploadPhoto(file, jobId, location);
+      
+      if (stored) {
+        onPhotosChange(
+          photos.map((p, i) =>
+            i === index ? { ...p, file, preview: stored.url, stored } : p
+          )
+        );
+      }
+      setUploadingIndex(null);
+    }
   };
 
-  const removePhoto = (index: number) => {
+  const removePhoto = async (index: number) => {
+    const photo = photos[index];
+    
+    // Delete from cloud if it was uploaded
+    if (photo?.stored?.path) {
+      await deletePhoto(photo.stored.path);
+    }
+
     onPhotosChange(
       photos.map((p, i) =>
-        i === index ? { ...p, file: null, preview: '' } : p
+        i === index ? { ...p, file: null, preview: '', stored: undefined } : p
       )
     );
   };
@@ -69,6 +106,12 @@ export default function ProductionPhotos({
         <CardTitle className="text-lg flex items-center gap-2">
           <Camera className="h-5 w-5" />
           Production Photos
+          {cloudUpload && (
+            <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
+              <Cloud className="h-3 w-3" />
+              Cloud sync
+            </span>
+          )}
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Tap camera to take photos directly
@@ -91,9 +134,10 @@ export default function ProductionPhotos({
                 <Label className="text-sm font-medium">Photo {index + 1}</Label>
               )}
               <div
-                className={`relative border-2 border-dashed rounded-xl ${
+                className={cn(
+                  'relative border-2 border-dashed rounded-xl flex items-center justify-center bg-muted/30 overflow-hidden',
                   videoAspect ? 'aspect-video' : 'aspect-square'
-                } flex items-center justify-center bg-muted/30 overflow-hidden`}
+                )}
               >
                 {photo.preview ? (
                   <>
@@ -102,6 +146,22 @@ export default function ProductionPhotos({
                       alt=""
                       className="w-full h-full object-cover"
                     />
+                    {/* Cloud indicator */}
+                    {photo.stored ? (
+                      <div className="absolute bottom-2 left-2 p-1 bg-green-500/90 text-white rounded-full">
+                        <Cloud className="h-3 w-3" />
+                      </div>
+                    ) : cloudUpload && (
+                      <div className="absolute bottom-2 left-2 p-1 bg-muted/90 text-muted-foreground rounded-full">
+                        <CloudOff className="h-3 w-3" />
+                      </div>
+                    )}
+                    {/* Uploading indicator */}
+                    {uploadingIndex === index && (
+                      <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    )}
                     <button
                       onClick={() => removePhoto(index)}
                       className="absolute top-2 right-2 p-2 bg-destructive text-destructive-foreground rounded-full shadow-lg active:scale-95 transition-transform"
@@ -136,3 +196,6 @@ export default function ProductionPhotos({
     </Card>
   );
 }
+
+// Re-export PhotoSlot type for convenience
+export type { StoredPhoto };
