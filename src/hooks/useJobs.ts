@@ -5,6 +5,7 @@ import { useToast } from './use-toast';
 
 export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'other';
 export type JobStatus = 'pending' | 'in_progress' | 'completed' | 'on_hold';
+export type JobStage = 'received' | 'art_approved' | 'in_production' | 'production_complete' | 'qc_complete' | 'packaged' | 'customer_notified' | 'delivered' | 'picked_up' | 'shipped';
 
 export interface Job {
   id: string;
@@ -27,6 +28,8 @@ export interface Job {
   completed_at: string | null;
   source: string | null;
   external_id: string | null;
+  stage: JobStage;
+  stage_updated_at: string | null;
 }
 
 export interface CreateJobInput {
