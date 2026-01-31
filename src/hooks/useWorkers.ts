@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
@@ -41,6 +42,24 @@ export function useWorkers() {
       return data as Worker[];
     },
   });
+
+  // Real-time subscription for workers
+  useEffect(() => {
+    const channel = supabase
+      .channel('workers-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'workers' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['workers'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const createWorker = useMutation({
     mutationFn: async (input: CreateWorkerInput) => {

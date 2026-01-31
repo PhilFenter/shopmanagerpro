@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -66,6 +67,26 @@ export function useJobs() {
     },
     enabled: !!user,
   });
+
+  // Real-time subscription for jobs
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('jobs-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'jobs' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   const createJob = useMutation({
     mutationFn: async (input: CreateJobInput) => {
