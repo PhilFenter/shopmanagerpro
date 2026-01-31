@@ -446,59 +446,78 @@ export default function DTF() {
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Advanced Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant={prePress ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPrePress(!prePress)}
-                  >
-                    {prePress ? '✓' : '○'} Pre-Press
-                  </Button>
+            <CardContent>
+              <div className="grid gap-6 sm:grid-cols-3">
+                {/* Pre-Press */}
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-medium">Pre-Press</Label>
+                    <Button
+                      type="button"
+                      variant={prePress ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPrePress(!prePress)}
+                    >
+                      {prePress ? 'On' : 'Off'}
+                    </Button>
+                  </div>
                   {prePress && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Label className="text-sm text-muted-foreground">Duration:</Label>
                       <Input
                         type="number"
                         min={1}
                         max={10}
                         value={prePressTime}
                         onChange={(e) => setPrePressTime(parseInt(e.target.value) || 3)}
-                        className="w-16"
+                        className="w-20"
                       />
                       <span className="text-sm text-muted-foreground">sec</span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant={coverSheet ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCoverSheet(!coverSheet)}
-                  >
-                    {coverSheet ? '✓' : '○'} Cover Sheet
-                  </Button>
+
+                {/* Cover Sheet */}
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-medium">Cover Sheet</Label>
+                    <Button
+                      type="button"
+                      variant={coverSheet ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCoverSheet(!coverSheet)}
+                    >
+                      {coverSheet ? 'On' : 'Off'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use protective sheet during press
+                  </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant={secondPress ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSecondPress(!secondPress)}
-                  >
-                    {secondPress ? '✓' : '○'} 2nd Press
-                  </Button>
+
+                {/* Second Press */}
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-medium">2nd Press</Label>
+                    <Button
+                      type="button"
+                      variant={secondPress ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSecondPress(!secondPress)}
+                    >
+                      {secondPress ? 'On' : 'Off'}
+                    </Button>
+                  </div>
                   {secondPress && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Label className="text-sm text-muted-foreground">Duration:</Label>
                       <Input
                         type="number"
                         min={1}
                         max={15}
                         value={secondPressTime}
                         onChange={(e) => setSecondPressTime(parseInt(e.target.value) || 5)}
-                        className="w-16"
+                        className="w-20"
                       />
                       <span className="text-sm text-muted-foreground">sec</span>
                     </div>
