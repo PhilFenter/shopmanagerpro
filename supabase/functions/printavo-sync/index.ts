@@ -13,6 +13,7 @@ interface PrintavoInvoice {
   id: string;
   visualId: string;
   customerDueAt?: string | null;
+  createdAt?: string | null;
   productionNote?: string | null;
   status?: {
     id: string;
@@ -26,17 +27,6 @@ interface PrintavoInvoice {
   } | null;
   total?: number | null;
 }
-
-// Statuses that indicate the job is ready to work on (accepted/paid)
-const ACCEPTED_STATUSES = [
-  "approved",
-  "accepted", 
-  "confirmed",
-  "in production",
-  "production",
-  "ready",
-  "paid",
-];
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -92,21 +82,24 @@ Deno.serve(async (req) => {
 
     // Parse request body for options
     const body = await req.json().catch(() => ({}));
-    const { limit = 25, minOrderNumber = null } = body;
+    const { 
+      startDate = null, 
+      endDate = null, 
+      minOrderNumber = null,
+      maxPages = 10 // Safety limit to prevent runaway pagination
+    } = body;
 
-    console.log(`Fetching orders from Printavo (limit: ${limit}, minOrderNumber: ${minOrderNumber})`);
+    console.log(`Sync options: startDate=${startDate}, endDate=${endDate}, minOrderNumber=${minOrderNumber}, maxPages=${maxPages}`);
 
-    // GraphQL query using the orders union type with an Invoice fragment.
-    // Keep this intentionally minimal to avoid schema drift issues.
-    // Printavo supports sorting via `sortOn` + `sortDescending` on the `orders` query.
-    // This is the safest way to ensure we get the newest orders without crawling pages.
+    // GraphQL query - includes createdAt for date filtering
     const query = `
-      query GetOrders($first: Int!, $sortOn: OrderSortField!, $sortDescending: Boolean!) {
-        orders(first: $first, sortOn: $sortOn, sortDescending: $sortDescending) {
+      query GetOrders($first: Int!, $after: String, $sortOn: OrderSortField!, $sortDescending: Boolean!) {
+        orders(first: $first, after: $after, sortOn: $sortOn, sortDescending: $sortDescending) {
           nodes {
             ... on Invoice {
               id
               visualId
+              createdAt
               customerDueAt
               productionNote
               status { id name }
@@ -114,12 +107,15 @@ Deno.serve(async (req) => {
               total
             }
           }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
       }
     `;
 
     // Make GraphQL request to Printavo
-    // Per Printavo API v2 docs, auth is provided via `email` + `token` headers (not Basic auth).
     const makePrintavoRequest = async (variables: Record<string, unknown>) => {
       return await fetch(PRINTAVO_API_URL, {
         method: "POST",
@@ -132,80 +128,123 @@ Deno.serve(async (req) => {
       });
     };
 
-    // Printavo enforces `first <= 25` on this connection.
-    const effectiveLimit = Math.min(Math.max(limit, 1), 25);
-    if (effectiveLimit !== limit) {
-      console.log(`Requested limit=${limit} exceeds Printavo max; using ${effectiveLimit}`);
-    }
+    // Fetch all pages of orders
+    let allInvoices: PrintavoInvoice[] = [];
+    let hasNextPage = true;
+    let endCursor: string | null = null;
+    let pageCount = 0;
+    const pageSize = 25; // Printavo max
 
-    const printavoResponse = await makePrintavoRequest({
-      first: effectiveLimit,
-      sortOn: "VISUAL_ID",
-      sortDescending: true,
-    });
+    // Parse date bounds
+    const startBound = startDate ? new Date(startDate) : null;
+    const endBound = endDate ? new Date(endDate + "T23:59:59") : null;
+    const minOrderNum = minOrderNumber ? parseInt(minOrderNumber, 10) : null;
 
-    if (!printavoResponse.ok) {
-      const errorText = await printavoResponse.text();
-      console.error("Printavo API error:", printavoResponse.status, errorText);
-      return new Response(
-        JSON.stringify({
-          error: `Printavo API error: ${printavoResponse.status}`,
-          details: errorText,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+    console.log(`Date bounds: start=${startBound?.toISOString()}, end=${endBound?.toISOString()}`);
+
+    while (hasNextPage && pageCount < maxPages) {
+      pageCount++;
+      console.log(`Fetching page ${pageCount}...`);
+
+      const variables: Record<string, unknown> = {
+        first: pageSize,
+        sortOn: "VISUAL_ID",
+        sortDescending: true,
+      };
+      if (endCursor) {
+        variables.after = endCursor;
+      }
+
+      const response = await makePrintavoRequest(variables);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Printavo API error on page ${pageCount}:`, response.status, errorText);
+        return new Response(
+          JSON.stringify({
+            error: `Printavo API error: ${response.status}`,
+            details: errorText,
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const data = await response.json();
+      
+      if (data.errors) {
+        console.error("GraphQL errors:", data.errors);
+        return new Response(
+          JSON.stringify({
+            error: "Printavo GraphQL error",
+            details: data.errors,
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const pageData = data.data?.orders;
+      const nodes = pageData?.nodes || [];
+      const invoices: PrintavoInvoice[] = nodes.filter(
+        (node: any) => node?.id && node?.visualId
       );
+
+      console.log(`Page ${pageCount}: found ${invoices.length} invoices`);
+
+      // Apply filters and check if we've gone past our date range
+      let shouldStop = false;
+      for (const invoice of invoices) {
+        // Date filtering
+        const createdAt = invoice.createdAt ? new Date(invoice.createdAt) : null;
+        
+        // If we have a start date and this order is before it, we're done (orders are desc)
+        if (startBound && createdAt && createdAt < startBound) {
+          console.log(`Invoice ${invoice.visualId} (${createdAt.toISOString()}) is before start date, stopping pagination`);
+          shouldStop = true;
+          break;
+        }
+
+        // Skip if after end date
+        if (endBound && createdAt && createdAt > endBound) {
+          console.log(`Invoice ${invoice.visualId} skipped: after end date`);
+          continue;
+        }
+
+        // Order number filtering
+        if (minOrderNum) {
+          const numericMatch = invoice.visualId.match(/(\d+)/);
+          if (numericMatch) {
+            const orderNum = parseInt(numericMatch[1], 10);
+            if (orderNum < minOrderNum) {
+              console.log(`Invoice ${invoice.visualId} is below minOrderNumber, stopping pagination`);
+              shouldStop = true;
+              break;
+            }
+          }
+        }
+
+        allInvoices.push(invoice);
+      }
+
+      if (shouldStop) {
+        break;
+      }
+
+      hasNextPage = pageData?.pageInfo?.hasNextPage || false;
+      endCursor = pageData?.pageInfo?.endCursor || null;
+
+      // Small delay to be nice to the API
+      if (hasNextPage && pageCount < maxPages) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
 
-    const printavoData = await printavoResponse.json();
-    console.log("Printavo response received");
-
-    if (printavoData.errors) {
-      console.error("GraphQL errors:", printavoData.errors);
-      return new Response(
-        JSON.stringify({
-          error: "Printavo GraphQL error",
-          details: printavoData.errors,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const allNodes = printavoData.data?.orders?.nodes || [];
-    let invoices: PrintavoInvoice[] = allNodes.filter(
-      (node: any) => node?.id && node?.visualId
-    );
-
-    console.log(`Found ${invoices.length} invoices from Printavo`);
-    
-    // Log all visualIds so we can see what format they're in
-    console.log(`Invoice visualIds (most recent): ${invoices.map(inv => inv.visualId).join(', ')}`);
-
-    // Filter by minimum order number if specified
-    if (minOrderNumber) {
-      const minNum = parseInt(minOrderNumber, 10);
-      const beforeCount = invoices.length;
-      invoices = invoices.filter((inv) => {
-        // Extract numeric portion from visualId (may have prefix like "INV-" or suffix)
-        const numericMatch = inv.visualId.match(/(\d+)/);
-        if (!numericMatch) {
-          console.log(`Invoice ${inv.visualId}: no numeric portion found`);
-          return false;
-        }
-        const orderNum = parseInt(numericMatch[1], 10);
-        const passes = orderNum >= minNum;
-        if (!passes) {
-          console.log(`Invoice ${inv.visualId}: orderNum=${orderNum} < ${minNum}, filtered out`);
-        }
-        return passes;
-      });
-      console.log(`After minOrderNumber filter (>= ${minNum}): ${invoices.length} of ${beforeCount} invoices`);
-    }
+    console.log(`Fetched ${allInvoices.length} total invoices across ${pageCount} pages`);
 
     // Get existing jobs to avoid duplicates
     const { data: existingJobs } = await supabase
@@ -215,24 +254,10 @@ Deno.serve(async (req) => {
 
     const existingIds = new Set(existingJobs?.map((j) => j.external_id) || []);
 
-    // Filter to only accepted orders based on status
-    const acceptedOrders = invoices.filter((invoice) => {
-      const statusName = invoice.status?.name?.toLowerCase() || "";
-      const isAccepted = ACCEPTED_STATUSES.some(s => statusName.includes(s));
-      console.log(`Invoice ${invoice.visualId}: status="${statusName}", accepted=${isAccepted}`);
-      return isAccepted;
-    });
-
-    console.log(`${acceptedOrders.length} of ${invoices.length} orders are accepted`);
-
-    // Map Printavo invoices to jobs
-    const newJobs = acceptedOrders
+    // Map all invoices to jobs (no status filtering - import everything)
+    const newJobs = allInvoices
       .filter((invoice) => !existingIds.has(invoice.id))
       .map((invoice) => {
-        // Printavo v2 GraphQL schema varies; avoid line-item quantity fields.
-        // We can enhance this later once we confirm the exact LineItem fields.
-        const totalQty = 1;
-
         return {
           external_id: invoice.id,
           source: "printavo",
@@ -243,26 +268,34 @@ Deno.serve(async (req) => {
           customer_phone: invoice.contact?.phone || null,
           description: invoice.productionNote || null,
           service_type: "other" as const,
-          quantity: totalQty,
+          quantity: 1,
           sale_price: invoice.total || 0,
+          printavo_status: invoice.status?.name || null,
           created_by: userId,
         };
       });
 
-    console.log(`Creating ${newJobs.length} new jobs (${acceptedOrders.length - newJobs.length} already exist)`);
+    console.log(`Creating ${newJobs.length} new jobs (${allInvoices.length - newJobs.length} already exist)`);
 
-    // Insert new jobs
+    // Insert new jobs in batches to handle large imports
     let insertedCount = 0;
-    if (newJobs.length > 0) {
+    const batchSize = 50;
+    
+    for (let i = 0; i < newJobs.length; i += batchSize) {
+      const batch = newJobs.slice(i, i + batchSize);
       const { data: inserted, error: insertError } = await supabase
         .from("jobs")
-        .insert(newJobs)
+        .insert(batch)
         .select();
 
       if (insertError) {
-        console.error("Error inserting jobs:", insertError);
+        console.error(`Error inserting batch ${i / batchSize + 1}:`, insertError);
         return new Response(
-          JSON.stringify({ error: "Failed to create jobs", details: insertError }),
+          JSON.stringify({ 
+            error: "Failed to create jobs", 
+            details: insertError,
+            partialImport: insertedCount
+          }),
           {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -270,7 +303,8 @@ Deno.serve(async (req) => {
         );
       }
 
-      insertedCount = inserted?.length || 0;
+      insertedCount += inserted?.length || 0;
+      console.log(`Inserted batch ${i / batchSize + 1}: ${inserted?.length} jobs`);
     }
 
     console.log(`Successfully imported ${insertedCount} jobs`);
@@ -279,9 +313,9 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         imported: insertedCount,
-        skipped: acceptedOrders.length - newJobs.length,
-        filtered: invoices.length - acceptedOrders.length,
-        total: invoices.length,
+        skipped: allInvoices.length - newJobs.length,
+        total: allInvoices.length,
+        pages: pageCount,
       }),
       {
         status: 200,
