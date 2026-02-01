@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Clock, User, Plus } from 'lucide-react';
 import { useTimeEntries } from '@/hooks/useTimeEntries';
-import { useTeamMembers } from '@/hooks/useTeamMembers';
+import { useWorkers } from '@/hooks/useWorkers';
 import { useJobs } from '@/hooks/useJobs';
 
 interface TimeEntryFormProps {
@@ -15,7 +15,7 @@ interface TimeEntryFormProps {
 }
 
 export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
-  const { teamMembers, isLoading: loadingTeam } = useTeamMembers();
+  const { activeWorkers, isLoading: loadingTeam } = useWorkers();
   const { createTimeEntry } = useTimeEntries(jobId);
   const { updateJob } = useJobs();
   
@@ -70,14 +70,14 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
               <SelectValue placeholder="Select team member" />
             </SelectTrigger>
             <SelectContent>
-              {teamMembers.map((member) => (
-                <SelectItem key={member.id} value={member.id}>
+              {activeWorkers.map((worker) => (
+                <SelectItem key={worker.id} value={worker.id}>
                   <div className="flex items-center gap-2">
                     <User className="h-3 w-3" />
-                    {member.full_name || 'Unnamed'}
-                    {member.hourly_rate > 0 && (
+                    {worker.name}
+                    {worker.hourly_rate > 0 && (
                       <span className="text-xs text-muted-foreground">
-                        (${member.hourly_rate}/hr)
+                        (${worker.hourly_rate}/hr)
                       </span>
                     )}
                   </div>
