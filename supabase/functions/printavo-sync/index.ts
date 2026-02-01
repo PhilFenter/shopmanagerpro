@@ -169,15 +169,29 @@ Deno.serve(async (req) => {
       (node: any) => node?.id && node?.visualId
     );
     console.log(`Found ${invoices.length} invoices from Printavo`);
+    
+    // Log all visualIds so we can see what format they're in
+    console.log(`Invoice visualIds: ${invoices.map(inv => inv.visualId).join(', ')}`);
 
     // Filter by minimum order number if specified
     if (minOrderNumber) {
       const minNum = parseInt(minOrderNumber, 10);
+      const beforeCount = invoices.length;
       invoices = invoices.filter((inv) => {
-        const orderNum = parseInt(inv.visualId, 10);
-        return !isNaN(orderNum) && orderNum >= minNum;
+        // Extract numeric portion from visualId (may have prefix like "INV-" or suffix)
+        const numericMatch = inv.visualId.match(/(\d+)/);
+        if (!numericMatch) {
+          console.log(`Invoice ${inv.visualId}: no numeric portion found`);
+          return false;
+        }
+        const orderNum = parseInt(numericMatch[1], 10);
+        const passes = orderNum >= minNum;
+        if (!passes) {
+          console.log(`Invoice ${inv.visualId}: orderNum=${orderNum} < ${minNum}, filtered out`);
+        }
+        return passes;
       });
-      console.log(`After minOrderNumber filter (>= ${minNum}): ${invoices.length} invoices`);
+      console.log(`After minOrderNumber filter (>= ${minNum}): ${invoices.length} of ${beforeCount} invoices`);
     }
 
     // Get existing jobs to avoid duplicates
