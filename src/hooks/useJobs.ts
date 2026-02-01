@@ -60,7 +60,7 @@ export function useJobs() {
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('order_number', { ascending: false, nullsFirst: false });
       
       if (error) throw error;
       return data as Job[];
