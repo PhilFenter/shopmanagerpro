@@ -122,7 +122,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // Send email
     const { data: emailResult, error: emailError } = await resend.emails.send({
-      from: "Mockup Approval <onboarding@resend.dev>", // Use verified domain in production
+      from: "Hell's Canyon Designs <info@hellscanyondesigns.com>",
       to: [customerEmail],
       subject: `Mockup Approval Request${orderRef}`,
       html: emailHtml,
