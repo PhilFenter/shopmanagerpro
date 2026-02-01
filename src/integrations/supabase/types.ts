@@ -319,6 +319,7 @@ export type Database = {
           invoice_number: string | null
           material_cost: number | null
           order_number: string | null
+          printavo_status: string | null
           quantity: number
           sale_price: number | null
           service_type: Database["public"]["Enums"]["service_type"]
@@ -343,6 +344,7 @@ export type Database = {
           invoice_number?: string | null
           material_cost?: number | null
           order_number?: string | null
+          printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
           service_type?: Database["public"]["Enums"]["service_type"]
@@ -367,6 +369,7 @@ export type Database = {
           invoice_number?: string | null
           material_cost?: number | null
           order_number?: string | null
+          printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
           service_type?: Database["public"]["Enums"]["service_type"]

@@ -3,12 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
+interface SyncOptions {
+  startDate?: string;
+  endDate?: string;
+  minOrderNumber?: string;
+  maxPages?: number;
+}
+
 interface SyncResult {
   success: boolean;
   imported: number;
   skipped: number;
-  filtered: number;
   total: number;
+  pages?: number;
   error?: string;
 }
 
@@ -18,13 +25,18 @@ export function usePrintavoSync() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const syncOrders = async (limit = 25, minOrderNumber?: string) => {
+  const syncOrders = async (options: SyncOptions = {}) => {
     setIsSyncing(true);
     setLastResult(null);
 
     try {
       const { data, error } = await supabase.functions.invoke('printavo-sync', {
-        body: { limit, minOrderNumber: minOrderNumber || null },
+        body: { 
+          startDate: options.startDate || null,
+          endDate: options.endDate || null,
+          minOrderNumber: options.minOrderNumber || null,
+          maxPages: options.maxPages || 20, // Allow more pages for historical imports
+        },
       });
 
       if (error) {
@@ -33,7 +45,6 @@ export function usePrintavoSync() {
           success: false,
           imported: 0,
           skipped: 0,
-          filtered: 0,
           total: 0,
           error: error.message,
         };
@@ -51,10 +62,10 @@ export function usePrintavoSync() {
 
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        const filteredMsg = result.filtered > 0 ? `, ${result.filtered} not yet accepted/paid` : '';
+        const pagesMsg = result.pages && result.pages > 1 ? ` across ${result.pages} pages` : '';
         toast({
           title: 'Printavo sync complete',
-          description: `Imported ${result.imported} new orders (${result.skipped} already existed${filteredMsg})`,
+          description: `Imported ${result.imported} orders${pagesMsg} (${result.skipped} already existed)`,
         });
       } else {
         toast({
@@ -71,7 +82,6 @@ export function usePrintavoSync() {
         success: false,
         imported: 0,
         skipped: 0,
-        filtered: 0,
         total: 0,
         error: errorMessage,
       };

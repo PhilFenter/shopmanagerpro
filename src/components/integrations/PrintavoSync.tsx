@@ -1,19 +1,42 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { usePrintavoSync } from '@/hooks/usePrintavoSync';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle, XCircle, ArrowDownToLine } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RefreshCw, CheckCircle, XCircle, ArrowDownToLine, CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function PrintavoSync() {
   const { syncOrders, isSyncing, lastResult } = usePrintavoSync();
-  const [limit, setLimit] = useState('25');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [minOrderNumber, setMinOrderNumber] = useState('');
 
   const handleSync = () => {
-    syncOrders(parseInt(limit, 10), minOrderNumber || undefined);
+    syncOrders({
+      startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
+      endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
+      minOrderNumber: minOrderNumber || undefined,
+    });
+  };
+
+  const handleQuickRange = (days: number) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  const handleYearToDate = () => {
+    const end = new Date();
+    const start = new Date(end.getFullYear(), 0, 1); // January 1st of current year
+    setStartDate(start);
+    setEndDate(end);
   };
 
   return (
@@ -26,38 +49,96 @@ export function PrintavoSync() {
               Printavo Integration
             </CardTitle>
             <CardDescription>
-              Import orders from Printavo to create jobs automatically
+              Import orders from Printavo to create jobs and build your pipeline
             </CardDescription>
           </div>
           <Badge variant="secondary">Connected</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Quick range buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleQuickRange(30)}>
+            Last 30 days
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleQuickRange(90)}>
+            Last 90 days
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleYearToDate}>
+            Year to date
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }}>
+            All time
+          </Button>
+        </div>
+
+        {/* Date range pickers */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Orders to fetch</label>
-            <Select value={limit} onValueChange={setLimit}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">Last 10</SelectItem>
-                <SelectItem value="25">Last 25</SelectItem>
-                <SelectItem value="50">Last 50</SelectItem>
-                <SelectItem value="100">Last 100</SelectItem>
-              </SelectContent>
-            </Select>
+            <label className="text-sm font-medium">Start date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-40 justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "MMM d, yyyy") : "Pick date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
+
           <div className="space-y-2">
-            <label className="text-sm font-medium">Start from order #</label>
+            <label className="text-sm font-medium">End date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-40 justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "MMM d, yyyy") : "Pick date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Min order #</label>
             <Input
               type="text"
-              placeholder="e.g. 720"
+              placeholder="e.g. 700"
               value={minOrderNumber}
               onChange={(e) => setMinOrderNumber(e.target.value)}
-              className="w-32"
+              className="w-28"
             />
           </div>
+
           <Button onClick={handleSync} disabled={isSyncing}>
             {isSyncing ? (
               <>
@@ -73,6 +154,7 @@ export function PrintavoSync() {
           </Button>
         </div>
 
+        {/* Results display */}
         {lastResult && (
           <div className={`flex items-center gap-3 rounded-lg p-4 ${
             lastResult.success 
@@ -91,8 +173,8 @@ export function PrintavoSync() {
                   {lastResult.skipped > 0 && (
                     <span className="text-muted-foreground"> • {lastResult.skipped} already existed</span>
                   )}
-                  {lastResult.filtered > 0 && (
-                    <span className="text-muted-foreground"> • {lastResult.filtered} not accepted/paid</span>
+                  {lastResult.pages && lastResult.pages > 1 && (
+                    <span className="text-muted-foreground"> • {lastResult.pages} pages fetched</span>
                   )}
                 </p>
               ) : (
@@ -102,14 +184,15 @@ export function PrintavoSync() {
           </div>
         )}
 
+        {/* Info section */}
         <div className="rounded-lg border bg-muted/50 p-4">
           <h4 className="font-medium mb-2">How it works</h4>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Only imports orders that are <strong>accepted or paid</strong></li>
-            <li>• Use "Start from order #" to skip older orders</li>
-            <li>• Pulls customer name, email, phone, and order details</li>
+            <li>• Imports <strong>all orders</strong> (quotes, approved, in production, completed)</li>
+            <li>• Use date range to import historical orders in bulk</li>
+            <li>• Preserves Printavo status for pipeline visualization</li>
             <li>• Skips orders that have already been imported</li>
-            <li>• Jobs start at "Received" stage ready for production</li>
+            <li>• Large imports are batched automatically (25 orders/page)</li>
           </ul>
         </div>
       </CardContent>
