@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Job, ServiceType } from '@/hooks/useJobs';
-import { JobStage, STAGE_LABELS, STAGE_ICONS } from '@/hooks/useJobStages';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Job, ServiceType, useJobs } from '@/hooks/useJobs';
+import { JobStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
 import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
@@ -15,6 +16,14 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   other: 'Other',
 };
 
+const SERVICE_TYPE_COLORS: Record<ServiceType, string> = {
+  embroidery: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  screen_print: 'bg-green-500/20 text-green-400 border-green-500/30',
+  dtf: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  leather_patch: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  other: 'bg-muted text-muted-foreground border-border',
+};
+
 interface JobCardProps {
   job: Job;
   onClick?: () => void;
@@ -22,6 +31,11 @@ interface JobCardProps {
 
 export function JobCard({ job, onClick }: JobCardProps) {
   const stage = (job as any).stage as JobStage || 'received';
+  const { updateJob } = useJobs();
+
+  const handleServiceTypeChange = (newType: ServiceType) => {
+    updateJob.mutate({ id: job.id, service_type: newType });
+  };
 
   return (
     <Card 
@@ -37,9 +51,20 @@ export function JobCard({ job, onClick }: JobCardProps) {
                   #{job.order_number}
                 </span>
               )}
-              <Badge variant="outline" className="text-xs">
-                {SERVICE_TYPE_LABELS[job.service_type]}
-              </Badge>
+              <div onClick={(e) => e.stopPropagation()}>
+                <Select value={job.service_type} onValueChange={handleServiceTypeChange}>
+                  <SelectTrigger className={`h-6 px-2 text-xs border ${SERVICE_TYPE_COLORS[job.service_type]} bg-transparent w-auto gap-1`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value} className="text-sm">
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <h3 className="font-semibold truncate">{job.customer_name}</h3>
           </div>
