@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     console.log("Authenticated user:", userId);
 
     // Get Shopify credentials
-    const shopifyStoreDomain = Deno.env.get("SHOPIFY_STORE_DOMAIN");
+    let shopifyStoreDomain = Deno.env.get("SHOPIFY_STORE_DOMAIN");
     const shopifyApiToken = Deno.env.get("SHOPIFY_ADMIN_API_TOKEN");
 
     if (!shopifyStoreDomain || !shopifyApiToken) {
@@ -81,6 +81,22 @@ Deno.serve(async (req) => {
         }
       );
     }
+
+    // Clean up store domain - remove protocol and trailing slashes
+    shopifyStoreDomain = shopifyStoreDomain
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/+$/, "");
+    
+    // If user provided admin URL format, extract the myshopify domain
+    // e.g. "admin.shopify.com/store/my-store" -> need to convert
+    if (shopifyStoreDomain.includes("admin.shopify.com")) {
+      const match = shopifyStoreDomain.match(/store\/([^\/]+)/);
+      if (match) {
+        shopifyStoreDomain = `${match[1]}.myshopify.com`;
+      }
+    }
+    
+    console.log("Using store domain:", shopifyStoreDomain);
 
     // Parse request body for options
     const body = await req.json().catch(() => ({}));
