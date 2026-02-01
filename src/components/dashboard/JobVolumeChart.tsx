@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DailyJobCount } from '@/hooks/useJobAnalytics';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { DailyJobCount } from '@/hooks/useDashboardAnalytics';
 
 interface JobVolumeChartProps {
   data: DailyJobCount[];
@@ -14,11 +14,11 @@ export function JobVolumeChart({ data }: JobVolumeChartProps) {
     <Card className="col-span-full lg:col-span-2">
       <CardHeader>
         <CardTitle>Job Volume</CardTitle>
-        <CardDescription>Jobs created and completed this month</CardDescription>
+        <CardDescription>New jobs created and active jobs over time</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[250px]">
-          {recentData.length > 0 ? (
+          {recentData.length > 0 && recentData.some(d => d.created > 0 || d.inProgress > 0) ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={recentData}>
                 <defs>
@@ -26,7 +26,7 @@ export function JobVolumeChart({ data }: JobVolumeChartProps) {
                     <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
                   </linearGradient>
@@ -54,27 +54,28 @@ export function JobVolumeChart({ data }: JobVolumeChartProps) {
                     color: 'hsl(var(--popover-foreground))'
                   }}
                 />
+                <Legend />
                 <Area
                   type="monotone"
                   dataKey="created"
                   stroke="hsl(var(--primary))"
                   fillOpacity={1}
                   fill="url(#colorCreated)"
-                  name="Created"
+                  name="New Jobs"
                 />
                 <Area
                   type="monotone"
-                  dataKey="completed"
+                  dataKey="inProgress"
                   stroke="hsl(var(--chart-2))"
                   fillOpacity={1}
-                  fill="url(#colorCompleted)"
-                  name="Completed"
+                  fill="url(#colorActive)"
+                  name="Active Jobs"
                 />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              No data available
+              No job data for this period
             </div>
           )}
         </div>

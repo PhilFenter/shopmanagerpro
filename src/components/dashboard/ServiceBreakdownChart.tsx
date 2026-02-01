@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { ServiceTypeBreakdown } from '@/hooks/useJobAnalytics';
+import { ServiceTypeBreakdown } from '@/hooks/useDashboardAnalytics';
 
 interface ServiceBreakdownChartProps {
   data: ServiceTypeBreakdown[];
