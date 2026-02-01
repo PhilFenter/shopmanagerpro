@@ -39,7 +39,10 @@ export default function Jobs() {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
+  // Always get fresh job data from the query
+  const selectedJob = selectedJobId ? jobs.find(j => j.id === selectedJobId) ?? null : null;
 
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch = 
@@ -140,12 +143,12 @@ export default function Jobs() {
 
         <TabsContent value="active">
           {viewMode === 'kanban' ? (
-            <KanbanBoard jobs={activeJobs} onSelectJob={setSelectedJob} />
+            <KanbanBoard jobs={activeJobs} onSelectJob={(job) => setSelectedJobId(job.id)} />
           ) : (
             activeJobs.length === 0 ? (
               <EmptyState message="No active jobs." />
             ) : (
-              <JobGrid jobs={activeJobs} onSelect={setSelectedJob} />
+              <JobGrid jobs={activeJobs} onSelect={(job) => setSelectedJobId(job.id)} />
             )
           )}
         </TabsContent>
@@ -154,13 +157,13 @@ export default function Jobs() {
           {completedJobs.length === 0 ? (
             <EmptyState message="No completed jobs yet." />
           ) : (
-            <JobGrid jobs={completedJobs} onSelect={setSelectedJob} />
+            <JobGrid jobs={completedJobs} onSelect={(job) => setSelectedJobId(job.id)} />
           )}
         </TabsContent>
       </Tabs>
 
       {/* Job Detail Sheet */}
-      <Sheet open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJob(null)}>
+      <Sheet open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJobId(null)}>
         <SheetContent className="sm:max-w-lg overflow-y-auto">
           {selectedJob && (
             <>
@@ -284,7 +287,7 @@ export default function Jobs() {
                         <AlertDialogAction 
                           onClick={() => {
                             deleteJob.mutate(selectedJob.id);
-                            setSelectedJob(null);
+                            setSelectedJobId(null);
                           }}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
