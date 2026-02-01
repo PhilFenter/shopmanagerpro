@@ -26,9 +26,16 @@ const ALL_KANBAN_STAGES: JobStage[] = [...STAGE_ORDER, ...FINAL_STAGES];
 export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
   const advanceStage = useAdvanceStage();
 
-  // Group jobs by stage
+  // Group jobs by stage and sort by order number descending (newest first)
   const jobsByStage = ALL_KANBAN_STAGES.reduce((acc, stage) => {
-    acc[stage] = jobs.filter(job => (job as any).stage === stage);
+    acc[stage] = jobs
+      .filter(job => (job as any).stage === stage)
+      .sort((a, b) => {
+        // Extract numeric part of order number for proper sorting
+        const numA = a.order_number ? parseInt(a.order_number.replace(/\D/g, ''), 10) || 0 : 0;
+        const numB = b.order_number ? parseInt(b.order_number.replace(/\D/g, ''), 10) || 0 : 0;
+        return numB - numA; // Descending (newest/highest first)
+      });
     return acc;
   }, {} as Record<JobStage, Job[]>);
 
