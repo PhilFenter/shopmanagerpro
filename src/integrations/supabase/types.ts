@@ -925,6 +925,10 @@ export type Database = {
         | "dtf"
         | "leather_patch"
         | "other"
+        | "uv_patch"
+        | "heat_press_patch"
+        | "woven_patch"
+        | "pvc_patch"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1072,6 +1076,10 @@ export const Constants = {
         "dtf",
         "leather_patch",
         "other",
+        "uv_patch",
+        "heat_press_patch",
+        "woven_patch",
+        "pvc_patch",
       ],
     },
   },
