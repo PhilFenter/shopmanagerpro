@@ -98,9 +98,11 @@ Deno.serve(async (req) => {
 
     // GraphQL query using the orders union type with an Invoice fragment.
     // Keep this intentionally minimal to avoid schema drift issues.
+    // Printavo supports sorting via `sortOn` + `sortDescending` on the `orders` query.
+    // This is the safest way to ensure we get the newest orders without crawling pages.
     const query = `
-      query GetOrders($first: Int!) {
-        orders(first: $first) {
+      query GetOrders($first: Int!, $sortOn: OrderSortField!, $sortDescending: Boolean!) {
+        orders(first: $first, sortOn: $sortOn, sortDescending: $sortDescending) {
           nodes {
             ... on Invoice {
               id
@@ -118,17 +120,28 @@ Deno.serve(async (req) => {
 
     // Make GraphQL request to Printavo
     // Per Printavo API v2 docs, auth is provided via `email` + `token` headers (not Basic auth).
-    const printavoResponse = await fetch(PRINTAVO_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        email: printavoEmail,
-        token: printavoToken,
-      },
-      body: JSON.stringify({
-        query,
-        variables: { first: limit },
-      }),
+    const makePrintavoRequest = async (variables: Record<string, unknown>) => {
+      return await fetch(PRINTAVO_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          email: printavoEmail,
+          token: printavoToken,
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+    };
+
+    // Printavo enforces `first <= 25` on this connection.
+    const effectiveLimit = Math.min(Math.max(limit, 1), 25);
+    if (effectiveLimit !== limit) {
+      console.log(`Requested limit=${limit} exceeds Printavo max; using ${effectiveLimit}`);
+    }
+
+    const printavoResponse = await makePrintavoRequest({
+      first: effectiveLimit,
+      sortOn: "VISUAL_ID",
+      sortDescending: true,
     });
 
     if (!printavoResponse.ok) {
@@ -163,15 +176,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Filter to only Invoice types (nodes containing the Invoice fragment)
     const allNodes = printavoData.data?.orders?.nodes || [];
     let invoices: PrintavoInvoice[] = allNodes.filter(
       (node: any) => node?.id && node?.visualId
     );
+
     console.log(`Found ${invoices.length} invoices from Printavo`);
     
     // Log all visualIds so we can see what format they're in
-    console.log(`Invoice visualIds: ${invoices.map(inv => inv.visualId).join(', ')}`);
+    console.log(`Invoice visualIds (most recent): ${invoices.map(inv => inv.visualId).join(', ')}`);
 
     // Filter by minimum order number if specified
     if (minOrderNumber) {
