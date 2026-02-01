@@ -213,7 +213,12 @@ export default function Jobs() {
                 {hasFinancialAccess(role) && <JobCostSummary job={selectedJob} />}
 
                 {/* Photos */}
-                <JobPhotoUpload jobId={selectedJob.id} />
+                <JobPhotoUpload 
+                  jobId={selectedJob.id} 
+                  customerEmail={selectedJob.customer_email}
+                  customerName={selectedJob.customer_name}
+                  orderNumber={selectedJob.order_number}
+                />
                 {selectedJob.description && (
                   <div>
                     <h4 className="text-sm font-medium mb-1">Description</h4>
