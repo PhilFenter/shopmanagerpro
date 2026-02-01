@@ -695,14 +695,7 @@ export type Database = {
             foreignKeyName: "time_entries_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_entries_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "team_members_public"
+            referencedRelation: "workers"
             referencedColumns: ["id"]
           },
         ]
