@@ -1,11 +1,14 @@
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { useJobLineItems } from '@/hooks/useJobLineItems';
+import { useWorkers } from '@/hooks/useWorkers';
 import { Job } from '@/hooks/useJobs';
 import { DollarSign, TrendingUp, TrendingDown, Clock, Package } from 'lucide-react';
 import { formatTime } from './TimeEntry';
 
 // 16.5% payroll tax burden as per business logic
 const PAYROLL_TAX_BURDEN = 0.165;
+// Monthly working hours for salary-to-hourly conversion
+const MONTHLY_HOURS = 176;
 
 interface JobCostSummaryProps {
   job: Job;
@@ -14,16 +17,26 @@ interface JobCostSummaryProps {
 export function JobCostSummary({ job }: JobCostSummaryProps) {
   const { timeEntries, totalMinutes } = useTimeEntries(job.id);
   const { lineItems } = useJobLineItems(job.id);
+  const { workers } = useWorkers();
 
-  // Calculate labor cost from time entries with worker wage rates
-  const laborCost = timeEntries.reduce((sum, entry) => {
-    const hourlyRate = entry.worker?.hourly_rate || 0;
+  // Create a map of worker IDs to their effective hourly rates
+  const workerRates = new Map(
+    workers.map(w => [
+      w.id,
+      w.is_salary && w.monthly_salary > 0
+        ? w.monthly_salary / MONTHLY_HOURS // Convert salary to hourly
+        : w.hourly_rate || 0
+    ])
+  );
+
+  // Calculate labor cost from time entries with worker wage rates (including burden)
+  const laborCostWithBurden = timeEntries.reduce((sum, entry) => {
+    // Use worker ID from entry to look up rate (handles salaried workers)
+    const effectiveRate = entry.worker_id ? (workerRates.get(entry.worker_id) || 0) : 0;
     const hours = (entry.duration || 0) / 60;
-    return sum + (hours * hourlyRate);
+    const baseCost = hours * effectiveRate;
+    return sum + (baseCost * (1 + PAYROLL_TAX_BURDEN));
   }, 0);
-
-  // Add payroll tax burden (16.5%)
-  const laborWithBurden = laborCost * (1 + PAYROLL_TAX_BURDEN);
 
   // Material costs from line items or job level
   const materialCost = lineItems.length > 0
@@ -36,7 +49,7 @@ export function JobCostSummary({ job }: JobCostSummaryProps) {
     : Number(job.sale_price || 0);
 
   // Total cost and profit
-  const totalCost = laborWithBurden + materialCost;
+  const totalCost = laborCostWithBurden + materialCost;
   const profit = revenue - totalCost;
   const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
@@ -67,8 +80,7 @@ export function JobCostSummary({ job }: JobCostSummaryProps) {
 
       <div className="border-t pt-3 space-y-2">
         <CostRow label="Revenue" value={revenue} isRevenue />
-        <CostRow label="Labor" value={laborCost} />
-        <CostRow label="+ Tax Burden (16.5%)" value={laborWithBurden - laborCost} isSubitem />
+        <CostRow label="Labor (w/ burden)" value={laborCostWithBurden} />
         <CostRow label="Materials" value={materialCost} />
         
         <div className="border-t pt-2 mt-2">
@@ -95,15 +107,13 @@ function CostRow({
   label, 
   value, 
   isRevenue = false,
-  isSubitem = false 
 }: { 
   label: string; 
   value: number; 
   isRevenue?: boolean;
-  isSubitem?: boolean;
 }) {
   return (
-    <div className={`flex justify-between text-sm ${isSubitem ? 'pl-4 text-muted-foreground' : ''}`}>
+    <div className="flex justify-between text-sm">
       <span className={isRevenue ? 'font-medium' : ''}>{label}</span>
       <span className={`font-mono ${isRevenue ? 'text-primary font-medium' : 'text-foreground'}`}>
         ${value.toFixed(2)}

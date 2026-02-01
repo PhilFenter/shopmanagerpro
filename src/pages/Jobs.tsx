@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useJobs, Job, ServiceType } from '@/hooks/useJobs';
+import { useJobs, Job, ServiceType, hasFinancialAccess } from '@/hooks/useJobs';
+import { useAuth } from '@/hooks/useAuth';
 import { JobStage, STAGE_ORDER, STAGE_LABELS } from '@/hooks/useJobStages';
 import { JobCard } from '@/components/jobs/JobCard';
 import { JobForm } from '@/components/jobs/JobForm';
@@ -30,6 +31,7 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
 
 export default function Jobs() {
   const { jobs, isLoading, deleteJob } = useJobs();
+  const { role } = useAuth();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
@@ -194,8 +196,8 @@ export default function Jobs() {
                   <JobRecipesList jobId={selectedJob.id} />
                 </div>
 
-                {/* Cost Summary */}
-                <JobCostSummary job={selectedJob} />
+                {/* Cost Summary - Admin/Manager only */}
+                {hasFinancialAccess(role) && <JobCostSummary job={selectedJob} />}
 
                 {/* Photos */}
                 <JobPhotoUpload jobId={selectedJob.id} />
