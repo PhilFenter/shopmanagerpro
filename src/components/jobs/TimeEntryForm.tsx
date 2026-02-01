@@ -75,11 +75,6 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
                   <div className="flex items-center gap-2">
                     <User className="h-3 w-3" />
                     {worker.name}
-                    {worker.hourly_rate > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        (${worker.hourly_rate}/hr)
-                      </span>
-                    )}
                   </div>
                 </SelectItem>
               ))}
