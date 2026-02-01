@@ -17,7 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2 } from 'lucide-react';
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -28,7 +29,7 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
 };
 
 export default function Jobs() {
-  const { jobs, isLoading } = useJobs();
+  const { jobs, isLoading, deleteJob } = useJobs();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
@@ -252,6 +253,40 @@ export default function Jobs() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />
                   Created {new Date(selectedJob.created_at).toLocaleDateString()}
+                </div>
+
+                {/* Delete Job */}
+                <div className="pt-4 border-t">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Job
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete "{selectedJob.customer_name}" 
+                          {selectedJob.order_number && ` (#${selectedJob.order_number})`} 
+                          and all associated time entries, photos, and recipes. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => {
+                            deleteJob.mutate(selectedJob.id);
+                            setSelectedJob(null);
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </>
