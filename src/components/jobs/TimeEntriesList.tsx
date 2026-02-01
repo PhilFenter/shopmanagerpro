@@ -55,7 +55,7 @@ function TimeEntryRow({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1 text-muted-foreground">
           <User className="h-3 w-3" />
-          <span>{entry.worker?.full_name || 'Unknown'}</span>
+          <span>{entry.worker?.name || 'Unknown'}</span>
         </div>
         <div className="flex items-center gap-1">
           <Clock className="h-3 w-3 text-muted-foreground" />

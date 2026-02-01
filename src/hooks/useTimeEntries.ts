@@ -18,7 +18,7 @@ export interface TimeEntry {
   // Joined data
   worker?: {
     id: string;
-    full_name: string | null;
+    name: string;
     hourly_rate: number;
   };
 }
@@ -45,7 +45,7 @@ export function useTimeEntries(jobId?: string) {
         .from('time_entries')
         .select(`
           *,
-          worker:profiles!time_entries_worker_id_fkey(id, full_name, hourly_rate)
+          worker:workers!time_entries_worker_id_fkey(id, name, hourly_rate)
         `)
         .eq('job_id', jobId)
         .order('created_at', { ascending: false });
