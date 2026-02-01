@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { WeeklyRevenue } from '@/hooks/useJobAnalytics';
+import { WeeklyRevenue } from '@/hooks/useDashboardAnalytics';
 
 interface RevenueChartProps {
   data: WeeklyRevenue[];
@@ -19,7 +19,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
     <Card className="col-span-full lg:col-span-2">
       <CardHeader>
         <CardTitle>Weekly Revenue</CardTitle>
-        <CardDescription>Revenue, cost, and profit over the last 8 weeks</CardDescription>
+        <CardDescription>Revenue by week jobs were created</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[250px]">
@@ -52,13 +52,13 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 />
                 <Legend />
                 <Bar dataKey="revenue" name="Revenue" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="cost" name="Cost" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="profit" name="Profit" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="cost" name="Materials" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="profit" name="Gross Margin" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              No revenue data yet
+              No revenue data for this period
             </div>
           )}
         </div>

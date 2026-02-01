@@ -1,11 +1,12 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useJobs, hasFinancialAccess } from '@/hooks/useJobs';
-import { useJobAnalytics } from '@/hooks/useJobAnalytics';
+import { useDashboardAnalytics, TimePeriod } from '@/hooks/useDashboardAnalytics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { JobForm } from '@/components/jobs/JobForm';
 import { JobCard } from '@/components/jobs/JobCard';
-import { Plus, Clock, Activity, CheckCircle, DollarSign } from 'lucide-react';
+import { Plus, Clock, Activity, CheckCircle, DollarSign, Briefcase } from 'lucide-react';
 import { formatTime } from '@/components/jobs/TimeEntry';
 import { Link } from 'react-router-dom';
 import { JobVolumeChart } from '@/components/dashboard/JobVolumeChart';
@@ -16,17 +17,9 @@ import { StageBreakdownChart } from '@/components/dashboard/StageBreakdownChart'
 export default function Dashboard() {
   const { role } = useAuth();
   const { jobs, isLoading } = useJobs();
-  const analytics = useJobAnalytics();
+  const analytics = useDashboardAnalytics();
 
   const pendingJobs = jobs.filter(j => j.status === 'pending' || j.status === 'in_progress');
-  const completedThisWeek = jobs.filter(j => {
-    if (j.status !== 'completed' || !j.completed_at) return false;
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return new Date(j.completed_at) >= weekAgo;
-  });
-
-  const totalTimeThisWeek = completedThisWeek.reduce((acc, job) => acc + job.time_tracked, 0);
 
   return (
     <div className="space-y-6">
@@ -35,11 +28,47 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Welcome back! Here's what's happening.</p>
         </div>
-        <JobForm />
+        <div className="flex items-center gap-3">
+          <Select value={analytics.period} onValueChange={(v) => analytics.setPeriod(v as TimePeriod)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {analytics.periodOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <JobForm />
+        </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Jobs ({analytics.periodLabel})</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.totalJobCount}</div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.activeJobCount} active, {analytics.completedJobCount} completed
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Time Logged</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatTime(analytics.totalMinutes)}</div>
+            <p className="text-xs text-muted-foreground">{analytics.periodLabel}</p>
+          </CardContent>
+        </Card>
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Open Jobs</CardTitle>
@@ -50,33 +79,11 @@ export default function Dashboard() {
             <p className="text-xs text-muted-foreground">Pending or in progress</p>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Time This Week</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatTime(totalTimeThisWeek)}</div>
-            <p className="text-xs text-muted-foreground">On completed jobs</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{completedThisWeek.length}</div>
-            <p className="text-xs text-muted-foreground">Jobs this week</p>
-          </CardContent>
-        </Card>
 
         {hasFinancialAccess(role) && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -84,7 +91,7 @@ export default function Dashboard() {
                 ${analytics.totalRevenue.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
-                ${analytics.totalProfit.toLocaleString()} profit
+                {analytics.periodLabel} • Avg ${Math.round(analytics.avgJobValue).toLocaleString()}/job
               </p>
             </CardContent>
           </Card>

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { StageBreakdown } from '@/hooks/useJobAnalytics';
+import { StageBreakdown } from '@/hooks/useDashboardAnalytics';
 import { Progress } from '@/components/ui/progress';
 
 interface StageBreakdownChartProps {
