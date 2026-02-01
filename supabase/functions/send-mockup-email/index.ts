@@ -120,9 +120,10 @@ serve(async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    // Send email
+    // Send email - using test domain until hellscanyondesigns.com DNS is fully verified
+    // Change back to: "Hell's Canyon Designs <info@hellscanyondesigns.com>" once verified
     const { data: emailResult, error: emailError } = await resend.emails.send({
-      from: "Hell's Canyon Designs <info@hellscanyondesigns.com>",
+      from: "Mockup Approval <onboarding@resend.dev>",
       to: [customerEmail],
       subject: `Mockup Approval Request${orderRef}`,
       html: emailHtml,
