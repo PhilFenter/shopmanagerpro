@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { PrintavoSync } from '@/components/integrations/PrintavoSync';
+import { ShopifySync } from '@/components/integrations/ShopifySync';
 import { hasFinancialAccess } from '@/hooks/useJobs';
 import { Plug } from 'lucide-react';
 
@@ -29,15 +30,7 @@ export default function Integrations() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <PrintavoSync />
-        
-        {/* Placeholder for Shopify - coming soon */}
-        <div className="rounded-lg border border-dashed p-6 flex flex-col items-center justify-center text-center">
-          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-            <Plug className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h3 className="font-medium">Shopify</h3>
-          <p className="text-sm text-muted-foreground mt-1">Coming soon</p>
-        </div>
+        <ShopifySync />
       </div>
     </div>
   );
