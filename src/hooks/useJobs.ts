@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
-export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'other';
+export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'other';
 export type JobStatus = 'pending' | 'in_progress' | 'completed' | 'on_hold';
 export type JobStage = 'received' | 'art_approved' | 'in_production' | 'production_complete' | 'qc_complete' | 'packaged' | 'customer_notified' | 'delivered' | 'picked_up' | 'shipped';
 

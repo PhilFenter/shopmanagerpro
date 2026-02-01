@@ -36,6 +36,10 @@ const SERVICE_LABELS: Record<string, string> = {
   screen_print: 'Screen Print',
   dtf: 'DTF',
   leather_patch: 'Leather',
+  uv_patch: 'UV Patch',
+  heat_press_patch: 'Heat Press',
+  woven_patch: 'Woven',
+  pvc_patch: 'PVC',
   other: 'Other',
 };
 
