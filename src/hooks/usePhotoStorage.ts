@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface StoredPhoto {
   id: string;
@@ -13,12 +14,13 @@ export interface StoredPhoto {
 export function usePhotoStorage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
 
   /**
-   * Upload a photo to Supabase storage
+   * Upload a photo to Supabase storage and optionally link it to a job
    * @param file The file to upload
-   * @param jobId Optional job ID to organize photos
+   * @param jobId Optional job ID - if provided, creates a job_photos record
    * @param location Label for the photo (e.g., "Left Chest", "Transfer")
    */
   const uploadPhoto = async (
@@ -36,8 +38,9 @@ export function usePhotoStorage() {
       // Create a unique filename
       const ext = file.name.split('.').pop() || 'jpg';
       const timestamp = Date.now();
-      const prefix = jobId || 'general';
-      const filename = `${prefix}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const prefix = jobId ? `jobs/${jobId}` : 'general';
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filename = `${prefix}/${timestamp}_${safeName}`;
 
       // Upload to storage
       const { data, error } = await supabase.storage
@@ -56,8 +59,34 @@ export function usePhotoStorage() {
         .from('job-photos')
         .getPublicUrl(data.path);
 
+      // If jobId provided, also create a job_photos database record
+      // This links production photos to job cards for approvals
+      let photoId = timestamp.toString();
+      if (jobId) {
+        const { data: photoRecord, error: insertError } = await supabase
+          .from('job_photos')
+          .insert({
+            job_id: jobId,
+            storage_path: data.path,
+            filename: file.name,
+            description: location || null,
+            uploaded_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Failed to create job_photos record:', insertError);
+          // Don't fail the upload, just log the error
+        } else if (photoRecord) {
+          photoId = photoRecord.id;
+          // Invalidate job photos query so the gallery updates
+          queryClient.invalidateQueries({ queryKey: ['job-photos', jobId] });
+        }
+      }
+
       return {
-        id: data.id || timestamp.toString(),
+        id: photoId,
         url: urlData.publicUrl,
         path: data.path,
         location: location || '',
@@ -94,15 +123,27 @@ export function usePhotoStorage() {
   };
 
   /**
-   * Delete a photo from storage
+   * Delete a photo from storage and its job_photos record if exists
    */
-  const deletePhoto = async (path: string): Promise<boolean> => {
+  const deletePhoto = async (path: string, jobId?: string): Promise<boolean> => {
     try {
+      // Delete from storage
       const { error } = await supabase.storage
         .from('job-photos')
         .remove([path]);
 
       if (error) throw error;
+
+      // If jobId provided, also delete the job_photos record
+      if (jobId) {
+        await supabase
+          .from('job_photos')
+          .delete()
+          .eq('storage_path', path);
+        
+        queryClient.invalidateQueries({ queryKey: ['job-photos', jobId] });
+      }
+
       return true;
     } catch (error: any) {
       toast({
