@@ -50,6 +50,29 @@ const BACKING_TYPES = ['Tearaway', 'Cutaway', 'No-Show Mesh', 'Water Soluble', '
 const THREAD_WEIGHTS = ['40', '60'];
 const THREAD_BRANDS = ['Madeira', 'Gutermann', 'Isacord', 'Robison-Anton', 'Other'];
 
+// Default thread setup for 15-needle Barudan
+// Needles 1, 6, 11 are back positions - left empty for substitution
+const SUBSTITUTION_NEEDLES = [1, 6, 11];
+
+// Standard thread colors (Madeira Polyneon) that stay on the machine
+const DEFAULT_THREAD_SETUP: Record<number, { color: string; number: string; weight: string }> = {
+  1:  { color: '', number: '', weight: '40' },               // BACK - Substitution
+  2:  { color: 'White', number: '1801', weight: '40' },
+  3:  { color: 'Black', number: '1800', weight: '40' },
+  4:  { color: 'Navy Blue', number: '1843', weight: '40' },
+  5:  { color: 'Red', number: '1839', weight: '40' },
+  6:  { color: '', number: '', weight: '40' },               // BACK - Substitution
+  7:  { color: 'Gold', number: '1725', weight: '40' },
+  8:  { color: 'Kelly Green', number: '1751', weight: '40' },
+  9:  { color: 'Royal Blue', number: '1842', weight: '40' },
+  10: { color: 'Silver Gray', number: '1918', weight: '40' },
+  11: { color: '', number: '', weight: '40' },               // BACK - Substitution
+  12: { color: 'Orange', number: '1678', weight: '40' },
+  13: { color: 'Maroon', number: '1785', weight: '40' },
+  14: { color: 'Forest Green', number: '1757', weight: '40' },
+  15: { color: 'Purple', number: '1832', weight: '40' },
+};
+
 interface PhotoSlot {
   location: string;
   file: File | null;
@@ -77,13 +100,9 @@ export default function Embroidery() {
   const [backing, setBacking] = useState('');
   const [notes, setNotes] = useState('');
 
-  // 15-needle setup
+  // 15-needle setup - initialize with defaults (substitution needles 1, 6, 11 left empty)
   const [needles, setNeedles] = useState<Record<number, { color: string; number: string; weight: string }>>(() => {
-    const initial: Record<number, { color: string; number: string; weight: string }> = {};
-    for (let i = 1; i <= 15; i++) {
-      initial[i] = { color: '', number: '', weight: '40' };
-    }
-    return initial;
+    return { ...DEFAULT_THREAD_SETUP };
   });
 
   // Photos
@@ -144,11 +163,8 @@ export default function Embroidery() {
     setBacking('');
     setNotes('');
     
-    const initial: Record<number, { color: string; number: string; weight: string }> = {};
-    for (let i = 1; i <= 15; i++) {
-      initial[i] = { color: '', number: '', weight: '40' };
-    }
-    setNeedles(initial);
+    // Reset to default thread setup (with substitution needles empty)
+    setNeedles({ ...DEFAULT_THREAD_SETUP });
     
     setPhotos([
       { location: 'Product', file: null, preview: '' },
@@ -429,16 +445,26 @@ export default function Embroidery() {
                 {Array.from({ length: 15 }, (_, i) => i + 1).map(pos => {
                   const needle = needles[pos];
                   const hasData = needle.color || needle.number;
+                  const isSubstitution = SUBSTITUTION_NEEDLES.includes(pos);
                   return (
                     <div
                       key={pos}
                       className={cn(
                         'p-3 rounded-lg border-2 transition-colors',
-                        hasData ? 'bg-primary/5 border-primary/30' : 'bg-muted/30 border-muted'
+                        isSubstitution 
+                          ? 'bg-amber-500/10 border-amber-500/40 border-dashed' 
+                          : hasData 
+                            ? 'bg-primary/5 border-primary/30' 
+                            : 'bg-muted/30 border-muted'
                       )}
                     >
-                      <div className="text-xs font-bold text-muted-foreground mb-2">
-                        Needle {pos}
+                      <div className="text-xs font-bold text-muted-foreground mb-2 flex items-center justify-between">
+                        <span>Needle {pos}</span>
+                        {isSubstitution && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-amber-500/20 text-amber-600 border-amber-500/30">
+                            SUB
+                          </Badge>
+                        )}
                       </div>
                       <Input
                         value={needle.number}
