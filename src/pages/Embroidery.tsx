@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useEmbroideryRecipes, EmbroideryRecipe, NeedleSetup } from '@/hooks/useEmbroideryRecipes';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
+import { useDefaultThreadSetup, ThreadSetupMap } from '@/hooks/useDefaultThreadSetup';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Loader2, Search, Trash2, Save, Scissors, RotateCcw, Camera, X, Package } from 'lucide-react';
+import { Plus, Loader2, Search, Trash2, Save, Scissors, RotateCcw, Camera, X, Package, Settings2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { JobPicker } from '@/components/jobs/JobPicker';
@@ -50,28 +51,8 @@ const BACKING_TYPES = ['Tearaway', 'Cutaway', 'No-Show Mesh', 'Water Soluble', '
 const THREAD_WEIGHTS = ['40', '60'];
 const THREAD_BRANDS = ['Madeira', 'Gutermann', 'Isacord', 'Robison-Anton', 'Other'];
 
-// Default thread setup for 15-needle Barudan
 // Needles 1, 6, 11 are back positions - left empty for substitution
 const SUBSTITUTION_NEEDLES = [1, 6, 11];
-
-// Standard thread colors (Madeira) that stay on the machine
-const DEFAULT_THREAD_SETUP: Record<number, { color: string; number: string; weight: string }> = {
-  1:  { color: '', number: '', weight: '40' },                    // CHANGEABLE
-  2:  { color: 'Royal Blue', number: '1842', weight: '40' },
-  3:  { color: 'Black', number: '1800', weight: '40' },
-  4:  { color: 'Brown', number: '1872', weight: '40' },
-  5:  { color: 'Gold', number: '1624', weight: '40' },
-  6:  { color: '', number: '', weight: '40' },                    // CHANGEABLE
-  7:  { color: 'Light Blue', number: '1528', weight: '40' },
-  8:  { color: 'White', number: '1800', weight: '40' },
-  9:  { color: 'Red', number: '1918', weight: '40' },
-  10: { color: 'Yellow', number: '1623', weight: '40' },
-  11: { color: '', number: '', weight: '40' },                    // CHANGEABLE
-  12: { color: 'Orange', number: '1678', weight: '40' },
-  13: { color: 'Red', number: '1747', weight: '40' },
-  14: { color: 'White 60wt', number: '1801', weight: '60' },
-  15: { color: 'Black 60wt', number: '1800', weight: '60' },
-};
 
 interface PhotoSlot {
   location: string;
@@ -82,10 +63,10 @@ interface PhotoSlot {
 export default function Embroidery() {
   const { recipes, isLoading, createRecipe, updateRecipe, deleteRecipe } = useEmbroideryRecipes();
   const { teamMembers } = useTeamMembers();
+  const { defaultSetup, isLoading: isLoadingDefaults, saveDefaults, canEdit } = useDefaultThreadSetup();
   const [activeTab, setActiveTab] = useState<'new-job' | 'saved' | 'inventory' | 'hoops'>('new-job');
   const [search, setSearch] = useState('');
-
-  // Job form state
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
   const [jobId, setJobId] = useState(() => 'EMB-' + Date.now().toString().slice(-6));
   const [customer, setCustomer] = useState('');
@@ -100,10 +81,16 @@ export default function Embroidery() {
   const [backing, setBacking] = useState('');
   const [notes, setNotes] = useState('');
 
-  // 15-needle setup - initialize with defaults (substitution needles 1, 6, 11 left empty)
-  const [needles, setNeedles] = useState<Record<number, { color: string; number: string; weight: string }>>(() => {
-    return { ...DEFAULT_THREAD_SETUP };
-  });
+  // 15-needle setup - will be initialized from defaults once loaded
+  const [needles, setNeedles] = useState<Record<number, { color: string; number: string; weight: string }>>({});
+
+  // Initialize needles from saved defaults when they load
+  useEffect(() => {
+    if (!isLoadingDefaults && defaultSetup && !hasInitialized) {
+      setNeedles({ ...defaultSetup });
+      setHasInitialized(true);
+    }
+  }, [isLoadingDefaults, defaultSetup, hasInitialized]);
 
   // Photos
   const [photos, setPhotos] = useState<PhotoSlot[]>([
@@ -112,6 +99,7 @@ export default function Embroidery() {
   ]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDefaults, setIsSavingDefaults] = useState(false);
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
 
   // Filter saved recipes
@@ -163,14 +151,24 @@ export default function Embroidery() {
     setBacking('');
     setNotes('');
     
-    // Reset to default thread setup (with substitution needles empty)
-    setNeedles({ ...DEFAULT_THREAD_SETUP });
+    // Reset to default thread setup from database
+    setNeedles({ ...defaultSetup });
     
     setPhotos([
       { location: 'Product', file: null, preview: '' },
       { location: 'Setup', file: null, preview: '' },
     ]);
     setEditingRecipeId(null);
+  };
+
+  // Save current thread setup as default
+  const handleSaveDefaults = async () => {
+    setIsSavingDefaults(true);
+    try {
+      await saveDefaults.mutateAsync(needles as ThreadSetupMap);
+    } finally {
+      setIsSavingDefaults(false);
+    }
   };
 
   // Save job
@@ -434,17 +432,42 @@ export default function Embroidery() {
           {/* 15-Needle Setup */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Scissors className="h-5 w-5" />
-                15-Needle Thread Setup (Madeira)
-                <Badge variant="secondary" className="ml-2">{assignedNeedles} assigned</Badge>
-              </CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Scissors className="h-5 w-5" />
+                  15-Needle Thread Setup (Madeira)
+                  <Badge variant="secondary" className="ml-2">{assignedNeedles} assigned</Badge>
+                </CardTitle>
+                {canEdit && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleSaveDefaults}
+                    disabled={isSavingDefaults || Object.keys(needles).length === 0}
+                  >
+                    {isSavingDefaults ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Settings2 className="mr-2 h-4 w-4" />
+                    )}
+                    Save as Default Template
+                  </Button>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Edit thread colors and save as default to persist across sessions
+              </p>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {Array.from({ length: 15 }, (_, i) => i + 1).map(pos => {
-                  const needle = needles[pos];
-                  const hasData = needle.color || needle.number;
+              {isLoadingDefaults ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map(pos => {
+                    const needle = needles[pos] || { color: '', number: '', weight: '40' };
+                    const hasData = needle.color || needle.number;
                   const isSubstitution = SUBSTITUTION_NEEDLES.includes(pos);
                   return (
                     <div
@@ -493,8 +516,9 @@ export default function Embroidery() {
                       </Select>
                     </div>
                   );
-                })}
-              </div>
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
