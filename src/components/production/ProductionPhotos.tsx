@@ -76,9 +76,9 @@ export default function ProductionPhotos({
   const removePhoto = async (index: number) => {
     const photo = photos[index];
     
-    // Delete from cloud if it was uploaded
+    // Delete from cloud if it was uploaded (also removes job_photos record if jobId provided)
     if (photo?.stored?.path) {
-      await deletePhoto(photo.stored.path);
+      await deletePhoto(photo.stored.path, jobId);
     }
 
     onPhotosChange(
