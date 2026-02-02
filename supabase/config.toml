@@ -2,3 +2,12 @@ project_id = "cwwkkhcpbswvwghxbfgg"
 
 [functions.printavo-sync]
 verify_jwt = false
+
+[functions.send-sms]
+verify_jwt = false
+
+[functions.send-mockup-email]
+verify_jwt = false
+
+[functions.shopify-sync]
+verify_jwt = false
