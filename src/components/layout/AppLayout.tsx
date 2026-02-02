@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useRolePreview } from '@/hooks/useRolePreview';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   LayoutDashboard,
   Briefcase,
@@ -18,6 +21,7 @@ import {
   X,
   ChevronRight,
   Plug,
+  Eye,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -55,8 +59,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [productionExpanded, setProductionExpanded] = useState(false);
   const { user, signOut, role } = useAuth();
+  const { isPreviewingAsTeam, togglePreview } = useRolePreview();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // When previewing as team, treat role as 'team' for UI purposes
+  const effectiveRole = (role === 'admin' && isPreviewingAsTeam) ? 'team' : role;
 
   const handleSignOut = async () => {
     await signOut();
@@ -136,19 +144,41 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <NavItem key={item.name} item={item} mobile={mobile} />
         ))}
         
-        {(role === 'admin' || role === 'manager') && (
+        {(effectiveRole === 'admin' || effectiveRole === 'manager') && (
           <>
             <div className="my-4 border-t" />
             <p className="px-3 text-xs font-semibold uppercase text-muted-foreground">
-              {role === 'admin' ? 'Admin' : 'Management'}
+              {effectiveRole === 'admin' ? 'Admin' : 'Management'}
             </p>
-            {role === 'admin' && adminNavigation.map((item) => (
+            {effectiveRole === 'admin' && adminNavigation.map((item) => (
               <NavItem key={item.name} item={item} mobile={mobile} />
             ))}
             {financialNavigation.map((item) => (
               <NavItem key={item.name} item={item} mobile={mobile} />
             ))}
           </>
+        )}
+        
+        {/* Admin Preview Toggle */}
+        {role === 'admin' && (
+          <div className="mt-4 border-t pt-4">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/50">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="preview-toggle" className="text-sm cursor-pointer flex-1">
+                Employee View
+              </Label>
+              <Switch
+                id="preview-toggle"
+                checked={isPreviewingAsTeam}
+                onCheckedChange={togglePreview}
+              />
+            </div>
+            {isPreviewingAsTeam && (
+              <p className="px-3 mt-1 text-xs text-warning">
+                Viewing as employee
+              </p>
+            )}
+          </div>
         )}
       </nav>
       
@@ -159,7 +189,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
           <div className="flex-1 truncate">
             <p className="text-sm font-medium truncate">{user?.email}</p>
-            <p className="text-xs text-muted-foreground capitalize">{role || 'team'}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {effectiveRole || 'team'}{isPreviewingAsTeam ? ' (preview)' : ''}
+            </p>
           </div>
         </div>
         <Button variant="outline" className="w-full" onClick={handleSignOut}>
