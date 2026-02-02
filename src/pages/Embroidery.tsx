@@ -438,21 +438,19 @@ export default function Embroidery() {
                   15-Needle Thread Setup (Madeira)
                   <Badge variant="secondary" className="ml-2">{assignedNeedles} assigned</Badge>
                 </CardTitle>
-                {canEdit && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleSaveDefaults}
-                    disabled={isSavingDefaults || Object.keys(needles).length === 0}
-                  >
-                    {isSavingDefaults ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Settings2 className="mr-2 h-4 w-4" />
-                    )}
-                    Save as Default Template
-                  </Button>
-                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSaveDefaults}
+                  disabled={isSavingDefaults || Object.keys(needles).length === 0}
+                >
+                  {isSavingDefaults ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Settings2 className="mr-2 h-4 w-4" />
+                  )}
+                  Save as Default Template
+                </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
                 Edit thread colors and save as default to persist across sessions
