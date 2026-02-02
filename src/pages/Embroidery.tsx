@@ -54,23 +54,23 @@ const THREAD_BRANDS = ['Madeira', 'Gutermann', 'Isacord', 'Robison-Anton', 'Othe
 // Needles 1, 6, 11 are back positions - left empty for substitution
 const SUBSTITUTION_NEEDLES = [1, 6, 11];
 
-// Standard thread colors (Madeira Polyneon) that stay on the machine
+// Standard thread colors (Madeira) that stay on the machine
 const DEFAULT_THREAD_SETUP: Record<number, { color: string; number: string; weight: string }> = {
-  1:  { color: '', number: '', weight: '40' },               // BACK - Substitution
-  2:  { color: 'White', number: '1801', weight: '40' },
+  1:  { color: '', number: '', weight: '40' },                    // CHANGEABLE
+  2:  { color: 'Royal Blue', number: '1842', weight: '40' },
   3:  { color: 'Black', number: '1800', weight: '40' },
-  4:  { color: 'Navy Blue', number: '1843', weight: '40' },
-  5:  { color: 'Red', number: '1839', weight: '40' },
-  6:  { color: '', number: '', weight: '40' },               // BACK - Substitution
-  7:  { color: 'Gold', number: '1725', weight: '40' },
-  8:  { color: 'Kelly Green', number: '1751', weight: '40' },
-  9:  { color: 'Royal Blue', number: '1842', weight: '40' },
-  10: { color: 'Silver Gray', number: '1918', weight: '40' },
-  11: { color: '', number: '', weight: '40' },               // BACK - Substitution
+  4:  { color: 'Brown', number: '1872', weight: '40' },
+  5:  { color: 'Gold', number: '1624', weight: '40' },
+  6:  { color: '', number: '', weight: '40' },                    // CHANGEABLE
+  7:  { color: 'Light Blue', number: '1528', weight: '40' },
+  8:  { color: 'White', number: '1800', weight: '40' },
+  9:  { color: 'Red', number: '1918', weight: '40' },
+  10: { color: 'Yellow', number: '1623', weight: '40' },
+  11: { color: '', number: '', weight: '40' },                    // CHANGEABLE
   12: { color: 'Orange', number: '1678', weight: '40' },
-  13: { color: 'Maroon', number: '1785', weight: '40' },
-  14: { color: 'Forest Green', number: '1757', weight: '40' },
-  15: { color: 'Purple', number: '1832', weight: '40' },
+  13: { color: 'Red', number: '1747', weight: '40' },
+  14: { color: 'White 60wt', number: '1801', weight: '60' },
+  15: { color: 'Black 60wt', number: '1800', weight: '60' },
 };
 
 interface PhotoSlot {
