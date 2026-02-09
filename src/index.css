@@ -41,58 +41,42 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
+    /* Public site warm accent */
+    --warm: 36 90% 50%;
+    --warm-foreground: 36 10% 10%;
+    --warm-muted: 36 30% 80%;
+
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 0 0% 9%;
-
     --sidebar-primary: 161 93% 30%;
-
     --sidebar-primary-foreground: 151 80% 95%;
-
     --sidebar-accent: 0 0% 32%;
-
     --sidebar-accent-foreground: 0 0% 98%;
-
     --sidebar-border: 0 0% 83%;
-
     --sidebar-ring: 161 93% 30%;
 
     --chart-1: 158 64% 51%;
-
     --chart-2: 141 69% 58%;
-
     --chart-3: 172 66% 50%;
-
     --chart-4: 82 77% 55%;
-
     --chart-5: 0 0% 45%;
 
     --sidebar: 0 0% 98%;
 
     --font-sans: 'Work Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-
     --font-serif: 'Lora', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
-
     --font-mono: 'Inconsolata', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-
     --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-
     --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-
     --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
-
     --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
-
     --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
-
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
 
     --tracking-normal: 0em;
-
     --spacing: 0.25rem;
   }
 
@@ -124,6 +108,12 @@ All colors MUST be HSL.
     --border: 0 0% 32%;
     --input: 0 0% 32%;
     --ring: 158 64% 51%;
+
+    /* Public site warm accent (dark mode) */
+    --warm: 36 90% 55%;
+    --warm-foreground: 0 0% 98%;
+    --warm-muted: 36 40% 30%;
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 158 64% 51%;
