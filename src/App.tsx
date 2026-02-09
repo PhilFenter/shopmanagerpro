@@ -3,12 +3,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { RolePreviewProvider } from "@/hooks/useRolePreview";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
-import PublicLayout from "@/components/public/PublicLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Jobs from "./pages/Jobs";
@@ -22,14 +21,6 @@ import Financials from "./pages/Financials";
 import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
-// Public pages
-import Landing from "./pages/public/Landing";
-import About from "./pages/public/About";
-import CustomHats from "./pages/public/CustomHats";
-import DTFTransfers from "./pages/public/DTFTransfers";
-import EmbroideryService from "./pages/public/EmbroideryService";
-import ScreenPrintService from "./pages/public/ScreenPrintService";
-
 function App() {
   const [queryClient] = useState(() => new QueryClient());
 
@@ -42,13 +33,8 @@ function App() {
           <AuthProvider>
             <RolePreviewProvider>
               <Routes>
-                {/* Public pages */}
-                <Route path="/" element={<PublicLayout><Landing /></PublicLayout>} />
-                <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
-                <Route path="/custom-hats" element={<PublicLayout><CustomHats /></PublicLayout>} />
-                <Route path="/dtf-transfers" element={<PublicLayout><DTFTransfers /></PublicLayout>} />
-                <Route path="/embroidery-service" element={<PublicLayout><EmbroideryService /></PublicLayout>} />
-                <Route path="/screen-print-service" element={<PublicLayout><ScreenPrintService /></PublicLayout>} />
+                {/* Root redirects to dashboard (auth guard will send to /auth if not logged in) */}
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
                 {/* Auth */}
                 <Route path="/auth" element={<Auth />} />
