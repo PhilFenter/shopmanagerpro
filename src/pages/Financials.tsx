@@ -17,7 +17,7 @@ export default function Financials() {
   }
 
   if (!hasFinancialAccess(role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const formatCurrency = (value: number) => 

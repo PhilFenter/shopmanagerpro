@@ -13,7 +13,7 @@ export default function Settings() {
   }
 
   if (!hasFinancialAccess(role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
