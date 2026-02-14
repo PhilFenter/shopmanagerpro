@@ -54,10 +54,10 @@ export function usePhotoStorage() {
         throw error;
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Get signed URL (bucket is private)
+      const { data: urlData } = await supabase.storage
         .from('job-photos')
-        .getPublicUrl(data.path);
+        .createSignedUrl(data.path, 3600); // 1 hour expiry
 
       // If jobId provided, also create a job_photos database record
       // This links production photos to job cards for approvals
@@ -87,7 +87,7 @@ export function usePhotoStorage() {
 
       return {
         id: photoId,
-        url: urlData.publicUrl,
+        url: urlData?.signedUrl || '',
         path: data.path,
         location: location || '',
       };

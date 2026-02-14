@@ -63,16 +63,16 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("No photos found for the provided IDs");
     }
 
-    // Get public URLs for photos
-    const photoUrls = photos.map((photo) => {
-      const { data } = supabase.storage
+    // Get signed URLs for photos (bucket is private)
+    const photoUrls = await Promise.all(photos.map(async (photo) => {
+      const { data } = await supabase.storage
         .from("job-photos")
-        .getPublicUrl(photo.storage_path);
+        .createSignedUrl(photo.storage_path, 86400); // 24 hour expiry for email
       return {
-        url: data.publicUrl,
+        url: data?.signedUrl || '',
         filename: photo.filename,
       };
-    });
+    }));
 
     console.log(`Found ${photoUrls.length} photos to include in email`);
 
