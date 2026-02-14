@@ -59,7 +59,8 @@ serve(async (req: Request): Promise<Response> => {
     const formData = new URLSearchParams();
     formData.append("To", formattedNumber);
     formData.append("From", fromNumber);
-    formData.append("Body", message);
+    const fullMessage = `${message}\n\nReply STOP to unsubscribe. Msg & data rates may apply.`;
+    formData.append("Body", fullMessage);
 
     const response = await fetch(twilioUrl, {
       method: "POST",
