@@ -106,7 +106,7 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
             key={stage} 
             className={cn(
               "flex-shrink-0",
-              isFinalStage(stage) ? "w-56" : "w-72"
+              isFinalStage(stage) ? "w-64" : "w-80"
             )}
           >
             <div className={cn(
