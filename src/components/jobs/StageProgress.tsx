@@ -67,11 +67,13 @@ export function StageProgress({ currentStage, compact = false }: StageProgressPr
                 </div>
                 <span 
                   className={cn(
-                    "text-[10px] text-center leading-tight",
+                    "text-[10px] text-center leading-tight w-full",
                     isCurrent ? "font-semibold" : "text-muted-foreground"
                   )}
                 >
-                  {STAGE_LABELS[stage]}
+                  {STAGE_LABELS[stage].split(' ').map((word, i) => (
+                    <span key={i} className="block">{word}</span>
+                  ))}
                 </span>
               </div>
             );
