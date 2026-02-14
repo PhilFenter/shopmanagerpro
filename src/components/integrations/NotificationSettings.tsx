@@ -56,7 +56,7 @@ export function NotificationSettings() {
               Customer Notifications
             </CardTitle>
             <CardDescription>
-              Automatically email Shopify customers when their order reaches key stages
+              Automatically email Shopify and Printavo customers when their order reaches key stages
             </CardDescription>
           </div>
           <Badge variant="secondary">{enabledCount} active</Badge>

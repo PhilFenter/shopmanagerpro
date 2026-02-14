@@ -47,9 +47,9 @@ Deno.serve(async (req) => {
 
     console.log(`Notification request: job=${jobId}, stage=${stage}, source=${source}, email=${customerEmail}`);
 
-    // Only Shopify orders
-    if (source !== "shopify") {
-      return new Response(JSON.stringify({ skipped: true, reason: "Not a Shopify order" }), {
+    // Only Shopify and Printavo orders
+    if (source !== "shopify" && source !== "printavo") {
+      return new Response(JSON.stringify({ skipped: true, reason: "Not a Shopify or Printavo order" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
