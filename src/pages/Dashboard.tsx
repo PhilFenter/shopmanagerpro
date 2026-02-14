@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useDashboardAnalytics, TimePeriod } from '@/hooks/useDashboardAnalytics';
+import { useRolePreview } from '@/hooks/useRolePreview';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,7 +16,9 @@ import { ServiceBreakdownChart } from '@/components/dashboard/ServiceBreakdownCh
 import { StageBreakdownChart } from '@/components/dashboard/StageBreakdownChart';
 
 export default function Dashboard() {
-  const { role } = useAuth();
+  const { role: actualRole } = useAuth();
+  const { isPreviewingAsTeam } = useRolePreview();
+  const role = isPreviewingAsTeam ? 'team' : actualRole;
   const { jobs, isLoading } = useJobs();
   const analytics = useDashboardAnalytics();
 

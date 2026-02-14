@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Job, ServiceType, useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useJobLineItems } from '@/hooks/useJobLineItems';
 import { useAuth } from '@/hooks/useAuth';
+import { useRolePreview } from '@/hooks/useRolePreview';
 import { JobStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
 import { AdvanceStageButton } from './AdvanceStageButton';
@@ -43,7 +44,9 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const stage = (job as any).stage as JobStage || 'received';
   const { updateJob } = useJobs();
   const { lineItems } = useJobLineItems(job.id);
-  const { role } = useAuth();
+  const { role: actualRole } = useAuth();
+  const { isPreviewingAsTeam } = useRolePreview();
+  const role = isPreviewingAsTeam ? 'team' : actualRole;
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];
