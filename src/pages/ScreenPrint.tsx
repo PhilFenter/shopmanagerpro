@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Types for position settings
@@ -60,11 +61,7 @@ interface EnvironmentSettings {
   beltSpeed: number | null;
 }
 
-interface PhotoSlot {
-  location: string;
-  file: File | null;
-  preview: string;
-}
+// PhotoSlot is now imported from ProductionPhotos
 
 // Default settings
 const defaultPrintHead: PrintHeadSettings = {
@@ -228,23 +225,7 @@ export default function ScreenPrint() {
     });
   };
 
-  // Handle photo upload
-  const handlePhotoUpload = (index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPhotos(prev => prev.map((p, i) => 
-        i === index ? { ...p, file, preview: e.target?.result as string } : p
-      ));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Remove photo
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.map((p, i) => 
-      i === index ? { location: '', file: null, preview: '' } : p
-    ));
-  };
+  // Photo handling is now managed by ProductionPhotos component
 
   // Clear all fields
   const clearAll = () => {
@@ -877,57 +858,16 @@ export default function ScreenPrint() {
             </CardContent>
           </Card>
 
-          {/* Production Photos - Mobile Friendly Camera Buttons */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Camera className="h-5 w-5" />
-                Production Photos
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">Tap camera to take photos directly</p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-                {photos.map((photo, index) => (
-                  <div key={index} className="space-y-2">
-                    <Input
-                      value={photo.location}
-                      onChange={(e) => setPhotos(prev => prev.map((p, i) => i === index ? { ...p, location: e.target.value } : p))}
-                      placeholder={`Photo ${index + 1} label`}
-                      className="text-sm"
-                    />
-                    <div className="relative border-2 border-dashed rounded-xl aspect-square flex items-center justify-center bg-muted/30 overflow-hidden">
-                      {photo.preview ? (
-                        <>
-                          <img src={photo.preview} alt="" className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => removePhoto(index)}
-                            className="absolute top-2 right-2 p-2 bg-destructive text-destructive-foreground rounded-full shadow-lg active:scale-95 transition-transform"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
-                        </>
-                      ) : (
-                        <label className="flex flex-col items-center justify-center gap-3 cursor-pointer w-full h-full active:bg-primary/10 transition-colors rounded-xl touch-manipulation">
-                          <div className="p-4 rounded-full bg-primary/10 border-2 border-primary/30">
-                            <Camera className="h-10 w-10 text-primary" />
-                          </div>
-                          <span className="text-sm font-medium text-muted-foreground">Tap to Capture</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={(e) => e.target.files?.[0] && handlePhotoUpload(index, e.target.files[0])}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Production Photos */}
+          <ProductionPhotos
+            photos={photos}
+            onPhotosChange={setPhotos}
+            slots={4}
+            jobId={linkedJobId || undefined}
+            customerEmail={linkedJobId ? jobs.find(j => j.id === linkedJobId)?.customer_email : undefined}
+            customerName={jobDescription || undefined}
+            orderNumber={linkedJobId ? jobs.find(j => j.id === linkedJobId)?.order_number : undefined}
+          />
 
           {/* Action Buttons */}
           <div className="flex gap-3">

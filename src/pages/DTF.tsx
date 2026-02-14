@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDTFRecipes, FABRIC_TYPES, PRESSURE_OPTIONS, PEEL_OPTIONS, DTFRecipe } from '@/hooks/useDTFRecipes';
+import { useJobs } from '@/hooks/useJobs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,7 @@ const TRANSFER_SIZES = [
 
 export default function DTF() {
   const { recipes, isLoading, createRecipe, updateRecipe, deleteRecipe } = useDTFRecipes();
+  const { jobs } = useJobs();
   const [activeTab, setActiveTab] = useState<'new-job' | 'saved'>('new-job');
   const [search, setSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
@@ -585,6 +587,10 @@ export default function DTF() {
             onPhotosChange={setPhotos}
             slots={4}
             fixedLabels={['Transfer', 'Placement', 'After Press', 'Final Product']}
+            jobId={linkedJobId || undefined}
+            customerEmail={linkedJobId ? jobs.find(j => j.id === linkedJobId)?.customer_email : undefined}
+            customerName={customer || undefined}
+            orderNumber={linkedJobId ? jobs.find(j => j.id === linkedJobId)?.order_number : undefined}
           />
 
           {/* Action Buttons */}

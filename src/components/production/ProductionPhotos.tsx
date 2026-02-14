@@ -2,9 +2,24 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Camera, X, Loader2, Cloud, CloudOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Camera, X, Loader2, Cloud, CloudOff, Send, Check } from 'lucide-react';
 import { usePhotoStorage, StoredPhoto } from '@/hooks/usePhotoStorage';
+import { useJobPhotos } from '@/hooks/useJobPhotos';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface PhotoSlot {
   location: string;
@@ -29,6 +44,12 @@ interface ProductionPhotosProps {
   jobId?: string;
   /** Enable cloud upload (default true) */
   cloudUpload?: boolean;
+  /** Customer email for send-for-approval (enables Send button) */
+  customerEmail?: string | null;
+  /** Customer name for send-for-approval */
+  customerName?: string;
+  /** Order number for send-for-approval */
+  orderNumber?: string | null;
 }
 
 export default function ProductionPhotos({
@@ -40,9 +61,20 @@ export default function ProductionPhotos({
   fixedLabels,
   jobId,
   cloudUpload = true,
+  customerEmail,
+  customerName,
+  orderNumber,
 }: ProductionPhotosProps) {
   const { uploadPhoto, deletePhoto, isUploading } = usePhotoStorage();
+  const { toast } = useToast();
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
+  const [customMessage, setCustomMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  // Also fetch job photos if we have a jobId (so we can send any photo from the job gallery)
+  const { photos: jobGalleryPhotos } = useJobPhotos(jobId || '');
 
   const handlePhotoUpload = async (index: number, file: File) => {
     // First show local preview immediately
@@ -76,7 +108,6 @@ export default function ProductionPhotos({
   const removePhoto = async (index: number) => {
     const photo = photos[index];
     
-    // Delete from cloud if it was uploaded (also removes job_photos record if jobId provided)
     if (photo?.stored?.path) {
       await deletePhoto(photo.stored.path, jobId);
     }
@@ -94,6 +125,74 @@ export default function ProductionPhotos({
     );
   };
 
+  // Toggle selection for gallery photos (used in send dialog)
+  const toggleGalleryPhoto = (photoId: string) => {
+    setSelectedGalleryPhotos((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
+  };
+
+  const [selectedGalleryPhotos, setSelectedGalleryPhotos] = useState<Set<string>>(new Set());
+
+  const handleSendApproval = async () => {
+    if (!customerEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'No email address',
+        description: 'This customer does not have an email address on file.',
+      });
+      return;
+    }
+
+    if (selectedGalleryPhotos.size === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No photos selected',
+        description: 'Please select at least one photo to send.',
+      });
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-mockup-email', {
+        body: {
+          jobId,
+          photoIds: Array.from(selectedGalleryPhotos),
+          customerEmail,
+          customerName: customerName || 'Customer',
+          message: customMessage || undefined,
+          orderNumber: orderNumber || undefined,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to send email');
+
+      toast({
+        title: 'Mockup sent!',
+        description: `Email sent to ${customerEmail}`,
+      });
+      setIsSendDialogOpen(false);
+      setSelectedGalleryPhotos(new Set());
+      setCustomMessage('');
+    } catch (error) {
+      console.error('Error sending mockup:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to send',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const canSendApproval = customerEmail && jobId && jobGalleryPhotos.length > 0;
+
   // Ensure we have the right number of slots
   const displayPhotos = [...photos];
   while (displayPhotos.length < slots) {
@@ -106,12 +205,104 @@ export default function ProductionPhotos({
         <CardTitle className="text-lg flex items-center gap-2">
           <Camera className="h-5 w-5" />
           Production Photos
-          {cloudUpload && (
-            <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
-              <Cloud className="h-3 w-3" />
-              Cloud sync
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Send for Approval button */}
+            {canSendApproval && (
+              <Dialog open={isSendDialogOpen} onOpenChange={setIsSendDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Send className="h-4 w-4 mr-1" />
+                    Send for Approval
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Send Mockup for Approval</DialogTitle>
+                    <DialogDescription>
+                      Select photos and send them to {customerName || 'the customer'} at {customerEmail}
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Select photos to send</Label>
+                      <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                        {jobGalleryPhotos.map((photo) => (
+                          <button
+                            key={photo.id}
+                            type="button"
+                            onClick={() => toggleGalleryPhoto(photo.id)}
+                            className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors ${
+                              selectedGalleryPhotos.has(photo.id)
+                                ? 'border-primary'
+                                : 'border-transparent'
+                            }`}
+                          >
+                            <img
+                              src={photo.url}
+                              alt={photo.filename}
+                              className="w-full h-full object-cover"
+                            />
+                            {selectedGalleryPhotos.has(photo.id) && (
+                              <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                                <Check className="h-3 w-3" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedGalleryPhotos.size} photo{selectedGalleryPhotos.size !== 1 ? 's' : ''} selected
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="prod-message">Custom message (optional)</Label>
+                      <Textarea
+                        id="prod-message"
+                        placeholder="Please review the attached mockup(s) for your upcoming order."
+                        value={customMessage}
+                        onChange={(e) => setCustomMessage(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsSendDialogOpen(false)}
+                      disabled={isSending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSendApproval}
+                      disabled={isSending || selectedGalleryPhotos.size === 0}
+                    >
+                      {isSending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Email
+                        </>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+            {cloudUpload && (
+              <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                <Cloud className="h-3 w-3" />
+                Cloud sync
+              </span>
+            )}
+          </div>
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Tap camera to take photos directly
@@ -146,7 +337,6 @@ export default function ProductionPhotos({
                       alt=""
                       className="w-full h-full object-cover"
                     />
-                    {/* Cloud indicator */}
                     {photo.stored ? (
                       <div className="absolute bottom-2 left-2 p-1 bg-green-500/90 text-white rounded-full">
                         <Cloud className="h-3 w-3" />
@@ -156,7 +346,6 @@ export default function ProductionPhotos({
                         <CloudOff className="h-3 w-3" />
                       </div>
                     )}
-                    {/* Uploading indicator */}
                     {uploadingIndex === index && (
                       <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
