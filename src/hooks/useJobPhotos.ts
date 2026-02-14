@@ -32,17 +32,17 @@ export function useJobPhotos(jobId?: string) {
       
       if (error) throw error;
       
-      // Get public URLs for each photo
-      const photosWithUrls = data.map((photo) => {
-        const { data: urlData } = supabase.storage
+      // Get signed URLs for each photo (bucket is private)
+      const photosWithUrls = await Promise.all(data.map(async (photo) => {
+        const { data: urlData } = await supabase.storage
           .from('job-photos')
-          .getPublicUrl(photo.storage_path);
+          .createSignedUrl(photo.storage_path, 3600); // 1 hour expiry
         
         return {
           ...photo,
-          url: urlData.publicUrl,
+          url: urlData?.signedUrl || '',
         };
-      });
+      }));
       
       return photosWithUrls as JobPhoto[];
     },
