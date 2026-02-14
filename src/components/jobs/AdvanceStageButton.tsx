@@ -6,11 +6,17 @@ interface AdvanceStageButtonProps {
   jobId: string;
   currentStage: JobStage;
   size?: 'default' | 'sm' | 'lg';
+  source?: string | null;
+  customerName?: string;
+  customerEmail?: string | null;
+  orderNumber?: string | null;
 }
 
-export function AdvanceStageButton({ jobId, currentStage, size = 'default' }: AdvanceStageButtonProps) {
+export function AdvanceStageButton({ jobId, currentStage, size = 'default', source, customerName, customerEmail, orderNumber }: AdvanceStageButtonProps) {
   const advanceStage = useAdvanceStage();
   const nextStage = getNextStage(currentStage);
+
+  const jobMeta = { source, customerName, customerEmail, orderNumber };
 
   // Already at a final stage
   if (isFinalStage(currentStage)) {
@@ -30,7 +36,7 @@ export function AdvanceStageButton({ jobId, currentStage, size = 'default' }: Ad
             key={finalStage}
             size={size}
             variant="default"
-            onClick={() => advanceStage.mutate({ jobId, currentStage, targetStage: finalStage })}
+            onClick={() => advanceStage.mutate({ jobId, currentStage, targetStage: finalStage, ...jobMeta })}
             disabled={advanceStage.isPending}
             className="flex-1"
           >
@@ -56,7 +62,7 @@ export function AdvanceStageButton({ jobId, currentStage, size = 'default' }: Ad
   return (
     <Button
       size={size}
-      onClick={() => advanceStage.mutate({ jobId, currentStage })}
+      onClick={() => advanceStage.mutate({ jobId, currentStage, ...jobMeta })}
       disabled={advanceStage.isPending}
     >
       {advanceStage.isPending ? (

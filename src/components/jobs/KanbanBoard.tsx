@@ -133,7 +133,11 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
                     onAdvance={(targetStage) => advanceStage.mutate({ 
                       jobId: job.id, 
                       currentStage: stage,
-                      targetStage 
+                      targetStage,
+                      source: job.source,
+                      customerName: job.customer_name,
+                      customerEmail: job.customer_email,
+                      orderNumber: job.order_number,
                     })}
                     isAdvancing={advanceStage.isPending}
                   />

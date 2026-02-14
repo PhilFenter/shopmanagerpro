@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { PrintavoSync } from '@/components/integrations/PrintavoSync';
 import { ShopifySync } from '@/components/integrations/ShopifySync';
+import { NotificationSettings } from '@/components/integrations/NotificationSettings';
 import { hasFinancialAccess } from '@/hooks/useJobs';
 import { Plug } from 'lucide-react';
 
@@ -32,6 +33,8 @@ export default function Integrations() {
         <PrintavoSync />
         <ShopifySync />
       </div>
+
+      <NotificationSettings />
     </div>
   );
 }

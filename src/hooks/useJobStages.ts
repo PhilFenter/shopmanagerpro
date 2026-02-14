@@ -108,18 +108,26 @@ export function useAdvanceStage() {
       jobId, 
       currentStage, 
       targetStage,
-      notes 
+      notes,
+      // Job metadata for notifications
+      source,
+      customerName,
+      customerEmail,
+      orderNumber,
     }: { 
       jobId: string; 
       currentStage: JobStage; 
-      targetStage?: JobStage; // For choosing between picked_up/shipped
+      targetStage?: JobStage;
       notes?: string;
+      source?: string | null;
+      customerName?: string;
+      customerEmail?: string | null;
+      orderNumber?: string | null;
     }) => {
-      // Determine next stage - use targetStage if provided, otherwise calculate
+      // Determine next stage
       let nextStage: JobStage;
       
       if (targetStage) {
-        // Validate targetStage is valid for current position
         if (isAtFinalChoice(currentStage) && FINAL_STAGES.includes(targetStage)) {
           nextStage = targetStage;
         } else {
@@ -139,7 +147,6 @@ export function useAdvanceStage() {
         .update({ 
           stage: nextStage,
           stage_updated_at: new Date().toISOString(),
-          // Also update status for backwards compatibility
           status: isFinalStage(nextStage) ? 'completed' : 
                   nextStage === 'in_production' ? 'in_progress' : 'pending',
         })
@@ -159,6 +166,23 @@ export function useAdvanceStage() {
         });
 
       if (historyError) throw historyError;
+
+      // Fire customer notification (non-blocking)
+      if (source === 'shopify' && customerEmail) {
+        supabase.functions.invoke('notify-customer', {
+          body: {
+            jobId,
+            customerName: customerName || 'Customer',
+            customerEmail,
+            orderNumber: orderNumber || 'N/A',
+            stage: nextStage,
+            source,
+          },
+        }).then(({ error }) => {
+          if (error) console.error('Notification error:', error);
+          else console.log(`Notification sent for stage: ${nextStage}`);
+        });
+      }
 
       return nextStage;
     },
