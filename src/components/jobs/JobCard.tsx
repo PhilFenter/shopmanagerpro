@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Job, ServiceType, useJobs } from '@/hooks/useJobs';
+import { Job, ServiceType, useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useJobLineItems } from '@/hooks/useJobLineItems';
+import { useAuth } from '@/hooks/useAuth';
 import { JobStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
 import { AdvanceStageButton } from './AdvanceStageButton';
@@ -42,6 +43,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const stage = (job as any).stage as JobStage || 'received';
   const { updateJob } = useJobs();
   const { lineItems } = useJobLineItems(job.id);
+  const { role } = useAuth();
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];
@@ -124,7 +126,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
               <span>{formatTime(job.time_tracked)}</span>
             </div>
           )}
-          {job.sale_price && (
+          {hasFinancialAccess(role) && job.sale_price && (
             <span className="font-medium text-foreground ml-auto">
               ${Number(job.sale_price).toFixed(2)}
             </span>
