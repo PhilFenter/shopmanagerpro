@@ -6,6 +6,9 @@ import { useToast } from './use-toast';
 export type JobStage = 
   | 'received'
   | 'art_approved'
+  | 'product_ordered'
+  | 'product_arrived'
+  | 'product_staged'
   | 'in_production'
   | 'production_complete'
   | 'qc_complete'
@@ -18,6 +21,9 @@ export type JobStage =
 export const STAGE_ORDER: JobStage[] = [
   'received',
   'art_approved',
+  'product_ordered',
+  'product_arrived',
+  'product_staged',
   'in_production',
   'production_complete',
   'qc_complete',
@@ -31,6 +37,9 @@ export const FINAL_STAGES: JobStage[] = ['picked_up', 'shipped'];
 export const STAGE_LABELS: Record<JobStage, string> = {
   received: 'Received',
   art_approved: 'Art Approved',
+  product_ordered: 'Product Ordered',
+  product_arrived: 'Product Arrived',
+  product_staged: 'Product Staged',
   in_production: 'In Production',
   production_complete: 'Production Complete',
   qc_complete: 'QC Complete',
@@ -43,6 +52,9 @@ export const STAGE_LABELS: Record<JobStage, string> = {
 export const STAGE_ICONS: Record<JobStage, string> = {
   received: '📥',
   art_approved: '🎨',
+  product_ordered: '🛒',
+  product_arrived: '📬',
+  product_staged: '📋',
   in_production: '⚙️',
   production_complete: '✅',
   qc_complete: '🔍',
