@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLeatherRecipes, LEATHER_MATERIALS, LeatherRecipe } from '@/hooks/useLeatherRecipes';
+import { useJobs } from '@/hooks/useJobs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Plus, Loader2, Search, Trash2, Save, Zap, RotateCcw, Camera, X, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Extended material options from old code
@@ -48,11 +50,7 @@ const LASER_PRESETS: Record<string, { power: number; speed: number; frequency: n
   'hand-stained-dark': { power: 55, speed: 22, frequency: 1000, passes: 1, zOffset: 0, airAssist: true },
 };
 
-interface PhotoSlot {
-  location: string;
-  file: File | null;
-  preview: string;
-}
+// PhotoSlot is now imported from ProductionPhotos
 
 interface MaterialItem {
   id: number;
@@ -62,6 +60,7 @@ interface MaterialItem {
 
 export default function Leather() {
   const { recipes, isLoading, createRecipe, updateRecipe, deleteRecipe } = useLeatherRecipes();
+  const { jobs } = useJobs();
   const [activeTab, setActiveTab] = useState<'new-job' | 'saved' | 'materials'>('new-job');
   const [search, setSearch] = useState('');
 
@@ -149,23 +148,7 @@ export default function Leather() {
     }
   };
 
-  // Handle photo upload
-  const handlePhotoUpload = (index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPhotos(prev => prev.map((p, i) => 
-        i === index ? { ...p, file, preview: e.target?.result as string } : p
-      ));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Remove photo
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.map((p, i) => 
-      i === index ? { location: '', file: null, preview: '' } : p
-    ));
-  };
+  // Photo handling is now managed by ProductionPhotos component
 
   // Clear form
   const clearForm = () => {
@@ -656,57 +639,16 @@ export default function Leather() {
             </CardContent>
           </Card>
 
-          {/* Photos - Mobile Friendly Camera Buttons */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Camera className="h-5 w-5" />
-                Production Photos
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">Tap camera to take photos directly</p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-                {photos.map((photo, index) => (
-                  <div key={index} className="space-y-2">
-                    <Input
-                      value={photo.location}
-                      onChange={(e) => setPhotos(prev => prev.map((p, i) => i === index ? { ...p, location: e.target.value } : p))}
-                      placeholder={`Photo ${index + 1} label`}
-                      className="text-sm"
-                    />
-                    <div className="relative border-2 border-dashed rounded-xl aspect-square flex items-center justify-center bg-muted/30 overflow-hidden">
-                      {photo.preview ? (
-                        <>
-                          <img src={photo.preview} alt="" className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => removePhoto(index)}
-                            className="absolute top-2 right-2 p-2 bg-destructive text-destructive-foreground rounded-full shadow-lg active:scale-95 transition-transform"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
-                        </>
-                      ) : (
-                        <label className="flex flex-col items-center justify-center gap-3 cursor-pointer w-full h-full active:bg-primary/10 transition-colors rounded-xl touch-manipulation">
-                          <div className="p-4 rounded-full bg-primary/10 border-2 border-primary/30">
-                            <Camera className="h-10 w-10 text-primary" />
-                          </div>
-                          <span className="text-sm font-medium text-muted-foreground">Tap to Capture</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={(e) => e.target.files?.[0] && handlePhotoUpload(index, e.target.files[0])}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Production Photos */}
+          <ProductionPhotos
+            photos={photos}
+            onPhotosChange={setPhotos}
+            slots={4}
+            jobId={linkedJobId || undefined}
+            customerEmail={linkedJobId ? jobs.find(j => j.id === linkedJobId)?.customer_email : undefined}
+            customerName={customer || undefined}
+            orderNumber={linkedJobId ? jobs.find(j => j.id === linkedJobId)?.order_number : undefined}
+          />
 
           {/* Action Buttons */}
           <div className="flex gap-3">
