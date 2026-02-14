@@ -1,6 +1,7 @@
 import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, getStageIndex, isFinalStage } from '@/hooks/useJobStages';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface StageProgressProps {
   currentStage: JobStage;
@@ -12,7 +13,6 @@ export function StageProgress({ currentStage, compact = false }: StageProgressPr
   const isComplete = isFinalStage(currentStage);
 
   if (compact) {
-    // Compact version for cards - just shows current stage with progress dots
     return (
       <div className="flex items-center gap-2">
         <span className="text-lg">{STAGE_ICONS[currentStage]}</span>
@@ -29,7 +29,6 @@ export function StageProgress({ currentStage, compact = false }: StageProgressPr
               )}
             />
           ))}
-          {/* Final stage indicator */}
           <div
             className={cn(
               "w-2 h-2 rounded-full transition-colors",
@@ -41,42 +40,45 @@ export function StageProgress({ currentStage, compact = false }: StageProgressPr
     );
   }
 
-  // Full version for detail view
+  // Full version for detail view — horizontally scrollable
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        {STAGE_ORDER.map((stage, index) => {
-          const stageComplete = index < currentIndex || isComplete;
-          const isCurrent = index === currentIndex && !isComplete;
-          
-          return (
-            <div key={stage} className="flex flex-col items-center gap-1 flex-1">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all",
-                  stageComplete && "bg-primary text-primary-foreground",
-                  isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2",
-                  !stageComplete && !isCurrent && "bg-muted text-muted-foreground"
-                )}
-              >
-                {stageComplete ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  STAGE_ICONS[stage]
-                )}
+      <ScrollArea className="w-full">
+        <div className="flex items-start gap-1 pb-2" style={{ minWidth: 'max-content' }}>
+          {STAGE_ORDER.map((stage, index) => {
+            const stageComplete = index < currentIndex || isComplete;
+            const isCurrent = index === currentIndex && !isComplete;
+            
+            return (
+              <div key={stage} className="flex flex-col items-center gap-1 w-20 flex-shrink-0">
+                <div
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all",
+                    stageComplete && "bg-primary text-primary-foreground",
+                    isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2",
+                    !stageComplete && !isCurrent && "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {stageComplete ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    STAGE_ICONS[stage]
+                  )}
+                </div>
+                <span 
+                  className={cn(
+                    "text-[10px] text-center leading-tight",
+                    isCurrent ? "font-semibold" : "text-muted-foreground"
+                  )}
+                >
+                  {STAGE_LABELS[stage]}
+                </span>
               </div>
-              <span 
-                className={cn(
-                  "text-xs text-center hidden sm:block",
-                  isCurrent ? "font-medium" : "text-muted-foreground"
-                )}
-              >
-                {STAGE_LABELS[stage]}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
       
       {/* Progress bar */}
       <div className="relative h-1 bg-muted rounded-full overflow-hidden">

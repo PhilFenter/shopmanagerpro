@@ -165,7 +165,7 @@ export default function Jobs() {
 
       {/* Job Detail Sheet */}
       <Sheet open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJobId(null)}>
-        <SheetContent className="sm:max-w-lg overflow-y-auto">
+        <SheetContent className="sm:max-w-2xl overflow-y-auto">
           {selectedJob && (
             <>
               <SheetHeader>
