@@ -6,7 +6,7 @@ import { useToast } from './use-toast';
 
 export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'other';
 export type JobStatus = 'pending' | 'in_progress' | 'completed' | 'on_hold';
-export type JobStage = 'received' | 'art_approved' | 'in_production' | 'production_complete' | 'qc_complete' | 'packaged' | 'customer_notified' | 'delivered' | 'picked_up' | 'shipped';
+export type JobStage = 'received' | 'art_approved' | 'product_ordered' | 'product_arrived' | 'product_staged' | 'in_production' | 'production_complete' | 'qc_complete' | 'packaged' | 'customer_notified' | 'delivered' | 'picked_up' | 'shipped';
 
 // Helper to check if user has financial access
 export const hasFinancialAccess = (role: string | null) => role === 'admin' || role === 'manager';

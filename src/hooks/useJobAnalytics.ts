@@ -38,6 +38,9 @@ const SERVICE_LABELS: Record<string, string> = {
 const STAGE_LABELS: Record<string, string> = {
   received: 'Received',
   art_approved: 'Art Approved',
+  product_ordered: 'Product Ordered',
+  product_arrived: 'Product Arrived',
+  product_staged: 'Product Staged',
   in_production: 'In Production',
   production_complete: 'Production Complete',
   qc_complete: 'QC Complete',

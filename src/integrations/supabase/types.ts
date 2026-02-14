@@ -910,6 +910,9 @@ export type Database = {
       job_stage:
         | "received"
         | "art_approved"
+        | "product_ordered"
+        | "product_arrived"
+        | "product_staged"
         | "in_production"
         | "production_complete"
         | "qc_complete"
@@ -1060,6 +1063,9 @@ export const Constants = {
       job_stage: [
         "received",
         "art_approved",
+        "product_ordered",
+        "product_arrived",
+        "product_staged",
         "in_production",
         "production_complete",
         "qc_complete",
