@@ -187,7 +187,11 @@ export default function Jobs() {
                   <StageProgress currentStage={(selectedJob as any).stage || 'received'} />
                   <AdvanceStageButton 
                     jobId={selectedJob.id} 
-                    currentStage={(selectedJob as any).stage || 'received'} 
+                    currentStage={(selectedJob as any).stage || 'received'}
+                    source={(selectedJob as any).source}
+                    customerName={selectedJob.customer_name}
+                    customerEmail={selectedJob.customer_email}
+                    orderNumber={selectedJob.order_number}
                   />
                 </div>
 

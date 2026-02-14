@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.shopify-sync]
 verify_jwt = false
+
+[functions.notify-customer]
+verify_jwt = false

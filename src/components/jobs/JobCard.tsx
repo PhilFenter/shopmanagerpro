@@ -138,7 +138,15 @@ export function JobCard({ job, onClick }: JobCardProps) {
 
         {/* Advance Button */}
         <div onClick={(e) => e.stopPropagation()}>
-          <AdvanceStageButton jobId={job.id} currentStage={stage} size="sm" />
+          <AdvanceStageButton 
+            jobId={job.id} 
+            currentStage={stage} 
+            size="sm"
+            source={job.source}
+            customerName={job.customer_name}
+            customerEmail={job.customer_email}
+            orderNumber={job.order_number}
+          />
         </div>
       </CardContent>
     </Card>
