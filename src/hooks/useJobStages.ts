@@ -168,7 +168,7 @@ export function useAdvanceStage() {
       if (historyError) throw historyError;
 
       // Fire customer notification (non-blocking)
-      if (source === 'shopify' && customerEmail) {
+      if ((source === 'shopify' || source === 'printavo') && customerEmail) {
         supabase.functions.invoke('notify-customer', {
           body: {
             jobId,
