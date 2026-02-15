@@ -83,11 +83,13 @@ export function NotificationSettings() {
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </CollapsibleTrigger>
-                <Switch
-                  checked={setting.notify_customer}
-                  onCheckedChange={() => handleToggle(setting.id, setting.notify_customer)}
-                  className="ml-3"
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Switch
+                    checked={setting.notify_customer}
+                    onCheckedChange={() => handleToggle(setting.id, setting.notify_customer)}
+                    className="ml-3"
+                  />
+                </div>
               </div>
               <CollapsibleContent className="px-3 pb-3 pt-2">
                 <div className="space-y-2 ml-8">
