@@ -203,8 +203,23 @@ Deno.serve(async (req) => {
         sale_price: parseFloat(order.total_price) || 0,
         stage: stage,
         created_by: userId,
+        created_at: order.created_at,
       };
     });
+
+    // Update existing jobs' created_at to match original Shopify dates
+    let updatedDates = 0;
+    for (const order of existingOrders) {
+      const jobId = existingMap.get(order.id.toString());
+      if (jobId) {
+        const { error } = await supabase
+          .from("jobs")
+          .update({ created_at: order.created_at })
+          .eq("id", jobId);
+        if (!error) updatedDates++;
+      }
+    }
+    console.log(`Updated ${updatedDates} existing Shopify job dates`);
 
     console.log(`Creating ${newJobs.length} new jobs (${existingOrders.length} already exist)`);
 

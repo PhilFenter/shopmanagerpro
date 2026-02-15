@@ -291,7 +291,24 @@ Deno.serve(async (req) => {
       sale_price: invoice.total || 0,
       printavo_status: invoice.status?.name || null,
       created_by: userId,
+      created_at: invoice.createdAt || new Date().toISOString(),
     }));
+
+    // Update existing jobs' created_at to match original Printavo dates
+    let updatedDates = 0;
+    for (const invoice of existingInvoices) {
+      if (invoice.createdAt) {
+        const jobId = existingMap.get(invoice.id);
+        if (jobId) {
+          const { error } = await supabase
+            .from("jobs")
+            .update({ created_at: invoice.createdAt })
+            .eq("id", jobId);
+          if (!error) updatedDates++;
+        }
+      }
+    }
+    console.log(`Updated ${updatedDates} existing job dates`);
 
     console.log(`Creating ${newJobs.length} new jobs (${existingInvoices.length} already exist)`);
 
