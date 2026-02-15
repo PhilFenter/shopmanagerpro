@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { TeamMemberSettings } from '@/components/settings/TeamMemberSettings';
 import { OverheadSettings } from '@/components/settings/OverheadSettings';
 import { CostDashboard } from '@/components/settings/CostDashboard';
+import { ProductCatalogSettings } from '@/components/settings/ProductCatalogSettings';
 import { hasFinancialAccess } from '@/hooks/useJobs';
 
 export default function Settings() {
@@ -29,6 +30,8 @@ export default function Settings() {
         <TeamMemberSettings />
         <OverheadSettings />
       </div>
+
+      <ProductCatalogSettings />
     </div>
   );
 }
