@@ -1,9 +1,8 @@
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { useJobLineItems } from '@/hooks/useJobLineItems';
-import { useJobGarments } from '@/hooks/useJobGarments';
 import { useWorkers } from '@/hooks/useWorkers';
 import { Job } from '@/hooks/useJobs';
-import { DollarSign, TrendingUp, TrendingDown, Clock, Package, Shirt } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Clock, Package } from 'lucide-react';
 import { formatTime } from './TimeEntry';
 
 // 16.5% payroll tax burden as per business logic
@@ -18,7 +17,6 @@ interface JobCostSummaryProps {
 export function JobCostSummary({ job }: JobCostSummaryProps) {
   const { timeEntries, totalMinutes } = useTimeEntries(job.id);
   const { lineItems } = useJobLineItems(job.id);
-  const { garments } = useJobGarments(job.id);
   const { workers } = useWorkers();
 
   // Create a map of worker IDs to their effective hourly rates
@@ -26,21 +24,19 @@ export function JobCostSummary({ job }: JobCostSummaryProps) {
     workers.map(w => [
       w.id,
       w.is_salary && w.monthly_salary > 0
-        ? w.monthly_salary / MONTHLY_HOURS
+        ? w.monthly_salary / MONTHLY_HOURS // Convert salary to hourly
         : w.hourly_rate || 0
     ])
   );
 
   // Calculate labor cost from time entries with worker wage rates (including burden)
   const laborCostWithBurden = timeEntries.reduce((sum, entry) => {
+    // Use worker ID from entry to look up rate (handles salaried workers)
     const effectiveRate = entry.worker_id ? (workerRates.get(entry.worker_id) || 0) : 0;
     const hours = (entry.duration || 0) / 60;
     const baseCost = hours * effectiveRate;
     return sum + (baseCost * (1 + PAYROLL_TAX_BURDEN));
   }, 0);
-
-  // Garment costs from job_garments (unit_cost × quantity)
-  const garmentCost = garments.reduce((sum, g) => sum + (Number(g.unit_cost || 0) * g.quantity), 0);
 
   // Material costs from line items or job level
   const materialCost = lineItems.length > 0
@@ -53,7 +49,7 @@ export function JobCostSummary({ job }: JobCostSummaryProps) {
     : Number(job.sale_price || 0);
 
   // Total cost and profit
-  const totalCost = laborCostWithBurden + garmentCost + materialCost;
+  const totalCost = laborCostWithBurden + materialCost;
   const profit = revenue - totalCost;
   const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
@@ -85,8 +81,8 @@ export function JobCostSummary({ job }: JobCostSummaryProps) {
       <div className="border-t pt-3 space-y-2">
         <CostRow label="Revenue" value={revenue} isRevenue />
         <CostRow label="Labor (w/ burden)" value={laborCostWithBurden} />
-        <CostRow label="Garments" value={garmentCost} />
         <CostRow label="Materials" value={materialCost} />
+        
         <div className="border-t pt-2 mt-2">
           <div className="flex items-center justify-between font-medium">
             <div className="flex items-center gap-1">
