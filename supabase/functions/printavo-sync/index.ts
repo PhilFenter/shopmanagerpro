@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
     let hasNextPage = true;
     let endCursor: string | null = null;
     let pageCount = 0;
-    const pageSize = 25;
+    const pageSize = 5; // Small page size to stay under Printavo's query complexity limit
 
     const startBound = startDate ? new Date(startDate) : null;
     const endBound = endDate ? new Date(endDate + "T23:59:59") : null;
