@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils';
 
 export function ShopifySync() {
   const { syncOrders, isSyncing, lastResult } = useShopifySync();
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date(new Date().getFullYear(), 0, 1));
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [minOrderNumber, setMinOrderNumber] = useState('');
 
   const handleSync = () => {
@@ -67,8 +67,8 @@ export function ShopifySync() {
           <Button variant="outline" size="sm" onClick={handleYearToDate}>
             Year to date
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }}>
-            All time
+          <Button variant="outline" size="sm" onClick={() => { setStartDate(new Date(new Date().getFullYear(), 0, 1)); setEndDate(new Date()); }}>
+            Reset to YTD
           </Button>
         </div>
 

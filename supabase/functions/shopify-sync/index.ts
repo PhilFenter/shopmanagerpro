@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const {
-      startDate = null,
+      startDate = `${new Date().getFullYear()}-01-01`,
       endDate = null,
       minOrderNumber = null,
       maxPages = 10,
