@@ -578,6 +578,60 @@ export type Database = {
         }
         Relationships: []
       }
+      product_catalog: {
+        Row: {
+          brand: string | null
+          case_price: number | null
+          category: string | null
+          color_group: string | null
+          created_at: string
+          description: string | null
+          id: string
+          map_price: number | null
+          msrp: number | null
+          piece_price: number | null
+          price_code: string | null
+          size_range: string | null
+          style_number: string
+          supplier: string
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          case_price?: number | null
+          category?: string | null
+          color_group?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          map_price?: number | null
+          msrp?: number | null
+          piece_price?: number | null
+          price_code?: string | null
+          size_range?: string | null
+          style_number: string
+          supplier?: string
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          case_price?: number | null
+          category?: string | null
+          color_group?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          map_price?: number | null
+          msrp?: number | null
+          piece_price?: number | null
+          price_code?: string | null
+          size_range?: string | null
+          style_number?: string
+          supplier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

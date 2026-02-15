@@ -310,7 +310,61 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garments`);
+    // Auto-match garment costs from product catalog
+    let costsMatched = 0;
+    if (garmentRows.length > 0) {
+      // Use service role client for catalog lookup (catalog may have different RLS)
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      // Get all unique SKUs/style numbers from garments
+      const skus = [...new Set(garmentRows.map(g => g.item_number).filter(Boolean))];
+      
+      if (skus.length > 0) {
+        const { data: catalogItems } = await serviceClient
+          .from("product_catalog")
+          .select("style_number, piece_price, case_price")
+          .in("style_number", skus.map(s => s.toUpperCase()));
+
+        if (catalogItems && catalogItems.length > 0) {
+          // Build a price map (use first match per style)
+          const priceMap = new Map<string, number>();
+          for (const item of catalogItems) {
+            if (!priceMap.has(item.style_number)) {
+              priceMap.set(item.style_number, item.piece_price || item.case_price || 0);
+            }
+          }
+
+          // Update garments that have a catalog match
+          for (const [extId, jobId] of allJobMap) {
+            const { data: garments } = await supabase
+              .from("job_garments")
+              .select("id, item_number, quantity")
+              .eq("job_id", jobId)
+              .not("item_number", "is", null);
+
+            for (const g of garments || []) {
+              const price = priceMap.get(g.item_number?.toUpperCase());
+              if (price && price > 0) {
+                await supabase
+                  .from("job_garments")
+                  .update({ 
+                    unit_cost: price,
+                    total_cost: price * g.quantity 
+                  })
+                  .eq("id", g.id);
+                costsMatched++;
+              }
+            }
+          }
+        }
+      }
+      console.log(`Auto-matched ${costsMatched} garment costs from catalog`);
+    }
+
+    console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garments, ${costsMatched} costs matched`);
 
     return new Response(
       JSON.stringify({
@@ -320,6 +374,7 @@ Deno.serve(async (req) => {
         total: allOrders.length,
         pages: pageCount,
         garments: garmentsInserted,
+        costsMatched,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
