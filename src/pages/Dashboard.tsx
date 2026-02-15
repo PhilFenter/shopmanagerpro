@@ -143,7 +143,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {pendingJobs.slice(0, 6).map((job) => (
+              {pendingJobs.slice(0, 12).map((job) => (
                 <JobCard key={job.id} job={job} />
               ))}
             </div>

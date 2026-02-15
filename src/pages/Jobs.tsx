@@ -36,7 +36,7 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
 };
 
 export default function Jobs() {
-  const { jobs, isLoading, deleteJob } = useJobs();
+  const { jobs, isLoading, deleteJob, updateJob } = useJobs();
   const { role } = useAuth();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
@@ -170,13 +170,27 @@ export default function Jobs() {
           {selectedJob && (
             <>
               <SheetHeader>
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                   {selectedJob.order_number && (
                     <Badge variant="outline">#{selectedJob.order_number}</Badge>
                   )}
-                  <Badge variant="secondary">
-                    {SERVICE_TYPE_LABELS[selectedJob.service_type]}
-                  </Badge>
+                  <Select 
+                    value={selectedJob.service_type} 
+                    onValueChange={(value: ServiceType) => {
+                      updateJob.mutate({ id: selectedJob.id, service_type: value });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-auto gap-1 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <SheetTitle className="text-left">{selectedJob.customer_name}</SheetTitle>
               </SheetHeader>
