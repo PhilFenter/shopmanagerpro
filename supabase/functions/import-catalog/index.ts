@@ -43,23 +43,31 @@ serve(async (req) => {
 
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
       const batch = rows.slice(i, i + BATCH_SIZE).map((row: any) => ({
-        style_number: row.style_number?.toUpperCase()?.trim(),
-        description: row.description?.trim() || null,
-        brand: row.brand?.trim() || null,
-        category: row.category?.trim() || null,
-        color_group: row.color_group?.trim() || null,
-        size_range: row.size_range?.trim() || null,
+        style_number: String(row.style_number || '').toUpperCase().trim(),
+        description: String(row.description || '').trim() || null,
+        brand: String(row.brand || '').trim() || null,
+        category: String(row.category || '').trim() || null,
+        color_group: String(row.color_group || '').trim() || null,
+        size_range: String(row.size_range || '').trim() || null,
         case_price: parseFloat(row.case_price) || 0,
         piece_price: parseFloat(row.piece_price) || 0,
-        price_code: row.price_code?.trim() || null,
+        price_code: String(row.price_code || '').trim() || null,
         msrp: parseFloat(row.msrp) || 0,
         map_price: parseFloat(row.map_price) || 0,
         supplier,
       })).filter((r: any) => r.style_number);
 
+      // Deduplicate within batch (keep last occurrence per style+size+supplier)
+      const deduped = new Map();
+      for (const item of batch) {
+        const key = `${item.style_number}|${item.size_range}|${item.supplier}`;
+        deduped.set(key, item);
+      }
+      const uniqueBatch = [...deduped.values()];
+
       const { data, error } = await supabase
         .from("product_catalog")
-        .upsert(batch, { 
+        .upsert(uniqueBatch, { 
           onConflict: "style_number,size_range,supplier",
           ignoreDuplicates: false 
         })
