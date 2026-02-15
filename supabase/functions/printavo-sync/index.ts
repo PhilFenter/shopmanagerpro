@@ -110,8 +110,8 @@ Deno.serve(async (req) => {
 
     console.log(`Sync options: startDate=${startDate}, endDate=${endDate}, minOrderNumber=${minOrderNumber}, maxPages=${maxPages}`);
 
-    // GraphQL query - now includes lineItemGroups with garment details
-    const query = `
+    // Pass 1 query: orders WITHOUT line items (low complexity, 25/page)
+    const ordersQuery = `
       query GetOrders($first: Int!, $after: String, $sortOn: OrderSortField!, $sortDescending: Boolean!) {
         orders(first: $first, after: $after, sortOn: $sortOn, sortDescending: $sortDescending) {
           nodes {
@@ -124,23 +124,6 @@ Deno.serve(async (req) => {
               status { id name }
               contact { id fullName email phone }
               total
-              lineItemGroups {
-                nodes {
-                  id
-                  lineItems {
-                    nodes {
-                      id
-                      color
-                      description
-                      itemNumber
-                      items
-                      price
-                      product { brand description itemNumber color }
-                      sizes { size count }
-                    }
-                  }
-                }
-              }
             }
           }
           pageInfo {
@@ -151,7 +134,32 @@ Deno.serve(async (req) => {
       }
     `;
 
-    const makePrintavoRequest = async (variables: Record<string, unknown>) => {
+    // Pass 2 query: line items for a single invoice (called per-order)
+    const lineItemsQuery = `
+      query GetInvoiceLineItems($id: ID!) {
+        invoice(id: $id) {
+          lineItemGroups {
+            nodes {
+              id
+              lineItems {
+                nodes {
+                  id
+                  color
+                  description
+                  itemNumber
+                  items
+                  price
+                  product { brand description itemNumber color }
+                  sizes { size count }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const makePrintavoRequest = async (gqlQuery: string, variables: Record<string, unknown>) => {
       return await fetch(PRINTAVO_API_URL, {
         method: "POST",
         headers: {
@@ -159,7 +167,7 @@ Deno.serve(async (req) => {
           email: printavoEmail,
           token: printavoToken,
         },
-        body: JSON.stringify({ query, variables }),
+        body: JSON.stringify({ query: gqlQuery, variables }),
       });
     };
 
@@ -167,7 +175,7 @@ Deno.serve(async (req) => {
     let hasNextPage = true;
     let endCursor: string | null = null;
     let pageCount = 0;
-    const pageSize = 5; // Small page size to stay under Printavo's query complexity limit
+    const pageSize = 25; // Full page size since we're not fetching line items here
 
     const startBound = startDate ? new Date(startDate) : null;
     const endBound = endDate ? new Date(endDate + "T23:59:59") : null;
@@ -186,7 +194,7 @@ Deno.serve(async (req) => {
       };
       if (endCursor) variables.after = endCursor;
 
-      const response = await makePrintavoRequest(variables);
+      const response = await makePrintavoRequest(ordersQuery, variables);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -331,46 +339,69 @@ Deno.serve(async (req) => {
 
     const jobsWithGarments = new Set(existingGarments?.map((g) => g.job_id) || []);
 
-    // Extract garments from invoices
+    // Fetch line items per-order (separate queries to avoid complexity limits)
     const garmentRows: any[] = [];
+    const invoicesNeedingGarments = allInvoices.filter(inv => {
+      const jobId = allJobMap.get(inv.id);
+      return jobId && !jobsWithGarments.has(jobId);
+    });
 
-    for (const invoice of allInvoices) {
-      const jobId = allJobMap.get(invoice.id);
-      if (!jobId || jobsWithGarments.has(jobId)) continue;
+    console.log(`Fetching line items for ${invoicesNeedingGarments.length} orders...`);
 
-      const groups = invoice.lineItemGroups?.nodes || [];
-      for (const group of groups) {
-        const items = group.lineItems?.nodes || [];
-        for (const item of items) {
-          // Build sizes object - convert enum names like "size_xl" to "XL"
-          const sizesObj: Record<string, number> = {};
-          if (item.sizes) {
-            for (const s of item.sizes) {
-              if (s.count > 0) {
-                const label = s.size.replace(/^size_/, '').toUpperCase();
-                sizesObj[label] = s.count;
+    for (const invoice of invoicesNeedingGarments) {
+      const jobId = allJobMap.get(invoice.id)!;
+
+      try {
+        const liResponse = await makePrintavoRequest(lineItemsQuery, { id: invoice.id });
+        if (!liResponse.ok) {
+          console.error(`Failed to fetch line items for ${invoice.visualId}`);
+          await liResponse.text(); // consume body
+          continue;
+        }
+
+        const liData = await liResponse.json();
+        if (liData.errors) {
+          console.error(`GraphQL error for line items ${invoice.visualId}:`, liData.errors);
+          continue;
+        }
+
+        const groups = liData.data?.invoice?.lineItemGroups?.nodes || [];
+        for (const group of groups) {
+          const items = group.lineItems?.nodes || [];
+          for (const item of items) {
+            const sizesObj: Record<string, number> = {};
+            if (item.sizes) {
+              for (const s of item.sizes) {
+                if (s.count > 0) {
+                  const label = s.size.replace(/^size_/, '').toUpperCase();
+                  sizesObj[label] = s.count;
+                }
               }
             }
+
+            const product = item.product;
+            const style = product
+              ? [product.brand, product.description].filter(Boolean).join(' ') || null
+              : null;
+
+            garmentRows.push({
+              job_id: jobId,
+              style: style,
+              item_number: product?.itemNumber || item.itemNumber || null,
+              color: item.color || product?.color || null,
+              description: item.description || null,
+              sizes: sizesObj,
+              quantity: item.items || 0,
+              unit_cost: item.price || 0,
+              printavo_line_item_id: item.id,
+            });
           }
-
-          // Style comes from product.description or product.brand + itemNumber
-          const product = item.product;
-          const style = product
-            ? [product.brand, product.description].filter(Boolean).join(' ') || null
-            : null;
-
-          garmentRows.push({
-            job_id: jobId,
-            style: style,
-            item_number: product?.itemNumber || item.itemNumber || null,
-            color: item.color || product?.color || null,
-            description: item.description || null,
-            sizes: sizesObj,
-            quantity: item.items || 0,
-            unit_cost: item.price || 0,
-            printavo_line_item_id: item.id,
-          });
         }
+
+        // Small delay between per-order requests
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (err) {
+        console.error(`Error fetching line items for ${invoice.visualId}:`, err);
       }
     }
 
