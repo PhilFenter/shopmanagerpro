@@ -8,20 +8,27 @@ const corsHeaders = {
 
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
-interface PrintavoSize {
-  label: string;
-  quantity: number;
+interface PrintavoSizeCount {
+  size: string; // enum like "size_s", "size_m", "size_l", "size_xl"
+  count: number;
+}
+
+interface PrintavoProduct {
+  brand?: string | null;
+  description?: string | null;
+  itemNumber?: string | null;
+  color?: string | null;
 }
 
 interface PrintavoLineItem {
   id: string;
-  style?: string | null;
   color?: string | null;
   description?: string | null;
   itemNumber?: string | null;
   items: number;
-  sizes?: PrintavoSize[] | null;
-  markupPercentage?: number | null;
+  price?: number | null;
+  sizes?: PrintavoSizeCount[] | null;
+  product?: PrintavoProduct | null;
 }
 
 interface PrintavoLineItemGroup {
@@ -123,12 +130,13 @@ Deno.serve(async (req) => {
                   lineItems {
                     nodes {
                       id
-                      style
                       color
                       description
                       itemNumber
                       items
-                      sizes { label quantity }
+                      price
+                      product { brand description itemNumber color }
+                      sizes { size count }
                     }
                   }
                 }
@@ -334,24 +342,32 @@ Deno.serve(async (req) => {
       for (const group of groups) {
         const items = group.lineItems?.nodes || [];
         for (const item of items) {
-          // Build sizes object from array
+          // Build sizes object - convert enum names like "size_xl" to "XL"
           const sizesObj: Record<string, number> = {};
           if (item.sizes) {
             for (const s of item.sizes) {
-              if (s.quantity > 0) {
-                sizesObj[s.label] = s.quantity;
+              if (s.count > 0) {
+                const label = s.size.replace(/^size_/, '').toUpperCase();
+                sizesObj[label] = s.count;
               }
             }
           }
 
+          // Style comes from product.description or product.brand + itemNumber
+          const product = item.product;
+          const style = product
+            ? [product.brand, product.description].filter(Boolean).join(' ') || null
+            : null;
+
           garmentRows.push({
             job_id: jobId,
-            style: item.style || null,
-            item_number: item.itemNumber || null,
-            color: item.color || null,
+            style: style,
+            item_number: product?.itemNumber || item.itemNumber || null,
+            color: item.color || product?.color || null,
             description: item.description || null,
             sizes: sizesObj,
             quantity: item.items || 0,
+            unit_cost: item.price || 0,
             printavo_line_item_id: item.id,
           });
         }
