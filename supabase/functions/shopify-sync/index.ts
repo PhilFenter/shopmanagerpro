@@ -313,51 +313,76 @@ Deno.serve(async (req) => {
     // Auto-match garment costs from product catalog
     let costsMatched = 0;
     if (garmentRows.length > 0) {
-      // Use service role client for catalog lookup (catalog may have different RLS)
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // Get all unique SKUs/style numbers from garments
-      const skus = [...new Set(garmentRows.map(g => g.item_number).filter(Boolean))];
-      
-      if (skus.length > 0) {
-        const { data: catalogItems } = await serviceClient
-          .from("product_catalog")
-          .select("style_number, piece_price, case_price")
-          .in("style_number", skus.map(s => s.toUpperCase()));
+      // Load full catalog into memory for prefix matching
+      const { data: catalogItems } = await serviceClient
+        .from("product_catalog")
+        .select("style_number, piece_price, case_price")
+        .gt("piece_price", 0);
 
-        if (catalogItems && catalogItems.length > 0) {
-          // Build a price map (use first match per style)
-          const priceMap = new Map<string, number>();
-          for (const item of catalogItems) {
-            if (!priceMap.has(item.style_number)) {
-              priceMap.set(item.style_number, item.piece_price || item.case_price || 0);
+      if (catalogItems && catalogItems.length > 0) {
+        // Build a price map keyed by uppercase style_number
+        const priceMap = new Map<string, number>();
+        for (const item of catalogItems) {
+          const key = item.style_number.toUpperCase();
+          if (!priceMap.has(key)) {
+            priceMap.set(key, item.piece_price || item.case_price || 0);
+          }
+        }
+
+        // Helper: try exact match, then prefix match (SKU like "PC54-RED-L" -> "PC54")
+        const findPrice = (sku: string): number => {
+          const upper = sku.toUpperCase().trim();
+          if (priceMap.has(upper)) return priceMap.get(upper)!;
+          // Try splitting on common delimiters
+          for (const sep of ["-", "_", " "]) {
+            const prefix = upper.split(sep)[0];
+            if (prefix && priceMap.has(prefix)) return priceMap.get(prefix)!;
+          }
+          return 0;
+        };
+
+        // Update garments with catalog prices per job
+        const jobIdsForCost = [...allJobMap.values()];
+        for (let i = 0; i < jobIdsForCost.length; i += 50) {
+          const batch = jobIdsForCost.slice(i, i + 50);
+          const { data: garments } = await supabase
+            .from("job_garments")
+            .select("id, item_number, quantity, style")
+            .in("job_id", batch);
+
+          for (const g of garments || []) {
+            const sku = g.item_number || g.style || "";
+            if (!sku) continue;
+            const price = findPrice(sku);
+            if (price > 0) {
+              await supabase
+                .from("job_garments")
+                .update({ total_cost: price * g.quantity })
+                .eq("id", g.id);
+              costsMatched++;
             }
           }
+        }
 
-          // Update garments that have a catalog match
-          for (const [extId, jobId] of allJobMap) {
-            const { data: garments } = await supabase
-              .from("job_garments")
-              .select("id, item_number, quantity")
-              .eq("job_id", jobId)
-              .not("item_number", "is", null);
+        // Aggregate garment costs into jobs.material_cost
+        for (const jobId of jobIdsForCost) {
+          const { data: jg } = await supabase
+            .from("job_garments")
+            .select("total_cost")
+            .eq("job_id", jobId)
+            .gt("total_cost", 0);
 
-            for (const g of garments || []) {
-              const price = priceMap.get(g.item_number?.toUpperCase());
-              if (price && price > 0) {
-                await supabase
-                  .from("job_garments")
-                  .update({ 
-                    unit_cost: price,
-                    total_cost: price * g.quantity 
-                  })
-                  .eq("id", g.id);
-                costsMatched++;
-              }
-            }
+          if (jg && jg.length > 0) {
+            const totalMaterial = jg.reduce((sum, g) => sum + (g.total_cost || 0), 0);
+            await supabase
+              .from("jobs")
+              .update({ material_cost: totalMaterial })
+              .eq("id", jobId);
           }
         }
       }
