@@ -13,6 +13,7 @@ import { StageProgress } from '@/components/jobs/StageProgress';
 import { AdvanceStageButton } from '@/components/jobs/AdvanceStageButton';
 import { JobRecipesList } from '@/components/jobs/JobRecipesList';
 import { MaterialCostInput } from '@/components/jobs/MaterialCostInput';
+import { JobGarmentsList } from '@/components/jobs/JobGarmentsList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -207,6 +208,9 @@ export default function Jobs() {
                   <h4 className="text-sm font-medium">Production Recipes</h4>
                   <JobRecipesList jobId={selectedJob.id} />
                 </div>
+
+                {/* Garments from Printavo */}
+                <JobGarmentsList jobId={selectedJob.id} />
 
                 {/* Material Cost Input - Admin/Manager only */}
                 {hasFinancialAccess(role) && (

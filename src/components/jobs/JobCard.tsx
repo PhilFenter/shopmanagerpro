@@ -10,6 +10,7 @@ import { StageProgress } from './StageProgress';
 import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
 import { Package, Clock } from 'lucide-react';
+import { JobGarmentsList } from './JobGarmentsList';
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -112,6 +113,9 @@ export function JobCard({ job, onClick }: JobCardProps) {
         {/* Stage Progress */}
         <StageProgress currentStage={stage} compact />
         
+        {/* Garment summary for Printavo jobs */}
+        <JobGarmentsList jobId={job.id} compact />
+
         {job.description && (
           <p className="text-sm text-muted-foreground line-clamp-2">
             {job.description}
