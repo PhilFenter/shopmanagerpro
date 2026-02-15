@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
+import { STAGE_ORDER, FINAL_STAGES } from './useJobStages';
 
 export interface NotificationSetting {
   id: string;
@@ -24,7 +25,12 @@ export function useNotificationSettings() {
         .select('*')
         .order('created_at');
       if (error) throw error;
-      return data as NotificationSetting[];
+      const allStages = [...STAGE_ORDER, ...FINAL_STAGES];
+      return (data as NotificationSetting[]).sort((a, b) => {
+        const aIdx = allStages.indexOf(a.stage as any);
+        const bIdx = allStages.indexOf(b.stage as any);
+        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+      });
     },
   });
 
