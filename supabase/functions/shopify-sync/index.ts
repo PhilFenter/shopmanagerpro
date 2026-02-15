@@ -263,20 +263,18 @@ Deno.serve(async (req) => {
       allJobMap.set(extId, jobId);
     }
 
-    // Check which jobs already have garments
-    const jobIdsToCheck = [...allJobMap.values()];
-    const { data: existingGarments } = await supabase
-      .from("job_garments")
-      .select("job_id")
-      .in("job_id", jobIdsToCheck.slice(0, 500));
-
-    const jobsWithGarments = new Set(existingGarments?.map((g) => g.job_id) || []);
+    // Delete existing garments for all synced jobs, then re-insert fresh data
+    const jobIdsToSync = [...allJobMap.values()];
+    for (let i = 0; i < jobIdsToSync.length; i += 100) {
+      const batch = jobIdsToSync.slice(i, i + 100);
+      await supabase.from("job_garments").delete().in("job_id", batch);
+    }
 
     const garmentRows: any[] = [];
 
     for (const order of allOrders) {
       const jobId = allJobMap.get(order.id.toString());
-      if (!jobId || jobsWithGarments.has(jobId)) continue;
+      if (!jobId) continue;
 
       for (const item of order.line_items) {
         // Parse variant_title for size/color (Shopify format: "Size / Color" or "Color / Size")
