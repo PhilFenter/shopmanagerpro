@@ -217,14 +217,17 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Update existing jobs' created_at to match original Shopify dates
+    // Update existing jobs' created_at and tax_collected
     let updatedDates = 0;
     for (const order of existingOrders) {
       const jobId = existingMap.get(order.id.toString());
       if (jobId) {
         const { error } = await supabase
           .from("jobs")
-          .update({ created_at: order.created_at })
+          .update({ 
+            created_at: order.created_at,
+            tax_collected: parseFloat(order.total_tax) || 0,
+          })
           .eq("id", jobId);
         if (!error) updatedDates++;
       }

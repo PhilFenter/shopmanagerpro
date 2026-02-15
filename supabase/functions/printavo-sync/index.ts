@@ -299,7 +299,7 @@ Deno.serve(async (req) => {
       created_at: invoice.createdAt || new Date().toISOString(),
     }));
 
-    // Update existing jobs' created_at to match original Printavo dates
+    // Update existing jobs' created_at and tax_collected
     let updatedDates = 0;
     for (const invoice of existingInvoices) {
       if (invoice.createdAt) {
@@ -307,7 +307,10 @@ Deno.serve(async (req) => {
         if (jobId) {
           const { error } = await supabase
             .from("jobs")
-            .update({ created_at: invoice.createdAt })
+            .update({ 
+              created_at: invoice.createdAt,
+              tax_collected: invoice.salesTaxAmount || 0,
+            })
             .eq("id", jobId);
           if (!error) updatedDates++;
         }
