@@ -390,6 +390,7 @@ export type Database = {
           stage: Database["public"]["Enums"]["job_stage"]
           stage_updated_at: string | null
           status: Database["public"]["Enums"]["job_status"]
+          tax_collected: number | null
           time_tracked: number
           timer_started_at: string | null
           updated_at: string
@@ -415,6 +416,7 @@ export type Database = {
           stage?: Database["public"]["Enums"]["job_stage"]
           stage_updated_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          tax_collected?: number | null
           time_tracked?: number
           timer_started_at?: string | null
           updated_at?: string
@@ -440,6 +442,7 @@ export type Database = {
           stage?: Database["public"]["Enums"]["job_stage"]
           stage_updated_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          tax_collected?: number | null
           time_tracked?: number
           timer_started_at?: string | null
           updated_at?: string
