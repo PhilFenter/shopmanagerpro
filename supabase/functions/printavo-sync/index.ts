@@ -6,8 +6,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Printavo GraphQL endpoint
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
+
+interface PrintavoSize {
+  label: string;
+  quantity: number;
+}
+
+interface PrintavoLineItem {
+  id: string;
+  style?: string | null;
+  color?: string | null;
+  description?: string | null;
+  itemNumber?: string | null;
+  items: number;
+  sizes?: PrintavoSize[] | null;
+  markupPercentage?: number | null;
+}
+
+interface PrintavoLineItemGroup {
+  id: string;
+  lineItems?: {
+    nodes?: PrintavoLineItem[];
+  } | null;
+}
 
 interface PrintavoInvoice {
   id: string;
@@ -15,10 +37,7 @@ interface PrintavoInvoice {
   customerDueAt?: string | null;
   createdAt?: string | null;
   productionNote?: string | null;
-  status?: {
-    id: string;
-    name: string;
-  } | null;
+  status?: { id: string; name: string } | null;
   contact?: {
     id: string;
     fullName?: string | null;
@@ -26,16 +45,17 @@ interface PrintavoInvoice {
     phone?: string | null;
   } | null;
   total?: number | null;
+  lineItemGroups?: {
+    nodes?: PrintavoLineItemGroup[];
+  } | null;
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Verify authorization
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -44,14 +64,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create Supabase client
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Verify user
     const token = authHeader.replace("Bearer ", "");
     const { data: claims, error: authError } = await supabase.auth.getClaims(token);
     if (authError || !claims?.claims) {
@@ -65,33 +83,27 @@ Deno.serve(async (req) => {
     const userId = claims.claims.sub;
     console.log("Authenticated user:", userId);
 
-    // Get Printavo credentials
     const printavoEmail = Deno.env.get("PRINTAVO_API_EMAIL");
     const printavoToken = Deno.env.get("PRINTAVO_API_TOKEN");
 
     if (!printavoEmail || !printavoToken) {
-      console.error("Printavo credentials not configured");
       return new Response(
         JSON.stringify({ error: "Printavo API credentials not configured" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Parse request body for options
     const body = await req.json().catch(() => ({}));
-    const { 
-      startDate = null, 
-      endDate = null, 
+    const {
+      startDate = null,
+      endDate = null,
       minOrderNumber = null,
-      maxPages = 10 // Safety limit to prevent runaway pagination
+      maxPages = 10,
     } = body;
 
     console.log(`Sync options: startDate=${startDate}, endDate=${endDate}, minOrderNumber=${minOrderNumber}, maxPages=${maxPages}`);
 
-    // GraphQL query - includes createdAt for date filtering
+    // GraphQL query - now includes lineItemGroups with garment details
     const query = `
       query GetOrders($first: Int!, $after: String, $sortOn: OrderSortField!, $sortDescending: Boolean!) {
         orders(first: $first, after: $after, sortOn: $sortOn, sortDescending: $sortDescending) {
@@ -105,6 +117,22 @@ Deno.serve(async (req) => {
               status { id name }
               contact { id fullName email phone }
               total
+              lineItemGroups {
+                nodes {
+                  id
+                  lineItems {
+                    nodes {
+                      id
+                      style
+                      color
+                      description
+                      itemNumber
+                      items
+                      sizes { label quantity }
+                    }
+                  }
+                }
+              }
             }
           }
           pageInfo {
@@ -115,7 +143,6 @@ Deno.serve(async (req) => {
       }
     `;
 
-    // Make GraphQL request to Printavo
     const makePrintavoRequest = async (variables: Record<string, unknown>) => {
       return await fetch(PRINTAVO_API_URL, {
         method: "POST",
@@ -128,14 +155,12 @@ Deno.serve(async (req) => {
       });
     };
 
-    // Fetch all pages of orders
     let allInvoices: PrintavoInvoice[] = [];
     let hasNextPage = true;
     let endCursor: string | null = null;
     let pageCount = 0;
-    const pageSize = 25; // Printavo max
+    const pageSize = 25;
 
-    // Parse date bounds
     const startBound = startDate ? new Date(startDate) : null;
     const endBound = endDate ? new Date(endDate + "T23:59:59") : null;
     const minOrderNum = minOrderNumber ? parseInt(minOrderNumber, 10) : null;
@@ -151,9 +176,7 @@ Deno.serve(async (req) => {
         sortOn: "VISUAL_ID",
         sortDescending: true,
       };
-      if (endCursor) {
-        variables.after = endCursor;
-      }
+      if (endCursor) variables.after = endCursor;
 
       const response = await makePrintavoRequest(variables);
 
@@ -161,30 +184,18 @@ Deno.serve(async (req) => {
         const errorText = await response.text();
         console.error(`Printavo API error on page ${pageCount}:`, response.status, errorText);
         return new Response(
-          JSON.stringify({
-            error: `Printavo API error: ${response.status}`,
-            details: errorText,
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          JSON.stringify({ error: `Printavo API error: ${response.status}`, details: errorText }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       const data = await response.json();
-      
+
       if (data.errors) {
         console.error("GraphQL errors:", data.errors);
         return new Response(
-          JSON.stringify({
-            error: "Printavo GraphQL error",
-            details: data.errors,
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          JSON.stringify({ error: "Printavo GraphQL error", details: data.errors }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
@@ -196,32 +207,25 @@ Deno.serve(async (req) => {
 
       console.log(`Page ${pageCount}: found ${invoices.length} invoices`);
 
-      // Apply filters and check if we've gone past our date range
       let shouldStop = false;
       for (const invoice of invoices) {
-        // Date filtering
         const createdAt = invoice.createdAt ? new Date(invoice.createdAt) : null;
-        
-        // If we have a start date and this order is before it, we're done (orders are desc)
+
         if (startBound && createdAt && createdAt < startBound) {
-          console.log(`Invoice ${invoice.visualId} (${createdAt.toISOString()}) is before start date, stopping pagination`);
+          console.log(`Invoice ${invoice.visualId} before start date, stopping`);
           shouldStop = true;
           break;
         }
 
-        // Skip if after end date
         if (endBound && createdAt && createdAt > endBound) {
-          console.log(`Invoice ${invoice.visualId} skipped: after end date`);
           continue;
         }
 
-        // Order number filtering
         if (minOrderNum) {
           const numericMatch = invoice.visualId.match(/(\d+)/);
           if (numericMatch) {
             const orderNum = parseInt(numericMatch[1], 10);
             if (orderNum < minOrderNum) {
-              console.log(`Invoice ${invoice.visualId} is below minOrderNumber, stopping pagination`);
               shouldStop = true;
               break;
             }
@@ -231,16 +235,13 @@ Deno.serve(async (req) => {
         allInvoices.push(invoice);
       }
 
-      if (shouldStop) {
-        break;
-      }
+      if (shouldStop) break;
 
       hasNextPage = pageData?.pageInfo?.hasNextPage || false;
       endCursor = pageData?.pageInfo?.endCursor || null;
 
-      // Small delay to be nice to the API
       if (hasNextPage && pageCount < maxPages) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
@@ -249,78 +250,144 @@ Deno.serve(async (req) => {
     // Get existing jobs to avoid duplicates
     const { data: existingJobs } = await supabase
       .from("jobs")
-      .select("external_id")
+      .select("external_id, id")
       .eq("source", "printavo");
 
-    const existingIds = new Set(existingJobs?.map((j) => j.external_id) || []);
+    const existingMap = new Map(
+      existingJobs?.map((j) => [j.external_id, j.id]) || []
+    );
 
-    // Map all invoices to jobs (no status filtering - import everything)
-    const newJobs = allInvoices
-      .filter((invoice) => !existingIds.has(invoice.id))
-      .map((invoice) => {
-        return {
-          external_id: invoice.id,
-          source: "printavo",
-          order_number: invoice.visualId,
-          invoice_number: invoice.visualId,
-          customer_name: invoice.contact?.fullName || "Unknown",
-          customer_email: invoice.contact?.email || null,
-          customer_phone: invoice.contact?.phone || null,
-          description: invoice.productionNote || null,
-          service_type: "other" as const,
-          quantity: 1,
-          sale_price: invoice.total || 0,
-          printavo_status: invoice.status?.name || null,
-          created_by: userId,
-        };
-      });
+    // Separate new vs existing invoices
+    const newInvoices = allInvoices.filter((inv) => !existingMap.has(inv.id));
+    const existingInvoices = allInvoices.filter((inv) => existingMap.has(inv.id));
 
-    console.log(`Creating ${newJobs.length} new jobs (${allInvoices.length - newJobs.length} already exist)`);
+    const newJobs = newInvoices.map((invoice) => ({
+      external_id: invoice.id,
+      source: "printavo",
+      order_number: invoice.visualId,
+      invoice_number: invoice.visualId,
+      customer_name: invoice.contact?.fullName || "Unknown",
+      customer_email: invoice.contact?.email || null,
+      customer_phone: invoice.contact?.phone || null,
+      description: invoice.productionNote || null,
+      service_type: "other" as const,
+      quantity: 1,
+      sale_price: invoice.total || 0,
+      printavo_status: invoice.status?.name || null,
+      created_by: userId,
+    }));
 
-    // Insert new jobs in batches to handle large imports
+    console.log(`Creating ${newJobs.length} new jobs (${existingInvoices.length} already exist)`);
+
+    // Insert new jobs in batches
     let insertedCount = 0;
     const batchSize = 50;
-    
+    const insertedJobIds: Map<string, string> = new Map(); // external_id -> job id
+
     for (let i = 0; i < newJobs.length; i += batchSize) {
       const batch = newJobs.slice(i, i + batchSize);
       const { data: inserted, error: insertError } = await supabase
         .from("jobs")
         .insert(batch)
-        .select();
+        .select("id, external_id");
 
       if (insertError) {
-        console.error(`Error inserting batch ${i / batchSize + 1}:`, insertError);
+        console.error(`Error inserting batch:`, insertError);
         return new Response(
-          JSON.stringify({ 
-            error: "Failed to create jobs", 
-            details: insertError,
-            partialImport: insertedCount
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          JSON.stringify({ error: "Failed to create jobs", details: insertError, partialImport: insertedCount }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
+      for (const job of inserted || []) {
+        insertedJobIds.set(job.external_id, job.id);
+      }
       insertedCount += inserted?.length || 0;
-      console.log(`Inserted batch ${i / batchSize + 1}: ${inserted?.length} jobs`);
     }
 
-    console.log(`Successfully imported ${insertedCount} jobs`);
+    // Now insert garments for ALL invoices (new + existing that may not have garments yet)
+    let garmentsInserted = 0;
+
+    // Build combined map of external_id -> job_id
+    const allJobMap = new Map(existingMap);
+    for (const [extId, jobId] of insertedJobIds) {
+      allJobMap.set(extId, jobId);
+    }
+
+    // Check which jobs already have garments
+    const jobIdsToCheck = [...allJobMap.values()];
+    const { data: existingGarments } = await supabase
+      .from("job_garments")
+      .select("job_id")
+      .in("job_id", jobIdsToCheck.slice(0, 500)); // Supabase limit
+
+    const jobsWithGarments = new Set(existingGarments?.map((g) => g.job_id) || []);
+
+    // Extract garments from invoices
+    const garmentRows: any[] = [];
+
+    for (const invoice of allInvoices) {
+      const jobId = allJobMap.get(invoice.id);
+      if (!jobId || jobsWithGarments.has(jobId)) continue;
+
+      const groups = invoice.lineItemGroups?.nodes || [];
+      for (const group of groups) {
+        const items = group.lineItems?.nodes || [];
+        for (const item of items) {
+          // Build sizes object from array
+          const sizesObj: Record<string, number> = {};
+          if (item.sizes) {
+            for (const s of item.sizes) {
+              if (s.quantity > 0) {
+                sizesObj[s.label] = s.quantity;
+              }
+            }
+          }
+
+          garmentRows.push({
+            job_id: jobId,
+            style: item.style || null,
+            item_number: item.itemNumber || null,
+            color: item.color || null,
+            description: item.description || null,
+            sizes: sizesObj,
+            quantity: item.items || 0,
+            printavo_line_item_id: item.id,
+          });
+        }
+      }
+    }
+
+    console.log(`Inserting ${garmentRows.length} garment records`);
+
+    // Insert garments in batches
+    for (let i = 0; i < garmentRows.length; i += batchSize) {
+      const batch = garmentRows.slice(i, i + batchSize);
+      const { data: inserted, error: garmentError } = await supabase
+        .from("job_garments")
+        .insert(batch)
+        .select("id");
+
+      if (garmentError) {
+        console.error("Error inserting garments:", garmentError);
+        // Non-fatal — jobs were already created
+      } else {
+        garmentsInserted += inserted?.length || 0;
+      }
+    }
+
+    console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garment records`);
 
     return new Response(
       JSON.stringify({
         success: true,
         imported: insertedCount,
-        skipped: allInvoices.length - newJobs.length,
+        skipped: existingInvoices.length,
         total: allInvoices.length,
         pages: pageCount,
+        garments: garmentsInserted,
       }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Unexpected error:", error);
@@ -329,10 +396,7 @@ Deno.serve(async (req) => {
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

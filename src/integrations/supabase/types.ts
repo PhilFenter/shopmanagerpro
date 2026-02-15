@@ -164,6 +164,69 @@ export type Database = {
           },
         ]
       }
+      job_garments: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          item_number: string | null
+          job_id: string
+          printavo_line_item_id: string | null
+          quantity: number
+          sizes: Json | null
+          style: string | null
+          total_cost: number | null
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          item_number?: string | null
+          job_id: string
+          printavo_line_item_id?: string | null
+          quantity?: number
+          sizes?: Json | null
+          style?: string | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          item_number?: string | null
+          job_id?: string
+          printavo_line_item_id?: string | null
+          quantity?: number
+          sizes?: Json | null
+          style?: string | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_garments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_garments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_line_items: {
         Row: {
           created_at: string
