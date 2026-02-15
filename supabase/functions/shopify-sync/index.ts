@@ -29,6 +29,7 @@ interface ShopifyOrder {
     phone?: string;
   };
   total_price: string;
+  total_tax: string;
   note?: string;
   line_items: ShopifyLineItem[];
   fulfillment_status: string | null;
@@ -209,6 +210,7 @@ Deno.serve(async (req) => {
         service_type: "other" as const,
         quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
         sale_price: parseFloat(order.total_price) || 0,
+        tax_collected: parseFloat(order.total_tax) || 0,
         stage: stage,
         created_by: userId,
         created_at: order.created_at,

@@ -52,6 +52,8 @@ interface PrintavoInvoice {
     phone?: string | null;
   } | null;
   total?: number | null;
+  salesTax?: number | null;
+  salesTaxAmount?: number | null;
   lineItemGroups?: {
     nodes?: PrintavoLineItemGroup[];
   } | null;
@@ -124,6 +126,8 @@ Deno.serve(async (req) => {
               status { id name }
               contact { id fullName email phone }
               total
+              salesTax
+              salesTaxAmount
             }
           }
           pageInfo {
@@ -289,6 +293,7 @@ Deno.serve(async (req) => {
       service_type: "other" as const,
       quantity: 1,
       sale_price: invoice.total || 0,
+      tax_collected: invoice.salesTaxAmount || 0,
       printavo_status: invoice.status?.name || null,
       created_by: userId,
       created_at: invoice.createdAt || new Date().toISOString(),

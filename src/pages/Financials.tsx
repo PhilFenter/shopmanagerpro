@@ -5,6 +5,7 @@ import { useBusinessMetrics } from '@/hooks/useBusinessMetrics';
 import { useJobAnalytics } from '@/hooks/useJobAnalytics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
+import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-react';
 
 export default function Financials() {
@@ -182,6 +183,9 @@ export default function Financials() {
 
       {/* Revenue Chart */}
       <RevenueChart data={analytics.weeklyRevenue} />
+
+      {/* Sales Tax Report */}
+      <SalesTaxReport />
     </div>
   );
 }
