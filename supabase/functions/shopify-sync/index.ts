@@ -171,10 +171,18 @@ Deno.serve(async (req) => {
       .select("external_id, id")
       .eq("source", "shopify");
 
-    const existingMap = new Map(existingJobs?.map((j) => [j.external_id, j.id]) || []);
+    // Use a Set for dedup lookup (handles pre-existing duplicates in DB)
+    const existingExternalIds = new Set(existingJobs?.map((j) => j.external_id) || []);
+    // Keep a map for date updates (first occurrence per external_id)
+    const existingMap = new Map<string, string>();
+    for (const j of existingJobs || []) {
+      if (j.external_id && !existingMap.has(j.external_id)) {
+        existingMap.set(j.external_id, j.id);
+      }
+    }
 
-    const newOrders = allOrders.filter((o) => !existingMap.has(o.id.toString()));
-    const existingOrders = allOrders.filter((o) => existingMap.has(o.id.toString()));
+    const newOrders = allOrders.filter((o) => !existingExternalIds.has(o.id.toString()));
+    const existingOrders = allOrders.filter((o) => existingExternalIds.has(o.id.toString()));
 
     const newJobs = newOrders.map((order) => {
       const customerName = order.customer
