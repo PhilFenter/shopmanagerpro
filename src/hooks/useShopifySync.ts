@@ -63,9 +63,10 @@ export function useShopifySync() {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
         const pagesMsg = result.pages && result.pages > 1 ? ` across ${result.pages} pages` : '';
+        const garmentsMsg = (result as any).garments ? `, ${(result as any).garments} garments` : '';
         toast({
           title: 'Shopify sync complete',
-          description: `Imported ${result.imported} orders${pagesMsg} (${result.skipped} already existed)`,
+          description: `Imported ${result.imported} orders${pagesMsg}${garmentsMsg} (${result.skipped} already existed)`,
         });
       } else {
         toast({
