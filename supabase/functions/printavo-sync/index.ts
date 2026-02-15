@@ -440,7 +440,70 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garment records`);
+    // Auto-match garment costs from product catalog
+    let costsMatched = 0;
+    const allGarmentJobIds = [...allJobMap.values()];
+    if (allGarmentJobIds.length > 0) {
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      const { data: catalogItems } = await serviceClient
+        .from("product_catalog")
+        .select("style_number, piece_price, case_price")
+        .gt("piece_price", 0);
+
+      if (catalogItems && catalogItems.length > 0) {
+        const priceMap = new Map<string, number>();
+        for (const item of catalogItems) {
+          const key = item.style_number.toUpperCase();
+          if (!priceMap.has(key)) {
+            priceMap.set(key, item.piece_price || item.case_price || 0);
+          }
+        }
+
+        for (let i = 0; i < allGarmentJobIds.length; i += 50) {
+          const batch = allGarmentJobIds.slice(i, i + 50);
+          const { data: garments } = await supabase
+            .from("job_garments")
+            .select("id, item_number, quantity")
+            .in("job_id", batch)
+            .not("item_number", "is", null);
+
+          for (const g of garments || []) {
+            const key = g.item_number?.toUpperCase().trim();
+            if (key && priceMap.has(key)) {
+              const price = priceMap.get(key)!;
+              if (price > 0) {
+                await supabase
+                  .from("job_garments")
+                  .update({ total_cost: price * g.quantity })
+                  .eq("id", g.id);
+                costsMatched++;
+              }
+            }
+          }
+        }
+
+        // Aggregate into jobs.material_cost
+        for (const jobId of allGarmentJobIds) {
+          const { data: jg } = await supabase
+            .from("job_garments")
+            .select("total_cost")
+            .eq("job_id", jobId)
+            .gt("total_cost", 0);
+
+          if (jg && jg.length > 0) {
+            const total = jg.reduce((sum, g) => sum + (g.total_cost || 0), 0);
+            await supabase.from("jobs").update({ material_cost: total }).eq("id", jobId);
+          }
+        }
+      }
+    }
+    console.log(`Auto-matched ${costsMatched} garment costs from catalog`);
+
+    console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garments, ${costsMatched} costs matched`);
 
     return new Response(
       JSON.stringify({
@@ -450,6 +513,7 @@ Deno.serve(async (req) => {
         total: allInvoices.length,
         pages: pageCount,
         garments: garmentsInserted,
+        costsMatched,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
