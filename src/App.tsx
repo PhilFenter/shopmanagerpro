@@ -20,6 +20,7 @@ import Team from "./pages/Team";
 import Financials from "./pages/Financials";
 import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
+import Install from "./pages/Install";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -140,6 +141,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/install" element={<Install />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </RolePreviewProvider>
