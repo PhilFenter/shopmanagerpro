@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useJobs, Job, ServiceType, hasFinancialAccess } from '@/hooks/useJobs';
 import { useAuth } from '@/hooks/useAuth';
-import { JobStage, STAGE_ORDER, STAGE_LABELS } from '@/hooks/useJobStages';
+import { JobStage, STAGE_ORDER, STAGE_LABELS, useAdvanceStage } from '@/hooks/useJobStages';
 import { JobCard } from '@/components/jobs/JobCard';
 import { JobForm } from '@/components/jobs/JobForm';
 import { KanbanBoard } from '@/components/jobs/KanbanBoard';
@@ -38,6 +38,7 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
 export default function Jobs() {
   const { jobs, isLoading, deleteJob, updateJob } = useJobs();
   const { role } = useAuth();
+  const advanceStage = useAdvanceStage();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
@@ -199,14 +200,19 @@ export default function Jobs() {
                 {/* Stage Progress */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium">Job Progress</h4>
-                  <StageProgress currentStage={(selectedJob as any).stage || 'received'} />
-                  <AdvanceStageButton 
-                    jobId={selectedJob.id} 
-                    currentStage={(selectedJob as any).stage || 'received'}
-                    source={(selectedJob as any).source}
-                    customerName={selectedJob.customer_name}
-                    customerEmail={selectedJob.customer_email}
-                    orderNumber={selectedJob.order_number}
+                  <StageProgress 
+                    currentStage={(selectedJob as any).stage || 'received'} 
+                    onStageClick={(stage) => {
+                      advanceStage.mutate({
+                        jobId: selectedJob.id,
+                        currentStage: (selectedJob as any).stage || 'received',
+                        targetStage: stage,
+                        source: (selectedJob as any).source,
+                        customerName: selectedJob.customer_name,
+                        customerEmail: selectedJob.customer_email,
+                        orderNumber: selectedJob.order_number,
+                      });
+                    }}
                   />
                 </div>
 

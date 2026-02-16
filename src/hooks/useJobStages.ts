@@ -128,11 +128,7 @@ export function useAdvanceStage() {
       let nextStage: JobStage;
       
       if (targetStage) {
-        if (isAtFinalChoice(currentStage) && FINAL_STAGES.includes(targetStage)) {
-          nextStage = targetStage;
-        } else {
-          throw new Error('Invalid target stage');
-        }
+        nextStage = targetStage;
       } else {
         const calculatedNext = getNextStage(currentStage);
         if (!calculatedNext) {
