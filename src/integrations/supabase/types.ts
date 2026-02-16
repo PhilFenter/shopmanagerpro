@@ -581,6 +581,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_matrices: {
+        Row: {
+          column_headers: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          rows: Json
+          service_type: string
+          updated_at: string
+        }
+        Insert: {
+          column_headers?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          rows?: Json
+          service_type: string
+          updated_at?: string
+        }
+        Update: {
+          column_headers?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          rows?: Json
+          service_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_catalog: {
         Row: {
           brand: string | null
@@ -673,6 +706,137 @@ export type Database = {
           weekly_hours?: number
         }
         Relationships: []
+      }
+      quote_line_items: {
+        Row: {
+          created_at: string
+          decoration_cost: number | null
+          decoration_params: Json | null
+          description: string | null
+          garment_cost: number | null
+          garment_markup_pct: number | null
+          id: string
+          line_total: number | null
+          notes: string | null
+          quantity: number
+          quote_id: string
+          service_type: string
+          sizes: Json | null
+          sort_order: number | null
+          style_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decoration_cost?: number | null
+          decoration_params?: Json | null
+          description?: string | null
+          garment_cost?: number | null
+          garment_markup_pct?: number | null
+          id?: string
+          line_total?: number | null
+          notes?: string | null
+          quantity?: number
+          quote_id: string
+          service_type?: string
+          sizes?: Json | null
+          sort_order?: number | null
+          style_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decoration_cost?: number | null
+          decoration_params?: Json | null
+          description?: string | null
+          garment_cost?: number | null
+          garment_markup_pct?: number | null
+          id?: string
+          line_total?: number | null
+          notes?: string | null
+          quantity?: number
+          quote_id?: string
+          service_type?: string
+          sizes?: Json | null
+          sort_order?: number | null
+          style_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_line_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          converted_job_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          expires_at: string | null
+          id: string
+          notes: string | null
+          quote_number: string | null
+          raw_email: string | null
+          status: string
+          total_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          converted_job_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          quote_number?: string | null
+          raw_email?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          converted_job_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          quote_number?: string | null
+          raw_email?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_converted_job_id_fkey"
+            columns: ["converted_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_converted_job_id_fkey"
+            columns: ["converted_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       screen_print_recipes: {
         Row: {
