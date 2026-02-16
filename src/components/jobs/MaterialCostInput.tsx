@@ -8,6 +8,7 @@ import { Plus, Trash2, Loader2, DollarSign } from 'lucide-react';
 
 const COST_CATEGORIES = [
   { value: 'garments', label: 'Garments' },
+  { value: 'hats', label: 'Hats' },
   { value: 'digitizing', label: 'Digitizing' },
   { value: 'art', label: 'Art/Design' },
   { value: 'blanks', label: 'Blanks' },
