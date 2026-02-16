@@ -45,7 +45,7 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
     <div className="space-y-2">
       <h4 className="text-sm font-medium flex items-center gap-1.5">
         <Shirt className="h-4 w-4" />
-        {label} ({garments.length})
+        {label}
       </h4>
       <div className="space-y-2">
         {garments.map((g) => {
