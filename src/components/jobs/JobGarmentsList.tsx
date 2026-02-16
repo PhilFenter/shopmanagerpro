@@ -7,10 +7,19 @@ interface JobGarmentsListProps {
   compact?: boolean;
 }
 
+const HAT_KEYWORDS = /\b(hat|cap|beanie|visor|snapback|trucker|flexfit|richardson|r-112|yp classics|yp classic|112|r112)\b/i;
+
+function isHatItem(g: { style?: string | null; description?: string | null; item_number?: string | null }) {
+  return HAT_KEYWORDS.test(g.style || '') || HAT_KEYWORDS.test(g.description || '') || HAT_KEYWORDS.test(g.item_number || '');
+}
+
 export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps) {
   const { garments, isLoading } = useJobGarments(jobId);
 
   if (isLoading || garments.length === 0) return null;
+
+  const allHats = garments.every(isHatItem);
+  const label = allHats ? 'Hats' : 'Garments';
 
   if (compact) {
     return (
@@ -36,7 +45,7 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
     <div className="space-y-2">
       <h4 className="text-sm font-medium flex items-center gap-1.5">
         <Shirt className="h-4 w-4" />
-        Garments ({garments.length})
+        {label} ({garments.length})
       </h4>
       <div className="space-y-2">
         {garments.map((g) => {
