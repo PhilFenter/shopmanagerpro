@@ -1,8 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import { TeamMemberSettings } from '@/components/settings/TeamMemberSettings';
-import { OverheadSettings } from '@/components/settings/OverheadSettings';
-import { CostDashboard } from '@/components/settings/CostDashboard';
 import { ProductCatalogSettings } from '@/components/settings/ProductCatalogSettings';
 import { hasFinancialAccess } from '@/hooks/useJobs';
 
@@ -21,14 +18,7 @@ export default function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage team rates, overhead, and business settings</p>
-      </div>
-
-      <CostDashboard />
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <TeamMemberSettings />
-        <OverheadSettings />
+        <p className="text-muted-foreground">Manage product catalog and business settings</p>
       </div>
 
       <ProductCatalogSettings />
