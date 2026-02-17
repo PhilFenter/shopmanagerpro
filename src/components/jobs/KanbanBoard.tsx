@@ -100,65 +100,82 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
       </Tabs>
 
       <ScrollArea className="w-full">
-      <div className="flex gap-4 pb-4" style={{ minWidth: 'max-content' }}>
-        {ALL_KANBAN_STAGES.map((stage) => (
-          <div 
-            key={stage} 
-            className={cn(
-              "flex-shrink-0",
-              isFinalStage(stage) ? "w-64" : "w-80"
-            )}
-          >
-            <div className={cn(
-              "bg-muted/50 rounded-lg p-3 min-h-[400px]",
-              isFinalStage(stage) && "bg-primary/10"
-            )}>
-              {/* Column Header - sticky so it stays visible on vertical scroll */}
-              <div className={cn(
-                "flex items-center gap-2 mb-3 pb-2 border-b sticky top-0 z-10 pt-1 -mt-1 rounded-t-lg",
-                isFinalStage(stage) ? "bg-primary/10" : "bg-muted/90",
-                "backdrop-blur-sm"
-              )}>
-                <span className="text-lg">{STAGE_ICONS[stage]}</span>
-                <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
-                <Badge variant="secondary" className="ml-auto">
-                  {jobsByStage[stage].length}
-                </Badge>
-              </div>
-
-              {/* Job Cards */}
-              <div className="space-y-3">
-                {jobsByStage[stage].map((job) => (
-                  <KanbanCard 
-                    key={job.id} 
-                    job={job} 
-                    stage={stage}
-                    onSelect={() => onSelectJob(job)}
-                    onAdvance={(targetStage) => advanceStage.mutate({ 
-                      jobId: job.id, 
-                      currentStage: stage,
-                      targetStage,
-                      source: job.source,
-                      customerName: job.customer_name,
-                      customerEmail: job.customer_email,
-                      orderNumber: job.order_number,
-                    })}
-                    isAdvancing={advanceStage.isPending}
-                  />
-                ))}
-
-                {jobsByStage[stage].length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    No jobs
+        <div style={{ minWidth: 'max-content' }}>
+          {/* Sticky header row - stays visible when scrolling vertically */}
+          <div className="sticky top-0 z-20 bg-background pb-2">
+            <div className="flex gap-4">
+              {ALL_KANBAN_STAGES.map((stage) => (
+                <div
+                  key={stage}
+                  className={cn(
+                    "flex-shrink-0",
+                    isFinalStage(stage) ? "w-64" : "w-80"
+                  )}
+                >
+                  <div className={cn(
+                    "rounded-lg p-3 pb-2",
+                    isFinalStage(stage) ? "bg-primary/10" : "bg-muted/50"
+                  )}>
+                    <div className="flex items-center gap-2 pb-2 border-b">
+                      <span className="text-lg">{STAGE_ICONS[stage]}</span>
+                      <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
+                      <Badge variant="secondary" className="ml-auto">
+                        {jobsByStage[stage].length}
+                      </Badge>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+
+          {/* Card columns */}
+          <div className="flex gap-4 pb-4">
+            {ALL_KANBAN_STAGES.map((stage) => (
+              <div
+                key={stage}
+                className={cn(
+                  "flex-shrink-0",
+                  isFinalStage(stage) ? "w-64" : "w-80"
+                )}
+              >
+                <div className={cn(
+                  "bg-muted/50 rounded-lg p-3 pt-2 min-h-[400px]",
+                  isFinalStage(stage) && "bg-primary/10"
+                )}>
+                  <div className="space-y-3">
+                    {jobsByStage[stage].map((job) => (
+                      <KanbanCard
+                        key={job.id}
+                        job={job}
+                        stage={stage}
+                        onSelect={() => onSelectJob(job)}
+                        onAdvance={(targetStage) => advanceStage.mutate({
+                          jobId: job.id,
+                          currentStage: stage,
+                          targetStage,
+                          source: job.source,
+                          customerName: job.customer_name,
+                          customerEmail: job.customer_email,
+                          orderNumber: job.order_number,
+                        })}
+                        isAdvancing={advanceStage.isPending}
+                      />
+                    ))}
+
+                    {jobsByStage[stage].length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        No jobs
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
     </div>
   );
 }
