@@ -79,7 +79,7 @@ export default function Jobs() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", viewMode === 'kanban' && "h-[calc(100vh-2rem)] flex flex-col overflow-hidden")}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Jobs</h1>
@@ -135,7 +135,7 @@ export default function Jobs() {
       </div>
 
       {/* Main Content */}
-      <Tabs defaultValue="active" className="space-y-4">
+      <Tabs defaultValue="active" className={cn("space-y-4", viewMode === 'kanban' && "flex-1 min-h-0 flex flex-col [&>div[role=tabpanel]]:flex-1 [&>div[role=tabpanel]]:min-h-0")}>
         <TabsList>
           <TabsTrigger value="active">
             Active {activeJobs.length > 0 && `(${activeJobs.length})`}
