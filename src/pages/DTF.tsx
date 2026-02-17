@@ -14,6 +14,7 @@ import { Plus, Loader2, Search, Trash2, Save, Thermometer, RotateCcw, Clock, Gau
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
+import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Garment types for DTF
@@ -48,6 +49,7 @@ export default function DTF() {
   const [activeTab, setActiveTab] = useState<'new-job' | 'saved'>('new-job');
   const [search, setSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
+  const [viewingRecipe, setViewingRecipe] = useState<DTFRecipe | null>(null);
 
   // Job form state
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
@@ -641,62 +643,74 @@ export default function DTF() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredRecipes.map((recipe) => (
-                <Card
-                  key={recipe.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => loadRecipe(recipe)}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredRecipes.map((recipe) => (
+                  <Card
+                    key={recipe.id}
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setViewingRecipe(recipe)}
+                  >
+                    <CardHeader className="pb-2">
                       <Badge variant="outline">
                         {FABRIC_TYPES.find((f) => f.value === recipe.fabric_type)?.label ||
                           recipe.fabric_type}
                       </Badge>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(recipe.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                    <CardTitle className="text-lg">{recipe.name}</CardTitle>
-                    {recipe.customer_name && (
-                      <p className="text-sm text-muted-foreground">{recipe.customer_name}</p>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Flame className="h-3 w-3 text-orange-500" />
-                        <span className="font-mono">{recipe.press_temp ?? '—'}°F</span>
+                      <CardTitle className="text-lg">{recipe.name}</CardTitle>
+                      {recipe.customer_name && (
+                        <p className="text-sm text-muted-foreground">{recipe.customer_name}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Flame className="h-3 w-3 text-orange-500" />
+                          <span className="font-mono">{recipe.press_temp ?? '—'}°F</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-blue-500" />
+                          <span className="font-mono">{recipe.press_time ?? '—'}s</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Pressure:</span>{' '}
+                          <span className="capitalize">{recipe.press_pressure ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Peel:</span>{' '}
+                          <span className="capitalize">{recipe.peel_type ?? '—'}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-blue-500" />
-                        <span className="font-mono">{recipe.press_time ?? '—'}s</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Pressure:</span>{' '}
-                        <span className="capitalize">{recipe.press_pressure ?? '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Peel:</span>{' '}
-                        <span className="capitalize">{recipe.peel_type ?? '—'}</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {format(new Date(recipe.updated_at), 'MMM d, yyyy')}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(recipe.updated_at), 'MMM d, yyyy')}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <SavedJobDetailSheet
+                open={!!viewingRecipe}
+                onOpenChange={(open) => !open && setViewingRecipe(null)}
+                title={viewingRecipe?.name || ''}
+                subtitle={viewingRecipe?.customer_name}
+                badges={viewingRecipe ? [{ label: FABRIC_TYPES.find(f => f.value === viewingRecipe.fabric_type)?.label || viewingRecipe.fabric_type }] : []}
+                sections={viewingRecipe ? [
+                  {
+                    title: 'Press Settings',
+                    fields: [
+                      { label: 'Temperature', value: viewingRecipe.press_temp ? `${viewingRecipe.press_temp}°F` : null, mono: true },
+                      { label: 'Time', value: viewingRecipe.press_time ? `${viewingRecipe.press_time}s` : null, mono: true },
+                      { label: 'Pressure', value: viewingRecipe.press_pressure },
+                      { label: 'Peel Type', value: viewingRecipe.peel_type },
+                    ],
+                  },
+                ] : []}
+                notes={viewingRecipe?.notes}
+                updatedAt={viewingRecipe?.updated_at}
+                onLoadForReorder={() => viewingRecipe && loadRecipe(viewingRecipe)}
+                onDelete={() => viewingRecipe && handleDelete(viewingRecipe.id)}
+              />
+            </>
           )}
         </TabsContent>
       </Tabs>

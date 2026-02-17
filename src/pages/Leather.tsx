@@ -14,6 +14,7 @@ import { Plus, Loader2, Search, Trash2, Save, Zap, RotateCcw, Camera, X, Package
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
+import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Extended material options from old code
@@ -63,6 +64,7 @@ export default function Leather() {
   const { jobs } = useJobs();
   const [activeTab, setActiveTab] = useState<'new-job' | 'saved' | 'materials'>('new-job');
   const [search, setSearch] = useState('');
+  const [viewingRecipe, setViewingRecipe] = useState<LeatherRecipe | null>(null);
 
   // Job form state
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
@@ -698,52 +700,81 @@ export default function Leather() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredRecipes.map((recipe) => (
-                <Card key={recipe.id} className="hover:border-primary/50 transition-colors">
-                  <CardHeader className="pb-2">
-                    <Badge variant="outline">
-                      {LEATHER_MATERIALS.find(m => m.value === recipe.material_type)?.label || recipe.material_type}
-                    </Badge>
-                    <CardTitle className="text-lg">{recipe.name}</CardTitle>
-                    {recipe.customer_name && (
-                      <p className="text-sm text-muted-foreground">{recipe.customer_name}</p>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                      <div>
-                        <span className="text-muted-foreground">Power:</span>{' '}
-                        <span className="font-mono">{recipe.laser_power ?? '—'}%</span>
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredRecipes.map((recipe) => (
+                  <Card 
+                    key={recipe.id} 
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setViewingRecipe(recipe)}
+                  >
+                    <CardHeader className="pb-2">
+                      <Badge variant="outline">
+                        {LEATHER_MATERIALS.find(m => m.value === recipe.material_type)?.label || recipe.material_type}
+                      </Badge>
+                      <CardTitle className="text-lg">{recipe.name}</CardTitle>
+                      {recipe.customer_name && (
+                        <p className="text-sm text-muted-foreground">{recipe.customer_name}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Power:</span>{' '}
+                          <span className="font-mono">{recipe.laser_power ?? '—'}%</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Speed:</span>{' '}
+                          <span className="font-mono">{recipe.laser_speed ?? '—'}%</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Freq:</span>{' '}
+                          <span className="font-mono">{recipe.laser_frequency ?? '—'} Hz</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Passes:</span>{' '}
+                          <span className="font-mono">{recipe.passes}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Speed:</span>{' '}
-                        <span className="font-mono">{recipe.laser_speed ?? '—'}%</span>
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(recipe.updated_at), 'MMM d, yyyy')}
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Freq:</span>{' '}
-                        <span className="font-mono">{recipe.laser_frequency ?? '—'} Hz</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Passes:</span>{' '}
-                        <span className="font-mono">{recipe.passes}</span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground mb-4">
-                      {format(new Date(recipe.updated_at), 'MMM d, yyyy')}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1" onClick={() => loadRecipe(recipe)}>
-                        Load for Reorder
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(recipe.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <SavedJobDetailSheet
+                open={!!viewingRecipe}
+                onOpenChange={(open) => !open && setViewingRecipe(null)}
+                title={viewingRecipe?.name || ''}
+                subtitle={viewingRecipe?.customer_name}
+                badges={viewingRecipe ? [{ label: LEATHER_MATERIALS.find(m => m.value === viewingRecipe.material_type)?.label || viewingRecipe.material_type }] : []}
+                sections={viewingRecipe ? [
+                  {
+                    title: 'Laser Settings',
+                    fields: [
+                      { label: 'Power', value: viewingRecipe.laser_power ? `${viewingRecipe.laser_power}%` : null, mono: true },
+                      { label: 'Speed', value: viewingRecipe.laser_speed ? `${viewingRecipe.laser_speed}%` : null, mono: true },
+                      { label: 'Frequency', value: viewingRecipe.laser_frequency ? `${viewingRecipe.laser_frequency} Hz` : null, mono: true },
+                      { label: 'Passes', value: viewingRecipe.passes, mono: true },
+                    ],
+                  },
+                  {
+                    title: 'Patch Details',
+                    fields: [
+                      { label: 'Width', value: viewingRecipe.patch_width ? `${viewingRecipe.patch_width}"` : null },
+                      { label: 'Height', value: viewingRecipe.patch_height ? `${viewingRecipe.patch_height}"` : null },
+                      { label: 'Cost/Piece', value: viewingRecipe.material_cost_per_piece ? `$${viewingRecipe.material_cost_per_piece.toFixed(2)}` : null },
+                    ],
+                  },
+                ] : []}
+                notes={viewingRecipe?.notes}
+                updatedAt={viewingRecipe?.updated_at}
+                onLoadForReorder={() => viewingRecipe && loadRecipe(viewingRecipe)}
+                onDelete={() => viewingRecipe && handleDelete(viewingRecipe.id)}
+              />
+            </>
           )}
         </TabsContent>
 
