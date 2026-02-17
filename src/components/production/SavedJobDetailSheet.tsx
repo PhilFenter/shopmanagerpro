@@ -2,8 +2,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { RotateCcw, Trash2, Calendar } from 'lucide-react';
+import { RotateCcw, Trash2, Calendar, Camera, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useJobPhotos } from '@/hooks/useJobPhotos';
 
 interface DetailField {
   label: string;
@@ -27,6 +28,8 @@ interface SavedJobDetailSheetProps {
   createdAt?: string;
   updatedAt?: string;
   rating?: number | null;
+  /** Job ID to fetch and display associated photos */
+  jobId?: string | null;
   onLoadForReorder: () => void;
   onDelete: () => void;
 }
@@ -42,9 +45,12 @@ export function SavedJobDetailSheet({
   createdAt,
   updatedAt,
   rating,
+  jobId,
   onLoadForReorder,
   onDelete,
 }: SavedJobDetailSheetProps) {
+  const { photos, isLoading: photosLoading } = useJobPhotos(open && jobId ? jobId : undefined);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-lg overflow-y-auto">
@@ -66,6 +72,40 @@ export function SavedJobDetailSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-5">
+          {/* Photos Section */}
+          {jobId && (
+            <div>
+              <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Photos
+              </h4>
+              {photosLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : photos.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.map((photo) => (
+                    <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden border">
+                      <img
+                        src={photo.url}
+                        alt={photo.description || photo.filename}
+                        className="w-full h-full object-cover"
+                      />
+                      {photo.description && (
+                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-xs px-1 py-0.5 truncate">
+                          {photo.description}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-2">No photos for this job.</p>
+              )}
+            </div>
+          )}
+
           {sections.map((section, si) => (
             <div key={si}>
               <h4 className="text-sm font-medium mb-2">{section.title}</h4>

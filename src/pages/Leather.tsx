@@ -749,6 +749,7 @@ export default function Leather() {
                 onOpenChange={(open) => !open && setViewingRecipe(null)}
                 title={viewingRecipe?.name || ''}
                 subtitle={viewingRecipe?.customer_name}
+                jobId={viewingRecipe?.job_id}
                 badges={viewingRecipe ? [{ label: LEATHER_MATERIALS.find(m => m.value === viewingRecipe.material_type)?.label || viewingRecipe.material_type }] : []}
                 sections={viewingRecipe ? [
                   {

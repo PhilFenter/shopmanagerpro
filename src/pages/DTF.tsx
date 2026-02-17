@@ -693,6 +693,7 @@ export default function DTF() {
                 onOpenChange={(open) => !open && setViewingRecipe(null)}
                 title={viewingRecipe?.name || ''}
                 subtitle={viewingRecipe?.customer_name}
+                jobId={viewingRecipe?.job_id}
                 badges={viewingRecipe ? [{ label: FABRIC_TYPES.find(f => f.value === viewingRecipe.fabric_type)?.label || viewingRecipe.fabric_type }] : []}
                 sections={viewingRecipe ? [
                   {
