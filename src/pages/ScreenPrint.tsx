@@ -964,6 +964,7 @@ export default function ScreenPrint() {
                 onOpenChange={(open) => !open && setViewingRecipe(null)}
                 title={viewingRecipe?.name || ''}
                 subtitle={viewingRecipe?.customer_name}
+                jobId={viewingRecipe?.job_id}
                 rating={viewingRecipe?.quality_rating}
                 badges={viewingRecipe ? [{ label: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' }] : []}
                 sections={viewingRecipe ? [

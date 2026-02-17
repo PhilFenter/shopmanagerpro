@@ -626,6 +626,7 @@ export default function Embroidery() {
                 onOpenChange={(open) => !open && setViewingRecipe(null)}
                 title={viewingRecipe?.name || ''}
                 subtitle={viewingRecipe?.customer_name}
+                jobId={viewingRecipe?.job_id}
                 badges={[
                   ...(viewingRecipe?.hoop_size ? [{ label: viewingRecipe.hoop_size }] : []),
                   ...(viewingRecipe?.placement ? [{ label: viewingRecipe.placement, variant: 'secondary' as const }] : []),
