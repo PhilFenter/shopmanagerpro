@@ -110,11 +110,15 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
             )}
           >
             <div className={cn(
-              "bg-muted/50 rounded-lg p-3 h-full min-h-[400px]",
+              "bg-muted/50 rounded-lg p-3 min-h-[400px]",
               isFinalStage(stage) && "bg-primary/10"
             )}>
-              {/* Column Header */}
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+              {/* Column Header - sticky so it stays visible on vertical scroll */}
+              <div className={cn(
+                "flex items-center gap-2 mb-3 pb-2 border-b sticky top-0 z-10 pt-1 -mt-1 rounded-t-lg",
+                isFinalStage(stage) ? "bg-primary/10" : "bg-muted/90",
+                "backdrop-blur-sm"
+              )}>
                 <span className="text-lg">{STAGE_ICONS[stage]}</span>
                 <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
                 <Badge variant="secondary" className="ml-auto">
