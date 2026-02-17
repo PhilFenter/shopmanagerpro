@@ -15,6 +15,7 @@ import { Plus, Loader2, Search, Trash2, Save, Scissors, RotateCcw, Camera, X, Pa
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
+import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Item types and their placements
@@ -100,6 +101,7 @@ export default function Embroidery() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
+  const [viewingRecipe, setViewingRecipe] = useState<EmbroideryRecipe | null>(null);
 
   // Filter saved recipes
   const filteredRecipes = recipes.filter(r =>
@@ -580,47 +582,78 @@ export default function Embroidery() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredRecipes.map((recipe) => (
-                <Card key={recipe.id} className="hover:border-primary/50 transition-colors">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {recipe.hoop_size && <Badge variant="outline">{recipe.hoop_size}</Badge>}
-                      {recipe.placement && <Badge variant="secondary">{recipe.placement}</Badge>}
-                    </div>
-                    <CardTitle className="text-lg">{recipe.name}</CardTitle>
-                    {recipe.customer_name && (
-                      <p className="text-sm text-muted-foreground">{recipe.customer_name}</p>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm space-y-1 mb-4">
-                      {recipe.stitch_count && (
-                        <div>
-                          <span className="text-muted-foreground">Stitches:</span>{' '}
-                          <span className="font-mono">{recipe.stitch_count.toLocaleString()}</span>
-                        </div>
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredRecipes.map((recipe) => (
+                  <Card 
+                    key={recipe.id} 
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setViewingRecipe(recipe)}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {recipe.hoop_size && <Badge variant="outline">{recipe.hoop_size}</Badge>}
+                        {recipe.placement && <Badge variant="secondary">{recipe.placement}</Badge>}
+                      </div>
+                      <CardTitle className="text-lg">{recipe.name}</CardTitle>
+                      {recipe.customer_name && (
+                        <p className="text-sm text-muted-foreground">{recipe.customer_name}</p>
                       )}
-                      <div>
-                        <span className="text-muted-foreground">Needles:</span>{' '}
-                        <span className="font-mono">{recipe.needle_setup?.length || 0} assigned</span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm space-y-1">
+                        {recipe.stitch_count && (
+                          <div>
+                            <span className="text-muted-foreground">Stitches:</span>{' '}
+                            <span className="font-mono">{recipe.stitch_count.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-muted-foreground">Needles:</span>{' '}
+                          <span className="font-mono">{recipe.needle_setup?.length || 0} assigned</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(recipe.updated_at), 'MMM d, yyyy')}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(recipe.updated_at), 'MMM d, yyyy')}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1" onClick={() => loadRecipe(recipe)}>
-                        Load for Reorder
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(recipe.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <SavedJobDetailSheet
+                open={!!viewingRecipe}
+                onOpenChange={(open) => !open && setViewingRecipe(null)}
+                title={viewingRecipe?.name || ''}
+                subtitle={viewingRecipe?.customer_name}
+                badges={[
+                  ...(viewingRecipe?.hoop_size ? [{ label: viewingRecipe.hoop_size }] : []),
+                  ...(viewingRecipe?.placement ? [{ label: viewingRecipe.placement, variant: 'secondary' as const }] : []),
+                ]}
+                sections={viewingRecipe ? [
+                  {
+                    title: 'Embroidery Settings',
+                    fields: [
+                      { label: 'Stitch Count', value: viewingRecipe.stitch_count?.toLocaleString(), mono: true },
+                      { label: 'Hoop Size', value: viewingRecipe.hoop_size },
+                      { label: 'Placement', value: viewingRecipe.placement },
+                      { label: 'Design File', value: viewingRecipe.design_file },
+                    ],
+                  },
+                  {
+                    title: 'Thread Setup',
+                    fields: viewingRecipe.needle_setup?.map(n => ({
+                      label: `Needle ${n.position}`,
+                      value: [n.thread_color, n.thread_number].filter(Boolean).join(' - ') || null,
+                    })) || [],
+                  },
+                ] : []}
+                notes={viewingRecipe?.notes}
+                updatedAt={viewingRecipe?.updated_at}
+                onLoadForReorder={() => viewingRecipe && loadRecipe(viewingRecipe)}
+                onDelete={() => viewingRecipe && handleDelete(viewingRecipe.id)}
+              />
+            </>
           )}
         </TabsContent>
 

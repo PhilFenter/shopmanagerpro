@@ -15,6 +15,7 @@ import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, C
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
+import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 
 // Types for position settings
@@ -111,6 +112,7 @@ export default function ScreenPrint() {
   const [activeTab, setActiveTab] = useState<'setup' | 'saved'>('setup');
   const [search, setSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState<string>('');
+  const [viewingRecipe, setViewingRecipe] = useState<ScreenPrintRecipe | null>(null);
 
   // Job setup state
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
@@ -934,31 +936,62 @@ export default function ScreenPrint() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
-              {filteredRecipes.map((recipe) => (
-                <Card key={recipe.id} className="hover:border-primary/50 transition-colors">
-                  <CardContent className="flex items-center justify-between py-4">
-                    <div>
-                      <div className="font-semibold">{recipe.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {recipe.customer_name || 'No description'} | {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
+            <>
+              <div className="space-y-2">
+                {filteredRecipes.map((recipe) => (
+                  <Card 
+                    key={recipe.id} 
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setViewingRecipe(recipe)}
+                  >
+                    <CardContent className="flex items-center justify-between py-4">
+                      <div>
+                        <div className="font-semibold">{recipe.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {recipe.customer_name || 'No description'} | {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
                       <div className="text-primary">
                         {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => loadRecipe(recipe)}>
-                        Load
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(recipe.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <SavedJobDetailSheet
+                open={!!viewingRecipe}
+                onOpenChange={(open) => !open && setViewingRecipe(null)}
+                title={viewingRecipe?.name || ''}
+                subtitle={viewingRecipe?.customer_name}
+                rating={viewingRecipe?.quality_rating}
+                badges={viewingRecipe ? [{ label: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' }] : []}
+                sections={viewingRecipe ? [
+                  {
+                    title: 'Print Settings',
+                    fields: [
+                      { label: 'Print Type', value: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' },
+                      { label: 'Squeegee', value: viewingRecipe.squeegee_settings },
+                      { label: 'Flash Temp', value: viewingRecipe.flash_temp ? `${viewingRecipe.flash_temp}°F` : null, mono: true },
+                      { label: 'Flash Time', value: viewingRecipe.flash_time ? `${viewingRecipe.flash_time}s` : null, mono: true },
+                      { label: 'Cure Temp', value: viewingRecipe.cure_temp ? `${viewingRecipe.cure_temp}°F` : null, mono: true },
+                      { label: 'Cure Time', value: viewingRecipe.cure_time ? `${viewingRecipe.cure_time}s` : null, mono: true },
+                    ],
+                  },
+                  ...(viewingRecipe.ink_colors && viewingRecipe.ink_colors.length > 0 ? [{
+                    title: 'Ink Colors',
+                    fields: viewingRecipe.ink_colors.map((ink, i) => ({
+                      label: `Color ${i + 1}`,
+                      value: `${ink.color} (${ink.type}, ${ink.mesh} mesh)`,
+                    })),
+                  }] : []),
+                ] : []}
+                notes={viewingRecipe?.notes}
+                updatedAt={viewingRecipe?.updated_at}
+                onLoadForReorder={() => viewingRecipe && loadRecipe(viewingRecipe)}
+                onDelete={() => viewingRecipe && handleDelete(viewingRecipe.id)}
+              />
+            </>
           )}
         </TabsContent>
       </Tabs>
