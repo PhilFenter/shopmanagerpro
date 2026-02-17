@@ -9,6 +9,9 @@ export interface NotificationSetting {
   notify_customer: boolean;
   email_template: string | null;
   sms_template: string | null;
+  custom_label: string | null;
+  email_subject: string | null;
+  is_custom: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -35,10 +38,12 @@ export function useNotificationSettings() {
   });
 
   const updateSetting = useMutation({
-    mutationFn: async ({ id, notify_customer, email_template }: { id: string; notify_customer?: boolean; email_template?: string }) => {
+    mutationFn: async ({ id, notify_customer, email_template, custom_label, email_subject }: { id: string; notify_customer?: boolean; email_template?: string; custom_label?: string; email_subject?: string }) => {
       const updates: Record<string, unknown> = {};
       if (notify_customer !== undefined) updates.notify_customer = notify_customer;
       if (email_template !== undefined) updates.email_template = email_template;
+      if (custom_label !== undefined) updates.custom_label = custom_label;
+      if (email_subject !== undefined) updates.email_subject = email_subject;
 
       const { error } = await supabase
         .from('notification_settings')
@@ -55,5 +60,38 @@ export function useNotificationSettings() {
     },
   });
 
-  return { settings: query.data || [], isLoading: query.isLoading, updateSetting };
+  const addSetting = useMutation({
+    mutationFn: async ({ stage, custom_label }: { stage: string; custom_label: string }) => {
+      const { error } = await supabase
+        .from('notification_settings')
+        .insert({ stage: stage as any, custom_label, is_custom: true, notify_customer: false });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification_settings'] });
+      toast({ title: 'Notification added' });
+    },
+    onError: (error) => {
+      toast({ variant: 'destructive', title: 'Failed to add', description: error.message });
+    },
+  });
+
+  const deleteSetting = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('notification_settings')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification_settings'] });
+      toast({ title: 'Notification removed' });
+    },
+    onError: (error) => {
+      toast({ variant: 'destructive', title: 'Failed to remove', description: error.message });
+    },
+  });
+
+  return { settings: query.data || [], isLoading: query.isLoading, updateSetting, addSetting, deleteSetting };
 }
