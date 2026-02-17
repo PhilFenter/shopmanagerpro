@@ -4,7 +4,7 @@ import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, useAdva
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+// ScrollArea removed - using native overflow for proper sticky headers
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowRight, Loader2, ShoppingBag, Printer, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -99,83 +99,66 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
         </TabsList>
       </Tabs>
 
-      <ScrollArea className="w-full">
-        <div style={{ minWidth: 'max-content' }}>
-          {/* Sticky header row - stays visible when scrolling vertically */}
-          <div className="sticky top-0 z-20 bg-background pb-2">
-            <div className="flex gap-4">
-              {ALL_KANBAN_STAGES.map((stage) => (
-                <div
-                  key={stage}
-                  className={cn(
-                    "flex-shrink-0",
-                    isFinalStage(stage) ? "w-64" : "w-80"
-                  )}
-                >
-                  <div className={cn(
-                    "rounded-lg p-3 pb-2",
-                    isFinalStage(stage) ? "bg-primary/10" : "bg-muted/50"
-                  )}>
-                    <div className="flex items-center gap-2 pb-2 border-b">
-                      <span className="text-lg">{STAGE_ICONS[stage]}</span>
-                      <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
-                      <Badge variant="secondary" className="ml-auto">
-                        {jobsByStage[stage].length}
-                      </Badge>
-                    </div>
+      <div className="overflow-auto max-h-[calc(100vh-280px)]">
+        <div className="flex gap-4 pb-4" style={{ minWidth: 'max-content' }}>
+          {ALL_KANBAN_STAGES.map((stage) => (
+            <div 
+              key={stage} 
+              className={cn(
+                "flex-shrink-0",
+                isFinalStage(stage) ? "w-64" : "w-80"
+              )}
+            >
+              <div className={cn(
+                "bg-muted/50 rounded-lg min-h-[400px]",
+                isFinalStage(stage) && "bg-primary/10"
+              )}>
+                {/* Column Header - sticky within the scroll container */}
+                <div className={cn(
+                  "sticky top-0 z-10 p-3 pb-2 rounded-t-lg",
+                  isFinalStage(stage) ? "bg-primary/10" : "bg-muted"
+                )}>
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <span className="text-lg">{STAGE_ICONS[stage]}</span>
+                    <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
+                    <Badge variant="secondary" className="ml-auto">
+                      {jobsByStage[stage].length}
+                    </Badge>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Card columns */}
-          <div className="flex gap-4 pb-4">
-            {ALL_KANBAN_STAGES.map((stage) => (
-              <div
-                key={stage}
-                className={cn(
-                  "flex-shrink-0",
-                  isFinalStage(stage) ? "w-64" : "w-80"
-                )}
-              >
-                <div className={cn(
-                  "bg-muted/50 rounded-lg p-3 pt-2 min-h-[400px]",
-                  isFinalStage(stage) && "bg-primary/10"
-                )}>
-                  <div className="space-y-3">
-                    {jobsByStage[stage].map((job) => (
-                      <KanbanCard
-                        key={job.id}
-                        job={job}
-                        stage={stage}
-                        onSelect={() => onSelectJob(job)}
-                        onAdvance={(targetStage) => advanceStage.mutate({
-                          jobId: job.id,
-                          currentStage: stage,
-                          targetStage,
-                          source: job.source,
-                          customerName: job.customer_name,
-                          customerEmail: job.customer_email,
-                          orderNumber: job.order_number,
-                        })}
-                        isAdvancing={advanceStage.isPending}
-                      />
-                    ))}
+                {/* Job Cards */}
+                <div className="p-3 pt-2 space-y-3">
+                  {jobsByStage[stage].map((job) => (
+                    <KanbanCard 
+                      key={job.id} 
+                      job={job} 
+                      stage={stage}
+                      onSelect={() => onSelectJob(job)}
+                      onAdvance={(targetStage) => advanceStage.mutate({ 
+                        jobId: job.id, 
+                        currentStage: stage,
+                        targetStage,
+                        source: job.source,
+                        customerName: job.customer_name,
+                        customerEmail: job.customer_email,
+                        orderNumber: job.order_number,
+                      })}
+                      isAdvancing={advanceStage.isPending}
+                    />
+                  ))}
 
-                    {jobsByStage[stage].length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
-                        No jobs
-                      </div>
-                    )}
-                  </div>
+                  {jobsByStage[stage].length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      No jobs
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
     </div>
   );
 }
