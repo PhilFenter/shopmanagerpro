@@ -81,7 +81,7 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
   }, {} as Record<JobStage, Job[]>);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full gap-4">
       {/* Source Filter Tabs */}
       <Tabs value={sourceFilter} onValueChange={(v) => setSourceFilter(v as SourceFilter)}>
         <TabsList className="bg-muted/50">
@@ -149,8 +149,7 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
       <div 
         ref={bodyScrollRef}
         onScroll={() => syncScroll('body')}
-        className="overflow-auto"
-        style={{ height: 'calc(100vh - 420px)' }}
+        className="overflow-auto flex-1 min-h-0"
       >
         <div className="flex gap-4 pb-4 items-stretch" style={{ minWidth: 'max-content', minHeight: '100%' }}>
           {ALL_KANBAN_STAGES.map((stage) => (
