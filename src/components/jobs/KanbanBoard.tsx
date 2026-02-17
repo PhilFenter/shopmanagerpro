@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Job } from '@/hooks/useJobs';
 import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, useAdvanceStage, getNextStage, isAtFinalChoice, isFinalStage } from '@/hooks/useJobStages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +36,20 @@ const ALL_KANBAN_STAGES: JobStage[] = [...STAGE_ORDER, ...FINAL_STAGES];
 export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
   const advanceStage = useAdvanceStage();
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const headerScrollRef = useRef<HTMLDivElement>(null);
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+  const isSyncing = useRef(false);
+
+  const syncScroll = useCallback((source: 'header' | 'body') => {
+    if (isSyncing.current) return;
+    isSyncing.current = true;
+    const from = source === 'header' ? headerScrollRef.current : bodyScrollRef.current;
+    const to = source === 'header' ? bodyScrollRef.current : headerScrollRef.current;
+    if (from && to) {
+      to.scrollLeft = from.scrollLeft;
+    }
+    requestAnimationFrame(() => { isSyncing.current = false; });
+  }, []);
 
   // Filter jobs by source
   const filteredJobs = jobs.filter(job => {
@@ -99,7 +113,45 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
         </TabsList>
       </Tabs>
 
-      <div className="overflow-auto" style={{ height: 'calc(100vh - 370px)' }}>
+      {/* Fixed header row - scrolls horizontally in sync with body */}
+      <div 
+        ref={headerScrollRef}
+        onScroll={() => syncScroll('header')}
+        className="overflow-x-auto overflow-y-hidden scrollbar-none"
+      >
+        <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
+          {ALL_KANBAN_STAGES.map((stage) => (
+            <div
+              key={stage}
+              className={cn(
+                "flex-shrink-0",
+                isFinalStage(stage) ? "w-64" : "w-80"
+              )}
+            >
+              <div className={cn(
+                "rounded-t-lg p-3 pb-2",
+                isFinalStage(stage) ? "bg-primary/10" : "bg-muted"
+              )}>
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <span className="text-lg">{STAGE_ICONS[stage]}</span>
+                  <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
+                  <Badge variant="secondary" className="ml-auto">
+                    {jobsByStage[stage].length}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Scrollable body - syncs horizontal scroll with header */}
+      <div 
+        ref={bodyScrollRef}
+        onScroll={() => syncScroll('body')}
+        className="overflow-auto"
+        style={{ height: 'calc(100vh - 420px)' }}
+      >
         <div className="flex gap-4 pb-4 items-stretch" style={{ minWidth: 'max-content', minHeight: '100%' }}>
           {ALL_KANBAN_STAGES.map((stage) => (
             <div 
@@ -110,25 +162,10 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
               )}
             >
               <div className={cn(
-                "bg-muted/50 rounded-lg flex-1 flex flex-col",
+                "bg-muted/50 rounded-b-lg flex-1",
                 isFinalStage(stage) && "bg-primary/10"
               )}>
-                {/* Column Header - sticky within the scroll container */}
-                <div className={cn(
-                  "sticky top-0 z-10 p-3 pb-2 rounded-t-lg",
-                  isFinalStage(stage) ? "bg-primary/10" : "bg-muted"
-                )}>
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <span className="text-lg">{STAGE_ICONS[stage]}</span>
-                    <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
-                    <Badge variant="secondary" className="ml-auto">
-                      {jobsByStage[stage].length}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Job Cards */}
-                <div className="p-3 pt-2 space-y-3 flex-1">
+                <div className="p-3 pt-2 space-y-3">
                   {jobsByStage[stage].map((job) => (
                     <KanbanCard 
                       key={job.id} 
