@@ -524,8 +524,11 @@ export type Database = {
       notification_settings: {
         Row: {
           created_at: string
+          custom_label: string | null
+          email_subject: string | null
           email_template: string | null
           id: string
+          is_custom: boolean
           notify_customer: boolean
           sms_template: string | null
           stage: Database["public"]["Enums"]["job_stage"]
@@ -533,8 +536,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_label?: string | null
+          email_subject?: string | null
           email_template?: string | null
           id?: string
+          is_custom?: boolean
           notify_customer?: boolean
           sms_template?: string | null
           stage: Database["public"]["Enums"]["job_stage"]
@@ -542,8 +548,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_label?: string | null
+          email_subject?: string | null
           email_template?: string | null
           id?: string
+          is_custom?: boolean
           notify_customer?: boolean
           sms_template?: string | null
           stage?: Database["public"]["Enums"]["job_stage"]

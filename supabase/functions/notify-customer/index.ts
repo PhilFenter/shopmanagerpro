@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     // Check notification settings for this stage
     const { data: settings, error: settingsError } = await supabase
       .from("notification_settings")
-      .select("notify_customer, email_template")
+      .select("notify_customer, email_template, email_subject, custom_label")
       .eq("stage", stage)
       .maybeSingle();
 
@@ -86,13 +86,18 @@ Deno.serve(async (req) => {
     }
 
     // Replace template variables
+    const stageLabel = settings.custom_label || STAGE_LABELS[stage] || stage;
     const emailBody = settings.email_template
       .replace(/\{\{customer_name\}\}/g, customerName || "Customer")
       .replace(/\{\{order_number\}\}/g, orderNumber || "N/A")
-      .replace(/\{\{stage\}\}/g, STAGE_LABELS[stage] || stage);
+      .replace(/\{\{stage\}\}/g, stageLabel);
 
-    const stageLabel = STAGE_LABELS[stage] || stage;
-    const subject = `Order #${orderNumber || "N/A"} Update: ${stageLabel}`;
+    const subject = settings.email_subject
+      ? settings.email_subject
+          .replace(/\{\{customer_name\}\}/g, customerName || "Customer")
+          .replace(/\{\{order_number\}\}/g, orderNumber || "N/A")
+          .replace(/\{\{stage\}\}/g, stageLabel)
+      : `Order #${orderNumber || "N/A"} Update: ${stageLabel}`;
 
     // Send email via Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
