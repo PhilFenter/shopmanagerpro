@@ -33,12 +33,14 @@ function extractBlocks(xml: string, tag: string): string[] {
 }
 
 async function soapPost(url: string, body: string): Promise<string> {
+  console.log("SOAP request to:", url);
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "text/xml; charset=utf-8" },
     body,
   });
   const text = await resp.text();
+  console.log("SOAP response status:", resp.status, "body preview:", text.substring(0, 800));
   if (!resp.ok) {
     throw new Error(`SOAP [${resp.status}]: ${text.substring(0, 500)}`);
   }
@@ -161,6 +163,7 @@ serve(async (req) => {
     const sanmarUser = Deno.env.get("SANMAR_API_USERNAME");
     const sanmarPass = Deno.env.get("SANMAR_API_PASSWORD");
     const sanmarCustNum = Deno.env.get("SANMAR_CUSTOMER_NUMBER");
+    console.log("SanMar creds check:", { user: sanmarUser?.substring(0, 3) + "...", passLen: sanmarPass?.length, custNum: sanmarCustNum?.substring(0, 3) + "..." });
     if (!sanmarUser || !sanmarPass) {
       throw new Error("SanMar API credentials not configured");
     }
