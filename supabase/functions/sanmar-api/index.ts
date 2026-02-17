@@ -10,7 +10,7 @@ const corsHeaders = {
 // SanMar SOAP endpoints
 const ENDPOINTS = {
   productData: "https://ws.sanmar.com:8080/promostandards/ProductDataServiceBindingV2",
-  inventory: "https://ws.sanmar.com:8080/promostandards/InventoryServiceBinding",
+  inventory: "https://ws.sanmar.com:8080/SanMarWebService/SanMarWebServicePort",
   pricing: "https://ws.sanmar.com:8080/SanMarWebService/SanMarPricingServicePort",
   productInfo: "https://ws.sanmar.com:8080/SanMarWebService/SanMarProductInfoServicePort",
 };
@@ -48,8 +48,7 @@ async function soapPost(url: string, body: string): Promise<string> {
 // ─── SOAP builders ────────────────────────────────────────
 
 /** SanMar proprietary pricing: namespace = http://impl.webservice.integration.sanmar.com/ */
-function buildPricingRequest(user: string, pass: string, style: string, color?: string, size?: string): string {
-  // Build item filter(s) - arg0 can contain items to filter by style/color/size
+function buildPricingRequest(user: string, pass: string, custNum: string, style: string, color?: string, size?: string): string {
   const itemXml = `<arg0>
       <style>${style}</style>
       ${color ? `<color>${color}</color>` : ""}
@@ -63,7 +62,7 @@ function buildPricingRequest(user: string, pass: string, style: string, color?: 
     <impl:getPricing>
       ${itemXml}
       <arg1>
-        <sanMarCustomerNumber>${user}</sanMarCustomerNumber>
+        <sanMarCustomerNumber>${custNum}</sanMarCustomerNumber>
         <sanMarUserName>${user}</sanMarUserName>
         <sanMarUserPassword>${pass}</sanMarUserPassword>
       </arg1>
@@ -89,26 +88,26 @@ function buildProductDataRequest(user: string, pass: string, productId: string):
 </soapenv:Envelope>`;
 }
 
-/** PromoStandards Inventory V2 */
-function buildInventoryRequest(user: string, pass: string, productId: string, partId?: string): string {
+/** SanMar proprietary inventory - getInventoryQtyForStyleColorSize */
+function buildInventoryRequest(user: string, pass: string, custNum: string, style: string, color?: string, size?: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-  xmlns:ns="http://www.promostandards.org/WSDL/Inventory/2.0.0/"
-  xmlns:shar="http://www.promostandards.org/WSDL/Inventory/2.0.0/SharedObjects/">
+  xmlns:web="http://webservice.integration.sanmar.com/">
   <soapenv:Body>
-    <ns:GetInventoryLevelsRequest>
-      <shar:wsVersion>2.0.0</shar:wsVersion>
-      <shar:id>${user}</shar:id>
-      <shar:password>${pass}</shar:password>
-      <shar:productId>${productId}</shar:productId>
-      ${partId ? `<shar:Filter><shar:partIdArray><shar:partId>${partId}</shar:partId></shar:partIdArray></shar:Filter>` : ""}
-    </ns:GetInventoryLevelsRequest>
+    <web:getInventoryQtyForStyleColorSize>
+      <arg0>${style}</arg0>
+      <arg1>${color || ""}</arg1>
+      <arg2>${size || ""}</arg2>
+      <arg3>${custNum}</arg3>
+      <arg4>${user}</arg4>
+      <arg5>${pass}</arg5>
+    </web:getInventoryQtyForStyleColorSize>
   </soapenv:Body>
 </soapenv:Envelope>`;
 }
 
 /** SanMar proprietary product info */
-function buildProductInfoRequest(user: string, pass: string, style: string): string {
+function buildProductInfoRequest(user: string, pass: string, custNum: string, style: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
   xmlns:impl="http://impl.webservice.integration.sanmar.com/">
@@ -118,7 +117,7 @@ function buildProductInfoRequest(user: string, pass: string, style: string): str
         <style>${style}</style>
       </arg0>
       <arg1>
-        <sanMarCustomerNumber>${user}</sanMarCustomerNumber>
+        <sanMarCustomerNumber>${custNum}</sanMarCustomerNumber>
         <sanMarUserName>${user}</sanMarUserName>
         <sanMarUserPassword>${pass}</sanMarUserPassword>
       </arg1>
@@ -161,6 +160,7 @@ serve(async (req) => {
 
     const sanmarUser = Deno.env.get("SANMAR_API_USERNAME");
     const sanmarPass = Deno.env.get("SANMAR_API_PASSWORD");
+    const sanmarCustNum = Deno.env.get("SANMAR_CUSTOMER_NUMBER");
     if (!sanmarUser || !sanmarPass) {
       throw new Error("SanMar API credentials not configured");
     }
@@ -175,7 +175,7 @@ serve(async (req) => {
 
         const xml = await soapPost(
           ENDPOINTS.pricing,
-          buildPricingRequest(sanmarUser, sanmarPass, params.styleNumber, params.color, params.size)
+          buildPricingRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber, params.color, params.size)
         );
 
         // Check for error
@@ -209,7 +209,7 @@ serve(async (req) => {
 
         const xml = await soapPost(
           ENDPOINTS.productInfo,
-          buildProductInfoRequest(sanmarUser, sanmarPass, params.styleNumber)
+          buildProductInfoRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber)
         );
 
         const errorOccurred = extractTag(xml, "errorOccurred");
@@ -260,24 +260,31 @@ serve(async (req) => {
 
       // ─── Real-time inventory ───
       case "getInventory": {
-        if (!params.productId) throw new Error("productId required");
+        if (!params.styleNumber) throw new Error("styleNumber required");
 
         const xml = await soapPost(
           ENDPOINTS.inventory,
-          buildInventoryRequest(sanmarUser, sanmarPass, params.productId, params.partId)
+          buildInventoryRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber, params.color, params.size)
         );
 
-        const invBlocks = extractBlocks(xml, "PartInventory");
+        const errorOccurred = extractTag(xml, "errorOccurred");
+        if (errorOccurred === "true") {
+          throw new Error(`SanMar inventory error: ${extractTag(xml, "message")}`);
+        }
+
+        const invBlocks = extractBlocks(xml, "listResponse");
         const inventory = invBlocks.map((block) => ({
-          partId: extractTag(block, "partId"),
-          partDescription: extractTag(block, "partDescription"),
-          quantityAvailable: parseInt(extractTag(block, "quantityAvailable")) || 0,
+          style: extractTag(block, "style"),
+          color: extractTag(block, "color"),
+          size: extractTag(block, "size"),
+          qty: parseInt(extractTag(block, "qty")) || 0,
+          warehouseId: extractTag(block, "warehouseId"),
         }));
 
         result = {
-          productId: params.productId,
+          styleNumber: params.styleNumber,
           inventory,
-          totalAvailable: inventory.reduce((sum, i) => sum + i.quantityAvailable, 0),
+          totalAvailable: inventory.reduce((sum, i) => sum + i.qty, 0),
         };
         break;
       }
@@ -289,7 +296,7 @@ serve(async (req) => {
         // Fetch pricing
         const pricingXml = await soapPost(
           ENDPOINTS.pricing,
-          buildPricingRequest(sanmarUser, sanmarPass, params.styleNumber)
+          buildPricingRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber)
         );
 
         const errorOccurred = extractTag(pricingXml, "errorOccurred");
@@ -306,7 +313,7 @@ serve(async (req) => {
         try {
           const infoXml = await soapPost(
             ENDPOINTS.productInfo,
-            buildProductInfoRequest(sanmarUser, sanmarPass, params.styleNumber)
+            buildProductInfoRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber)
           );
           brandName = extractTag(infoXml, "brandName");
           title = extractTag(infoXml, "title");
