@@ -100,17 +100,17 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
       </Tabs>
 
       <div className="overflow-auto max-h-[calc(100vh-280px)]">
-        <div className="flex gap-4 pb-4" style={{ minWidth: 'max-content' }}>
+        <div className="flex gap-4 pb-4 items-stretch" style={{ minWidth: 'max-content', minHeight: '100%' }}>
           {ALL_KANBAN_STAGES.map((stage) => (
             <div 
               key={stage} 
               className={cn(
-                "flex-shrink-0",
+                "flex-shrink-0 flex flex-col",
                 isFinalStage(stage) ? "w-64" : "w-80"
               )}
             >
               <div className={cn(
-                "bg-muted/50 rounded-lg min-h-[400px]",
+                "bg-muted/50 rounded-lg flex-1 flex flex-col",
                 isFinalStage(stage) && "bg-primary/10"
               )}>
                 {/* Column Header - sticky within the scroll container */}
@@ -128,7 +128,7 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
                 </div>
 
                 {/* Job Cards */}
-                <div className="p-3 pt-2 space-y-3">
+                <div className="p-3 pt-2 space-y-3 flex-1">
                   {jobsByStage[stage].map((job) => (
                     <KanbanCard 
                       key={job.id} 
