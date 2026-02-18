@@ -23,6 +23,7 @@ import Quotes from "./pages/Quotes";
 import NotFound from "./pages/NotFound";
 import ActionItems from "./pages/ActionItems";
 import Customers from "./pages/Customers";
+import Messages from "./pages/Messages";
 import Install from "./pages/Install";
 
 function App() {
@@ -170,6 +171,16 @@ function App() {
                     <ProtectedRoute>
                       <AppLayout>
                         <Customers />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/messages"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Messages />
                       </AppLayout>
                     </ProtectedRoute>
                   }

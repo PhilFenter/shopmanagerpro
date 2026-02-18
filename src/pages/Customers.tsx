@@ -12,6 +12,8 @@ import {
   AreaChart, Area, CartesianGrid, Cell, PieChart, Pie,
 } from 'recharts';
 import { Users, DollarSign, TrendingUp, Search, Crown } from 'lucide-react';
+import { CustomerDetailSheet } from '@/components/communications/CustomerDetailSheet';
+import type { Customer } from '@/hooks/useCustomers';
 
 const COLORS = [
   'hsl(200, 98%, 39%)', 'hsl(213, 93%, 67%)', 'hsl(36, 90%, 50%)',
@@ -24,6 +26,7 @@ export default function Customers() {
   const { role, loading } = useAuth();
   const { customers, isLoading, totalRevenue, totalCustomers, paretoCustomerCount, paretoPercent, categories, paretoCurve, topCustomers } = useCustomers();
   const [search, setSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -200,7 +203,7 @@ export default function Customers() {
               </TableHeader>
               <TableBody>
                 {filteredCustomers.slice(0, 100).map(c => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedCustomer(c)}>
                     <TableCell>
                       <div>
                         <p className="font-medium">{c.name}</p>
@@ -229,6 +232,11 @@ export default function Customers() {
           </div>
         </CardContent>
       </Card>
+      <CustomerDetailSheet
+        customer={selectedCustomer}
+        open={!!selectedCustomer}
+        onOpenChange={(open) => !open && setSelectedCustomer(null)}
+      />
     </div>
   );
 }
