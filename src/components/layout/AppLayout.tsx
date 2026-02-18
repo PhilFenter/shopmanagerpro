@@ -23,6 +23,7 @@ import {
   Plug,
   Eye,
   Calculator,
+  ListTodo,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -31,6 +32,7 @@ interface AppLayoutProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Action Items', href: '/action-items', icon: ListTodo },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
   { 
     name: 'Production',

@@ -21,6 +21,7 @@ import Financials from "./pages/Financials";
 import Integrations from "./pages/Integrations";
 import Quotes from "./pages/Quotes";
 import NotFound from "./pages/NotFound";
+import ActionItems from "./pages/ActionItems";
 import Install from "./pages/Install";
 
 function App() {
@@ -148,6 +149,16 @@ function App() {
                     <ProtectedRoute>
                       <AppLayout>
                         <Quotes />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/action-items"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <ActionItems />
                       </AppLayout>
                     </ProtectedRoute>
                   }

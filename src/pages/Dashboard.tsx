@@ -14,6 +14,8 @@ import { JobVolumeChart } from '@/components/dashboard/JobVolumeChart';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { ServiceBreakdownChart } from '@/components/dashboard/ServiceBreakdownChart';
 import { StageBreakdownChart } from '@/components/dashboard/StageBreakdownChart';
+import { ActionItemsDashboardCard } from '@/components/action-items/ActionItemsDashboardCard';
+import { QuickCaptureDialog } from '@/components/action-items/QuickCaptureDialog';
 
 export default function Dashboard() {
   const { role: actualRole } = useAuth();
@@ -111,6 +113,9 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Action Items */}
+      <ActionItemsDashboardCard />
+
       {/* Open Jobs */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -150,6 +155,9 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Floating quick capture */}
+      <QuickCaptureDialog />
     </div>
   );
 }
