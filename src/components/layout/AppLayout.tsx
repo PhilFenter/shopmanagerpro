@@ -24,6 +24,7 @@ import {
   Eye,
   Calculator,
   ListTodo,
+  UserCheck,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -53,6 +54,7 @@ const adminNavigation = [
 
 // Financial access navigation (admin or manager)
 const financialNavigation = [
+  { name: 'Customers', href: '/customers', icon: UserCheck },
   { name: 'Quotes', href: '/quotes', icon: Calculator },
   { name: 'Financials', href: '/financials', icon: DollarSign },
   { name: 'Integrations', href: '/integrations', icon: Plug },

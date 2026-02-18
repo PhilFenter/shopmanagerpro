@@ -22,6 +22,7 @@ import Integrations from "./pages/Integrations";
 import Quotes from "./pages/Quotes";
 import NotFound from "./pages/NotFound";
 import ActionItems from "./pages/ActionItems";
+import Customers from "./pages/Customers";
 import Install from "./pages/Install";
 
 function App() {
@@ -159,6 +160,16 @@ function App() {
                     <ProtectedRoute>
                       <AppLayout>
                         <ActionItems />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/customers"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Customers />
                       </AppLayout>
                     </ProtectedRoute>
                   }
