@@ -8,6 +8,14 @@ import { Upload, Search, Package, Loader2, Database, RefreshCw } from 'lucide-re
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+function parsePrice(value: any): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    return parseFloat(value.replace(/[$,]/g, '')) || 0;
+  }
+  return 0;
+}
+
 export function ProductCatalogSettings() {
   const { stats, isLoading, searchCatalog, importCatalog } = useProductCatalog();
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,6 +50,7 @@ export function ProductCatalogSettings() {
   };
 
 
+  const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
@@ -227,12 +236,4 @@ export function ProductCatalogSettings() {
       </CardContent>
     </Card>
   );
-}
-
-function parsePrice(value: any): number {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    return parseFloat(value.replace(/[$,]/g, '')) || 0;
-  }
-  return 0;
 }
