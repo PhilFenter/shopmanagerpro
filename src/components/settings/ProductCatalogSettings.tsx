@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useProductCatalog, CatalogItem } from '@/hooks/useProductCatalog';
-import { Upload, Search, Package, Loader2, Database } from 'lucide-react';
+import { Upload, Search, Package, Loader2, Database, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export function ProductCatalogSettings() {
   const { stats, isLoading, searchCatalog, importCatalog } = useProductCatalog();
@@ -12,9 +14,34 @@ export function ProductCatalogSettings() {
   const [searchResults, setSearchResults] = useState<CatalogItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [parseStatus, setParseStatus] = useState('');
+  const [bulkStyles, setBulkStyles] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSearch = async () => {
+  const handleBulkSync = async () => {
+    const styles = bulkStyles.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    if (styles.length === 0) return;
+    setIsSyncing(true);
+    setSyncStatus(`Syncing ${styles.length} style(s) from SanMar...`);
+    let synced = 0;
+    for (const style of styles) {
+      setSyncStatus(`Syncing ${style}... (${synced}/${styles.length})`);
+      try {
+        const { data, error } = await supabase.functions.invoke('sanmar-api', {
+          body: { action: 'syncProduct', styleNumber: style },
+        });
+        if (!error && data?.success && data?.upserted > 0) {
+          synced++;
+        }
+      } catch {}
+    }
+    setSyncStatus(`Done! ${synced} of ${styles.length} styles synced.`);
+    if (synced > 0) toast.success(`${synced} style(s) synced from SanMar`);
+    setIsSyncing(false);
+  };
+
+
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
@@ -137,7 +164,34 @@ export function ProductCatalogSettings() {
           )}
         </div>
 
-        {/* Search */}
+        {/* Bulk SanMar Sync */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Sync from SanMar API</p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Style numbers (e.g. PC61, DT6000, ST350)"
+              value={bulkStyles}
+              onChange={(e) => setBulkStyles(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleBulkSync()}
+            />
+            <Button
+              variant="outline"
+              onClick={handleBulkSync}
+              disabled={isSyncing || !bulkStyles.trim()}
+            >
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Sync
+            </Button>
+          </div>
+          {syncStatus && (
+            <p className="text-xs text-muted-foreground">{syncStatus}</p>
+          )}
+        </div>
+
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input

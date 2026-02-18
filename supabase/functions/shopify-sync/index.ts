@@ -315,86 +315,139 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Auto-match garment costs from product catalog
+    // Auto-match garment costs from product catalog (with SanMar API fallback)
     let costsMatched = 0;
+    let sanmarSynced = 0;
     if (garmentRows.length > 0) {
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // Load full catalog into memory for prefix matching
-      const { data: catalogItems } = await serviceClient
-        .from("product_catalog")
-        .select("style_number, piece_price, case_price")
-        .gt("piece_price", 0);
-
-      if (catalogItems && catalogItems.length > 0) {
-        // Build a price map keyed by uppercase style_number
-        const priceMap = new Map<string, number>();
-        for (const item of catalogItems) {
+      // Helper to build price map from catalog
+      const buildPriceMap = async () => {
+        const { data: catalogItems } = await serviceClient
+          .from("product_catalog")
+          .select("style_number, piece_price, case_price")
+          .gt("piece_price", 0);
+        const map = new Map<string, number>();
+        for (const item of catalogItems || []) {
           const key = item.style_number.toUpperCase();
-          if (!priceMap.has(key)) {
-            priceMap.set(key, item.piece_price || item.case_price || 0);
-          }
+          if (!map.has(key)) map.set(key, item.piece_price || item.case_price || 0);
         }
+        return map;
+      };
 
-        // Helper: try exact match, then prefix match (SKU like "PC54-RED-L" -> "PC54")
-        const findPrice = (sku: string): number => {
-          const upper = sku.toUpperCase().trim();
-          if (priceMap.has(upper)) return priceMap.get(upper)!;
-          // Try splitting on common delimiters
-          for (const sep of ["-", "_", " "]) {
-            const prefix = upper.split(sep)[0];
-            if (prefix && priceMap.has(prefix)) return priceMap.get(prefix)!;
-          }
-          return 0;
-        };
+      // Helper: try exact match, then prefix match (SKU like "PC54-RED-L" -> "PC54")
+      const findPrice = (priceMap: Map<string, number>, sku: string): number => {
+        const upper = sku.toUpperCase().trim();
+        if (priceMap.has(upper)) return priceMap.get(upper)!;
+        for (const sep of ["-", "_", " "]) {
+          const prefix = upper.split(sep)[0];
+          if (prefix && priceMap.has(prefix)) return priceMap.get(prefix)!;
+        }
+        return 0;
+      };
 
-        // Update garments with catalog prices per job
-        const jobIdsForCost = [...allJobMap.values()];
-        for (let i = 0; i < jobIdsForCost.length; i += 50) {
-          const batch = jobIdsForCost.slice(i, i + 50);
-          const { data: garments } = await supabase
-            .from("job_garments")
-            .select("id, item_number, quantity, style")
-            .in("job_id", batch);
+      let priceMap = await buildPriceMap();
 
-          for (const g of garments || []) {
-            const sku = g.item_number || g.style || "";
-            if (!sku) continue;
-            const price = findPrice(sku);
-            if (price > 0) {
-              await supabase
-                .from("job_garments")
-                .update({ total_cost: price * g.quantity })
-                .eq("id", g.id);
-              costsMatched++;
+      // First pass: match against existing catalog, collect unmatched
+      const unmatchedStyles = new Set<string>();
+      const jobIdsForCost = [...allJobMap.values()];
+
+      for (let i = 0; i < jobIdsForCost.length; i += 50) {
+        const batch = jobIdsForCost.slice(i, i + 50);
+        const { data: garments } = await supabase
+          .from("job_garments")
+          .select("id, item_number, quantity, style")
+          .in("job_id", batch);
+
+        for (const g of garments || []) {
+          const sku = g.item_number || g.style || "";
+          if (!sku) continue;
+          const price = findPrice(priceMap, sku);
+          if (price > 0) {
+            await supabase.from("job_garments").update({ total_cost: price * g.quantity }).eq("id", g.id);
+            costsMatched++;
+          } else {
+            // Extract base style for SanMar lookup
+            const upper = sku.toUpperCase().trim();
+            for (const sep of ["-", "_", " "]) {
+              const prefix = upper.split(sep)[0];
+              if (prefix) { unmatchedStyles.add(prefix); break; }
             }
-          }
-        }
-
-        // Aggregate garment costs into jobs.material_cost
-        for (const jobId of jobIdsForCost) {
-          const { data: jg } = await supabase
-            .from("job_garments")
-            .select("total_cost")
-            .eq("job_id", jobId)
-            .gt("total_cost", 0);
-
-          if (jg && jg.length > 0) {
-            const totalMaterial = jg.reduce((sum, g) => sum + (g.total_cost || 0), 0);
-            await supabase
-              .from("jobs")
-              .update({ material_cost: totalMaterial })
-              .eq("id", jobId);
+            if (!unmatchedStyles.has(upper)) unmatchedStyles.add(upper);
           }
         }
       }
-      console.log(`Auto-matched ${costsMatched} garment costs from catalog`);
+
+      // SanMar API fallback: sync unmatched styles
+      if (unmatchedStyles.size > 0) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        console.log(`SanMar fallback: syncing ${unmatchedStyles.size} unmatched styles...`);
+
+        for (const style of unmatchedStyles) {
+          try {
+            const resp = await fetch(`${supabaseUrl}/functions/v1/sanmar-api`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceKey}`,
+              },
+              body: JSON.stringify({ action: "syncProduct", styleNumber: style }),
+            });
+            const result = await resp.json();
+            if (result.success && result.upserted > 0) {
+              sanmarSynced++;
+              console.log(`Synced ${style}: ${result.upserted} variants from SanMar`);
+            }
+          } catch (err) {
+            console.error(`SanMar sync failed for ${style}:`, err);
+          }
+        }
+
+        // Rebuild price map and re-match unmatched garments
+        if (sanmarSynced > 0) {
+          priceMap = await buildPriceMap();
+          for (let i = 0; i < jobIdsForCost.length; i += 50) {
+            const batch = jobIdsForCost.slice(i, i + 50);
+            const { data: garments } = await supabase
+              .from("job_garments")
+              .select("id, item_number, quantity, style, total_cost")
+              .in("job_id", batch);
+
+            for (const g of garments || []) {
+              if (g.total_cost && g.total_cost > 0) continue;
+              const sku = g.item_number || g.style || "";
+              if (!sku) continue;
+              const price = findPrice(priceMap, sku);
+              if (price > 0) {
+                await supabase.from("job_garments").update({ total_cost: price * g.quantity }).eq("id", g.id);
+                costsMatched++;
+              }
+            }
+          }
+        }
+      }
+
+      // Aggregate garment costs into jobs.material_cost
+      for (const jobId of jobIdsForCost) {
+        const { data: jg } = await supabase
+          .from("job_garments")
+          .select("total_cost")
+          .eq("job_id", jobId)
+          .gt("total_cost", 0);
+
+        if (jg && jg.length > 0) {
+          const totalMaterial = jg.reduce((sum, g) => sum + (g.total_cost || 0), 0);
+          await supabase.from("jobs").update({ material_cost: totalMaterial }).eq("id", jobId);
+        }
+      }
+      console.log(`Auto-matched ${costsMatched} garment costs, ${sanmarSynced} styles synced from SanMar`);
     }
 
-    console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garments, ${costsMatched} costs matched`);
+    console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garments, ${costsMatched} costs matched, ${sanmarSynced} SanMar synced`);
 
     return new Response(
       JSON.stringify({
@@ -405,6 +458,7 @@ Deno.serve(async (req) => {
         pages: pageCount,
         garments: garmentsInserted,
         costsMatched,
+        sanmarSynced,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
