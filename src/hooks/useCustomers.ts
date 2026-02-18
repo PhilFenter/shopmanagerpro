@@ -1,10 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
+import { useToast } from './use-toast';
 
 export type Customer = Tables<'customers'>;
 
 export function useCustomers() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
@@ -17,10 +21,30 @@ export function useCustomers() {
     },
   });
 
+  const updateCustomer = useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Customer> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('customers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({ title: 'Customer updated' });
+    },
+    onError: (error) => {
+      toast({ variant: 'destructive', title: 'Failed to update customer', description: error.message });
+    },
+  });
+
   const totalRevenue = customers.reduce((sum, c) => sum + (c.total_revenue || 0), 0);
   const totalCustomers = customers.length;
 
-  // Pareto analysis: find what % of customers drive 80% of revenue
+  // Pareto analysis
   const sortedByRevenue = [...customers].sort((a, b) => (b.total_revenue || 0) - (a.total_revenue || 0));
   let cumulativeRevenue = 0;
   let paretoCustomerCount = 0;
@@ -46,7 +70,7 @@ export function useCustomers() {
     .map(([name, data]) => ({ name, ...data }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // Pareto curve data for chart
+  // Pareto curve data
   const paretoCurve = sortedByRevenue.map((c, i) => ({
     customerPercent: ((i + 1) / totalCustomers) * 100,
     revenuePercent: sortedByRevenue.slice(0, i + 1).reduce((s, x) => s + (x.total_revenue || 0), 0) / totalRevenue * 100,
@@ -64,5 +88,6 @@ export function useCustomers() {
     categories,
     paretoCurve,
     topCustomers: sortedByRevenue.slice(0, 20),
+    updateCustomer,
   };
 }
