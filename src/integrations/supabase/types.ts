@@ -199,6 +199,9 @@ export type Database = {
       }
       customers: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
           company: string | null
           created_at: string
           email: string | null
@@ -208,13 +211,22 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          preferred_contact: string | null
+          referral_source: string | null
           source: string | null
+          state: string | null
           tags: string[] | null
+          title: string | null
           total_orders: number | null
           total_revenue: number | null
           updated_at: string
+          website: string | null
+          zip: string | null
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
           company?: string | null
           created_at?: string
           email?: string | null
@@ -224,13 +236,22 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          preferred_contact?: string | null
+          referral_source?: string | null
           source?: string | null
+          state?: string | null
           tags?: string[] | null
+          title?: string | null
           total_orders?: number | null
           total_revenue?: number | null
           updated_at?: string
+          website?: string | null
+          zip?: string | null
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
           company?: string | null
           created_at?: string
           email?: string | null
@@ -240,11 +261,17 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          preferred_contact?: string | null
+          referral_source?: string | null
           source?: string | null
+          state?: string | null
           tags?: string[] | null
+          title?: string | null
           total_orders?: number | null
           total_revenue?: number | null
           updated_at?: string
+          website?: string | null
+          zip?: string | null
         }
         Relationships: []
       }
