@@ -43,16 +43,21 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { jobId, customerName, customerEmail, orderNumber, stage, source } = body;
+    const { jobId, customerName, customerEmail, orderNumber, stage, source, customSubject, customBody } = body;
 
     console.log(`Notification request: job=${jobId}, stage=${stage}, source=${source}, email=${customerEmail}`);
 
-    // Only Shopify and Printavo orders
-    if (source !== "shopify" && source !== "printavo") {
-      return new Response(JSON.stringify({ skipped: true, reason: "Not a Shopify or Printavo order" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Manual sends bypass source/settings checks
+    const isManualSend = source === 'manual' && customBody;
+
+    if (!isManualSend) {
+      // Only Shopify and Printavo orders for automated notifications
+      if (source !== "shopify" && source !== "printavo") {
+        return new Response(JSON.stringify({ skipped: true, reason: "Not a Shopify or Printavo order" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     if (!customerEmail) {
@@ -62,42 +67,51 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check notification settings for this stage
-    const { data: settings, error: settingsError } = await supabase
-      .from("notification_settings")
-      .select("notify_customer, email_template, email_subject, custom_label")
-      .eq("stage", stage)
-      .maybeSingle();
+    let emailBody: string;
+    let subject: string;
 
-    if (settingsError) {
-      console.error("Error fetching notification settings:", settingsError);
-      return new Response(JSON.stringify({ error: "Failed to check notification settings" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (isManualSend) {
+      // Direct manual send — use provided content
+      emailBody = customBody;
+      subject = customSubject || `Message from Hell's Canyon Designs`;
+    } else {
+      // Check notification settings for this stage
+      const { data: settings, error: settingsError } = await supabase
+        .from("notification_settings")
+        .select("notify_customer, email_template, email_subject, custom_label")
+        .eq("stage", stage)
+        .maybeSingle();
+
+      if (settingsError) {
+        console.error("Error fetching notification settings:", settingsError);
+        return new Response(JSON.stringify({ error: "Failed to check notification settings" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!settings?.notify_customer || !settings.email_template) {
+        console.log(`Notifications disabled for stage: ${stage}`);
+        return new Response(JSON.stringify({ skipped: true, reason: "Notifications disabled for this stage" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Replace template variables
+      const stageLabel = settings.custom_label || STAGE_LABELS[stage] || stage;
+      emailBody = settings.email_template
+        .replace(/\{\{customer_name\}\}/g, customerName || "Customer")
+        .replace(/\{\{order_number\}\}/g, orderNumber || "N/A")
+        .replace(/\{\{stage\}\}/g, stageLabel);
+
+      subject = settings.email_subject
+        ? settings.email_subject
+            .replace(/\{\{customer_name\}\}/g, customerName || "Customer")
+            .replace(/\{\{order_number\}\}/g, orderNumber || "N/A")
+            .replace(/\{\{stage\}\}/g, stageLabel)
+        : `Order #${orderNumber || "N/A"} Update: ${stageLabel}`;
     }
-
-    if (!settings?.notify_customer || !settings.email_template) {
-      console.log(`Notifications disabled for stage: ${stage}`);
-      return new Response(JSON.stringify({ skipped: true, reason: "Notifications disabled for this stage" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Replace template variables
-    const stageLabel = settings.custom_label || STAGE_LABELS[stage] || stage;
-    const emailBody = settings.email_template
-      .replace(/\{\{customer_name\}\}/g, customerName || "Customer")
-      .replace(/\{\{order_number\}\}/g, orderNumber || "N/A")
-      .replace(/\{\{stage\}\}/g, stageLabel);
-
-    const subject = settings.email_subject
-      ? settings.email_subject
-          .replace(/\{\{customer_name\}\}/g, customerName || "Customer")
-          .replace(/\{\{order_number\}\}/g, orderNumber || "N/A")
-          .replace(/\{\{stage\}\}/g, stageLabel)
-      : `Order #${orderNumber || "N/A"} Update: ${stageLabel}`;
 
     // Send email via Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
