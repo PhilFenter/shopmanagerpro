@@ -1,0 +1,234 @@
+import { useCustomers } from '@/hooks/useCustomers';
+import { useAuth } from '@/hooks/useAuth';
+import { Navigate } from 'react-router-dom';
+import { hasFinancialAccess } from '@/hooks/useJobs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { useState, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  AreaChart, Area, CartesianGrid, Cell, PieChart, Pie,
+} from 'recharts';
+import { Users, DollarSign, TrendingUp, Search, Crown } from 'lucide-react';
+
+const COLORS = [
+  'hsl(200, 98%, 39%)', 'hsl(213, 93%, 67%)', 'hsl(36, 90%, 50%)',
+  'hsl(160, 60%, 45%)', 'hsl(280, 60%, 55%)', 'hsl(0, 72%, 50%)',
+  'hsl(45, 80%, 50%)', 'hsl(190, 70%, 50%)', 'hsl(330, 60%, 50%)',
+  'hsl(120, 50%, 45%)',
+];
+
+export default function Customers() {
+  const { role, loading } = useAuth();
+  const { customers, isLoading, totalRevenue, totalCustomers, paretoCustomerCount, paretoPercent, categories, paretoCurve, topCustomers } = useCustomers();
+  const [search, setSearch] = useState('');
+
+  const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+  const filteredCustomers = useMemo(() => {
+    if (!search.trim()) return customers;
+    const s = search.toLowerCase();
+    return customers.filter(c =>
+      c.name.toLowerCase().includes(s) ||
+      c.email?.toLowerCase().includes(s) ||
+      c.company?.toLowerCase().includes(s) ||
+      c.tags?.some(t => t.toLowerCase().includes(s))
+    );
+  }, [customers, search]);
+
+  const avgLTV = totalCustomers > 0 ? totalRevenue / totalCustomers : 0;
+  const topCategories = categories.slice(0, 10);
+
+  if (loading) return <div className="flex items-center justify-center h-64">Loading...</div>;
+  if (!hasFinancialAccess(role)) return <Navigate to="/dashboard" replace />;
+
+  if (isLoading) return <div className="flex items-center justify-center h-64">Loading CRM data...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
+        <p className="text-muted-foreground">Customer lifetime value, Pareto analysis, and segmentation</p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
+            <p className="text-xs text-muted-foreground">Across all sources</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+            <p className="text-xs text-muted-foreground">Lifetime tracked</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Average LTV</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(avgLTV)}</div>
+            <p className="text-xs text-muted-foreground">Per customer</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">80/20 Rule</CardTitle>
+            <Crown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{paretoPercent}%</div>
+            <p className="text-xs text-muted-foreground">{paretoCustomerCount} customers drive 80% of revenue</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pareto Curve */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pareto Analysis (80/20)</CardTitle>
+          <CardDescription>
+            {paretoCustomerCount} customers ({paretoPercent}%) generate 80% of your {formatCurrency(totalRevenue)} in total revenue
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={paretoCurve.filter((_, i) => i % Math.max(1, Math.floor(paretoCurve.length / 100)) === 0 || i === paretoCurve.length - 1)}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="customerPercent" tickFormatter={v => `${Math.round(v)}%`} label={{ value: '% of Customers', position: 'bottom', offset: -5 }} className="text-xs fill-muted-foreground" />
+                <YAxis tickFormatter={v => `${Math.round(v)}%`} label={{ value: '% of Revenue', angle: -90, position: 'insideLeft' }} className="text-xs fill-muted-foreground" />
+                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Revenue']} labelFormatter={v => `Top ${Number(v).toFixed(0)}% of customers`} />
+                <Area type="monotone" dataKey="revenuePercent" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.2)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Category Breakdown + Top Customers */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue by Category</CardTitle>
+            <CardDescription>Industry segmentation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={topCategories} dataKey="revenue" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name.length > 15 ? name.slice(0, 15) + '…' : name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                    {topCategories.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 20 Customers</CardTitle>
+            <CardDescription>By lifetime revenue</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topCustomers} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} className="text-xs fill-muted-foreground" />
+                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Bar dataKey="total_revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Customer List */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div>
+              <CardTitle>All Customers</CardTitle>
+              <CardDescription>{filteredCustomers.length} customers</CardDescription>
+            </div>
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search name, email, category..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-[500px] overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Orders</TableHead>
+                  <TableHead>Source</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.slice(0, 100).map(c => (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{c.name}</p>
+                        {c.email && <p className="text-xs text-muted-foreground">{c.email}</p>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {c.tags?.map(t => (
+                        <Badge key={t} variant="secondary" className="mr-1 text-xs">{t}</Badge>
+                      ))}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(c.total_revenue || 0)}</TableCell>
+                    <TableCell className="text-right">{c.total_orders || 0}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs capitalize">{c.source || 'manual'}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {filteredCustomers.length > 100 && (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                Showing 100 of {filteredCustomers.length} customers. Use search to filter.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
