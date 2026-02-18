@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          job_id: string | null
+          priority: string | null
+          quote_id: string | null
+          source: string | null
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          job_id?: string | null
+          priority?: string | null
+          quote_id?: string | null
+          source?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          job_id?: string | null
+          priority?: string | null
+          quote_id?: string | null
+          source?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_settings: {
         Row: {
           created_at: string
