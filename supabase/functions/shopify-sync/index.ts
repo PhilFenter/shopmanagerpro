@@ -472,6 +472,51 @@ Deno.serve(async (req) => {
             }
           }
         }
+
+        // Collect final unmatched styles (still no price after all fallbacks)
+        const finalUnmatched = new Set<string>();
+        for (let i = 0; i < jobIdsForCost.length; i += 50) {
+          const batch = jobIdsForCost.slice(i, i + 50);
+          const { data: garments } = await supabase
+            .from("job_garments")
+            .select("id, item_number, style, total_cost")
+            .in("job_id", batch);
+          for (const g of garments || []) {
+            if (g.total_cost && g.total_cost > 0) continue;
+            const sku = g.item_number || g.style || "";
+            if (!sku) continue;
+            const upper = sku.toUpperCase().trim();
+            const richardsonMatch = upper.match(/^R[- ](\d+\w*)/);
+            const baseStyle = richardsonMatch ? richardsonMatch[1] : upper.split(/[-_ ]/)[0];
+            if (baseStyle) finalUnmatched.add(baseStyle);
+          }
+        }
+
+        // Create action items for unmatched styles
+        if (finalUnmatched.size > 0) {
+          console.log(`Creating action items for ${finalUnmatched.size} unmatched styles: ${[...finalUnmatched].join(", ")}`);
+          for (const style of finalUnmatched) {
+            // Check if an open action item already exists for this style
+            const { data: existing } = await serviceClient
+              .from("action_items")
+              .select("id")
+              .eq("source", "shopify-sync")
+              .eq("status", "open")
+              .ilike("title", `%${style}%`)
+              .limit(1);
+
+            if (existing && existing.length > 0) continue;
+
+            await serviceClient.from("action_items").insert({
+              title: `Missing price: ${style}`,
+              description: `Style "${style}" was imported from Shopify but has no cost in the product catalog. Fill in the price to auto-update all garments with this style.`,
+              source: "shopify-sync",
+              priority: "high",
+              created_by: userId,
+            });
+          }
+        }
+
         console.log(`Supplier sync: ${sanmarSynced} from SanMar, ${ssActivewearSynced} from S&S Activewear`);
       }
 
@@ -488,7 +533,7 @@ Deno.serve(async (req) => {
           await supabase.from("jobs").update({ material_cost: totalMaterial }).eq("id", jobId);
         }
       }
-      console.log(`Auto-matched ${costsMatched} garment costs, ${sanmarSynced} styles synced from SanMar`);
+      console.log(`Auto-matched ${costsMatched} garment costs, ${sanmarSynced} styles synced from SanMar, ${finalUnmatched?.size || 0} unmatched`);
     }
 
     console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garments, ${costsMatched} costs matched, ${sanmarSynced} SanMar synced`);
