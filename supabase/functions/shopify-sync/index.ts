@@ -338,13 +338,20 @@ Deno.serve(async (req) => {
         return map;
       };
 
-      // Helper: try exact match, then prefix match (SKU like "PC54-RED-L" -> "PC54")
+      // Helper: try exact match, prefix match, and Richardson "R-XXX" pattern
       const findPrice = (priceMap: Map<string, number>, sku: string): number => {
         const upper = sku.toUpperCase().trim();
         if (priceMap.has(upper)) return priceMap.get(upper)!;
+        // Try prefix splits (SKU like "PC54-RED-L" -> "PC54")
         for (const sep of ["-", "_", " "]) {
           const prefix = upper.split(sep)[0];
           if (prefix && priceMap.has(prefix)) return priceMap.get(prefix)!;
+        }
+        // Handle Richardson-style "R-112" or "R-XXX" patterns -> try "112" or "XXX"
+        const richardsonMatch = upper.match(/^R[- ](\d+\w*)/);
+        if (richardsonMatch) {
+          const styleNum = richardsonMatch[1];
+          if (priceMap.has(styleNum)) return priceMap.get(styleNum)!;
         }
         return 0;
       };
@@ -370,13 +377,19 @@ Deno.serve(async (req) => {
             await supabase.from("job_garments").update({ total_cost: price * g.quantity }).eq("id", g.id);
             costsMatched++;
           } else {
-            // Extract base style for SanMar lookup
+            // Extract base style for supplier lookup
             const upper = sku.toUpperCase().trim();
-            for (const sep of ["-", "_", " "]) {
-              const prefix = upper.split(sep)[0];
-              if (prefix) { unmatchedStyles.add(prefix); break; }
+            // Try Richardson "R-XXX" pattern first
+            const richardsonMatch = upper.match(/^R[- ](\d+\w*)/);
+            if (richardsonMatch) {
+              unmatchedStyles.add(richardsonMatch[1]);
+            } else {
+              for (const sep of ["-", "_", " "]) {
+                const prefix = upper.split(sep)[0];
+                if (prefix) { unmatchedStyles.add(prefix); break; }
+              }
+              if (!unmatchedStyles.has(upper)) unmatchedStyles.add(upper);
             }
-            if (!unmatchedStyles.has(upper)) unmatchedStyles.add(upper);
           }
         }
       }
