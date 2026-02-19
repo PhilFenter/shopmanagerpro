@@ -505,6 +505,8 @@ Deno.serve(async (req) => {
         const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         console.log(`SanMar fallback: syncing ${unmatchedStyles.size} unmatched styles...`);
 
+        const stillUnmatched = new Set<string>();
+
         for (const style of unmatchedStyles) {
           try {
             const resp = await fetch(`${supabaseUrl}/functions/v1/sanmar-api`, {
@@ -519,14 +521,42 @@ Deno.serve(async (req) => {
             if (result.success && result.upserted > 0) {
               sanmarSynced++;
               console.log(`Synced ${style}: ${result.upserted} variants from SanMar`);
+            } else {
+              stillUnmatched.add(style);
             }
           } catch (err) {
             console.error(`SanMar sync failed for ${style}:`, err);
+            stillUnmatched.add(style);
+          }
+        }
+
+        // S&S Activewear fallback for styles SanMar couldn't resolve
+        let ssActivewearSynced = 0;
+        if (stillUnmatched.size > 0) {
+          console.log(`S&S Activewear fallback: syncing ${stillUnmatched.size} remaining unmatched styles...`);
+          for (const style of stillUnmatched) {
+            try {
+              const resp = await fetch(`${supabaseUrl}/functions/v1/ss-activewear-api`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${serviceKey}`,
+                },
+                body: JSON.stringify({ action: "syncProduct", styleNumber: style }),
+              });
+              const result = await resp.json();
+              if (result.success && result.upserted > 0) {
+                ssActivewearSynced++;
+                console.log(`Synced ${style}: ${result.upserted} variants from S&S Activewear`);
+              }
+            } catch (err) {
+              console.error(`S&S sync failed for ${style}:`, err);
+            }
           }
         }
 
         // Rebuild price map and re-match
-        if (sanmarSynced > 0) {
+        if (sanmarSynced > 0 || ssActivewearSynced > 0) {
           priceMap = await buildPriceMap();
           for (let i = 0; i < allGarmentJobIds.length; i += 50) {
             const batch = allGarmentJobIds.slice(i, i + 50);
@@ -548,6 +578,7 @@ Deno.serve(async (req) => {
             }
           }
         }
+        console.log(`Supplier sync: ${sanmarSynced} from SanMar, ${ssActivewearSynced} from S&S Activewear`);
       }
 
       // Aggregate into jobs.material_cost
