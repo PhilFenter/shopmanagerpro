@@ -15,10 +15,15 @@ import {
   Trash2,
   RotateCcw,
   ListTodo,
+  DollarSign,
+  Loader2,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ActionItems() {
   const {
@@ -32,8 +37,10 @@ export default function ActionItems() {
     updateItem,
     deleteItem,
   } = useActionItems();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('open');
+  const [fillingId, setFillingId] = useState<string | null>(null);
 
   const filterItems = (items: ActionItem[]) =>
     search
@@ -63,76 +70,135 @@ export default function ActionItems() {
     });
   };
 
+  // Extract style number from action item title like "Missing price: 112"
+  const extractStyle = (title: string) => {
+    const match = title.match(/Missing price:\s*(.+)/i);
+    return match ? match[1].trim() : null;
+  };
+
+  const handleFillPrice = async (item: ActionItem, price: number) => {
+    const style = extractStyle(item.title);
+    if (!style || price <= 0) return;
+
+    setFillingId(item.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('fill-style-price', {
+        body: { styleNumber: style, piecePrice: price, actionItemId: item.id },
+      });
+      if (error) throw error;
+      toast.success(`Updated ${data.garmentsUpdated} garments across ${data.jobsUpdated} jobs at $${price}`);
+      queryClient.invalidateQueries({ queryKey: ['action-items'] });
+    } catch (err: any) {
+      toast.error(`Failed: ${err.message}`);
+    } finally {
+      setFillingId(null);
+    }
+  };
+
   const ItemRow = ({ item, showComplete = true }: { item: ActionItem; showComplete?: boolean }) => {
     const isOverdue = item.status === 'open' && item.due_date && new Date(item.due_date) < new Date();
+    const isMissingPrice = item.source === 'shopify-sync' && item.status === 'open' && extractStyle(item.title);
+    const [priceInput, setPriceInput] = useState('');
+
     return (
       <div
         className={cn(
-          'flex items-start gap-3 rounded-lg border px-3 py-3 transition-colors',
+          'flex flex-col gap-2 rounded-lg border px-3 py-3 transition-colors',
           isOverdue && 'border-destructive/50 bg-destructive/5',
           item.status === 'completed' && 'opacity-60'
         )}
       >
-        {showComplete && (
-          <button
-            onClick={() => handleComplete(item.id)}
-            className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
-          >
-            <CheckCircle2 className="h-5 w-5" />
-          </button>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className={cn('font-medium', item.status === 'completed' && 'line-through')}>
-            {item.title}
-          </p>
-          {item.description && (
-            <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
+        <div className="flex items-start gap-3">
+          {showComplete && (
+            <button
+              onClick={() => handleComplete(item.id)}
+              className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
+            >
+              <CheckCircle2 className="h-5 w-5" />
+            </button>
           )}
-          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
-            {item.customer_name && (
-              <Badge variant="secondary" className="text-xs">
-                {item.customer_name}
-              </Badge>
+          <div className="flex-1 min-w-0">
+            <p className={cn('font-medium', item.status === 'completed' && 'line-through')}>
+              {item.title}
+            </p>
+            {item.description && (
+              <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
             )}
-            {item.due_date && (
-              <span
-                className={cn('flex items-center gap-1', isOverdue && 'text-destructive font-semibold')}
-              >
-                {isOverdue ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                {format(new Date(item.due_date), 'MMM d, yyyy')}
-                {isOverdue && ` (${formatDistanceToNow(new Date(item.due_date))} overdue)`}
-              </span>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
+              {item.customer_name && (
+                <Badge variant="secondary" className="text-xs">
+                  {item.customer_name}
+                </Badge>
+              )}
+              {item.due_date && (
+                <span
+                  className={cn('flex items-center gap-1', isOverdue && 'text-destructive font-semibold')}
+                >
+                  {isOverdue ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                  {format(new Date(item.due_date), 'MMM d, yyyy')}
+                  {isOverdue && ` (${formatDistanceToNow(new Date(item.due_date))} overdue)`}
+                </span>
+              )}
+              {item.priority !== 'normal' && (
+                <Badge
+                  variant={item.priority === 'urgent' ? 'destructive' : 'default'}
+                  className={cn(
+                    'text-xs',
+                    item.priority === 'high' && 'bg-amber-500 hover:bg-amber-600',
+                    item.priority === 'low' && 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {item.priority}
+                </Badge>
+              )}
+              {item.source !== 'manual' && (
+                <Badge variant="outline" className="text-xs">
+                  {item.source}
+                </Badge>
+              )}
+              {item.completed_at && (
+                <span>Completed {format(new Date(item.completed_at), 'MMM d')}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-1">
+            {item.status === 'completed' && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReopen(item.id)}>
+                <RotateCcw className="h-4 w-4" />
+              </Button>
             )}
-            {item.priority !== 'normal' && (
-              <Badge
-                variant={item.priority === 'urgent' ? 'destructive' : 'default'}
-                className={cn(
-                  'text-xs',
-                  item.priority === 'high' && 'bg-amber-500 hover:bg-amber-600',
-                  item.priority === 'low' && 'bg-muted text-muted-foreground'
-                )}
-              >
-                {item.priority}
-              </Badge>
-            )}
-            {item.source !== 'manual' && (
-              <span className="text-muted-foreground">via {item.source}</span>
-            )}
-            {item.completed_at && (
-              <span>Completed {format(new Date(item.completed_at), 'MMM d')}</span>
-            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-        <div className="flex shrink-0 gap-1">
-          {item.status === 'completed' && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReopen(item.id)}>
-              <RotateCcw className="h-4 w-4" />
+
+        {/* Inline price fill for missing price action items */}
+        {isMissingPrice && (
+          <div className="flex items-center gap-2 ml-8 p-2 rounded bg-primary/5 border border-primary/20">
+            <DollarSign className="h-4 w-4 text-primary shrink-0" />
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="Cost per unit"
+              value={priceInput}
+              onChange={(e) => setPriceInput(e.target.value)}
+              className="h-8 w-28"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && priceInput) handleFillPrice(item, parseFloat(priceInput));
+              }}
+            />
+            <Button
+              size="sm"
+              className="h-8"
+              disabled={!priceInput || parseFloat(priceInput) <= 0 || fillingId === item.id}
+              onClick={() => handleFillPrice(item, parseFloat(priceInput))}
+            >
+              {fillingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Fill & Backfill'}
             </Button>
-          )}
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     );
   };
