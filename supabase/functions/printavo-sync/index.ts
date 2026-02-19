@@ -297,6 +297,7 @@ Deno.serve(async (req) => {
       printavo_status: invoice.status?.name || null,
       created_by: userId,
       created_at: invoice.createdAt || new Date().toISOString(),
+      paid_at: invoice.createdAt || new Date().toISOString(),
     }));
 
     // Update existing jobs' created_at and tax_collected

@@ -9,8 +9,10 @@ import { JobStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
 import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
-import { Package, Clock } from 'lucide-react';
+import { Package, Clock, AlertTriangle } from 'lucide-react';
 import { JobGarmentsList } from './JobGarmentsList';
+import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
+import { cn as clsx } from '@/lib/utils';
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -48,6 +50,8 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const { role: actualRole } = useAuth();
   const { isPreviewingAsTeam } = useRolePreview();
   const role = isPreviewingAsTeam ? 'team' : actualRole;
+  const urgency = getUrgencyLevel((job as any).due_date);
+  const urgencyLabel = getUrgencyLabel((job as any).due_date);
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];
@@ -66,7 +70,10 @@ export function JobCard({ job, onClick }: JobCardProps) {
 
   return (
     <Card 
-      className="cursor-pointer transition-all hover:shadow-md"
+      className={clsx(
+        "cursor-pointer transition-all hover:shadow-md",
+        urgency !== 'none' && `border-l-4 ${URGENCY_BORDER_COLORS[urgency]}`
+      )}
       onClick={onClick}
     >
       <CardHeader className="pb-2">
@@ -139,6 +146,19 @@ export function JobCard({ job, onClick }: JobCardProps) {
             </span>
           )}
         </div>
+
+        {/* Due date urgency */}
+        {urgency !== 'none' && (
+          <div className={clsx("flex items-center gap-1 text-xs font-medium", URGENCY_TEXT_COLORS[urgency])}>
+            <AlertTriangle className="h-3 w-3" />
+            <span>{urgencyLabel}</span>
+            {(job as any).due_date && (
+              <span className="text-muted-foreground ml-auto font-normal">
+                Due {new Date((job as any).due_date).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Advance Button */}
         <div onClick={(e) => e.stopPropagation()}>

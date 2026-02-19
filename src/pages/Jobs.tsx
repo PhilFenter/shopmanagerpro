@@ -22,7 +22,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2 } from 'lucide-react';
+import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2, CreditCard, AlertTriangle } from 'lucide-react';
+import { getUrgencyLevel, getUrgencyLabel, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -302,6 +303,47 @@ export default function Jobs() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />
                   Created {new Date(selectedJob.created_at).toLocaleDateString()}
+                </div>
+
+                {/* Due Date & Payment */}
+                <div className="space-y-2">
+                  {(selectedJob as any).due_date && (() => {
+                    const urgency = getUrgencyLevel((selectedJob as any).due_date);
+                    const label = getUrgencyLabel((selectedJob as any).due_date);
+                    return (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm">
+                          <AlertTriangle className={cn("h-4 w-4", URGENCY_TEXT_COLORS[urgency])} />
+                          <span className={cn("font-medium", URGENCY_TEXT_COLORS[urgency])}>{label}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          Due {new Date((selectedJob as any).due_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  {!(selectedJob as any).paid_at && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        updateJob.mutate({ 
+                          id: selectedJob.id, 
+                          paid_at: new Date().toISOString(),
+                        } as any);
+                      }}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Mark as Paid (sets due date)
+                    </Button>
+                  )}
+                  {(selectedJob as any).paid_at && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CreditCard className="h-4 w-4" />
+                      Paid {new Date((selectedJob as any).paid_at).toLocaleDateString()}
+                    </div>
+                  )}
                 </div>
 
                 {/* Delete Job */}

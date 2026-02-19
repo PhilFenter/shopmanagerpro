@@ -615,11 +615,13 @@ export type Database = {
           customer_name: string
           customer_phone: string | null
           description: string | null
+          due_date: string | null
           external_id: string | null
           id: string
           invoice_number: string | null
           material_cost: number | null
           order_number: string | null
+          paid_at: string | null
           printavo_status: string | null
           quantity: number
           sale_price: number | null
@@ -642,11 +644,13 @@ export type Database = {
           customer_name: string
           customer_phone?: string | null
           description?: string | null
+          due_date?: string | null
           external_id?: string | null
           id?: string
           invoice_number?: string | null
           material_cost?: number | null
           order_number?: string | null
+          paid_at?: string | null
           printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
@@ -669,11 +673,13 @@ export type Database = {
           customer_name?: string
           customer_phone?: string | null
           description?: string | null
+          due_date?: string | null
           external_id?: string | null
           id?: string
           invoice_number?: string | null
           material_cost?: number | null
           order_number?: string | null
+          paid_at?: string | null
           printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
@@ -1483,6 +1489,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_business_days: {
+        Args: { num_days: number; start_date: string }
+        Returns: string
+      }
       has_financial_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {

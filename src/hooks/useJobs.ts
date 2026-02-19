@@ -34,6 +34,8 @@ export interface Job {
   external_id: string | null;
   stage: JobStage;
   stage_updated_at: string | null;
+  paid_at: string | null;
+  due_date: string | null;
 }
 
 export interface CreateJobInput {
