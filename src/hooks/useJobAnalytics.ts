@@ -27,6 +27,15 @@ export interface StageBreakdown {
   label: string;
 }
 
+export interface ServiceRevenue {
+  service: string;
+  label: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  count: number;
+}
+
 const SERVICE_LABELS: Record<string, string> = {
   embroidery: 'Embroidery',
   screen_print: 'Screen Print',
@@ -135,6 +144,26 @@ export function useJobAnalytics() {
       }))
       .sort((a, b) => b.count - a.count);
 
+    // Revenue by service type (all jobs)
+    const serviceRevenueMap: Record<string, { revenue: number; cost: number; count: number }> = {};
+    jobs.forEach(j => {
+      const st = j.service_type;
+      if (!serviceRevenueMap[st]) serviceRevenueMap[st] = { revenue: 0, cost: 0, count: 0 };
+      serviceRevenueMap[st].revenue += (j.sale_price || 0);
+      serviceRevenueMap[st].cost += (j.material_cost || 0);
+      serviceRevenueMap[st].count += 1;
+    });
+    const serviceRevenue: ServiceRevenue[] = Object.entries(serviceRevenueMap)
+      .map(([service, data]) => ({
+        service,
+        label: SERVICE_LABELS[service] || service,
+        revenue: data.revenue,
+        cost: data.cost,
+        profit: data.revenue - data.cost,
+        count: data.count,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
     // Summary stats
     const completedJobs = jobs.filter(j => j.status === 'completed');
     const totalRevenue = completedJobs.reduce((sum, j) => sum + (j.sale_price || 0), 0);
@@ -156,6 +185,7 @@ export function useJobAnalytics() {
       weeklyRevenue,
       serviceBreakdown,
       stageBreakdown,
+      serviceRevenue,
       totalRevenue,
       totalCost,
       totalProfit,
