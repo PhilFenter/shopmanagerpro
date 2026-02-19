@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProductCatalog, CatalogItem } from '@/hooks/useProductCatalog';
 import { Upload, Search, Package, Loader2, Database, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,13 @@ function parsePrice(value: any): number {
   return 0;
 }
 
+type Supplier = 'sanmar' | 'ss_activewear';
+
+const SUPPLIER_LABELS: Record<Supplier, string> = {
+  sanmar: 'SanMar',
+  ss_activewear: 'S&S Activewear',
+};
+
 export function ProductCatalogSettings() {
   const { stats, isLoading, searchCatalog, importCatalog } = useProductCatalog();
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,18 +33,22 @@ export function ProductCatalogSettings() {
   const [bulkStyles, setBulkStyles] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
+  const [syncSupplier, setSyncSupplier] = useState<Supplier>('sanmar');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBulkSync = async () => {
     const styles = bulkStyles.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
     if (styles.length === 0) return;
     setIsSyncing(true);
-    setSyncStatus(`Syncing ${styles.length} style(s) from SanMar...`);
+    setSyncStatus(`Syncing ${styles.length} style(s) from ${SUPPLIER_LABELS[syncSupplier]}...`);
     let synced = 0;
+
+    const functionName = syncSupplier === 'ss_activewear' ? 'ss-activewear-api' : 'sanmar-api';
+
     for (const style of styles) {
-      setSyncStatus(`Syncing ${style}... (${synced}/${styles.length})`);
+      setSyncStatus(`Syncing ${style} from ${SUPPLIER_LABELS[syncSupplier]}... (${synced}/${styles.length})`);
       try {
-        const { data, error } = await supabase.functions.invoke('sanmar-api', {
+        const { data, error } = await supabase.functions.invoke(functionName, {
           body: { action: 'syncProduct', styleNumber: style },
         });
         if (!error && data?.success && data?.upserted > 0) {
@@ -44,11 +56,10 @@ export function ProductCatalogSettings() {
         }
       } catch {}
     }
-    setSyncStatus(`Done! ${synced} of ${styles.length} styles synced.`);
-    if (synced > 0) toast.success(`${synced} style(s) synced from SanMar`);
+    setSyncStatus(`Done! ${synced} of ${styles.length} styles synced from ${SUPPLIER_LABELS[syncSupplier]}.`);
+    if (synced > 0) toast.success(`${synced} style(s) synced from ${SUPPLIER_LABELS[syncSupplier]}`);
     setIsSyncing(false);
   };
-
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -70,8 +81,6 @@ export function ProductCatalogSettings() {
     setParseStatus('Reading file...');
 
     try {
-      // Use a simple CSV/TSV parser approach — convert XLSX client-side
-      // For XLSX we need to use SheetJS
       const { read, utils } = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs' as any);
       
       const buffer = await file.arrayBuffer();
@@ -81,7 +90,6 @@ export function ProductCatalogSettings() {
 
       setParseStatus(`Parsed ${jsonData.length} rows. Importing...`);
 
-      // Map spreadsheet columns to our schema
       const rows = jsonData.map((row: any) => ({
         style_number: row['STYLE NUMBER'] || row['Style Number'] || row['style_number'] || '',
         description: row['STYLE DESCRIPTION'] || row['Style Description'] || row['description'] || '',
@@ -96,7 +104,6 @@ export function ProductCatalogSettings() {
         map_price: parsePrice(row['MAP'] || row['map_price']),
       })).filter((r: any) => r.style_number);
 
-      // Import in chunks to avoid timeout
       const CHUNK_SIZE = 2000;
       let totalInserted = 0;
 
@@ -107,7 +114,7 @@ export function ProductCatalogSettings() {
         const result = await importCatalog.mutateAsync({
           rows: chunk,
           supplier: 'sanmar',
-          clearExisting: i === 0, // Only clear on first batch
+          clearExisting: i === 0,
         });
         totalInserted += result.inserted;
       }
@@ -117,7 +124,6 @@ export function ProductCatalogSettings() {
       setParseStatus(`Error: ${err.message}`);
     }
 
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -129,7 +135,7 @@ export function ProductCatalogSettings() {
           Product Catalog
         </CardTitle>
         <CardDescription>
-          Supplier pricing for automated garment cost lookups
+          Supplier pricing for automated garment cost lookups (SanMar &amp; S&amp;S Activewear)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -140,7 +146,7 @@ export function ProductCatalogSettings() {
             <p className="text-sm font-medium">
               {isLoading ? '...' : `${stats?.totalRows?.toLocaleString() || 0} items`} in catalog
             </p>
-            <p className="text-xs text-muted-foreground">SanMar pricing data</p>
+            <p className="text-xs text-muted-foreground">SanMar + S&amp;S Activewear pricing data</p>
           </div>
         </div>
 
@@ -173,15 +179,25 @@ export function ProductCatalogSettings() {
           )}
         </div>
 
-        {/* Bulk SanMar Sync */}
+        {/* Bulk Sync */}
         <div className="space-y-2">
-          <p className="text-sm font-medium">Sync from SanMar API</p>
+          <p className="text-sm font-medium">Sync from Supplier API</p>
           <div className="flex gap-2">
+            <Select value={syncSupplier} onValueChange={(v) => setSyncSupplier(v as Supplier)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sanmar">SanMar</SelectItem>
+                <SelectItem value="ss_activewear">S&amp;S Activewear</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
-              placeholder="Style numbers (e.g. PC61, DT6000, ST350)"
+              placeholder="Style numbers (e.g. PC61, 6210, SS4500)"
               value={bulkStyles}
               onChange={(e) => setBulkStyles(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleBulkSync()}
+              className="flex-1"
             />
             <Button
               variant="outline"
@@ -204,7 +220,7 @@ export function ProductCatalogSettings() {
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input
-              placeholder="Search by style number (e.g. PC54)"
+              placeholder="Search by style number (e.g. PC54, SS4500)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -224,6 +240,9 @@ export function ProductCatalogSettings() {
                     {item.size_range && (
                       <Badge variant="outline" className="ml-2 text-xs">{item.size_range}</Badge>
                     )}
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      {item.supplier === 'ss_activewear' ? 'S&S' : 'SanMar'}
+                    </Badge>
                   </div>
                   <span className="font-mono text-primary">
                     ${item.piece_price?.toFixed(2)}
