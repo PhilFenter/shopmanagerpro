@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.notify-customer]
 verify_jwt = false
+
+[functions.ss-activewear-api]
+verify_jwt = false
