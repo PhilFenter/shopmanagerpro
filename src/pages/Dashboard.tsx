@@ -16,6 +16,7 @@ import { ServiceBreakdownChart } from '@/components/dashboard/ServiceBreakdownCh
 import { StageBreakdownChart } from '@/components/dashboard/StageBreakdownChart';
 import { ActionItemsDashboardCard } from '@/components/action-items/ActionItemsDashboardCard';
 import { QuickCaptureDialog } from '@/components/action-items/QuickCaptureDialog';
+import { DueSoonWidget } from '@/components/dashboard/DueSoonWidget';
 
 export default function Dashboard() {
   const { role: actualRole } = useAuth();
@@ -112,6 +113,9 @@ export default function Dashboard() {
           <StageBreakdownChart data={analytics.stageBreakdown} />
         </div>
       )}
+
+      {/* Due Soon Widget */}
+      <DueSoonWidget jobs={jobs} />
 
       {/* Action Items */}
       <ActionItemsDashboardCard />

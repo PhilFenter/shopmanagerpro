@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
         stage: stage,
         created_by: userId,
         created_at: order.created_at,
+        paid_at: order.created_at,
       };
     });
 

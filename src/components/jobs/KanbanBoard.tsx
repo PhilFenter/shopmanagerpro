@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 // ScrollArea removed - using native overflow for proper sticky headers
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, Loader2, ShoppingBag, Printer, FileText } from 'lucide-react';
+import { ArrowRight, Loader2, ShoppingBag, Printer, FileText, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 
 interface KanbanBoardProps {
   jobs: Job[];
@@ -213,10 +214,15 @@ function KanbanCard({ job, stage, onSelect, onAdvance, isAdvancing }: KanbanCard
   const atFinalStage = isFinalStage(stage);
   const jobSource = (job as any).source || 'manual';
   const sourceInfo = SOURCE_CONFIG[jobSource] || SOURCE_CONFIG.manual;
+  const urgency = getUrgencyLevel((job as any).due_date);
+  const urgencyLabel = getUrgencyLabel((job as any).due_date);
 
   return (
     <Card 
-      className="cursor-pointer hover:shadow-md transition-shadow"
+      className={cn(
+        "cursor-pointer hover:shadow-md transition-shadow",
+        urgency !== 'none' && `border-l-4 ${URGENCY_BORDER_COLORS[urgency]}`
+      )}
       onClick={onSelect}
     >
       <CardHeader className="p-3 pb-2">
@@ -254,6 +260,14 @@ function KanbanCard({ job, stage, onSelect, onAdvance, isAdvancing }: KanbanCard
             <span>${Number(job.sale_price).toFixed(2)}</span>
           )}
         </div>
+
+        {/* Due date urgency */}
+        {urgency !== 'none' && (
+          <div className={cn("flex items-center gap-1 text-[10px] font-medium", URGENCY_TEXT_COLORS[urgency])}>
+            <AlertTriangle className="h-3 w-3" />
+            <span>{urgencyLabel}</span>
+          </div>
+        )}
 
         {/* Show final stage options at customer_notified */}
         {atFinalChoice && (
