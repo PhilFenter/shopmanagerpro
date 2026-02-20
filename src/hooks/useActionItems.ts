@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface ActionItem {
   id: string;
   created_by: string;
@@ -17,6 +23,8 @@ export interface ActionItem {
   status: 'open' | 'completed' | 'cancelled';
   due_date: string | null;
   completed_at: string | null;
+  notes: string | null;
+  checklist: ChecklistItem[];
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +54,10 @@ export function useActionItems() {
         .select('*')
         .order('due_date', { ascending: true, nullsFirst: false });
       if (error) throw error;
-      return data as ActionItem[];
+      return (data ?? []).map(d => ({
+        ...d,
+        checklist: Array.isArray(d.checklist) ? d.checklist : [],
+      })) as unknown as ActionItem[];
     },
     enabled: !!user,
   });
@@ -86,7 +97,7 @@ export function useActionItems() {
     mutationFn: async ({ id, ...updates }: Partial<ActionItem> & { id: string }) => {
       const { error } = await supabase
         .from('action_items')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id);
       if (error) throw error;
     },

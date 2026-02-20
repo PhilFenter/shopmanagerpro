@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       action_items: {
         Row: {
+          checklist: Json | null
           completed_at: string | null
           created_at: string
           created_by: string
@@ -27,6 +28,7 @@ export type Database = {
           due_date: string | null
           id: string
           job_id: string | null
+          notes: string | null
           priority: string | null
           quote_id: string | null
           source: string | null
@@ -35,6 +37,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          checklist?: Json | null
           completed_at?: string | null
           created_at?: string
           created_by: string
@@ -46,6 +49,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           job_id?: string | null
+          notes?: string | null
           priority?: string | null
           quote_id?: string | null
           source?: string | null
@@ -54,6 +58,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          checklist?: Json | null
           completed_at?: string | null
           created_at?: string
           created_by?: string
@@ -65,6 +70,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           job_id?: string | null
+          notes?: string | null
           priority?: string | null
           quote_id?: string | null
           source?: string | null

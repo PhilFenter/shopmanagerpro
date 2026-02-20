@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useActionItems, ActionItem } from '@/hooks/useActionItems';
 import { QuickCaptureDialog } from '@/components/action-items/QuickCaptureDialog';
+import { ActionItemDetailSheet } from '@/components/action-items/ActionItemDetailSheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,7 @@ export default function ActionItems() {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('open');
   const [fillingId, setFillingId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<ActionItem | null>(null);
 
   const filterItems = (items: ActionItem[]) =>
     search
@@ -67,6 +69,12 @@ export default function ActionItems() {
   const handleDelete = (id: string) => {
     deleteItem.mutate(id, {
       onSuccess: () => toast.success('Deleted'),
+    });
+  };
+
+  const handleSaveItem = (id: string, updates: Partial<ActionItem>) => {
+    updateItem.mutate({ id, ...updates } as any, {
+      onSuccess: () => toast.success('Updated'),
     });
   };
 
@@ -103,15 +111,16 @@ export default function ActionItems() {
     return (
       <div
         className={cn(
-          'flex flex-col gap-2 rounded-lg border px-3 py-3 transition-colors',
+          'flex flex-col gap-2 rounded-lg border px-3 py-3 transition-colors cursor-pointer hover:bg-accent/50',
           isOverdue && 'border-destructive/50 bg-destructive/5',
           item.status === 'completed' && 'opacity-60'
         )}
+        onClick={() => setEditingItem(item)}
       >
         <div className="flex items-start gap-3">
           {showComplete && (
             <button
-              onClick={() => handleComplete(item.id)}
+              onClick={(e) => { e.stopPropagation(); handleComplete(item.id); }}
               className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
             >
               <CheckCircle2 className="h-5 w-5" />
@@ -156,6 +165,12 @@ export default function ActionItems() {
                   {item.source}
                 </Badge>
               )}
+              {/* Checklist progress */}
+              {Array.isArray((item as any).checklist) && (item as any).checklist.length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  ✓ {(item as any).checklist.filter((s: any) => s.done).length}/{(item as any).checklist.length}
+                </span>
+              )}
               {item.completed_at && (
                 <span>Completed {format(new Date(item.completed_at), 'MMM d')}</span>
               )}
@@ -163,11 +178,11 @@ export default function ActionItems() {
           </div>
           <div className="flex shrink-0 gap-1">
             {item.status === 'completed' && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReopen(item.id)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleReopen(item.id); }}>
                 <RotateCcw className="h-4 w-4" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -175,7 +190,7 @@ export default function ActionItems() {
 
         {/* Inline price fill for missing price action items */}
         {isMissingPrice && (
-          <div className="flex items-center gap-2 ml-8 p-2 rounded bg-primary/5 border border-primary/20">
+          <div className="flex items-center gap-2 ml-8 p-2 rounded bg-primary/5 border border-primary/20" onClick={e => e.stopPropagation()}>
             <DollarSign className="h-4 w-4 text-primary shrink-0" />
             <Input
               type="number"
@@ -316,6 +331,14 @@ export default function ActionItems() {
 
       {/* Floating quick capture button */}
       <QuickCaptureDialog />
+
+      {/* Edit detail sheet */}
+      <ActionItemDetailSheet
+        item={editingItem}
+        open={!!editingItem}
+        onOpenChange={(open) => { if (!open) setEditingItem(null); }}
+        onSave={handleSaveItem}
+      />
     </div>
   );
 }
