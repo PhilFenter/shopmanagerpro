@@ -31,7 +31,7 @@ export function useTeamMembers() {
     queryKey: ['team-members'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('team_members_public')
         .select('*')
         .order('full_name', { ascending: true });
       
