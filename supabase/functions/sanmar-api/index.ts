@@ -108,24 +108,69 @@ function buildInventoryRequest(user: string, pass: string, custNum: string, styl
 </soapenv:Envelope>`;
 }
 
-/** SanMar proprietary product info */
-function buildProductInfoRequest(user: string, pass: string, custNum: string, style: string): string {
+/** SanMar proprietary product info - CORRECT method: getProductInfoByStyleColorSize
+ *  arg0 is type "product" (style, color, size) — can be repeated for batch
+ *  arg1 is type "webServiceUser" */
+function buildProductInfoRequest(user: string, pass: string, custNum: string, style: string, color?: string, size?: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
   xmlns:impl="http://impl.webservice.integration.sanmar.com/">
   <soapenv:Body>
-    <impl:getProductInfo>
+    <impl:getProductInfoByStyleColorSize>
       <arg0>
         <style>${style}</style>
+        ${color ? `<color>${color}</color>` : ""}
+        ${size ? `<size>${size}</size>` : ""}
       </arg0>
       <arg1>
         <sanMarCustomerNumber>${custNum}</sanMarCustomerNumber>
         <sanMarUserName>${user}</sanMarUserName>
         <sanMarUserPassword>${pass}</sanMarUserPassword>
       </arg1>
-    </impl:getProductInfo>
+    </impl:getProductInfoByStyleColorSize>
   </soapenv:Body>
 </soapenv:Envelope>`;
+}
+
+// ─── Response parsers ─────────────────────────────────────
+
+/** Parse productInfo blocks from getProductInfoByStyleColorSize response.
+ *  Each listResponse contains productBasicInfo, productImageInfo, productPriceInfo */
+function parseProductInfoResponse(xml: string) {
+  const items: any[] = [];
+  const listBlocks = extractBlocks(xml, "listResponse");
+
+  for (const block of listBlocks) {
+    const basic = extractTag(block, "productBasicInfo") ? block : block;
+    const item: any = {
+      style: extractTag(basic, "style"),
+      productTitle: extractTag(basic, "productTitle"),
+      brandName: extractTag(basic, "brandName"),
+      productDescription: extractTag(basic, "productDescription"),
+      category: extractTag(basic, "category"),
+      color: extractTag(basic, "color"),
+      catalogColor: extractTag(basic, "catalogColor"),
+      size: extractTag(basic, "size"),
+      sizeIndex: parseInt(extractTag(basic, "sizeIndex")) || 0,
+      availableSizes: extractTag(basic, "availableSizes"),
+      caseSize: parseInt(extractTag(basic, "caseSize")) || 0,
+      productStatus: extractTag(basic, "productStatus"),
+      // Images
+      thumbnailImage: extractTag(block, "thumbnailImage"),
+      productImage: extractTag(block, "productImage"),
+      colorProductImage: extractTag(block, "colorProductImage"),
+      colorSquareImage: extractTag(block, "colorSquareImage"),
+      frontModel: extractTag(block, "frontModel"),
+      frontFlat: extractTag(block, "frontFlat"),
+      // Pricing
+      piecePrice: parseFloat(extractTag(block, "piecePrice")) || 0,
+      casePrice: parseFloat(extractTag(block, "casePrice")) || 0,
+      pieceSalePrice: parseFloat(extractTag(block, "pieceSalePrice")) || 0,
+      priceCode: extractTag(block, "priceCode"),
+    };
+    items.push(item);
+  }
+  return items;
 }
 
 // ─── Main handler ─────────────────────────────────────────
@@ -152,8 +197,8 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -182,7 +227,7 @@ serve(async (req) => {
         );
 
         // Check for error
-        const errorOccurred = extractTag(xml, "errorOccurred");
+        const errorOccurred = extractTag(xml, "errorOccured") || extractTag(xml, "errorOccurred");
         if (errorOccurred === "true") {
           const msg = extractTag(xml, "message");
           throw new Error(`SanMar pricing error: ${msg}`);
@@ -206,33 +251,21 @@ serve(async (req) => {
         break;
       }
 
-      // ─── Product info (SanMar proprietary) ───
+      // ─── Product info (SanMar proprietary - FIXED) ───
       case "getProductInfo": {
         if (!params.styleNumber) throw new Error("styleNumber required");
 
         const xml = await soapPost(
           ENDPOINTS.productInfo,
-          buildProductInfoRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber)
+          buildProductInfoRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber, params.color, params.size)
         );
 
-        const errorOccurred = extractTag(xml, "errorOccurred");
+        const errorOccurred = extractTag(xml, "errorOccured") || extractTag(xml, "errorOccurred");
         if (errorOccurred === "true") {
           throw new Error(`SanMar error: ${extractTag(xml, "message")}`);
         }
 
-        const itemBlocks = extractBlocks(xml, "listResponse");
-        const items = itemBlocks.map((block) => ({
-          style: extractTag(block, "style"),
-          title: extractTag(block, "title"),
-          brandName: extractTag(block, "brandName"),
-          description: extractTag(block, "description"),
-          category: extractTag(block, "categoryName") || extractTag(block, "category"),
-          color: extractTag(block, "color"),
-          size: extractTag(block, "size"),
-          caseQty: parseInt(extractTag(block, "caseQty")) || 0,
-          thumbnailImage: extractTag(block, "thumbnailImage") || extractTag(block, "productImage") || "",
-        }));
-
+        const items = parseProductInfoResponse(xml);
         result = { styleNumber: params.styleNumber, items, count: items.length };
         break;
       }
@@ -271,7 +304,7 @@ serve(async (req) => {
           buildInventoryRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber, params.color, params.size)
         );
 
-        const errorOccurred = extractTag(xml, "errorOccurred");
+        const errorOccurred = extractTag(xml, "errorOccured") || extractTag(xml, "errorOccurred");
         if (errorOccurred === "true") {
           throw new Error(`SanMar inventory error: ${extractTag(xml, "message")}`);
         }
@@ -293,58 +326,86 @@ serve(async (req) => {
         break;
       }
 
-      // ─── Sync pricing to product_catalog ───
+      // ─── Sync pricing + product info to product_catalog ───
       case "syncProduct": {
         if (!params.styleNumber) throw new Error("styleNumber required");
+        const styleUpper = params.styleNumber.toUpperCase().trim();
 
-        // Fetch pricing
-        const pricingXml = await soapPost(
-          ENDPOINTS.pricing,
-          buildPricingRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber)
-        );
-
-        const errorOccurred = extractTag(pricingXml, "errorOccurred");
-        if (errorOccurred === "true") {
-          throw new Error(`SanMar pricing error: ${extractTag(pricingXml, "message")}`);
-        }
-
-        const syncBlocks = extractBlocks(pricingXml, "listResponse");
-
-        // Fetch product info for descriptions/brand
-        let brandName = "";
-        let title = "";
-        let category = "";
+        // 1. Get product info (includes pricing, colors, images)
+        let items: any[] = [];
         try {
           const infoXml = await soapPost(
             ENDPOINTS.productInfo,
-            buildProductInfoRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, params.styleNumber)
+            buildProductInfoRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, styleUpper)
           );
-          brandName = extractTag(infoXml, "brandName");
-          title = extractTag(infoXml, "title");
-          category = extractTag(infoXml, "categoryName") || extractTag(infoXml, "category");
-        } catch { /* non-critical */ }
+          const errorOccurred = extractTag(infoXml, "errorOccured") || extractTag(infoXml, "errorOccurred");
+          if (errorOccurred !== "true") {
+            items = parseProductInfoResponse(infoXml);
+          }
+        } catch (e) {
+          console.log("ProductInfo failed, falling back to pricing:", e);
+        }
 
-        // Group by style+color, aggregate sizes
+        // 2. If no product info items, fall back to pricing endpoint
+        if (items.length === 0) {
+          const pricingXml = await soapPost(
+            ENDPOINTS.pricing,
+            buildPricingRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, styleUpper)
+          );
+          const errorOccurred = extractTag(pricingXml, "errorOccured") || extractTag(pricingXml, "errorOccurred");
+          if (errorOccurred === "true") {
+            throw new Error(`SanMar pricing error: ${extractTag(pricingXml, "message")}`);
+          }
+          const syncBlocks = extractBlocks(pricingXml, "listResponse");
+          items = syncBlocks.map(block => ({
+            style: extractTag(block, "style") || styleUpper,
+            color: extractTag(block, "color"),
+            size: extractTag(block, "size"),
+            brandName: "",
+            productTitle: "",
+            category: "",
+            piecePrice: parseFloat(extractTag(block, "piecePrice")) || 0,
+            casePrice: parseFloat(extractTag(block, "casePrice")) || 0,
+            priceCode: "",
+          }));
+        }
+
+        // 3. Group by style+color, aggregate sizes
         const catalogMap = new Map<string, any>();
-        for (const block of syncBlocks) {
-          const style = (extractTag(block, "style") || params.styleNumber).toUpperCase().trim();
-          const color = extractTag(block, "color");
-          const size = extractTag(block, "size");
+        let brandName = "";
+        let title = "";
+
+        for (const item of items) {
+          const style = (item.style || styleUpper).toUpperCase().trim();
+          const color = item.catalogColor || item.color || "";
+          const size = item.size || "";
           const key = `${style}|${color}`;
+
+          if (!brandName && item.brandName) brandName = item.brandName;
+          if (!title && item.productTitle) title = item.productTitle;
 
           if (!catalogMap.has(key)) {
             catalogMap.set(key, {
               style_number: style,
-              description: title || null,
-              brand: brandName || null,
-              category: category || null,
+              description: item.productTitle || title || null,
+              brand: item.brandName || brandName || null,
+              category: item.category || null,
               color_group: color || null,
-              case_price: parseFloat(extractTag(block, "casePrice")) || 0,
-              piece_price: parseFloat(extractTag(block, "piecePrice")) || 0,
-              price_code: null,
+              case_price: item.casePrice || 0,
+              piece_price: item.piecePrice || 0,
+              price_code: item.priceCode || null,
               supplier: "sanmar",
               sizes: [] as string[],
             });
+          } else {
+            // Keep highest price (for larger sizes)
+            const existing = catalogMap.get(key)!;
+            if (item.piecePrice > existing.piece_price) {
+              existing.piece_price = item.piecePrice;
+            }
+            if (item.casePrice > existing.case_price) {
+              existing.case_price = item.casePrice;
+            }
           }
           if (size && !catalogMap.get(key)!.sizes.includes(size)) {
             catalogMap.get(key)!.sizes.push(size);
@@ -371,7 +432,7 @@ serve(async (req) => {
           if (!error) upserted++;
         }
 
-        result = { styleNumber: params.styleNumber, upserted, total: rows.length, brand: brandName, title };
+        result = { styleNumber: styleUpper, upserted, total: rows.length, brand: brandName, title };
         break;
       }
 

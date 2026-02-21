@@ -196,36 +196,46 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
         if (colors.length > 0) setAvailableColors(colors);
       }
 
-      // Then try API sync for fresh data (SanMar first, then S&S)
+      // Then try API sync for fresh data (SanMar and S&S in parallel for speed)
       if (source !== 'catalog' || (localColors && localColors.length === 0)) {
         try {
-          const sanmarResp = await supabase.functions.invoke('sanmar-api', {
-            body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
-          });
-          
-          if (sanmarResp.data?.success && sanmarResp.data?.upserted > 0) {
+          // Fire both in parallel — whichever succeeds first wins
+          const [sanmarResp, ssResp] = await Promise.allSettled([
+            supabase.functions.invoke('sanmar-api', {
+              body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
+            }),
+            supabase.functions.invoke('ss-activewear-api', {
+              body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
+            }),
+          ]);
+
+          const sanmarOk = sanmarResp.status === 'fulfilled' && sanmarResp.value.data?.success && sanmarResp.value.data?.upserted > 0;
+          const ssOk = ssResp.status === 'fulfilled' && ssResp.value.data?.success && ssResp.value.data?.upserted > 0;
+
+          if (sanmarOk || ssOk) {
+            // Reload colors from freshly synced catalog
             const { data: catalogColors } = await supabase
               .from('product_catalog')
               .select('color_group')
               .ilike('style_number', styleNum)
               .not('color_group', 'is', null);
             if (catalogColors && catalogColors.length > 0) {
-              const colors = [...new Set(catalogColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
-              setAvailableColors(colors);
+              const isReal = (c: string) => !['COLORS', 'HEATHERS', 'BASICS'].includes(c.toUpperCase());
+              const colors = [...new Set(catalogColors.map(d => d.color_group).filter(c => c && isReal(c)) as string[])].sort();
+              if (colors.length > 0) setAvailableColors(colors);
             }
-          } else {
-            const ssResp = await supabase.functions.invoke('ss-activewear-api', {
-              body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
-            });
-            if (ssResp.data?.success && ssResp.data?.upserted > 0) {
-              const { data: catalogColors } = await supabase
-                .from('product_catalog')
-                .select('color_group')
-                .ilike('style_number', styleNum)
-                .not('color_group', 'is', null);
-              if (catalogColors && catalogColors.length > 0) {
-                const colors = [...new Set(catalogColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
-                setAvailableColors(colors);
+
+            // Also update garment cost with highest synced price
+            const { data: pricedRows } = await supabase
+              .from('product_catalog')
+              .select('piece_price, case_price')
+              .ilike('style_number', styleNum)
+              .order('piece_price', { ascending: false })
+              .limit(20);
+            if (pricedRows && pricedRows.length > 0) {
+              const maxPrice = Math.max(...pricedRows.map(r => r.piece_price || r.case_price || 0));
+              if (maxPrice > 0) {
+                setNewItem(p => ({ ...p, garment_cost: maxPrice }));
               }
             }
           }
