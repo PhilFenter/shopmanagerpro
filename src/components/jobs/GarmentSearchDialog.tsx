@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Search, Plus, Package, DollarSign, TrendingUp, Minus } from 'lucide-react';
 import { useGarmentSearch, GarmentSearchResult } from '@/hooks/useGarmentSearch';
 import { useJobGarmentMutations, CreateGarmentInput } from '@/hooks/useJobGarmentMutations';
-import { usePricingMatrices } from '@/hooks/usePricingMatrices';
+
 import { ServiceType } from '@/hooks/useJobs';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -52,7 +52,8 @@ export function GarmentSearchDialog({
 }: GarmentSearchDialogProps) {
   const { results, isSearching, search, clearResults } = useGarmentSearch();
   const { createGarment, updateGarment } = useJobGarmentMutations(jobId);
-  const { matrices, lookupPrice } = usePricingMatrices();
+  const matrices: any[] = [];
+  const lookupPrice = (_m: any, _q: number, _p: number) => null;
 
   const [query, setQuery] = useState('');
   const [selectedResult, setSelectedResult] = useState<GarmentSearchResult | null>(null);
