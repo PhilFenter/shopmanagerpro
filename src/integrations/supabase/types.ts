@@ -554,8 +554,9 @@ export type Database = {
           garment_id: string | null
           id: string
           is_approval_version: boolean
-          job_id: string
+          job_id: string | null
           placement: string | null
+          quote_id: string | null
           storage_path: string
           updated_at: string
           version_number: number
@@ -571,8 +572,9 @@ export type Database = {
           garment_id?: string | null
           id?: string
           is_approval_version?: boolean
-          job_id: string
+          job_id?: string | null
           placement?: string | null
+          quote_id?: string | null
           storage_path: string
           updated_at?: string
           version_number?: number
@@ -588,8 +590,9 @@ export type Database = {
           garment_id?: string | null
           id?: string
           is_approval_version?: boolean
-          job_id?: string
+          job_id?: string | null
           placement?: string | null
+          quote_id?: string | null
           storage_path?: string
           updated_at?: string
           version_number?: number
@@ -614,6 +617,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_mockups_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
             referencedColumns: ["id"]
           },
         ]

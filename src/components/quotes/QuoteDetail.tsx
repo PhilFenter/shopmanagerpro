@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuotes, useQuoteLineItems, Quote, QuoteLineItem } from '@/hooks/useQuotes';
 import { usePricingMatrices } from '@/hooks/usePricingMatrices';
@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { hasFinancialAccess } from '@/hooks/useJobs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { QuoteMockupBuilder } from './QuoteMockupBuilder';
 
 const PLACEMENTS = [
   'Left Chest', 'Full Front', 'Full Back', 'Back Yoke',
@@ -54,6 +55,20 @@ const DELIVERY_LABELS: Record<string, string> = {
 };
 
 const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+
+function LineItemThumbInline({ imageUrl }: { imageUrl: string }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    if (imageUrl.startsWith('http')) {
+      setSrc(imageUrl);
+    } else {
+      supabase.storage.from('job-photos').createSignedUrl(imageUrl, 3600)
+        .then(({ data }) => setSrc(data?.signedUrl || ''));
+    }
+  }, [imageUrl]);
+  if (!src) return <Shirt className="h-4 w-4 text-muted-foreground" />;
+  return <img src={src} alt="" className="h-full w-full object-contain" />;
+}
 
 interface Props {
   quoteId: string;
@@ -401,7 +416,7 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
         </Card>
       )}
 
-      {/* Line items */}
+      {/* Line items — Printavo-style table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -410,66 +425,100 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {lineItems.length > 0 && (
-            <div className="space-y-3">
-              {lineItems.map((li) => {
-                const sizeEntries = Object.entries(li.sizes || {}).filter(([, v]) => v > 0);
-                return (
-                  <div key={li.id} className="rounded-lg border p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{li.style_number || 'Custom Item'}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {DECORATION_METHODS.find(d => d.value === li.service_type)?.label || li.service_type}
-                          </Badge>
-                          {li.color && <Badge variant="secondary" className="text-xs">{li.color}</Badge>}
-                          {li.placement && <Badge variant="secondary" className="text-xs">{li.placement}</Badge>}
-                        </div>
-                        {li.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{li.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">×{li.quantity}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => deleteLineItem.mutate({ id: li.id, quoteId })}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
+          {lineItems.length > 0 && (() => {
+            // Collect all size keys across line items
+            const allSizes = [...new Set(lineItems.flatMap(li => Object.keys(li.sizes || {})))];
+            const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'OSFA'];
+            const sortedSizes = allSizes.sort((a, b) => {
+              const ai = SIZE_ORDER.indexOf(a);
+              const bi = SIZE_ORDER.indexOf(b);
+              return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+            });
 
-                    {sizeEntries.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {sizeEntries.map(([size, qty]) => (
-                          <Badge key={size} variant="secondary" className="text-xs font-normal">
-                            {size}: {String(qty)}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    {hasFinancialAccess(role) && (
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1 border-t">
-                        <DollarSign className="h-3 w-3" />
-                        <span>Garment: <span className="font-mono">${li.garment_cost?.toFixed(2)}</span> × {li.garment_markup_pct}%</span>
-                        {li.decoration_cost > 0 && (
-                          <span>Deco: <span className="font-mono">${li.decoration_cost?.toFixed(2)}</span>/pc</span>
-                        )}
-                        <span className="ml-auto font-medium text-foreground">
-                          <span className="font-mono">${li.line_total?.toFixed(2)}</span>
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            return (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12"></TableHead>
+                      <TableHead>Style</TableHead>
+                      <TableHead>Color</TableHead>
+                      <TableHead>Decoration</TableHead>
+                      <TableHead>Placement</TableHead>
+                      {sortedSizes.map(s => (
+                        <TableHead key={s} className="text-center w-[48px] px-1 font-semibold">{s}</TableHead>
+                      ))}
+                      <TableHead className="text-center">Qty</TableHead>
+                      {hasFinancialAccess(role) && (
+                        <>
+                          <TableHead className="text-right">Unit Cost</TableHead>
+                          <TableHead className="text-right">Deco/pc</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </>
+                      )}
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lineItems.map((li) => {
+                      const sizes = (li.sizes || {}) as Record<string, number>;
+                      return (
+                        <TableRow key={li.id}>
+                          <TableCell className="p-1">
+                            <div className="h-10 w-10 rounded border overflow-hidden bg-muted/20 flex items-center justify-center">
+                              {li.image_url ? (
+                                <LineItemThumbInline imageUrl={li.image_url} />
+                              ) : (
+                                <Shirt className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{li.style_number || 'Custom'}</p>
+                              {li.description && <p className="text-xs text-muted-foreground truncate max-w-[150px]">{li.description}</p>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{li.color || '—'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {DECORATION_METHODS.find(d => d.value === li.service_type)?.label || li.service_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{li.placement || '—'}</TableCell>
+                          {sortedSizes.map(s => (
+                            <TableCell key={s} className="text-center text-sm tabular-nums px-1">
+                              {sizes[s] || ''}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-center font-medium">{li.quantity}</TableCell>
+                          {hasFinancialAccess(role) && (
+                            <>
+                              <TableCell className="text-right font-mono text-sm">
+                                ${((li.garment_cost || 0) * (li.garment_markup_pct || 100) / 100).toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm">
+                                {li.decoration_cost > 0 ? `$${li.decoration_cost.toFixed(2)}` : '—'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm font-medium">
+                                ${(li.line_total || 0).toFixed(2)}
+                              </TableCell>
+                            </>
+                          )}
+                          <TableCell className="p-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => deleteLineItem.mutate({ id: li.id, quoteId })}>
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })()}
 
           {/* Totals */}
           {hasFinancialAccess(role) && lineItems.length > 0 && (
@@ -735,6 +784,18 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
           </CardContent>
         </Card>
       )}
+
+      {/* Mockup Builder */}
+      <Card>
+        <CardContent className="pt-6">
+          <QuoteMockupBuilder
+            quoteId={quoteId}
+            lineItems={lineItems}
+            customerEmail={quote.customer_email}
+            customerName={quote.customer_name}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
