@@ -51,7 +51,7 @@ export function GarmentSearchDialog({
   jobServiceType,
 }: GarmentSearchDialogProps) {
   const { results, isSearching, search, clearResults } = useGarmentSearch();
-  const { createGarment } = useJobGarmentMutations(jobId);
+  const { createGarment, updateGarment } = useJobGarmentMutations(jobId);
   const { matrices, lookupPrice } = usePricingMatrices();
 
   const [query, setQuery] = useState('');
@@ -197,8 +197,35 @@ export function GarmentSearchDialog({
     }
   };
 
+  // Try to fetch image from SanMar API for a style+color
+  const fetchGarmentImage = async (styleNumber: string, color?: string): Promise<string | undefined> => {
+    try {
+      const resp = await supabase.functions.invoke('sanmar-api', {
+        body: { action: 'getProductInfo', styleNumber: styleNumber.toUpperCase().trim() },
+      });
+      if (resp.data?.success && resp.data?.items?.length > 0) {
+        const items = resp.data.items;
+        // Try to find matching color first, then fall back to any item with an image
+        const colorMatch = color
+          ? items.find((i: any) => i.thumbnailImage && i.color?.toLowerCase() === color.toLowerCase())
+          : null;
+        const anyImage = items.find((i: any) => i.thumbnailImage);
+        return colorMatch?.thumbnailImage || anyImage?.thumbnailImage || undefined;
+      }
+    } catch (e) {
+      console.log('Image fetch failed:', e);
+    }
+    return undefined;
+  };
+
   const handleAdd = () => {
     if (!selectedResult) return;
+
+    // Extract a clean style number (take last segment if it contains spaces)
+    const rawStyle = selectedResult.style_number;
+    const styleForLookup = rawStyle.includes(' ')
+      ? rawStyle.split(' ').pop() || rawStyle
+      : rawStyle;
 
     const input: CreateGarmentInput = {
       job_id: jobId,
@@ -219,7 +246,15 @@ export function GarmentSearchDialog({
     };
 
     createGarment.mutate(input, {
-      onSuccess: () => {
+      onSuccess: (data) => {
+        // If no image, try to fetch one from SanMar API in the background
+        if (!input.image_url && styleForLookup) {
+          fetchGarmentImage(styleForLookup, selectedColor).then((imageUrl) => {
+            if (imageUrl && data) {
+              updateGarment.mutate({ id: (data as any).id, image_url: imageUrl } as any);
+            }
+          });
+        }
         onOpenChange(false);
       },
     });
