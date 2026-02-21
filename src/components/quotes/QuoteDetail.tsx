@@ -87,24 +87,37 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [syncingColors, setSyncingColors] = useState(false);
 
+  interface PlacementEntry {
+    placement: string;
+    service_type: string;
+    decoration_cost: number;
+    decoration_params: Record<string, any>;
+  }
+
+  const emptyPlacement = (): PlacementEntry => ({
+    placement: '',
+    service_type: 'screen_print',
+    decoration_cost: 0,
+    decoration_params: {},
+  });
+
   // New line item state
   const [newItem, setNewItem] = useState({
     style_number: '',
     description: '',
-    service_type: 'screen_print',
-    quantity: 1,
     garment_cost: 0,
-    decoration_cost: 0,
     garment_markup_pct: 200,
-    decoration_params: {} as Record<string, any>,
     color: '',
-    placement: '',
     sizes: {} as Record<string, number>,
     image_url: '',
   });
 
+  const [placements, setPlacements] = useState<PlacementEntry[]>([emptyPlacement()]);
+
+  const sizeTotal = Object.values(newItem.sizes).reduce((s, v) => s + v, 0);
+
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [showSizes, setShowSizes] = useState(false);
+  
   const [availableColors, setAvailableColors] = useState<string[]>([]);
   const [selectedStyleForPricing, setSelectedStyleForPricing] = useState<string>('');
 
@@ -235,66 +248,68 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
     }
   };
 
-  const getDecorationPrice = () => {
-    const matrix = matrices.find((m) => m.service_type === newItem.service_type);
+  const getDecorationPriceForPlacement = (p: PlacementEntry, qty: number) => {
+    const matrix = matrices.find((m) => m.service_type === p.service_type);
     if (!matrix) return null;
-    const colIndex = newItem.decoration_params.column_index ?? 0;
-    return lookupPrice(matrix, newItem.quantity, colIndex);
+    const colIndex = p.decoration_params.column_index ?? 0;
+    return lookupPrice(matrix, qty, colIndex);
   };
 
-  const calcLineTotal = (item: typeof newItem) => {
-    const garmentTotal = item.garment_cost * (item.garment_markup_pct / 100) * item.quantity;
-    const decoTotal = item.decoration_cost * item.quantity;
-    return garmentTotal + decoTotal;
+  const calcLineTotal = () => {
+    const qty = sizeTotal > 0 ? sizeTotal : 1;
+    const garmentTotal = newItem.garment_cost * (newItem.garment_markup_pct / 100) * qty;
+    const totalDecoCost = placements.reduce((sum, p) => {
+      const autoPrice = getDecorationPriceForPlacement(p, qty);
+      return sum + (autoPrice?.decorationCost ?? p.decoration_cost) * qty;
+    }, 0);
+    return garmentTotal + totalDecoCost;
   };
 
   const handleAddItem = async () => {
-    const priceInfo = getDecorationPrice();
-    const decorationCost = priceInfo?.decorationCost ?? newItem.decoration_cost;
-    const markup = priceInfo?.markup ?? newItem.garment_markup_pct;
+    const qty = sizeTotal > 0 ? sizeTotal : 1;
 
-    const finalItem = {
-      ...newItem,
-      decoration_cost: decorationCost,
-      garment_markup_pct: markup,
-    };
+    // Calculate total decoration cost per piece (sum of all placements)
+    const totalDecoCostPerPiece = placements.reduce((sum, p) => {
+      const autoPrice = getDecorationPriceForPlacement(p, qty);
+      return sum + (autoPrice?.decorationCost ?? p.decoration_cost);
+    }, 0);
 
-    const sizeTotal = Object.values(finalItem.sizes).reduce((s, v) => s + v, 0);
+    // Use first placement's markup if auto-priced
+    const firstAutoPrice = getDecorationPriceForPlacement(placements[0], qty);
+    const markup = firstAutoPrice?.markup ?? newItem.garment_markup_pct;
 
     await createLineItem.mutateAsync({
       quote_id: quoteId,
-      style_number: finalItem.style_number || null,
-      description: finalItem.description || null,
-      service_type: finalItem.service_type,
-      quantity: sizeTotal > 0 ? sizeTotal : finalItem.quantity,
-      garment_cost: finalItem.garment_cost,
-      garment_markup_pct: finalItem.garment_markup_pct,
-      decoration_cost: finalItem.decoration_cost,
-      decoration_params: finalItem.decoration_params,
-      line_total: calcLineTotal({ ...finalItem, quantity: sizeTotal > 0 ? sizeTotal : finalItem.quantity }),
-      color: finalItem.color || null,
-      placement: finalItem.placement || null,
-      sizes: sizeTotal > 0 ? finalItem.sizes : {},
-      image_url: finalItem.image_url || null,
+      style_number: newItem.style_number || null,
+      description: newItem.description || null,
+      service_type: placements[0]?.service_type || 'other',
+      quantity: qty,
+      garment_cost: newItem.garment_cost,
+      garment_markup_pct: markup,
+      decoration_cost: totalDecoCostPerPiece,
+      decoration_params: { placements: placements.filter(p => p.placement) },
+      line_total: calcLineTotal(),
+      color: newItem.color || null,
+      placement: placements.filter(p => p.placement).map(p => p.placement).join(', ') || null,
+      sizes: sizeTotal > 0 ? newItem.sizes : {},
+      image_url: newItem.image_url || null,
     } as any);
 
     // Reset
     setNewItem({
-      style_number: '', description: '', service_type: 'screen_print', quantity: 1,
-      garment_cost: 0, decoration_cost: 0, garment_markup_pct: 200, decoration_params: {},
-      color: '', placement: '', sizes: {}, image_url: '',
+      style_number: '', description: '', garment_cost: 0, garment_markup_pct: 200,
+      color: '', sizes: {}, image_url: '',
     });
-    setShowSizes(false);
+    setPlacements([emptyPlacement()]);
     setAvailableColors([]);
     setSelectedStyleForPricing('');
 
     // Update quote total
-    const sizeQty = sizeTotal > 0 ? sizeTotal : newItem.quantity;
-    const newTotal = lineItems.reduce((sum, li) => sum + (li.line_total || 0), 0) + calcLineTotal({ ...newItem, quantity: sizeQty });
+    const newTotal = lineItems.reduce((sum, li) => sum + (li.line_total || 0), 0) + calcLineTotal();
     updateQuote.mutate({ id: quoteId, total_price: newTotal });
   };
 
-  const selectedMatrix = matrices.find((m) => m.service_type === newItem.service_type);
+  const selectedMatrix = matrices.find((m) => m.service_type === placements[0]?.service_type);
   const quoteSubtotal = lineItems.reduce((sum, li) => sum + (li.line_total || 0), 0);
   const taxAmount = quote.apply_sales_tax ? quoteSubtotal * (quote.tax_rate / 100) : 0;
   const quoteTotal = quoteSubtotal + taxAmount;
@@ -481,11 +496,37 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
                           </TableCell>
                           <TableCell className="text-sm">{li.color || '—'}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {DECORATION_METHODS.find(d => d.value === li.service_type)?.label || li.service_type}
-                            </Badge>
+                            {(() => {
+                              const dp = li.decoration_params as any;
+                              const stored = dp?.placements as any[] | undefined;
+                              if (stored && stored.length > 0) {
+                                return (
+                                  <div className="flex flex-wrap gap-0.5">
+                                    {stored.map((sp: any, i: number) => (
+                                      <Badge key={i} variant="outline" className="text-[10px]">
+                                        {DECORATION_METHODS.find(d => d.value === sp.service_type)?.label || sp.service_type}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <Badge variant="outline" className="text-xs">
+                                  {DECORATION_METHODS.find(d => d.value === li.service_type)?.label || li.service_type}
+                                </Badge>
+                              );
+                            })()}
                           </TableCell>
-                          <TableCell className="text-sm">{li.placement || '—'}</TableCell>
+                          <TableCell className="text-sm">
+                            {(() => {
+                              const dp = li.decoration_params as any;
+                              const stored = dp?.placements as any[] | undefined;
+                              if (stored && stored.length > 0) {
+                                return stored.map((sp: any) => sp.placement).filter(Boolean).join(', ') || '—';
+                              }
+                              return li.placement || '—';
+                            })()}
+                          </TableCell>
                           {sortedSizes.map(s => (
                             <TableCell key={s} className="text-center text-sm tabular-nums px-1">
                               {sizes[s] || ''}
@@ -623,149 +664,180 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
                   />
                 )}
               </div>
-              <div>
-                <Label>Decoration Method</Label>
-                <Select
-                  value={newItem.service_type}
-                  onValueChange={(v) => setNewItem((p) => ({ ...p, service_type: v, decoration_params: {} }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DECORATION_METHODS.map(m => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <Label>Placement</Label>
-                <Select value={newItem.placement} onValueChange={(v) => setNewItem((p) => ({ ...p, placement: v }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PLACEMENTS.map(p => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Size Breakdown — always visible, quantity auto-derived */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sizes & Quantity</Label>
+              <div className="grid grid-cols-5 md:grid-cols-9 gap-2">
+                {SIZE_OPTIONS.map(size => (
+                  <div key={size} className="text-center">
+                    <Label className="text-[10px]">{size}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-8 text-center text-sm px-1"
+                      value={newItem.sizes[size] || ''}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setNewItem(p => ({
+                          ...p,
+                          sizes: { ...p.sizes, [size]: val },
+                        }));
+                      }}
+                    />
+                  </div>
+                ))}
               </div>
-              <div>
-                <Label>Total Quantity</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={newItem.quantity}
-                  onChange={(e) => setNewItem((p) => ({ ...p, quantity: parseInt(e.target.value) || 1 }))}
-                />
-              </div>
-              <div>
-                <Label>Garment Cost</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={newItem.garment_cost}
-                  onChange={(e) => setNewItem((p) => ({ ...p, garment_cost: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-              {selectedMatrix && selectedMatrix.column_headers.length > 1 && (
-                <div>
-                  <Label>{selectedMatrix.name} Option</Label>
-                  <Select
-                    value={String(newItem.decoration_params.column_index ?? 0)}
-                    onValueChange={(v) =>
-                      setNewItem((p) => ({
-                        ...p,
-                        decoration_params: { ...p.decoration_params, column_index: parseInt(v) },
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedMatrix.column_headers.map((h, i) => (
-                        <SelectItem key={i} value={String(i)}>{h}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="font-medium">Total Qty: <span className="font-mono text-primary">{sizeTotal > 0 ? sizeTotal : '—'}</span></span>
+                <span className="text-muted-foreground">Garment Cost: <span className="font-mono">${newItem.garment_cost.toFixed(2)}</span></span>
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs">Markup %</Label>
+                  <Input
+                    type="number"
+                    className="h-7 w-20 text-sm"
+                    value={newItem.garment_markup_pct}
+                    onChange={(e) => setNewItem(p => ({ ...p, garment_markup_pct: parseFloat(e.target.value) || 100 }))}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Size Breakdown */}
-            <Collapsible open={showSizes} onOpenChange={setShowSizes}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs">
-                  {showSizes ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
-                  Size Breakdown
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="grid grid-cols-5 md:grid-cols-9 gap-2 mt-2">
-                  {SIZE_OPTIONS.map(size => (
-                    <div key={size} className="text-center">
-                      <Label className="text-[10px]">{size}</Label>
+            {/* Placements — up to 5 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Imprint Locations ({placements.length}/5)
+                </Label>
+                {placements.length < 5 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => setPlacements(prev => [...prev, emptyPlacement()])}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> Add Location
+                  </Button>
+                )}
+              </div>
+              {placements.map((p, idx) => {
+                const matrix = matrices.find(m => m.service_type === p.service_type);
+                const qty = sizeTotal > 0 ? sizeTotal : 1;
+                const autoPrice = getDecorationPriceForPlacement(p, qty);
+                return (
+                  <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_80px_32px] gap-2 items-end">
+                    <div>
+                      {idx === 0 && <Label className="text-[10px]">Placement</Label>}
+                      <Select
+                        value={p.placement}
+                        onValueChange={(v) => {
+                          const updated = [...placements];
+                          updated[idx] = { ...updated[idx], placement: v };
+                          setPlacements(updated);
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PLACEMENTS.map(pl => (
+                            <SelectItem key={pl} value={pl}>{pl}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      {idx === 0 && <Label className="text-[10px]">Method</Label>}
+                      <Select
+                        value={p.service_type}
+                        onValueChange={(v) => {
+                          const updated = [...placements];
+                          updated[idx] = { ...updated[idx], service_type: v, decoration_params: {} };
+                          setPlacements(updated);
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DECORATION_METHODS.map(m => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      {idx === 0 && <Label className="text-[10px]">Deco $/pc</Label>}
                       <Input
                         type="number"
-                        min={0}
-                        className="h-8 text-center text-sm px-1"
-                        value={newItem.sizes[size] || ''}
+                        step="0.01"
+                        className="h-9"
+                        value={autoPrice?.decorationCost ?? p.decoration_cost}
                         onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setNewItem(p => ({
-                            ...p,
-                            sizes: { ...p.sizes, [size]: val },
-                          }));
+                          const updated = [...placements];
+                          updated[idx] = { ...updated[idx], decoration_cost: parseFloat(e.target.value) || 0 };
+                          setPlacements(updated);
                         }}
                       />
+                      {autoPrice && <p className="text-[10px] text-primary">Auto</p>}
                     </div>
-                  ))}
-                </div>
-                {Object.values(newItem.sizes).some(v => v > 0) && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Size total: {Object.values(newItem.sizes).reduce((s, v) => s + v, 0)} pcs
-                  </p>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Deco cost + preview */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Deco Cost/pc</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={getDecorationPrice()?.decorationCost ?? newItem.decoration_cost}
-                  onChange={(e) => setNewItem((p) => ({ ...p, decoration_cost: parseFloat(e.target.value) || 0 }))}
-                />
-                {getDecorationPrice() && (
-                  <p className="text-xs text-primary mt-1">Auto from pricing matrix</p>
-                )}
-              </div>
-              {hasFinancialAccess(role) && (
-                <div className="flex items-end">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">
-                      Line preview: <span className="font-mono font-medium text-foreground">${calcLineTotal(newItem).toFixed(2)}</span>
-                    </p>
-                    <Button onClick={handleAddItem} disabled={createLineItem.isPending} size="sm">
-                      {createLineItem.isPending ? (
-                        <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Adding...</>
-                      ) : (
-                        <><Plus className="h-4 w-4 mr-1" /> Add Item</>
+                    {matrix && matrix.column_headers.length > 1 ? (
+                      <div>
+                        {idx === 0 && <Label className="text-[10px]">Option</Label>}
+                        <Select
+                          value={String(p.decoration_params.column_index ?? 0)}
+                          onValueChange={(v) => {
+                            const updated = [...placements];
+                            updated[idx] = { ...updated[idx], decoration_params: { ...updated[idx].decoration_params, column_index: parseInt(v) } };
+                            setPlacements(updated);
+                          }}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {matrix.column_headers.map((h, i) => (
+                              <SelectItem key={i} value={String(i)}>{h}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : <div />}
+                    <div>
+                      {placements.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={() => setPlacements(prev => prev.filter((_, i) => i !== idx))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
                       )}
-                    </Button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
             </div>
+
+            {/* Preview + Add */}
+            {hasFinancialAccess(role) && (
+              <div className="flex items-center justify-between border-t pt-3">
+                <p className="text-sm text-muted-foreground">
+                  Line preview: <span className="font-mono font-medium text-foreground text-lg">${calcLineTotal().toFixed(2)}</span>
+                </p>
+                <Button onClick={handleAddItem} disabled={createLineItem.isPending || sizeTotal === 0} size="sm">
+                  {createLineItem.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Adding...</>
+                  ) : (
+                    <><Plus className="h-4 w-4 mr-1" /> Add Item</>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
