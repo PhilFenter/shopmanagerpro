@@ -141,16 +141,17 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
 
     setSyncingColors(true);
     try {
-      // First, try to load colors from local catalog
+      // First, try to load colors from local catalog (wildcard to match NL6210, 6210M, etc.)
       const { data: localColors } = await supabase
         .from('product_catalog')
         .select('color_group')
-        .ilike('style_number', styleNum)
+        .or(`style_number.ilike.%${styleNum}%,style_number.ilike.${styleNum}%`)
         .not('color_group', 'is', null);
       
       if (localColors && localColors.length > 0) {
-        const colors = [...new Set(localColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
-        setAvailableColors(colors);
+        const isReal = (c: string) => !['COLORS', 'HEATHERS', 'BASICS'].includes(c.toUpperCase());
+        const colors = [...new Set(localColors.map(d => d.color_group).filter(c => c && isReal(c)) as string[])].sort();
+        if (colors.length > 0) setAvailableColors(colors);
       }
 
       // Then try API sync for fresh data (SanMar first, then S&S)

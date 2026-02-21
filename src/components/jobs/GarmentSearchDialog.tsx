@@ -112,15 +112,18 @@ export function GarmentSearchDialog({
 
     setLoadingColors(true);
     try {
-      // Query local catalog first
-      const { data: localColors } = await supabase
+      // Query local catalog first (use wildcard to match variants like NL6210, 6210M)
+      const { data: localColors, error: localErr } = await supabase
         .from('product_catalog')
         .select('color_group')
-        .ilike('style_number', styleNum)
+        .or(`style_number.ilike.%${styleNum}%,style_number.ilike.${styleNum}%`)
         .not('color_group', 'is', null);
+
+      console.log('[GarmentSearch] Local color query for', styleNum, ':', localColors?.length, 'rows, error:', localErr);
 
       if (localColors && localColors.length > 0) {
         const colors = [...new Set(localColors.map(d => d.color_group).filter(c => c && isRealColor(c)) as string[])].sort();
+        console.log('[GarmentSearch] Real colors found:', colors);
         if (colors.length > 0) setAvailableColors(colors);
       }
 
