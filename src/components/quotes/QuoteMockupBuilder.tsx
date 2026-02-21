@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import {
   Upload, Save, Trash2, Loader2, Image as ImageIcon,
-  FlipHorizontal, Send,
+  FlipHorizontal, Send, Camera,
 } from 'lucide-react';
 import { useQuoteMockups, QuoteMockup } from '@/hooks/useQuoteMockups';
 import { QuoteLineItem } from '@/hooks/useQuotes';
@@ -15,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Star } from 'lucide-react';
 
 const PLACEMENT_PRESETS: Record<string, { x: number; y: number; scale: number }> = {
   'Left Chest': { x: 0.35, y: 0.32, scale: 0.15 },
@@ -48,12 +47,47 @@ function LineItemThumb({ imageUrl }: { imageUrl: string }) {
   return <img src={src} alt="" className="h-full w-full object-contain" />;
 }
 
+/** Draw a simple blank t-shirt outline on the canvas as a placeholder */
+function drawBlankShirtPlaceholder(canvas: FabricCanvas, w: number, h: number) {
+  canvas.backgroundColor = '#ffffff';
+  // We'll draw a simple shirt shape using a path
+  const { Path } = require('fabric');
+  const shirtPath = `
+    M ${w * 0.25} ${h * 0.15}
+    L ${w * 0.1} ${h * 0.3}
+    L ${w * 0.2} ${h * 0.35}
+    L ${w * 0.2} ${h * 0.85}
+    L ${w * 0.8} ${h * 0.85}
+    L ${w * 0.8} ${h * 0.35}
+    L ${w * 0.9} ${h * 0.3}
+    L ${w * 0.75} ${h * 0.15}
+    Q ${w * 0.6} ${h * 0.22} ${w * 0.5} ${h * 0.22}
+    Q ${w * 0.4} ${h * 0.22} ${w * 0.25} ${h * 0.15}
+    Z
+  `;
+  try {
+    const shirt = new Path(shirtPath, {
+      fill: '#f0f0f0',
+      stroke: '#d4d4d4',
+      strokeWidth: 2,
+      selectable: false,
+      evented: false,
+    });
+    canvas.add(shirt);
+  } catch {
+    // If Path import fails, just use white background
+  }
+  canvas.renderAll();
+}
+
 export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customerName }: QuoteMockupBuilderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const fabricRef = useRef<FabricCanvas | null>(null);
   const garmentImageRef = useRef<FabricImage | null>(null);
   const artworkImageRef = useRef<FabricImage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const garmentFileInputRef = useRef<HTMLInputElement>(null);
 
   const { mockups, saveMockup, deleteMockup } = useQuoteMockups(quoteId);
   const { toast } = useToast();
@@ -65,10 +99,31 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
   const [artworkRotation, setArtworkRotation] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [manualGarmentUrl, setManualGarmentUrl] = useState<string | null>(null);
 
-  const CANVAS_W = 600;
-  const CANVAS_H = 720;
+  // Compute canvas size dynamically based on available space
+  const [canvasSize, setCanvasSize] = useState({ w: 700, h: 840 });
 
+  useEffect(() => {
+    if (!open) return;
+    const updateSize = () => {
+      // Leave room for sidebars (220 + 300) + padding
+      const availW = Math.min(window.innerWidth - 580, 900);
+      const availH = window.innerHeight - 180;
+      // Maintain 5:6 aspect ratio
+      const w = Math.max(400, Math.min(availW, availH * (5 / 6)));
+      const h = w * (6 / 5);
+      setCanvasSize({ w: Math.round(w), h: Math.round(h) });
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [open]);
+
+  const CANVAS_W = canvasSize.w;
+  const CANVAS_H = canvasSize.h;
+
+  // Initialize fabric canvas — recreate when size changes
   useEffect(() => {
     if (!open || !canvasRef.current) return;
     const timeout = setTimeout(() => {
@@ -77,6 +132,8 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
         width: CANVAS_W, height: CANVAS_H, backgroundColor: '#f5f5f5', selection: true,
       });
       fabricRef.current = canvas;
+      garmentImageRef.current = null;
+      artworkImageRef.current = null;
       setCanvasReady(true);
     }, 100);
     return () => {
@@ -86,25 +143,34 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
       garmentImageRef.current = null;
       artworkImageRef.current = null;
     };
-  }, [open]);
+  }, [open, CANVAS_W, CANVAS_H]);
 
-  // Load line item image as background
+  // Load garment/line-item image OR manual upload OR placeholder
   useEffect(() => {
     if (!canvasReady || !fabricRef.current) return;
     const canvas = fabricRef.current;
     if (garmentImageRef.current) { canvas.remove(garmentImageRef.current); garmentImageRef.current = null; }
 
+    // Determine image source: manual upload > line item image_url > placeholder
     const li = lineItems.find(l => l.id === selectedLineItemId);
-    const rawUrl = li?.image_url;
-    if (!rawUrl) { canvas.backgroundColor = '#ffffff'; canvas.renderAll(); return; }
+    const rawUrl = manualGarmentUrl || li?.image_url;
+
+    if (!rawUrl) {
+      // Draw a placeholder shirt outline
+      drawBlankShirtPlaceholder(canvas, CANVAS_W, CANVAS_H);
+      return;
+    }
 
     const loadImage = async () => {
       let imageUrl = rawUrl;
-      if (!rawUrl.startsWith('http')) {
+      if (!rawUrl.startsWith('http') && !rawUrl.startsWith('data:')) {
         const { data } = await supabase.storage.from('job-photos').createSignedUrl(rawUrl, 3600);
         imageUrl = data?.signedUrl || '';
       }
-      if (!imageUrl) { canvas.backgroundColor = '#ffffff'; canvas.renderAll(); return; }
+      if (!imageUrl) {
+        drawBlankShirtPlaceholder(canvas, CANVAS_W, CANVAS_H);
+        return;
+      }
 
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -120,10 +186,13 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
         garmentImageRef.current = fabricImg;
         canvas.renderAll();
       };
+      img.onerror = () => {
+        drawBlankShirtPlaceholder(canvas, CANVAS_W, CANVAS_H);
+      };
       img.src = imageUrl;
     };
     loadImage();
-  }, [selectedLineItemId, lineItems, canvasReady]);
+  }, [selectedLineItemId, lineItems, canvasReady, manualGarmentUrl, CANVAS_W, CANVAS_H]);
 
   useEffect(() => {
     if (lineItems.length > 0 && !selectedLineItemId) {
@@ -161,7 +230,16 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
       img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
-  }, [placement]);
+  }, [placement, CANVAS_W, CANVAS_H]);
+
+  const handleUploadGarmentImage = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setManualGarmentUrl(e.target?.result as string);
+      toast({ title: 'Garment image loaded' });
+    };
+    reader.readAsDataURL(file);
+  }, [toast]);
 
   const handleScaleChange = (value: number[]) => {
     setArtworkScale(value[0]);
@@ -238,10 +316,13 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none border-none p-0 [&>button]:z-50 [&>button]:top-4 [&>button]:right-4">
+            <DialogDescription className="sr-only">
+              Build mockups by placing artwork on garment images
+            </DialogDescription>
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <DialogTitle className="text-lg font-bold">Mockup Builder</DialogTitle>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_300px] gap-6 p-6 h-[calc(100vh-73px)] overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_300px] gap-4 px-6 pb-6 h-[calc(100vh-73px)] overflow-hidden">
               {/* Left: Line items */}
               <div className="hidden lg:block space-y-2 border-r pr-4 overflow-y-auto">
                 <Label className="text-xs uppercase tracking-wide text-muted-foreground">Line Items</Label>
@@ -249,7 +330,7 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
                   <button
                     key={li.id}
                     type="button"
-                    onClick={() => setSelectedLineItemId(li.id)}
+                    onClick={() => { setSelectedLineItemId(li.id); setManualGarmentUrl(null); }}
                     className={cn(
                       "w-full flex items-center gap-2 rounded-md border p-2 text-left transition-colors",
                       li.id === selectedLineItemId ? "border-primary bg-primary/10" : "hover:bg-muted/40"
@@ -270,11 +351,14 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
               </div>
 
               {/* Center: Canvas */}
-              <div className="flex flex-col items-center gap-3">
-                <div className="border rounded-lg overflow-hidden bg-muted/30 inline-block">
+              <div ref={canvasContainerRef} className="flex flex-col items-center justify-center gap-3 overflow-hidden">
+                <div className="border rounded-lg overflow-hidden bg-muted/30 inline-block shadow-sm">
                   <canvas ref={canvasRef} />
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
+                  <Button variant="outline" size="sm" onClick={() => garmentFileInputRef.current?.click()}>
+                    <Camera className="h-4 w-4 mr-1" /> Upload Blank
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                     <Upload className="h-4 w-4 mr-1" /> Upload Artwork
                   </Button>
@@ -287,10 +371,12 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) loadArtworkFromFile(f); e.target.value = ''; }} />
+                <input ref={garmentFileInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadGarmentImage(f); e.target.value = ''; }} />
               </div>
 
               {/* Right: Controls */}
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto">
                 <div className="space-y-2">
                   <Label>Placement</Label>
                   <Select value={placement} onValueChange={setPlacement}>
@@ -316,6 +402,13 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
                     }
                   }} min={0} max={360} step={1} />
                 </div>
+
+                <div className="pt-2 border-t space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Use "Upload Blank" to load a garment photo (front/back of a shirt). Then use "Upload Artwork" to place your design on top.
+                  </p>
+                </div>
+
                 <Button onClick={handleSave} disabled={isSaving} className="w-full">
                   {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving...</> : <><Save className="h-4 w-4 mr-1" /> Save Mockup</>}
                 </Button>
