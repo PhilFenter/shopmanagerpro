@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Canvas as FabricCanvas, FabricImage } from 'fabric';
+import { Canvas as FabricCanvas, FabricImage, Path } from 'fabric';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -50,8 +50,6 @@ function LineItemThumb({ imageUrl }: { imageUrl: string }) {
 /** Draw a simple blank t-shirt outline on the canvas as a placeholder */
 function drawBlankShirtPlaceholder(canvas: FabricCanvas, w: number, h: number) {
   canvas.backgroundColor = '#ffffff';
-  // We'll draw a simple shirt shape using a path
-  const { Path } = require('fabric');
   const shirtPath = `
     M ${w * 0.25} ${h * 0.15}
     L ${w * 0.1} ${h * 0.3}
@@ -75,7 +73,7 @@ function drawBlankShirtPlaceholder(canvas: FabricCanvas, w: number, h: number) {
     });
     canvas.add(shirt);
   } catch {
-    // If Path import fails, just use white background
+    // fallback: just white background
   }
   canvas.renderAll();
 }
