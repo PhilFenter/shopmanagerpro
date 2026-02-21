@@ -1,8 +1,12 @@
+import { useState, useEffect } from 'react';
 import { useJobGarments } from '@/hooks/useJobGarments';
 import { useJobGarmentMutations } from '@/hooks/useJobGarmentMutations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shirt, Trash2, DollarSign } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Shirt, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface JobGarmentsListProps {
   jobId: string;
@@ -27,6 +31,22 @@ function isHatItem(g: { style?: string | null; description?: string | null; item
   return HAT_KEYWORDS.test(g.style || '') || HAT_KEYWORDS.test(g.description || '') || HAT_KEYWORDS.test(g.item_number || '');
 }
 
+// Standard size order for columns
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'OSFA', 'OS', 'ADJ'];
+
+function sortedSizeKeys(garments: Array<{ sizes: Record<string, number> }>): string[] {
+  const allSizes = new Set<string>();
+  garments.forEach(g => Object.keys(g.sizes || {}).forEach(s => allSizes.add(s)));
+  return Array.from(allSizes).sort((a, b) => {
+    const ai = SIZE_ORDER.indexOf(a.toUpperCase());
+    const bi = SIZE_ORDER.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b);
+  });
+}
+
 export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps) {
   const { garments, isLoading } = useJobGarments(jobId);
   const { deleteGarment } = useJobGarmentMutations(jobId);
@@ -34,7 +54,6 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
   if (isLoading || garments.length === 0) return null;
 
   const allHats = garments.every(isHatItem);
-  const label = allHats ? 'Hats' : 'Garments';
 
   if (compact) {
     return (
@@ -56,102 +75,174 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
     );
   }
 
+  // Printavo-style table view
+  const sizeColumns = sortedSizeKeys(garments);
+  const hasPricing = garments.some(g => (g.unit_cost && g.unit_cost > 0) || (g as any).unit_sell_price);
+  const totalQty = garments.reduce((sum, g) => sum + g.quantity, 0);
+  const totalCost = garments.reduce((sum, g) => sum + (g.total_cost || 0), 0);
+
   return (
-    <div className="space-y-2">
-      {garments.map((g) => {
-        const sizeEntries = Object.entries(g.sizes || {});
-        const gAny = g as any;
-        const hasDecoration = gAny.decoration_type && gAny.decoration_type !== 'other';
-        const hasPlacement = !!gAny.placement;
-        const unitSell = gAny.unit_sell_price;
-        const decoCost = gAny.decoration_cost;
+    <div className="rounded-lg border overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40">
+            <TableHead className="w-[52px] px-2"></TableHead>
+            <TableHead className="min-w-[140px]">Item</TableHead>
+            <TableHead>Color</TableHead>
+            {sizeColumns.map(size => (
+              <TableHead key={size} className="text-center w-[48px] px-1 font-semibold">
+                {size}
+              </TableHead>
+            ))}
+            <TableHead className="text-center w-[52px]">Qty</TableHead>
+            {hasPricing && (
+              <>
+                <TableHead className="text-right w-[72px]">Cost</TableHead>
+                <TableHead className="text-right w-[72px]">Price</TableHead>
+                <TableHead className="text-right w-[80px]">Total</TableHead>
+              </>
+            )}
+            <TableHead className="w-[36px]"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {garments.map((g) => {
+            const gAny = g as any;
+            const hasDecoration = gAny.decoration_type && gAny.decoration_type !== 'other';
 
-        return (
-          <div
-            key={g.id}
-            className="rounded-lg border bg-muted/30 p-3 space-y-2"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">
-                  {g.style || g.description || 'Unknown garment'}
-                </p>
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  {g.item_number && <span>#{g.item_number}</span>}
-                  {g.color && <span>Color: {g.color}</span>}
-                  {gAny.vendor && (
-                    <Badge variant="outline" className="text-xs py-0 h-4">
-                      {gAny.vendor === 'sanmar' ? 'SanMar' : gAny.vendor === 'ss_activewear' ? 'S&S' : gAny.vendor}
-                    </Badge>
+            return (
+              <TableRow key={g.id} className="group">
+                {/* Thumbnail */}
+                <TableCell className="px-2 py-1.5">
+                  {g.image_url ? (
+                    <div className="h-10 w-10 rounded border overflow-hidden bg-muted/20 flex-shrink-0">
+                      <GarmentThumbnail imageUrl={g.image_url} alt={g.style || 'Garment'} />
+                    </div>
+                  ) : (
+                    <div className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center flex-shrink-0">
+                      <Shirt className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium whitespace-nowrap">
-                  ×{g.quantity}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => deleteGarment.mutate(g.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
+                </TableCell>
 
-            {/* Decoration & Placement badges */}
-            {(hasDecoration || hasPlacement) && (
-              <div className="flex flex-wrap gap-1">
-                {hasDecoration && (
-                  <Badge variant="secondary" className="text-xs">
-                    {DECORATION_LABELS[gAny.decoration_type] || gAny.decoration_type}
-                  </Badge>
-                )}
-                {hasPlacement && (
-                  <Badge variant="outline" className="text-xs">
-                    {gAny.placement}
-                  </Badge>
-                )}
-              </div>
-            )}
+                {/* Item info */}
+                <TableCell className="py-1.5">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium leading-tight">
+                      {g.style || g.description || 'Unknown'}
+                    </p>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {g.item_number && (
+                        <span className="text-xs text-muted-foreground">#{g.item_number}</span>
+                      )}
+                      {hasDecoration && (
+                        <Badge variant="secondary" className="text-[10px] py-0 h-4">
+                          {DECORATION_LABELS[gAny.decoration_type] || gAny.decoration_type}
+                        </Badge>
+                      )}
+                      {gAny.placement && (
+                        <Badge variant="outline" className="text-[10px] py-0 h-4">
+                          {gAny.placement}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
 
-            {sizeEntries.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {sizeEntries.map(([size, qty]) => (
-                  <Badge key={size} variant="secondary" className="text-xs font-normal">
-                    {size}: {String(qty)}
-                  </Badge>
-                ))}
-              </div>
-            )}
+                {/* Color */}
+                <TableCell className="py-1.5">
+                  <span className="text-sm">{g.color || '—'}</span>
+                </TableCell>
 
-            {/* Pricing row */}
-            {(g.unit_cost || unitSell) && (
-              <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1 border-t">
-                <DollarSign className="h-3 w-3" />
-                {g.unit_cost != null && g.unit_cost > 0 && (
-                  <span>Cost: <span className="font-mono">${Number(g.unit_cost).toFixed(2)}</span></span>
+                {/* Size columns */}
+                {sizeColumns.map(size => {
+                  const qty = (g.sizes || {})[size];
+                  return (
+                    <TableCell key={size} className="text-center py-1.5 px-1 tabular-nums">
+                      <span className={cn("text-sm", qty ? "font-medium" : "text-muted-foreground/40")}>
+                        {qty || '—'}
+                      </span>
+                    </TableCell>
+                  );
+                })}
+
+                {/* Total qty */}
+                <TableCell className="text-center py-1.5 font-semibold tabular-nums">
+                  {g.quantity}
+                </TableCell>
+
+                {/* Pricing */}
+                {hasPricing && (
+                  <>
+                    <TableCell className="text-right py-1.5 tabular-nums text-sm text-muted-foreground">
+                      {g.unit_cost != null && g.unit_cost > 0 ? `$${Number(g.unit_cost).toFixed(2)}` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right py-1.5 tabular-nums text-sm font-medium">
+                      {gAny.unit_sell_price != null && gAny.unit_sell_price > 0 
+                        ? `$${Number(gAny.unit_sell_price).toFixed(2)}` 
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-right py-1.5 tabular-nums text-sm font-semibold">
+                      {g.total_cost != null && g.total_cost > 0 ? `$${Number(g.total_cost).toFixed(2)}` : '—'}
+                    </TableCell>
+                  </>
                 )}
-                {decoCost != null && decoCost > 0 && (
-                  <span>Deco: <span className="font-mono">${Number(decoCost).toFixed(2)}</span></span>
-                )}
-                {unitSell != null && unitSell > 0 && (
-                  <span className="font-medium text-foreground">
-                    Sell: <span className="font-mono">${Number(unitSell).toFixed(2)}</span>
-                  </span>
-                )}
-                {g.total_cost != null && g.total_cost > 0 && (
-                  <span className="ml-auto">
-                    Total: <span className="font-mono font-medium">${Number(g.total_cost).toFixed(2)}</span>
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+
+                {/* Delete */}
+                <TableCell className="py-1.5 px-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                    onClick={() => deleteGarment.mutate(g.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+        {(garments.length > 1) && (
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={3 + sizeColumns.length} className="text-right text-sm font-medium">
+                Totals
+              </TableCell>
+              <TableCell className="text-center font-bold tabular-nums">{totalQty}</TableCell>
+              {hasPricing && (
+                <>
+                  <TableCell />
+                  <TableCell />
+                  <TableCell className="text-right font-bold tabular-nums">
+                    {totalCost > 0 ? `$${totalCost.toFixed(2)}` : '—'}
+                  </TableCell>
+                </>
+              )}
+              <TableCell />
+            </TableRow>
+          </TableFooter>
+        )}
+      </Table>
     </div>
   );
+}
+
+// Garment thumbnail with signed URL support
+function GarmentThumbnail({ imageUrl, alt }: { imageUrl: string; alt: string }) {
+  const [src, setSrc] = useState(imageUrl.startsWith('http') ? imageUrl : '');
+  
+  useEffect(() => {
+    if (!imageUrl.startsWith('http')) {
+      supabase.storage.from('job-photos').createSignedUrl(imageUrl, 3600)
+        .then(({ data }) => {
+          if (data?.signedUrl) setSrc(data.signedUrl);
+        });
+    } else {
+      setSrc(imageUrl);
+    }
+  }, [imageUrl]);
+
+  if (!src) return <Shirt className="h-4 w-4 text-muted-foreground m-auto" />;
+  return <img src={src} alt={alt} className="w-full h-full object-cover" />;
 }
