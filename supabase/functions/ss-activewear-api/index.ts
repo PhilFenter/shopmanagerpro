@@ -150,13 +150,16 @@ serve(async (req) => {
           throw new Error(`No products found for style ${params.styleNumber}`);
         }
 
-        // Group by style + color, aggregate sizes
+        // Group by style + color, track per-size pricing
         const catalogMap = new Map<string, any>();
         for (const product of products) {
           const style = (styleInfo.uniqueStyleName || styleInfo.styleName || partNumber).toString().toUpperCase().trim();
           const color = product.colorName || product.color1 || "";
           const size = product.sizeName || product.size || "";
           const key = `${style}|${color}`;
+
+          const piecePrice = parseFloat(product.customerPrice) || parseFloat(product.piecePrice) || 0;
+          const casePrice = parseFloat(product.casePrice) || parseFloat(product.customerPrice) || 0;
 
           if (!catalogMap.has(key)) {
             catalogMap.set(key, {
@@ -165,14 +168,23 @@ serve(async (req) => {
               brand: brandName || product.brandName || null,
               category: category || null,
               color_group: color || null,
-              case_price: parseFloat(product.casePrice) || parseFloat(product.customerPrice) || 0,
-              piece_price: parseFloat(product.customerPrice) || parseFloat(product.piecePrice) || 0,
+              case_price: casePrice,
+              piece_price: piecePrice,
               price_code: null,
               msrp: parseFloat(product.msrp) || parseFloat(product.retailPrice) || 0,
               map_price: parseFloat(product.mapPrice) || 0,
               supplier: "ss_activewear",
               sizes: [] as string[],
             });
+          } else {
+            // Keep highest price (for larger sizes like 2XL+)
+            const existing = catalogMap.get(key)!;
+            if (piecePrice > existing.piece_price) {
+              existing.piece_price = piecePrice;
+            }
+            if (casePrice > existing.case_price) {
+              existing.case_price = casePrice;
+            }
           }
           if (size && !catalogMap.get(key)!.sizes.includes(size)) {
             catalogMap.get(key)!.sizes.push(size);
@@ -193,7 +205,7 @@ serve(async (req) => {
         for (const row of rows) {
           const { error } = await serviceClient
             .from("product_catalog")
-            .upsert(row, { onConflict: "style_number,size_range,supplier", ignoreDuplicates: false });
+            .upsert(row, { onConflict: "style_number,color_group,size_range,supplier", ignoreDuplicates: false });
           if (!error) upserted++;
         }
 
