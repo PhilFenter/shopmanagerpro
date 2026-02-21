@@ -691,15 +691,39 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
               </div>
               <div className="flex items-center gap-4 text-sm">
                 <span className="font-medium">Total Qty: <span className="font-mono text-primary">{sizeTotal > 0 ? sizeTotal : '—'}</span></span>
-                <span className="text-muted-foreground">Garment Cost: <span className="font-mono">${newItem.garment_cost.toFixed(2)}</span></span>
-                <div className="flex items-center gap-1">
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                <div>
+                  <Label className="text-xs">Garment Cost (wholesale)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="h-8 text-sm font-mono"
+                    value={newItem.garment_cost || ''}
+                    onChange={(e) => setNewItem(p => ({ ...p, garment_cost: parseFloat(e.target.value) || 0 }))}
+                    placeholder="Auto from catalog"
+                  />
+                </div>
+                <div>
                   <Label className="text-xs">Markup %</Label>
                   <Input
                     type="number"
-                    className="h-7 w-20 text-sm"
+                    className="h-8 text-sm"
                     value={newItem.garment_markup_pct}
                     onChange={(e) => setNewItem(p => ({ ...p, garment_markup_pct: parseFloat(e.target.value) || 100 }))}
                   />
+                </div>
+                <div>
+                  <Label className="text-xs">Unit Sell Price</Label>
+                  <div className="h-8 flex items-center px-3 rounded-md border border-input bg-muted/30 text-sm font-mono font-medium">
+                    ${(newItem.garment_cost * (newItem.garment_markup_pct / 100)).toFixed(2)}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Garment Subtotal</Label>
+                  <div className="h-8 flex items-center px-3 rounded-md border border-input bg-muted/30 text-sm font-mono font-medium text-primary">
+                    ${(newItem.garment_cost * (newItem.garment_markup_pct / 100) * (sizeTotal > 0 ? sizeTotal : 1)).toFixed(2)}
+                  </div>
                 </div>
               </div>
             </div>
