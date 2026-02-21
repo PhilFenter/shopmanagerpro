@@ -1111,6 +1111,7 @@ export type Database = {
       }
       quote_line_items: {
         Row: {
+          color: string | null
           created_at: string
           decoration_cost: number | null
           decoration_params: Json | null
@@ -1118,8 +1119,10 @@ export type Database = {
           garment_cost: number | null
           garment_markup_pct: number | null
           id: string
+          image_url: string | null
           line_total: number | null
           notes: string | null
+          placement: string | null
           quantity: number
           quote_id: string
           service_type: string
@@ -1129,6 +1132,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           decoration_cost?: number | null
           decoration_params?: Json | null
@@ -1136,8 +1140,10 @@ export type Database = {
           garment_cost?: number | null
           garment_markup_pct?: number | null
           id?: string
+          image_url?: string | null
           line_total?: number | null
           notes?: string | null
+          placement?: string | null
           quantity?: number
           quote_id: string
           service_type?: string
@@ -1147,6 +1153,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           decoration_cost?: number | null
           decoration_params?: Json | null
@@ -1154,8 +1161,10 @@ export type Database = {
           garment_cost?: number | null
           garment_markup_pct?: number | null
           id?: string
+          image_url?: string | null
           line_total?: number | null
           notes?: string | null
+          placement?: string | null
           quantity?: number
           quote_id?: string
           service_type?: string
@@ -1176,6 +1185,11 @@ export type Database = {
       }
       quotes: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
+          apply_sales_tax: boolean
+          city: string | null
+          company: string | null
           converted_job_id: string | null
           created_at: string
           created_by: string | null
@@ -1183,16 +1197,30 @@ export type Database = {
           customer_id: string | null
           customer_name: string
           customer_phone: string | null
+          delivery_method: string | null
           expires_at: string | null
           id: string
+          is_nonprofit: boolean
           notes: string | null
+          payment_terms: string | null
+          po_number: string | null
           quote_number: string | null
           raw_email: string | null
+          requested_date: string | null
+          shipping_address: string | null
+          state: string | null
           status: string
+          tax_rate: number
           total_price: number | null
           updated_at: string
+          zip: string | null
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          apply_sales_tax?: boolean
+          city?: string | null
+          company?: string | null
           converted_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -1200,16 +1228,30 @@ export type Database = {
           customer_id?: string | null
           customer_name: string
           customer_phone?: string | null
+          delivery_method?: string | null
           expires_at?: string | null
           id?: string
+          is_nonprofit?: boolean
           notes?: string | null
+          payment_terms?: string | null
+          po_number?: string | null
           quote_number?: string | null
           raw_email?: string | null
+          requested_date?: string | null
+          shipping_address?: string | null
+          state?: string | null
           status?: string
+          tax_rate?: number
           total_price?: number | null
           updated_at?: string
+          zip?: string | null
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          apply_sales_tax?: boolean
+          city?: string | null
+          company?: string | null
           converted_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -1217,14 +1259,23 @@ export type Database = {
           customer_id?: string | null
           customer_name?: string
           customer_phone?: string | null
+          delivery_method?: string | null
           expires_at?: string | null
           id?: string
+          is_nonprofit?: boolean
           notes?: string | null
+          payment_terms?: string | null
+          po_number?: string | null
           quote_number?: string | null
           raw_email?: string | null
+          requested_date?: string | null
+          shipping_address?: string | null
+          state?: string | null
           status?: string
+          tax_rate?: number
           total_price?: number | null
           updated_at?: string
+          zip?: string | null
         }
         Relationships: [
           {

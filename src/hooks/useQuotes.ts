@@ -9,6 +9,21 @@ export interface Quote {
   customer_name: string;
   customer_email: string | null;
   customer_phone: string | null;
+  customer_id: string | null;
+  company: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  is_nonprofit: boolean;
+  apply_sales_tax: boolean;
+  tax_rate: number;
+  delivery_method: string | null;
+  shipping_address: string | null;
+  requested_date: string | null;
+  po_number: string | null;
+  payment_terms: string | null;
   status: string;
   notes: string | null;
   raw_email: string | null;
@@ -35,6 +50,9 @@ export interface QuoteLineItem {
   line_total: number;
   notes: string | null;
   sort_order: number;
+  color: string | null;
+  placement: string | null;
+  image_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +61,21 @@ export interface CreateQuoteInput {
   customer_name: string;
   customer_email?: string;
   customer_phone?: string;
+  customer_id?: string;
+  company?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  is_nonprofit?: boolean;
+  apply_sales_tax?: boolean;
+  tax_rate?: number;
+  delivery_method?: string;
+  shipping_address?: string;
+  requested_date?: string;
+  po_number?: string;
+  payment_terms?: string;
   notes?: string;
   raw_email?: string;
 }
