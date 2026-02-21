@@ -159,63 +159,86 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
       return;
     }
 
-    // If line item has a style_number, try fetching from supplier API
+    // If line item has a style_number, try finding an image
     const styleNumber = li?.style_number;
     if (styleNumber && !fetchedStylesRef.current.has(`${styleNumber}|${li?.color || ''}`)) {
       fetchedStylesRef.current.add(`${styleNumber}|${li?.color || ''}`);
       setIsFetchingImage(true);
 
-      // Build style variants to try: original, then stripped of trailing size letters (e.g. "6210M" -> "6210")
-      const baseStyle = styleNumber.toUpperCase().trim();
-      const strippedStyle = baseStyle.replace(/[- ]?(XS|S|M|L|XL|2XL|3XL|4XL|5XL|XXL|XXXL)$/i, '');
-      const stylesToTry = [baseStyle, ...(strippedStyle !== baseStyle ? [strippedStyle] : [])];
-
       (async () => {
         try {
-          for (const tryStyle of stylesToTry) {
-            // Try SanMar
-            const sanmarResp = await supabase.functions.invoke('sanmar-api', {
-              body: { action: 'getProductInfo', styleNumber: tryStyle, color: li?.color || undefined },
-            });
+          // 1. Check job_garments for existing images matching this style (e.g. from Printavo)
+          const styleSearch = styleNumber.replace(/[-\s]/g, '%');
+          const { data: garments } = await supabase
+            .from('job_garments')
+            .select('image_url, color')
+            .not('image_url', 'is', null)
+            .or(`style.ilike.%${styleSearch}%,item_number.ilike.%${styleSearch}%`)
+            .limit(10);
 
-            if (sanmarResp.data?.success && sanmarResp.data?.items?.length > 0) {
-              const items = sanmarResp.data.items;
-              const imgItem = items.find((i: any) => i.colorProductImage) ||
-                             items.find((i: any) => i.frontModel) ||
-                             items.find((i: any) => i.frontFlat) ||
-                             items.find((i: any) => i.productImage) ||
-                             items.find((i: any) => i.thumbnailImage);
-              const imageUrl = imgItem?.colorProductImage || imgItem?.frontModel || imgItem?.frontFlat || imgItem?.productImage || imgItem?.thumbnailImage;
-              if (imageUrl) {
-                setIsFetchingImage(false);
-                loadGarmentImage(canvas, imageUrl);
-                await supabase.from('quote_line_items').update({ image_url: imageUrl }).eq('id', li!.id);
-                return;
-              }
-            }
-
-            // Try S&S Activewear
-            const ssResp = await supabase.functions.invoke('ss-activewear-api', {
-              body: { action: 'getProducts', styleNumber: tryStyle },
-            });
-
-            if (ssResp.data?.success && ssResp.data?.products?.length > 0) {
-              const products = ssResp.data.products;
-              const colorMatch = li?.color
-                ? products.find((p: any) => (p.colorName || '').toLowerCase() === li.color!.toLowerCase())
-                : null;
-              const product = colorMatch || products[0];
-              const imageUrl = product?.colorFrontImage || product?.styleImage || product?.colorSideImage;
-              if (imageUrl) {
-                setIsFetchingImage(false);
-                loadGarmentImage(canvas, imageUrl);
-                await supabase.from('quote_line_items').update({ image_url: imageUrl }).eq('id', li!.id);
-                return;
-              }
+          if (garments && garments.length > 0) {
+            // Prefer matching color
+            const colorMatch = li?.color
+              ? garments.find(g => g.color?.toLowerCase() === li.color!.toLowerCase())
+              : null;
+            const bestMatch = colorMatch || garments[0];
+            if (bestMatch.image_url) {
+              setIsFetchingImage(false);
+              loadGarmentImage(canvas, bestMatch.image_url);
+              await supabase.from('quote_line_items').update({ image_url: bestMatch.image_url }).eq('id', li!.id);
+              return;
             }
           }
+
+          // 2. Try supplier APIs as fallback
+          const baseStyle = styleNumber.toUpperCase().trim();
+          const strippedStyle = baseStyle.replace(/[- ]?(XS|S|M|L|XL|2XL|3XL|4XL|5XL|XXL|XXXL)$/i, '');
+          const stylesToTry = [baseStyle, ...(strippedStyle !== baseStyle ? [strippedStyle] : [])];
+
+          for (const tryStyle of stylesToTry) {
+            try {
+              const sanmarResp = await supabase.functions.invoke('sanmar-api', {
+                body: { action: 'getProductInfo', styleNumber: tryStyle, color: li?.color || undefined },
+              });
+              if (sanmarResp.data?.success && sanmarResp.data?.items?.length > 0) {
+                const items = sanmarResp.data.items;
+                const imgItem = items.find((i: any) => i.colorProductImage) ||
+                               items.find((i: any) => i.frontModel) ||
+                               items.find((i: any) => i.frontFlat) ||
+                               items.find((i: any) => i.productImage) ||
+                               items.find((i: any) => i.thumbnailImage);
+                const imageUrl = imgItem?.colorProductImage || imgItem?.frontModel || imgItem?.frontFlat || imgItem?.productImage || imgItem?.thumbnailImage;
+                if (imageUrl) {
+                  setIsFetchingImage(false);
+                  loadGarmentImage(canvas, imageUrl);
+                  await supabase.from('quote_line_items').update({ image_url: imageUrl }).eq('id', li!.id);
+                  return;
+                }
+              }
+            } catch { /* SanMar failed, continue */ }
+
+            try {
+              const ssResp = await supabase.functions.invoke('ss-activewear-api', {
+                body: { action: 'getProducts', styleNumber: tryStyle },
+              });
+              if (ssResp.data?.success && ssResp.data?.products?.length > 0) {
+                const products = ssResp.data.products;
+                const colorMatch = li?.color
+                  ? products.find((p: any) => (p.colorName || '').toLowerCase() === li.color!.toLowerCase())
+                  : null;
+                const product = colorMatch || products[0];
+                const imageUrl = product?.colorFrontImage || product?.styleImage || product?.colorSideImage;
+                if (imageUrl) {
+                  setIsFetchingImage(false);
+                  loadGarmentImage(canvas, imageUrl);
+                  await supabase.from('quote_line_items').update({ image_url: imageUrl }).eq('id', li!.id);
+                  return;
+                }
+              }
+            } catch { /* S&S failed, continue */ }
+          }
         } catch (e) {
-          console.log('Failed to fetch garment image from API:', e);
+          console.log('Failed to fetch garment image:', e);
         }
         setIsFetchingImage(false);
         drawBlankShirtPlaceholder(canvas, CANVAS_W, CANVAS_H);
