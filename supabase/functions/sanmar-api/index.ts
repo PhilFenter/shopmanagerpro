@@ -377,7 +377,8 @@ serve(async (req) => {
 
         for (const item of items) {
           const style = (item.style || styleUpper).toUpperCase().trim();
-          const color = item.catalogColor || item.color || "";
+          // Use full color name (e.g. "Athletic Heather") not abbreviated catalogColor ("Athletic Hthr")
+          const color = item.color || item.catalogColor || "";
           const size = item.size || "";
           const key = `${style}|${color}`;
 
@@ -428,7 +429,7 @@ serve(async (req) => {
           delete row.sizes;
           const { error } = await serviceClient
             .from("product_catalog")
-            .upsert(row, { onConflict: "style_number,size_range,supplier", ignoreDuplicates: false });
+            .upsert(row, { onConflict: "style_number,color_group,size_range,supplier", ignoreDuplicates: false });
           if (!error) upserted++;
         }
 
