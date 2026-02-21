@@ -10,6 +10,7 @@ import { useGarmentSearch, GarmentSearchResult } from '@/hooks/useGarmentSearch'
 import { useJobGarmentMutations, CreateGarmentInput } from '@/hooks/useJobGarmentMutations';
 import { usePricingMatrices } from '@/hooks/usePricingMatrices';
 import { ServiceType } from '@/hooks/useJobs';
+import { supabase } from '@/integrations/supabase/client';
 
 const DECORATION_METHODS: { value: string; label: string }[] = [
   { value: 'screen_print', label: 'Screen Print' },
@@ -56,10 +57,12 @@ export function GarmentSearchDialog({
   const [query, setQuery] = useState('');
   const [selectedResult, setSelectedResult] = useState<GarmentSearchResult | null>(null);
   const [selectedColor, setSelectedColor] = useState('');
+  const [availableColors, setAvailableColors] = useState<string[]>([]);
+  const [loadingColors, setLoadingColors] = useState(false);
   const [quantity, setQuantity] = useState(jobQuantity);
   const [decorationType, setDecorationType] = useState(jobServiceType || 'other');
   const [placement, setPlacement] = useState('');
-  const [decorationParam, setDecorationParam] = useState(1); // colors/stitches/etc
+  const [decorationParam, setDecorationParam] = useState(1);
   const [overridePrice, setOverridePrice] = useState<number | null>(null);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -81,6 +84,8 @@ export function GarmentSearchDialog({
       setQuery('');
       setSelectedResult(null);
       setSelectedColor('');
+      setAvailableColors([]);
+      setLoadingColors(false);
       setQuantity(jobQuantity);
       setDecorationType(jobServiceType || 'other');
       setPlacement('');
@@ -90,7 +95,79 @@ export function GarmentSearchDialog({
     }
   }, [open, jobQuantity, jobServiceType, clearResults]);
 
-  // Pricing calculation
+  // Filter out generic color_group values
+  const isRealColor = (c: string) => !['COLORS', 'HEATHERS', 'BASICS'].includes(c.toUpperCase());
+
+  const handleSelectResult = async (result: GarmentSearchResult) => {
+    setSelectedResult(result);
+    setSelectedColor('');
+    
+    // Start with colors from search result, filtering out generic names
+    const searchColors = (result.colors || []).filter(isRealColor);
+    setAvailableColors(searchColors);
+
+    // Fetch real colors from local catalog + API
+    const styleNum = result.style_number;
+    if (!styleNum) return;
+
+    setLoadingColors(true);
+    try {
+      // Query local catalog first
+      const { data: localColors } = await supabase
+        .from('product_catalog')
+        .select('color_group')
+        .ilike('style_number', styleNum)
+        .not('color_group', 'is', null);
+
+      if (localColors && localColors.length > 0) {
+        const colors = [...new Set(localColors.map(d => d.color_group).filter(c => c && isRealColor(c)) as string[])].sort();
+        if (colors.length > 0) setAvailableColors(colors);
+      }
+
+      // If no real colors found locally, try API sync
+      if (!localColors || localColors.filter(d => d.color_group && isRealColor(d.color_group)).length === 0) {
+        try {
+          const sanmarResp = await supabase.functions.invoke('sanmar-api', {
+            body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
+          });
+          if (sanmarResp.data?.success && sanmarResp.data?.upserted > 0) {
+            const { data: syncedColors } = await supabase
+              .from('product_catalog')
+              .select('color_group')
+              .ilike('style_number', styleNum)
+              .not('color_group', 'is', null);
+            if (syncedColors) {
+              const colors = [...new Set(syncedColors.map(d => d.color_group).filter(c => c && isRealColor(c)) as string[])].sort();
+              if (colors.length > 0) setAvailableColors(colors);
+            }
+          } else {
+            // Try S&S
+            const ssResp = await supabase.functions.invoke('ss-activewear-api', {
+              body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
+            });
+            if (ssResp.data?.success && ssResp.data?.upserted > 0) {
+              const { data: syncedColors } = await supabase
+                .from('product_catalog')
+                .select('color_group')
+                .ilike('style_number', styleNum)
+                .not('color_group', 'is', null);
+              if (syncedColors) {
+                const colors = [...new Set(syncedColors.map(d => d.color_group).filter(c => c && isRealColor(c)) as string[])].sort();
+                if (colors.length > 0) setAvailableColors(colors);
+              }
+            }
+          }
+        } catch (e) {
+          console.log('API color sync failed:', e);
+        }
+      }
+    } catch (e) {
+      console.log('Color fetch failed:', e);
+    } finally {
+      setLoadingColors(false);
+    }
+  };
+
   const garmentCost = selectedResult?.piece_price || 0;
   
   // Find applicable pricing matrix
@@ -175,8 +252,8 @@ export function GarmentSearchDialog({
                 key={`${result.style_number}-${result.source}-${idx}`}
                 type="button"
                 onClick={() => {
-                  setSelectedResult(result);
-                  if (result.colors.length === 1) setSelectedColor(result.colors[0]);
+                  handleSelectResult(result);
+                  if (result.colors.filter(isRealColor).length === 1) setSelectedColor(result.colors.filter(isRealColor)[0]);
                 }}
                 className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors"
               >
@@ -234,7 +311,7 @@ export function GarmentSearchDialog({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setSelectedResult(null); setSelectedColor(''); }}
+                  onClick={() => { setSelectedResult(null); setSelectedColor(''); setAvailableColors([]); }}
                 >
                   Change
                 </Button>
@@ -249,7 +326,15 @@ export function GarmentSearchDialog({
             </div>
 
             {/* Color Selection */}
-            {selectedResult.colors.length > 0 && (
+            {loadingColors ? (
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-input text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading colors...
+                </div>
+              </div>
+            ) : availableColors.length > 0 ? (
               <div className="space-y-2">
                 <Label>Color</Label>
                 <Select value={selectedColor} onValueChange={setSelectedColor}>
@@ -257,13 +342,13 @@ export function GarmentSearchDialog({
                     <SelectValue placeholder="Select color" />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedResult.colors.map(c => (
+                    {availableColors.map(c => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
+            ) : null}
 
             {/* Quantity */}
             <div className="space-y-2">
