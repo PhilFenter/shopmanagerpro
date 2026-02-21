@@ -126,13 +126,32 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const {
-      startDate = null,
       endDate = null,
       minOrderNumber = null,
       maxPages = 10,
+      fullScrape = false,
     } = body;
 
-    console.log(`Sync options: startDate=${startDate}, endDate=${endDate}, minOrderNumber=${minOrderNumber}, maxPages=${maxPages}`);
+    // Incremental: find the most recent Printavo order's created_at
+    let startDate = body.startDate || null;
+    if (!startDate && !fullScrape) {
+      const { data: latestJob } = await supabase
+        .from("jobs")
+        .select("created_at")
+        .eq("source", "printavo")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (latestJob?.created_at) {
+        startDate = latestJob.created_at.split("T")[0];
+        console.log(`Incremental sync: fetching Printavo orders since ${startDate}`);
+      } else {
+        startDate = `${new Date().getFullYear()}-01-01`;
+        console.log(`No existing Printavo orders, defaulting to YTD: ${startDate}`);
+      }
+    }
+
+    console.log(`Sync options: startDate=${startDate}, endDate=${endDate}, minOrderNumber=${minOrderNumber}, maxPages=${maxPages}, fullScrape=${fullScrape}`);
 
     // Pass 1 query: orders WITHOUT line items (low complexity, 25/page)
     const ordersQuery = `
