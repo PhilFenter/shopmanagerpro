@@ -1,5 +1,4 @@
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
 import { hasFinancialAccess } from '@/hooks/useJobs';
 import { QuotesList } from '@/components/quotes/QuotesList';
 import { PricingMatrixView } from '@/components/quotes/PricingMatrixView';
@@ -7,15 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calculator, FileText } from 'lucide-react';
 
 export default function Quotes() {
-  const { role, loading } = useAuth();
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>;
-  }
-
-  if (!hasFinancialAccess(role)) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const { role } = useAuth();
 
   return (
     <div className="space-y-6">
@@ -35,10 +26,12 @@ export default function Quotes() {
             <FileText className="h-4 w-4" />
             Quotes
           </TabsTrigger>
-          <TabsTrigger value="pricing" className="gap-2">
-            <Calculator className="h-4 w-4" />
-            Pricing Matrices
-          </TabsTrigger>
+          {hasFinancialAccess(role) && (
+            <TabsTrigger value="pricing" className="gap-2">
+              <Calculator className="h-4 w-4" />
+              Pricing Matrices
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="quotes" className="mt-4">
