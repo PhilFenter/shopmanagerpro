@@ -137,60 +137,63 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
       setAvailableColors([]);
     }
 
-    // Sync from API to populate local catalog with all colors + pricing
-    if (styleNum && (source === 'sanmar' || source === 'ss_activewear' || !source)) {
-      setSyncingColors(true);
-      try {
-        // Try SanMar sync first
-        const sanmarResp = await supabase.functions.invoke('sanmar-api', {
-          body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
-        });
-        
-        if (sanmarResp.data?.success && sanmarResp.data?.upserted > 0) {
-          // Fetch all synced colors from catalog
-          const { data: catalogColors } = await supabase
-            .from('product_catalog')
-            .select('color_group, piece_price, case_price')
-            .ilike('style_number', styleNum)
-            .not('color_group', 'is', null);
-          if (catalogColors && catalogColors.length > 0) {
-            const colors = [...new Set(catalogColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
-            setAvailableColors(colors);
-          }
-        } else {
-          // Try S&S sync
-          const ssResp = await supabase.functions.invoke('ss-activewear-api', {
+    if (!styleNum) return;
+
+    setSyncingColors(true);
+    try {
+      // First, try to load colors from local catalog
+      const { data: localColors } = await supabase
+        .from('product_catalog')
+        .select('color_group')
+        .ilike('style_number', styleNum)
+        .not('color_group', 'is', null);
+      
+      if (localColors && localColors.length > 0) {
+        const colors = [...new Set(localColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
+        setAvailableColors(colors);
+      }
+
+      // Then try API sync for fresh data (SanMar first, then S&S)
+      if (source !== 'catalog' || (localColors && localColors.length === 0)) {
+        try {
+          const sanmarResp = await supabase.functions.invoke('sanmar-api', {
             body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
           });
-          if (ssResp.data?.success && ssResp.data?.upserted > 0) {
+          
+          if (sanmarResp.data?.success && sanmarResp.data?.upserted > 0) {
             const { data: catalogColors } = await supabase
               .from('product_catalog')
-              .select('color_group, piece_price, case_price')
+              .select('color_group')
               .ilike('style_number', styleNum)
               .not('color_group', 'is', null);
             if (catalogColors && catalogColors.length > 0) {
               const colors = [...new Set(catalogColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
               setAvailableColors(colors);
             }
+          } else {
+            const ssResp = await supabase.functions.invoke('ss-activewear-api', {
+              body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
+            });
+            if (ssResp.data?.success && ssResp.data?.upserted > 0) {
+              const { data: catalogColors } = await supabase
+                .from('product_catalog')
+                .select('color_group')
+                .ilike('style_number', styleNum)
+                .not('color_group', 'is', null);
+              if (catalogColors && catalogColors.length > 0) {
+                const colors = [...new Set(catalogColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
+                setAvailableColors(colors);
+              }
+            }
           }
+        } catch (e) {
+          console.log('API sync for colors failed, using local data:', e);
         }
-      } catch (e) {
-        console.log('API sync for colors failed:', e);
-        // Fall back to local catalog query
-        try {
-          const { data } = await supabase
-            .from('product_catalog')
-            .select('color_group')
-            .ilike('style_number', styleNum)
-            .not('color_group', 'is', null);
-          if (data && data.length > 0) {
-            const colors = [...new Set(data.map(d => d.color_group).filter(Boolean) as string[])].sort();
-            setAvailableColors(colors);
-          }
-        } catch { /* empty */ }
-      } finally {
-        setSyncingColors(false);
       }
+    } catch (e) {
+      console.log('Color loading failed:', e);
+    } finally {
+      setSyncingColors(false);
     }
   };
 
