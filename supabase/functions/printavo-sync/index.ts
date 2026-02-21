@@ -155,6 +155,7 @@ Deno.serve(async (req) => {
                   price
                   product { brand description itemNumber color }
                   sizes { size count }
+                  mockups(first: 1) { nodes { fullImageUrl thumbnailUrl } }
                 }
               }
             }
@@ -410,6 +411,12 @@ Deno.serve(async (req) => {
               ? [product.brand, product.description].filter(Boolean).join(' ') || null
               : null;
 
+            // Get image from Printavo mockups if available
+            const mockupNodes = (item.mockups?.nodes || []);
+            const imageUrl = mockupNodes.length > 0
+              ? (mockupNodes[0].fullImageUrl || mockupNodes[0].thumbnailUrl || null)
+              : null;
+
             garmentRows.push({
               job_id: jobId,
               style: style,
@@ -420,6 +427,7 @@ Deno.serve(async (req) => {
               quantity: item.items || 0,
               unit_cost: item.price || 0,
               printavo_line_item_id: item.id,
+              image_url: imageUrl,
             });
           }
         }
