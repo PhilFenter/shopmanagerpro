@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useQuotes, useQuoteLineItems, Quote, QuoteLineItem } from '@/hooks/useQuotes';
 import { usePricingMatrices } from '@/hooks/usePricingMatrices';
 import { useProductCatalog } from '@/hooks/useProductCatalog';
@@ -88,6 +89,8 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
 
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSizes, setShowSizes] = useState(false);
+  const [availableColors, setAvailableColors] = useState<string[]>([]);
+  const [selectedStyleForPricing, setSelectedStyleForPricing] = useState<string>('');
 
   if (!quote) return <div>Quote not found</div>;
 
@@ -110,6 +113,9 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
   };
 
   const selectCatalogItem = (item: any) => {
+    const colors = item.colors || (item.color_group ? [item.color_group] : []);
+    setAvailableColors(colors);
+    setSelectedStyleForPricing(item.style_number || item.style || '');
     setNewItem((prev) => ({
       ...prev,
       style_number: item.style_number || item.style || '',
@@ -120,6 +126,28 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
     }));
     setSearchResults([]);
     clearResults();
+  };
+
+  const handleColorChange = async (color: string) => {
+    setNewItem((p) => ({ ...p, color }));
+    // Try to look up price for this specific color/style combo from catalog
+    if (selectedStyleForPricing) {
+      try {
+        const { data } = await supabase
+          .from('product_catalog')
+          .select('piece_price, case_price')
+          .ilike('style_number', selectedStyleForPricing)
+          .ilike('color_group', `%${color}%`)
+          .limit(1)
+          .maybeSingle();
+        if (data) {
+          const price = data.piece_price || data.case_price || 0;
+          if (price > 0) {
+            setNewItem((p) => ({ ...p, garment_cost: price }));
+          }
+        }
+      } catch { /* keep existing price */ }
+    }
   };
 
   const getDecorationPrice = () => {
@@ -172,6 +200,8 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
       color: '', placement: '', sizes: {}, image_url: '',
     });
     setShowSizes(false);
+    setAvailableColors([]);
+    setSelectedStyleForPricing('');
 
     // Update quote total
     const sizeQty = sizeTotal > 0 ? sizeTotal : newItem.quantity;
@@ -450,11 +480,24 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
               </div>
               <div>
                 <Label>Color</Label>
-                <Input
-                  value={newItem.color}
-                  onChange={(e) => setNewItem((p) => ({ ...p, color: e.target.value }))}
-                  placeholder="e.g. Navy, Athletic Heather"
-                />
+                {availableColors.length > 0 ? (
+                  <Select value={newItem.color} onValueChange={handleColorChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select color..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {availableColors.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={newItem.color}
+                    onChange={(e) => setNewItem((p) => ({ ...p, color: e.target.value }))}
+                    placeholder="e.g. Navy, Athletic Heather"
+                  />
+                )}
               </div>
               <div>
                 <Label>Decoration Method</Label>
