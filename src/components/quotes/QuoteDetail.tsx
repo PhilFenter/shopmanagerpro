@@ -70,6 +70,7 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
 
   const quote = quotes.find((q) => q.id === quoteId);
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [syncingColors, setSyncingColors] = useState(false);
 
   // New line item state
   const [newItem, setNewItem] = useState({
@@ -114,24 +115,9 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
 
   const selectCatalogItem = async (item: any) => {
     const styleNum = item.style_number || item.style || '';
+    const source = item.source as string;
     
-    // Gather colors: from API results (colors array) or fetch all from catalog
-    let colors: string[] = item.colors || [];
-    if (colors.length === 0 && styleNum) {
-      // Query all color_group values for this style from catalog
-      try {
-        const { data } = await supabase
-          .from('product_catalog')
-          .select('color_group')
-          .ilike('style_number', styleNum)
-          .not('color_group', 'is', null);
-        if (data && data.length > 0) {
-          colors = [...new Set(data.map(d => d.color_group).filter(Boolean) as string[])].sort();
-        }
-      } catch { /* fallback to empty */ }
-    }
-    
-    setAvailableColors(colors);
+    // Set initial state immediately
     setSelectedStyleForPricing(styleNum);
     setNewItem((prev) => ({
       ...prev,
@@ -143,6 +129,69 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
     }));
     setSearchResults([]);
     clearResults();
+
+    // If item already has colors from API search results, use them
+    if (item.colors && item.colors.length > 0) {
+      setAvailableColors(item.colors.sort());
+    } else {
+      setAvailableColors([]);
+    }
+
+    // Sync from API to populate local catalog with all colors + pricing
+    if (styleNum && (source === 'sanmar' || source === 'ss_activewear' || !source)) {
+      setSyncingColors(true);
+      try {
+        // Try SanMar sync first
+        const sanmarResp = await supabase.functions.invoke('sanmar-api', {
+          body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
+        });
+        
+        if (sanmarResp.data?.success && sanmarResp.data?.upserted > 0) {
+          // Fetch all synced colors from catalog
+          const { data: catalogColors } = await supabase
+            .from('product_catalog')
+            .select('color_group, piece_price, case_price')
+            .ilike('style_number', styleNum)
+            .not('color_group', 'is', null);
+          if (catalogColors && catalogColors.length > 0) {
+            const colors = [...new Set(catalogColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
+            setAvailableColors(colors);
+          }
+        } else {
+          // Try S&S sync
+          const ssResp = await supabase.functions.invoke('ss-activewear-api', {
+            body: { action: 'syncProduct', styleNumber: styleNum.toUpperCase().trim() },
+          });
+          if (ssResp.data?.success && ssResp.data?.upserted > 0) {
+            const { data: catalogColors } = await supabase
+              .from('product_catalog')
+              .select('color_group, piece_price, case_price')
+              .ilike('style_number', styleNum)
+              .not('color_group', 'is', null);
+            if (catalogColors && catalogColors.length > 0) {
+              const colors = [...new Set(catalogColors.map(d => d.color_group).filter(Boolean) as string[])].sort();
+              setAvailableColors(colors);
+            }
+          }
+        }
+      } catch (e) {
+        console.log('API sync for colors failed:', e);
+        // Fall back to local catalog query
+        try {
+          const { data } = await supabase
+            .from('product_catalog')
+            .select('color_group')
+            .ilike('style_number', styleNum)
+            .not('color_group', 'is', null);
+          if (data && data.length > 0) {
+            const colors = [...new Set(data.map(d => d.color_group).filter(Boolean) as string[])].sort();
+            setAvailableColors(colors);
+          }
+        } catch { /* empty */ }
+      } finally {
+        setSyncingColors(false);
+      }
+    }
   };
 
   const handleColorChange = async (color: string) => {
@@ -497,7 +546,12 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
               </div>
               <div>
                 <Label>Color</Label>
-                {availableColors.length > 0 ? (
+                {syncingColors ? (
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-input text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading colors from API...
+                  </div>
+                ) : availableColors.length > 0 ? (
                   <Select value={newItem.color} onValueChange={handleColorChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select color..." />
