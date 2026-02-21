@@ -110,13 +110,33 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const {
-      startDate = `${new Date().getFullYear()}-01-01`,
       endDate = null,
       minOrderNumber = null,
       maxPages = 10,
+      fullScrape = false,
     } = body;
 
-    console.log(`Sync options: startDate=${startDate}, endDate=${endDate}, minOrderNumber=${minOrderNumber}, maxPages=${maxPages}`);
+    // Incremental: find the most recent Shopify order's created_at
+    let startDate = body.startDate || null;
+    if (!startDate && !fullScrape) {
+      const { data: latestJob } = await supabase
+        .from("jobs")
+        .select("created_at")
+        .eq("source", "shopify")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (latestJob?.created_at) {
+        // Start from the latest order date (will be deduped by external_id)
+        startDate = latestJob.created_at.split("T")[0];
+        console.log(`Incremental sync: fetching Shopify orders since ${startDate}`);
+      } else {
+        startDate = `${new Date().getFullYear()}-01-01`;
+        console.log(`No existing Shopify orders, defaulting to YTD: ${startDate}`);
+      }
+    }
+
+    console.log(`Sync options: startDate=${startDate}, endDate=${endDate}, minOrderNumber=${minOrderNumber}, maxPages=${maxPages}, fullScrape=${fullScrape}`);
 
     const baseUrl = `https://${shopifyStoreDomain}/admin/api/2024-01/orders.json`;
 
