@@ -13,6 +13,7 @@ import { Package, Clock, AlertTriangle } from 'lucide-react';
 import { JobGarmentsList } from './JobGarmentsList';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 import { cn as clsx } from '@/lib/utils';
+import { DueDatePicker } from './DueDatePicker';
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   embroidery: 'Embroidery',
@@ -147,18 +148,18 @@ export function JobCard({ job, onClick }: JobCardProps) {
           )}
         </div>
 
-        {/* Due date urgency */}
-        {urgency !== 'none' && (
-          <div className={clsx("flex items-center gap-1 text-xs font-medium", URGENCY_TEXT_COLORS[urgency])}>
-            <AlertTriangle className="h-3 w-3" />
-            <span>{urgencyLabel}</span>
-            {(job as any).due_date && (
-              <span className="text-muted-foreground ml-auto font-normal">
-                Due {new Date((job as any).due_date).toLocaleDateString()}
-              </span>
-            )}
-          </div>
-        )}
+        {/* Due date */}
+        <div className="flex items-center gap-1 text-xs" onClick={(e) => e.stopPropagation()}>
+          {urgency !== 'none' && (
+            <div className={clsx("flex items-center gap-1 font-medium", URGENCY_TEXT_COLORS[urgency])}>
+              <AlertTriangle className="h-3 w-3" />
+              <span>{urgencyLabel}</span>
+            </div>
+          )}
+          <span className="ml-auto">
+            <DueDatePicker jobId={job.id} dueDate={job.due_date} />
+          </span>
+        </div>
 
         {/* Advance Button */}
         <div onClick={(e) => e.stopPropagation()}>
