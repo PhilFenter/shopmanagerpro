@@ -19,7 +19,7 @@ import Settings from "./pages/Settings";
 import Team from "./pages/Team";
 import Financials from "./pages/Financials";
 import Integrations from "./pages/Integrations";
-import Quotes from "./pages/Quotes";
+
 import NotFound from "./pages/NotFound";
 import ActionItems from "./pages/ActionItems";
 import Customers from "./pages/Customers";
@@ -141,16 +141,6 @@ function App() {
                     <ProtectedRoute>
                       <AppLayout>
                         <Integrations />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/quotes"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Quotes />
                       </AppLayout>
                     </ProtectedRoute>
                   }

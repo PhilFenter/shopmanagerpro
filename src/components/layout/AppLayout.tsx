@@ -22,7 +22,7 @@ import {
   ChevronRight,
   Plug,
   Eye,
-  Calculator,
+  
   ListTodo,
   UserCheck,
   MessagesSquare,
@@ -36,7 +36,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
-  { name: 'Quotes', href: '/quotes', icon: Calculator },
+  
   { 
     name: 'Production',
     icon: Printer,
