@@ -411,47 +411,68 @@ export type Database = {
         Row: {
           color: string | null
           created_at: string
+          decoration_cost: number | null
+          decoration_type: string | null
           description: string | null
           id: string
+          image_url: string | null
           item_number: string | null
           job_id: string
+          markup_pct: number | null
+          placement: string | null
           printavo_line_item_id: string | null
           quantity: number
           sizes: Json | null
           style: string | null
           total_cost: number | null
           unit_cost: number | null
+          unit_sell_price: number | null
           updated_at: string
+          vendor: string | null
         }
         Insert: {
           color?: string | null
           created_at?: string
+          decoration_cost?: number | null
+          decoration_type?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           item_number?: string | null
           job_id: string
+          markup_pct?: number | null
+          placement?: string | null
           printavo_line_item_id?: string | null
           quantity?: number
           sizes?: Json | null
           style?: string | null
           total_cost?: number | null
           unit_cost?: number | null
+          unit_sell_price?: number | null
           updated_at?: string
+          vendor?: string | null
         }
         Update: {
           color?: string | null
           created_at?: string
+          decoration_cost?: number | null
+          decoration_type?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           item_number?: string | null
           job_id?: string
+          markup_pct?: number | null
+          placement?: string | null
           printavo_line_item_id?: string | null
           quantity?: number
           sizes?: Json | null
           style?: string | null
           total_cost?: number | null
           unit_cost?: number | null
+          unit_sell_price?: number | null
           updated_at?: string
+          vendor?: string | null
         }
         Relationships: [
           {

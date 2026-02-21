@@ -15,6 +15,7 @@ import { AdvanceStageButton } from '@/components/jobs/AdvanceStageButton';
 import { JobRecipesList } from '@/components/jobs/JobRecipesList';
 import { MaterialCostInput } from '@/components/jobs/MaterialCostInput';
 import { JobGarmentsList } from '@/components/jobs/JobGarmentsList';
+import { GarmentSearchDialog } from '@/components/jobs/GarmentSearchDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,7 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2, CreditCard, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2, CreditCard, AlertTriangle, Shirt } from 'lucide-react';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -45,6 +46,7 @@ export default function Jobs() {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [garmentSearchOpen, setGarmentSearchOpen] = useState(false);
 
   // Always get fresh job data from the query
   const selectedJob = selectedJobId ? jobs.find(j => j.id === selectedJobId) ?? null : null;
@@ -231,8 +233,33 @@ export default function Jobs() {
                   <JobRecipesList jobId={selectedJob.id} />
                 </div>
 
-                {/* Garments from Printavo */}
-                <JobGarmentsList jobId={selectedJob.id} />
+                {/* Garments */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium flex items-center gap-1.5">
+                      <Shirt className="h-4 w-4" />
+                      Garments
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGarmentSearchOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Garment
+                    </Button>
+                  </div>
+                  <JobGarmentsList jobId={selectedJob.id} />
+                </div>
+
+                {/* Garment Search Dialog */}
+                <GarmentSearchDialog
+                  open={garmentSearchOpen}
+                  onOpenChange={setGarmentSearchOpen}
+                  jobId={selectedJob.id}
+                  jobQuantity={selectedJob.quantity}
+                  jobServiceType={selectedJob.service_type}
+                />
 
                 {/* Material Cost Input - Admin/Manager only */}
                 {hasFinancialAccess(role) && (
