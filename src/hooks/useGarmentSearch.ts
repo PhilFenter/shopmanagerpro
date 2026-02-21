@@ -76,6 +76,8 @@ export function useGarmentSearch() {
               const first = items[0];
               const colors = [...new Set(items.map((i: any) => i.color).filter(Boolean))] as string[];
               const sizes = [...new Set(items.map((i: any) => i.size).filter(Boolean))] as string[];
+              // Find the first image URL from any item
+              const imageUrl = items.find((i: any) => i.thumbnailImage)?.thumbnailImage || undefined;
               
               allResults.push({
                 source: 'sanmar',
@@ -87,6 +89,7 @@ export function useGarmentSearch() {
                 sizes,
                 piece_price: 0, // Will be fetched with pricing action
                 case_price: 0,
+                image_url: imageUrl,
               });
 
               // Also fetch pricing

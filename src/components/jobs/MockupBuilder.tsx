@@ -101,8 +101,13 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
     }
 
     const garment = garments.find(g => g.id === selectedGarmentId);
-    const imageUrl = garment ? (garment as any).image_url : null;
-    if (!imageUrl) return;
+    const imageUrl = garment?.image_url;
+    if (!imageUrl) {
+      // No garment image - set white background for a clean canvas
+      canvas.backgroundColor = '#ffffff';
+      canvas.renderAll();
+      return;
+    }
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -122,14 +127,20 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
       garmentImageRef.current = fabricImg;
       canvas.renderAll();
     };
+    img.onerror = () => {
+      console.warn('Failed to load garment image:', imageUrl);
+      canvas.backgroundColor = '#ffffff';
+      canvas.renderAll();
+    };
     img.src = imageUrl;
   }, [selectedGarmentId, garments, canvasReady]);
 
-  // Auto-select first garment with image
+  // Auto-select first garment with image (or just first garment)
   useEffect(() => {
     if (garments.length > 0 && !selectedGarmentId) {
-      const withImage = garments.find(g => (g as any).image_url);
+      const withImage = garments.find(g => g.image_url);
       if (withImage) setSelectedGarmentId(withImage.id);
+      else setSelectedGarmentId(garments[0].id);
     }
   }, [garments, selectedGarmentId]);
 

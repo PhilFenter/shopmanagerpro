@@ -230,6 +230,7 @@ serve(async (req) => {
           color: extractTag(block, "color"),
           size: extractTag(block, "size"),
           caseQty: parseInt(extractTag(block, "caseQty")) || 0,
+          thumbnailImage: extractTag(block, "thumbnailImage") || extractTag(block, "productImage") || "",
         }));
 
         result = { styleNumber: params.styleNumber, items, count: items.length };
