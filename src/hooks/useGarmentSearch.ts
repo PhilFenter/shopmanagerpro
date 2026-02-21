@@ -154,5 +154,6 @@ export function useGarmentSearch() {
     setIsSearching(false);
   }, [searchCatalog, toast]);
 
-  return { results, isSearching, search, clearResults: () => setResults([]) };
+  const clearResults = useCallback(() => setResults([]), []);
+  return { results, isSearching, search, clearResults };
 }
