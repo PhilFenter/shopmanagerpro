@@ -328,15 +328,22 @@ Deno.serve(async (req) => {
         // Parse variant_title for size/color (Shopify format: "Size / Color" or "Color / Size")
         const variantParts = item.variant_title?.split(" / ") || [];
 
+        // Extract base style number from title for catalog matching
+        // e.g. "R-112 Heather Grey/Black Embroidered..." -> SKU "R-112"
+        // e.g. "PC54 Navy Crew Neck" -> SKU "PC54"
+        const titleStr = item.title || item.name || "";
+        const extractedSku = titleStr.match(/^([A-Z]{1,4}[- ]?\d{2,5}\w{0,3})/i)?.[1] || null;
+
         garmentRows.push({
           job_id: jobId,
-          style: item.title || item.name || null,
-          item_number: item.sku || null,
+          style: titleStr || null,
+          item_number: item.sku || extractedSku || null,
           color: variantParts.length > 1 ? variantParts[1] : (variantParts[0] || null),
           description: item.variant_title || null,
           sizes: variantParts.length > 0 ? { [variantParts[0] || "OS"]: item.quantity } : { OS: item.quantity },
           quantity: item.quantity,
-          unit_cost: parseFloat(item.price) || 0,
+          unit_cost: 0, // Will be resolved by catalog/API lookup below
+          unit_sell_price: parseFloat(item.price) || 0, // Store the sell price separately
           printavo_line_item_id: null, // Not from Printavo
         });
       }
@@ -367,17 +374,29 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // Helper to build price map from catalog
+      let finalUnmatched = new Set<string>();
+
+      // Helper to build price map from catalog (paginated to avoid 1000-row limit)
       const buildPriceMap = async () => {
-        const { data: catalogItems } = await serviceClient
-          .from("product_catalog")
-          .select("style_number, piece_price, case_price")
-          .gt("piece_price", 0);
         const map = new Map<string, number>();
-        for (const item of catalogItems || []) {
-          const key = item.style_number.toUpperCase();
-          if (!map.has(key)) map.set(key, item.piece_price || item.case_price || 0);
+        let offset = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data: catalogItems, error: catError } = await serviceClient
+            .from("product_catalog")
+            .select("style_number, piece_price, case_price")
+            .gt("piece_price", 0)
+            .range(offset, offset + pageSize - 1);
+          if (catError) { console.error("Catalog query error:", catError); break; }
+          if (!catalogItems || catalogItems.length === 0) break;
+          for (const item of catalogItems) {
+            const key = item.style_number.toUpperCase();
+            if (!map.has(key)) map.set(key, item.piece_price || item.case_price || 0);
+          }
+          offset += catalogItems.length;
+          if (catalogItems.length < pageSize) break;
         }
+        console.log(`Price map built: ${map.size} styles`);
         return map;
       };
 
@@ -413,11 +432,15 @@ Deno.serve(async (req) => {
           .in("job_id", batch);
 
         for (const g of garments || []) {
+          // Try item_number first (extracted SKU), then style
           const sku = g.item_number || g.style || "";
           if (!sku) continue;
           const price = findPrice(priceMap, sku);
           if (price > 0) {
-            await supabase.from("job_garments").update({ total_cost: price * g.quantity }).eq("id", g.id);
+            await supabase.from("job_garments").update({ 
+              unit_cost: price, 
+              total_cost: price * g.quantity 
+            }).eq("id", g.id);
             costsMatched++;
           } else {
             // Extract base style for supplier lookup
@@ -427,11 +450,13 @@ Deno.serve(async (req) => {
             if (richardsonMatch) {
               unmatchedStyles.add(richardsonMatch[1]);
             } else {
+              // Strip common size suffixes before lookup
+              const stripped = upper.replace(/[- ](XS|S|M|L|XL|2XL|3XL|4XL|5XL|6XL)$/i, "");
               for (const sep of ["-", "_", " "]) {
-                const prefix = upper.split(sep)[0];
+                const prefix = stripped.split(sep)[0];
                 if (prefix) { unmatchedStyles.add(prefix); break; }
               }
-              if (!unmatchedStyles.has(upper)) unmatchedStyles.add(upper);
+              if (!unmatchedStyles.has(stripped)) unmatchedStyles.add(stripped);
             }
           }
         }
@@ -509,7 +534,7 @@ Deno.serve(async (req) => {
               if (!sku) continue;
               const price = findPrice(priceMap, sku);
               if (price > 0) {
-                await supabase.from("job_garments").update({ total_cost: price * g.quantity }).eq("id", g.id);
+                await supabase.from("job_garments").update({ unit_cost: price, total_cost: price * g.quantity }).eq("id", g.id);
                 costsMatched++;
               }
             }
@@ -517,7 +542,7 @@ Deno.serve(async (req) => {
         }
 
         // Collect final unmatched styles (still no price after all fallbacks)
-        const finalUnmatched = new Set<string>();
+        finalUnmatched = new Set<string>();
         for (let i = 0; i < jobIdsForCost.length; i += 50) {
           const batch = jobIdsForCost.slice(i, i + 50);
           const { data: garments } = await supabase
