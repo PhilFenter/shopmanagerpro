@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowRight, Loader2, ShoppingBag, Printer, FileText, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
+import { DueDatePicker } from './DueDatePicker';
 
 interface KanbanBoardProps {
   jobs: Job[];
@@ -261,13 +262,18 @@ function KanbanCard({ job, stage, onSelect, onAdvance, isAdvancing }: KanbanCard
           )}
         </div>
 
-        {/* Due date urgency */}
-        {urgency !== 'none' && (
-          <div className={cn("flex items-center gap-1 text-[10px] font-medium", URGENCY_TEXT_COLORS[urgency])}>
-            <AlertTriangle className="h-3 w-3" />
-            <span>{urgencyLabel}</span>
-          </div>
-        )}
+        {/* Due date */}
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {urgency !== 'none' && (
+            <div className={cn("flex items-center gap-1 text-[10px] font-medium", URGENCY_TEXT_COLORS[urgency])}>
+              <AlertTriangle className="h-3 w-3" />
+              <span>{urgencyLabel}</span>
+            </div>
+          )}
+          <span className="ml-auto">
+            <DueDatePicker jobId={job.id} dueDate={(job as any).due_date} compact />
+          </span>
+        </div>
 
         {/* Show final stage options at customer_notified */}
         {atFinalChoice && (
