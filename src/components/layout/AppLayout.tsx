@@ -36,6 +36,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
+  { name: 'Quotes', href: '/quotes', icon: Calculator },
   { 
     name: 'Production',
     icon: Printer,
@@ -57,7 +58,6 @@ const adminNavigation = [
 const financialNavigation = [
   { name: 'Customers', href: '/customers', icon: UserCheck },
   { name: 'Messages', href: '/messages', icon: MessagesSquare },
-  { name: 'Quotes', href: '/quotes', icon: Calculator },
   { name: 'Financials', href: '/financials', icon: DollarSign },
   { name: 'Integrations', href: '/integrations', icon: Plug },
   { name: 'Settings', href: '/settings', icon: Settings },
