@@ -542,6 +542,82 @@ export type Database = {
           },
         ]
       }
+      job_mockups: {
+        Row: {
+          approved_at: string | null
+          approved_by_customer: boolean | null
+          canvas_state: Json | null
+          created_at: string
+          created_by: string | null
+          customer_notes: string | null
+          filename: string
+          garment_id: string | null
+          id: string
+          is_approval_version: boolean
+          job_id: string
+          placement: string | null
+          storage_path: string
+          updated_at: string
+          version_number: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by_customer?: boolean | null
+          canvas_state?: Json | null
+          created_at?: string
+          created_by?: string | null
+          customer_notes?: string | null
+          filename: string
+          garment_id?: string | null
+          id?: string
+          is_approval_version?: boolean
+          job_id: string
+          placement?: string | null
+          storage_path: string
+          updated_at?: string
+          version_number?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by_customer?: boolean | null
+          canvas_state?: Json | null
+          created_at?: string
+          created_by?: string | null
+          customer_notes?: string | null
+          filename?: string
+          garment_id?: string | null
+          id?: string
+          is_approval_version?: boolean
+          job_id?: string
+          placement?: string | null
+          storage_path?: string
+          updated_at?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_mockups_garment_id_fkey"
+            columns: ["garment_id"]
+            isOneToOne: false
+            referencedRelation: "job_garments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_mockups_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_mockups_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_photos: {
         Row: {
           created_at: string
