@@ -8,11 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import {
   Upload, Save, RotateCw, ZoomIn, ZoomOut, Trash2, Loader2,
-  Star, Send, Image as ImageIcon, Undo, FlipHorizontal,
+  Star, Send, Image as ImageIcon, Undo, FlipHorizontal, Camera,
 } from 'lucide-react';
 import { useMockups, JobMockup } from '@/hooks/useMockups';
 import { useJobPhotos } from '@/hooks/useJobPhotos';
 import { useJobGarments } from '@/hooks/useJobGarments';
+import { useJobGarmentMutations } from '@/hooks/useJobGarmentMutations';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -41,10 +42,12 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
   const garmentImageRef = useRef<FabricImage | null>(null);
   const artworkImageRef = useRef<FabricImage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const garmentImageInputRef = useRef<HTMLInputElement>(null);
 
   const { mockups, isLoading: mockupsLoading, saveMockup, setApprovalVersion, deleteMockup } = useMockups(jobId);
   const { photos } = useJobPhotos(jobId);
   const { garments } = useJobGarments(jobId);
+  const { updateGarment } = useJobGarmentMutations(jobId);
   const { toast } = useToast();
 
   const [open, setOpen] = useState(false);
@@ -55,6 +58,7 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
   const [isSaving, setIsSaving] = useState(false);
   const [isSendingApproval, setIsSendingApproval] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [isUploadingGarmentImage, setIsUploadingGarmentImage] = useState(false);
 
   const CANVAS_W = 500;
   const CANVAS_H = 600;
@@ -101,38 +105,55 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
     }
 
     const garment = garments.find(g => g.id === selectedGarmentId);
-    const imageUrl = garment?.image_url;
-    if (!imageUrl) {
-      // No garment image - set white background for a clean canvas
+    const rawUrl = garment?.image_url;
+    if (!rawUrl) {
       canvas.backgroundColor = '#ffffff';
       canvas.renderAll();
       return;
     }
 
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const fabricImg = new FabricImage(img);
-      const scale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height) * 0.9;
-      fabricImg.set({
-        scaleX: scale,
-        scaleY: scale,
-        left: (CANVAS_W - img.width * scale) / 2,
-        top: (CANVAS_H - img.height * scale) / 2,
-        selectable: false,
-        evented: false,
-        hasControls: false,
-      });
-      canvas.insertAt(0, fabricImg);
-      garmentImageRef.current = fabricImg;
-      canvas.renderAll();
+    // If it's a storage path (not a full URL), get a signed URL
+    const loadImage = async () => {
+      let imageUrl = rawUrl;
+      if (!rawUrl.startsWith('http')) {
+        const { data: urlData } = await supabase.storage
+          .from('job-photos')
+          .createSignedUrl(rawUrl, 3600);
+        imageUrl = urlData?.signedUrl || '';
+      }
+      if (!imageUrl) {
+        canvas.backgroundColor = '#ffffff';
+        canvas.renderAll();
+        return;
+      }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const fabricImg = new FabricImage(img);
+        const scale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height) * 0.9;
+        fabricImg.set({
+          scaleX: scale,
+          scaleY: scale,
+          left: (CANVAS_W - img.width * scale) / 2,
+          top: (CANVAS_H - img.height * scale) / 2,
+          selectable: false,
+          evented: false,
+          hasControls: false,
+        });
+        canvas.insertAt(0, fabricImg);
+        garmentImageRef.current = fabricImg;
+        canvas.renderAll();
+      };
+      img.onerror = () => {
+        console.warn('Failed to load garment image:', imageUrl);
+        canvas.backgroundColor = '#ffffff';
+        canvas.renderAll();
+      };
+      img.src = imageUrl;
     };
-    img.onerror = () => {
-      console.warn('Failed to load garment image:', imageUrl);
-      canvas.backgroundColor = '#ffffff';
-      canvas.renderAll();
-    };
-    img.src = imageUrl;
+
+    loadImage();
   }, [selectedGarmentId, garments, canvasReady]);
 
   // Auto-select first garment with image (or just first garment)
@@ -257,6 +278,39 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
     fabricRef.current.renderAll();
   };
 
+  // Upload a garment blank image and save it to the garment record
+  const handleUploadGarmentImage = async (file: File) => {
+    if (!selectedGarmentId) {
+      toast({ variant: 'destructive', title: 'Select a garment first' });
+      return;
+    }
+    setIsUploadingGarmentImage(true);
+    try {
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const storagePath = `garment-blanks/${selectedGarmentId}/${timestamp}_${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('job-photos')
+        .upload(storagePath, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      // Store the storage path (not signed URL) so it persists
+      updateGarment.mutate(
+        { id: selectedGarmentId, image_url: storagePath } as any,
+        {
+          onSuccess: () => {
+            toast({ title: 'Garment image uploaded' });
+          },
+        }
+      );
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Upload failed', description: e.message });
+    } finally {
+      setIsUploadingGarmentImage(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!fabricRef.current) return;
     setIsSaving(true);
@@ -378,6 +432,52 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
                         ))}
                       </SelectContent>
                     </Select>
+
+                    {/* Garment image upload - show when selected garment has no image */}
+                    {selectedGarmentId && !garments.find(g => g.id === selectedGarmentId)?.image_url && (
+                      <div className="p-2 rounded-md border border-dashed border-muted-foreground/40 text-center space-y-2">
+                        <p className="text-xs text-muted-foreground">No garment blank image. Upload one to use as the mockup background.</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => garmentImageInputRef.current?.click()}
+                          disabled={isUploadingGarmentImage}
+                          className="w-full"
+                        >
+                          {isUploadingGarmentImage ? (
+                            <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                          ) : (
+                            <><Camera className="h-4 w-4 mr-1" /> Upload Garment Image</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                    {selectedGarmentId && garments.find(g => g.id === selectedGarmentId)?.image_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => garmentImageInputRef.current?.click()}
+                        disabled={isUploadingGarmentImage}
+                        className="text-xs text-muted-foreground"
+                      >
+                        {isUploadingGarmentImage ? (
+                          <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                        ) : (
+                          <><Camera className="h-4 w-4 mr-1" /> Replace garment image</>
+                        )}
+                      </Button>
+                    )}
+                    <input
+                      ref={garmentImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadGarmentImage(file);
+                        e.target.value = '';
+                      }}
+                    />
                   </div>
                 )}
 
