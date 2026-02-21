@@ -112,13 +112,30 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
     }
   };
 
-  const selectCatalogItem = (item: any) => {
-    const colors = item.colors || (item.color_group ? [item.color_group] : []);
+  const selectCatalogItem = async (item: any) => {
+    const styleNum = item.style_number || item.style || '';
+    
+    // Gather colors: from API results (colors array) or fetch all from catalog
+    let colors: string[] = item.colors || [];
+    if (colors.length === 0 && styleNum) {
+      // Query all color_group values for this style from catalog
+      try {
+        const { data } = await supabase
+          .from('product_catalog')
+          .select('color_group')
+          .ilike('style_number', styleNum)
+          .not('color_group', 'is', null);
+        if (data && data.length > 0) {
+          colors = [...new Set(data.map(d => d.color_group).filter(Boolean) as string[])].sort();
+        }
+      } catch { /* fallback to empty */ }
+    }
+    
     setAvailableColors(colors);
-    setSelectedStyleForPricing(item.style_number || item.style || '');
+    setSelectedStyleForPricing(styleNum);
     setNewItem((prev) => ({
       ...prev,
-      style_number: item.style_number || item.style || '',
+      style_number: styleNum,
       description: `${item.brand || ''} ${item.description || ''}`.trim(),
       garment_cost: item.piece_price || item.case_price || 0,
       image_url: item.image_url || '',
