@@ -98,7 +98,8 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
   const [isSaving, setIsSaving] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
   const [manualGarmentUrl, setManualGarmentUrl] = useState<string | null>(null);
-
+  const [isFetchingImage, setIsFetchingImage] = useState(false);
+  const fetchedStylesRef = useRef<Set<string>>(new Set());
   // Compute canvas size dynamically based on available space
   const [canvasSize, setCanvasSize] = useState({ w: 700, h: 840 });
 
@@ -143,23 +144,88 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
     };
   }, [open, CANVAS_W, CANVAS_H]);
 
-  // Load garment/line-item image OR manual upload OR placeholder
+  // Auto-fetch garment image from supplier API when line item has style_number but no image
   useEffect(() => {
     if (!canvasReady || !fabricRef.current) return;
     const canvas = fabricRef.current;
     if (garmentImageRef.current) { canvas.remove(garmentImageRef.current); garmentImageRef.current = null; }
 
-    // Determine image source: manual upload > line item image_url > placeholder
     const li = lineItems.find(l => l.id === selectedLineItemId);
     const rawUrl = manualGarmentUrl || li?.image_url;
 
-    if (!rawUrl) {
-      // Draw a placeholder shirt outline
-      drawBlankShirtPlaceholder(canvas, CANVAS_W, CANVAS_H);
+    // If we have a direct image URL, load it
+    if (rawUrl) {
+      loadGarmentImage(canvas, rawUrl);
       return;
     }
 
-    const loadImage = async () => {
+    // If line item has a style_number, try fetching from supplier API
+    const styleNumber = li?.style_number;
+    if (styleNumber && !fetchedStylesRef.current.has(`${styleNumber}|${li?.color || ''}`)) {
+      fetchedStylesRef.current.add(`${styleNumber}|${li?.color || ''}`);
+      setIsFetchingImage(true);
+
+      (async () => {
+        try {
+          // Try SanMar first
+          const sanmarResp = await supabase.functions.invoke('sanmar-api', {
+            body: { action: 'getProductInfo', styleNumber: styleNumber.toUpperCase().trim(), color: li?.color || undefined },
+          });
+
+          if (sanmarResp.data?.success && sanmarResp.data?.items?.length > 0) {
+            const items = sanmarResp.data.items;
+            // Prefer colorProductImage > frontModel > frontFlat > productImage > thumbnailImage
+            const imgItem = items.find((i: any) => i.colorProductImage) ||
+                           items.find((i: any) => i.frontModel) ||
+                           items.find((i: any) => i.frontFlat) ||
+                           items.find((i: any) => i.productImage) ||
+                           items.find((i: any) => i.thumbnailImage);
+            const imageUrl = imgItem?.colorProductImage || imgItem?.frontModel || imgItem?.frontFlat || imgItem?.productImage || imgItem?.thumbnailImage;
+            if (imageUrl) {
+              setIsFetchingImage(false);
+              loadGarmentImage(canvas, imageUrl);
+              // Also save the image_url back to the line item for future use
+              await supabase.from('quote_line_items').update({ image_url: imageUrl }).eq('id', li!.id);
+              return;
+            }
+          }
+
+          // Try S&S Activewear
+          const ssResp = await supabase.functions.invoke('ss-activewear-api', {
+            body: { action: 'getProducts', styleNumber: styleNumber.toUpperCase().trim() },
+          });
+
+          if (ssResp.data?.success && ssResp.data?.products?.length > 0) {
+            const products = ssResp.data.products;
+            // Find matching color or use first
+            const colorMatch = li?.color
+              ? products.find((p: any) => (p.colorName || '').toLowerCase() === li.color!.toLowerCase())
+              : null;
+            const product = colorMatch || products[0];
+            const imageUrl = product?.colorFrontImage || product?.styleImage || product?.colorSideImage;
+            if (imageUrl) {
+              setIsFetchingImage(false);
+              loadGarmentImage(canvas, imageUrl);
+              await supabase.from('quote_line_items').update({ image_url: imageUrl }).eq('id', li!.id);
+              return;
+            }
+          }
+        } catch (e) {
+          console.log('Failed to fetch garment image from API:', e);
+        }
+        setIsFetchingImage(false);
+        drawBlankShirtPlaceholder(canvas, CANVAS_W, CANVAS_H);
+      })();
+      return;
+    }
+
+    // No image source available
+    drawBlankShirtPlaceholder(canvas, CANVAS_W, CANVAS_H);
+  }, [selectedLineItemId, lineItems, canvasReady, manualGarmentUrl, CANVAS_W, CANVAS_H]);
+
+  // Helper to load an image URL onto the canvas as garment background
+  const loadGarmentImage = useCallback((canvas: FabricCanvas, rawUrl: string) => {
+    const doLoad = async () => {
       let imageUrl = rawUrl;
       if (!rawUrl.startsWith('http') && !rawUrl.startsWith('data:')) {
         const { data } = await supabase.storage.from('job-photos').createSignedUrl(rawUrl, 3600);
@@ -173,6 +239,7 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
+        if (garmentImageRef.current) canvas.remove(garmentImageRef.current);
         const fabricImg = new FabricImage(img);
         const scale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height) * 0.9;
         fabricImg.set({
@@ -189,8 +256,8 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
       };
       img.src = imageUrl;
     };
-    loadImage();
-  }, [selectedLineItemId, lineItems, canvasReady, manualGarmentUrl, CANVAS_W, CANVAS_H]);
+    doLoad();
+  }, [CANVAS_W, CANVAS_H]);
 
   useEffect(() => {
     if (lineItems.length > 0 && !selectedLineItemId) {
@@ -350,8 +417,14 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
 
               {/* Center: Canvas */}
               <div ref={canvasContainerRef} className="flex flex-col items-center justify-center gap-3 overflow-hidden">
-                <div className="border rounded-lg overflow-hidden bg-muted/30 inline-block shadow-sm">
+                <div className="relative border rounded-lg overflow-hidden bg-muted/30 inline-block shadow-sm">
                   <canvas ref={canvasRef} />
+                  {isFetchingImage && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                      <p className="text-sm text-muted-foreground">Loading garment image...</p>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
                   <Button variant="outline" size="sm" onClick={() => garmentFileInputRef.current?.click()}>
