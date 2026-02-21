@@ -16,6 +16,7 @@ import { JobRecipesList } from '@/components/jobs/JobRecipesList';
 import { MaterialCostInput } from '@/components/jobs/MaterialCostInput';
 import { JobGarmentsList } from '@/components/jobs/JobGarmentsList';
 import { GarmentSearchDialog } from '@/components/jobs/GarmentSearchDialog';
+import { MockupBuilder } from '@/components/jobs/MockupBuilder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -272,6 +273,14 @@ export default function Jobs() {
                 {/* Photos */}
                 <JobPhotoUpload 
                   jobId={selectedJob.id} 
+                  customerEmail={selectedJob.customer_email}
+                  customerName={selectedJob.customer_name}
+                  orderNumber={selectedJob.order_number}
+                />
+
+                {/* Mockup Builder */}
+                <MockupBuilder
+                  jobId={selectedJob.id}
                   customerEmail={selectedJob.customer_email}
                   customerName={selectedJob.customer_name}
                   orderNumber={selectedJob.order_number}
