@@ -508,17 +508,27 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // Helper to build price map from catalog
+      // Helper to build price map from catalog (paginated to avoid 1000-row limit)
       const buildPriceMap = async () => {
-        const { data: catalogItems } = await serviceClient
-          .from("product_catalog")
-          .select("style_number, piece_price, case_price")
-          .gt("piece_price", 0);
         const map = new Map<string, number>();
-        for (const item of catalogItems || []) {
-          const key = item.style_number.toUpperCase();
-          if (!map.has(key)) map.set(key, item.piece_price || item.case_price || 0);
+        let offset = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data: catalogItems, error: catError } = await serviceClient
+            .from("product_catalog")
+            .select("style_number, piece_price, case_price")
+            .gt("piece_price", 0)
+            .range(offset, offset + pageSize - 1);
+          if (catError) { console.error("Catalog query error:", catError); break; }
+          if (!catalogItems || catalogItems.length === 0) break;
+          for (const item of catalogItems) {
+            const key = item.style_number.toUpperCase();
+            if (!map.has(key)) map.set(key, item.piece_price || item.case_price || 0);
+          }
+          offset += catalogItems.length;
+          if (catalogItems.length < pageSize) break;
         }
+        console.log(`Price map built: ${map.size} styles`);
         return map;
       };
 
