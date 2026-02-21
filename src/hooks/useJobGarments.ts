@@ -13,6 +13,13 @@ export interface JobGarment {
   unit_cost: number | null;
   total_cost: number | null;
   printavo_line_item_id: string | null;
+  image_url: string | null;
+  vendor: string | null;
+  decoration_type: string | null;
+  placement: string | null;
+  markup_pct: number | null;
+  decoration_cost: number | null;
+  unit_sell_price: number | null;
   created_at: string;
 }
 
