@@ -73,24 +73,46 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
     const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: authError } = await supabase.auth.getClaims(token);
-    if (authError || !claims?.claims) {
-      console.error("Auth error:", authError);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const isServiceRole = token === serviceRoleKey;
 
-    const userId = claims.claims.sub;
-    console.log("Authenticated user:", userId);
+    let supabase;
+    let userId: string | undefined;
+
+    if (isServiceRole) {
+      // Cron/automated call — use service role client
+      supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        serviceRoleKey
+      );
+      // Get first admin user as the created_by
+      const { data: adminRole } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin")
+        .limit(1)
+        .single();
+      userId = adminRole?.user_id;
+      console.log("Service role auth (cron), using admin user:", userId);
+    } else {
+      // User call — validate JWT
+      supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: claims, error: authError } = await supabase.auth.getClaims(token);
+      if (authError || !claims?.claims) {
+        console.error("Auth error:", authError);
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = claims.claims.sub;
+      console.log("Authenticated user:", userId);
+    }
 
     const printavoEmail = Deno.env.get("PRINTAVO_API_EMAIL");
     const printavoToken = Deno.env.get("PRINTAVO_API_TOKEN");
