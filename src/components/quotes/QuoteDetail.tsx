@@ -145,13 +145,27 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
     const styleNum = item.style_number || item.style || '';
     const source = item.source as string;
     
-    // Set initial state immediately
+    // Use the highest price across all size variants (Printavo-style: highest priced garment in the line)
+    let bestPrice = item.piece_price || item.case_price || 0;
+    try {
+      const { data: allVariants } = await supabase
+        .from('product_catalog')
+        .select('piece_price, case_price')
+        .ilike('style_number', styleNum)
+        .order('piece_price', { ascending: false })
+        .limit(20);
+      if (allVariants && allVariants.length > 0) {
+        const maxPrice = Math.max(...allVariants.map(v => v.piece_price || v.case_price || 0));
+        if (maxPrice > 0) bestPrice = maxPrice;
+      }
+    } catch { /* use initial price */ }
+
     setSelectedStyleForPricing(styleNum);
     setNewItem((prev) => ({
       ...prev,
       style_number: styleNum,
       description: `${item.brand || ''} ${item.description || ''}`.trim(),
-      garment_cost: item.piece_price || item.case_price || 0,
+      garment_cost: bestPrice,
       image_url: item.image_url || '',
       color: '',
     }));
@@ -228,7 +242,7 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
 
   const handleColorChange = async (color: string) => {
     setNewItem((p) => ({ ...p, color }));
-    // Try to look up price for this specific color/style combo from catalog
+    // Look up the HIGHEST price across all size variants for this style+color (Printavo approach)
     if (selectedStyleForPricing) {
       try {
         const { data } = await supabase
@@ -236,12 +250,13 @@ export function QuoteDetail({ quoteId, onBack }: Props) {
           .select('piece_price, case_price')
           .ilike('style_number', selectedStyleForPricing)
           .ilike('color_group', `%${color}%`)
-          .limit(1)
-          .maybeSingle();
-        if (data) {
-          const price = data.piece_price || data.case_price || 0;
-          if (price > 0) {
-            setNewItem((p) => ({ ...p, garment_cost: price }));
+          .order('piece_price', { ascending: false })
+          .limit(10);
+        if (data && data.length > 0) {
+          // Use the highest piece_price across all size rows (2XL+ costs more)
+          const maxPrice = Math.max(...data.map(d => d.piece_price || d.case_price || 0));
+          if (maxPrice > 0) {
+            setNewItem((p) => ({ ...p, garment_cost: maxPrice }));
           }
         }
       } catch { /* keep existing price */ }
