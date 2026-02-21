@@ -170,15 +170,19 @@ export default function Jobs() {
         </TabsContent>
       </Tabs>
 
-      {/* Job Detail Sheet */}
+      {/* Job Detail Sheet — Printavo-style */}
       <Sheet open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJobId(null)}>
-        <SheetContent className="sm:max-w-2xl overflow-y-auto">
+        <SheetContent className="sm:max-w-3xl overflow-y-auto p-0">
           {selectedJob && (
-            <>
-              <SheetHeader>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col">
+              {/* Header bar */}
+              <div className="border-b px-6 py-4 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
                   {selectedJob.order_number && (
-                    <Badge variant="outline">#{selectedJob.order_number}</Badge>
+                    <Badge variant="outline" className="font-mono text-sm">#{selectedJob.order_number}</Badge>
+                  )}
+                  {(selectedJob as any).invoice_number && (
+                    <Badge variant="secondary" className="font-mono text-sm">INV-{(selectedJob as any).invoice_number}</Badge>
                   )}
                   <Select 
                     value={selectedJob.service_type} 
@@ -197,71 +201,145 @@ export default function Jobs() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <SheetTitle className="text-left">{selectedJob.customer_name}</SheetTitle>
-              </SheetHeader>
-              
-              <div className="mt-6 space-y-6">
-                {/* Stage Progress */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium">Job Progress</h4>
-                  <StageProgress 
-                    currentStage={(selectedJob as any).stage || 'received'} 
-                    onStageClick={(stage) => {
-                      advanceStage.mutate({
-                        jobId: selectedJob.id,
-                        currentStage: (selectedJob as any).stage || 'received',
-                        targetStage: stage,
-                        source: (selectedJob as any).source,
-                        customerName: selectedJob.customer_name,
-                        customerEmail: selectedJob.customer_email,
-                        orderNumber: selectedJob.order_number,
-                      });
-                    }}
-                  />
-                </div>
-
-                {/* Time Tracking */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium">Time Tracking</h4>
-                  <TimeEntryForm jobId={selectedJob.id} />
-                  <TimeEntriesList jobId={selectedJob.id} />
-                </div>
-
-                {/* Production Recipes */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium">Production Recipes</h4>
-                  <JobRecipesList jobId={selectedJob.id} />
-                </div>
-
-                {/* Garments */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium flex items-center gap-1.5">
-                      <Shirt className="h-4 w-4" />
-                      Garments
-                    </h4>
+                  
+                  {/* Payment status */}
+                  {(selectedJob as any).paid_at ? (
+                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30 ml-auto">
+                      Paid {new Date((selectedJob as any).paid_at).toLocaleDateString()}
+                    </Badge>
+                  ) : (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setGarmentSearchOpen(true)}
+                      className="ml-auto h-7 text-xs"
+                      onClick={() => {
+                        updateJob.mutate({ 
+                          id: selectedJob.id, 
+                          paid_at: new Date().toISOString(),
+                        } as any);
+                      }}
                     >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Garment
+                      <CreditCard className="mr-1 h-3 w-3" />
+                      Mark Paid
                     </Button>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold">{selectedJob.customer_name}</h2>
+              </div>
+
+              {/* Two-column info grid — Printavo style */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-4 border-b">
+                {/* Left: Contact & details */}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Quantity</p>
+                      <p className="font-medium">{selectedJob.quantity}</p>
+                    </div>
+                    {selectedJob.sale_price && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Sale Price</p>
+                        <p className="font-medium">${Number(selectedJob.sale_price).toFixed(2)}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Created</p>
+                      <p className="font-medium">{new Date(selectedJob.created_at).toLocaleDateString()}</p>
+                    </div>
+                    {(selectedJob as any).due_date && (() => {
+                      const urgency = getUrgencyLevel((selectedJob as any).due_date);
+                      const label = getUrgencyLabel((selectedJob as any).due_date);
+                      return (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Due Date</p>
+                          <p className={cn("font-medium", URGENCY_TEXT_COLORS[urgency])}>
+                            {new Date((selectedJob as any).due_date).toLocaleDateString()}
+                          </p>
+                          <p className={cn("text-xs", URGENCY_TEXT_COLORS[urgency])}>{label}</p>
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <JobGarmentsList jobId={selectedJob.id} />
                 </div>
 
-                {/* Garment Search Dialog */}
-                <GarmentSearchDialog
-                  open={garmentSearchOpen}
-                  onOpenChange={setGarmentSearchOpen}
-                  jobId={selectedJob.id}
-                  jobQuantity={selectedJob.quantity}
-                  jobServiceType={selectedJob.service_type}
-                />
+                {/* Right: Contact info */}
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Contact</p>
+                  {selectedJob.customer_phone && (
+                    <a 
+                      href={`tel:${selectedJob.customer_phone}`}
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                      {selectedJob.customer_phone}
+                    </a>
+                  )}
+                  {selectedJob.customer_email && (
+                    <a 
+                      href={`mailto:${selectedJob.customer_email}`}
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                      {selectedJob.customer_email}
+                    </a>
+                  )}
+                  {selectedJob.description && (
+                    <div className="pt-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Notes</p>
+                      <p className="text-sm">{selectedJob.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
 
+              {/* Stage Progress */}
+              <div className="px-6 py-4 border-b">
+                <StageProgress 
+                  currentStage={(selectedJob as any).stage || 'received'} 
+                  onStageClick={(stage) => {
+                    advanceStage.mutate({
+                      jobId: selectedJob.id,
+                      currentStage: (selectedJob as any).stage || 'received',
+                      targetStage: stage,
+                      source: (selectedJob as any).source,
+                      customerName: selectedJob.customer_name,
+                      customerEmail: selectedJob.customer_email,
+                      orderNumber: selectedJob.order_number,
+                    });
+                  }}
+                />
+              </div>
+
+              {/* Garments table — Printavo line-items style */}
+              <div className="px-6 py-4 border-b space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                    <Shirt className="h-4 w-4" />
+                    Line Items
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setGarmentSearchOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+                <JobGarmentsList jobId={selectedJob.id} />
+              </div>
+
+              {/* Garment Search Dialog */}
+              <GarmentSearchDialog
+                open={garmentSearchOpen}
+                onOpenChange={setGarmentSearchOpen}
+                jobId={selectedJob.id}
+                jobQuantity={selectedJob.quantity}
+                jobServiceType={selectedJob.service_type}
+              />
+
+              {/* Production sections */}
+              <div className="px-6 py-4 space-y-6">
                 {/* Material Cost Input - Admin/Manager only */}
                 {hasFinancialAccess(role) && (
                   <MaterialCostInput jobId={selectedJob.id} currentValue={selectedJob.material_cost} />
@@ -269,6 +347,19 @@ export default function Jobs() {
 
                 {/* Cost Summary - Admin/Manager only */}
                 {hasFinancialAccess(role) && <JobCostSummary job={selectedJob} />}
+
+                {/* Time Tracking */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Time Tracking</h4>
+                  <TimeEntryForm jobId={selectedJob.id} />
+                  <TimeEntriesList jobId={selectedJob.id} />
+                </div>
+
+                {/* Production Recipes */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
+                  <JobRecipesList jobId={selectedJob.id} />
+                </div>
 
                 {/* Photos */}
                 <JobPhotoUpload 
@@ -285,102 +376,6 @@ export default function Jobs() {
                   customerName={selectedJob.customer_name}
                   orderNumber={selectedJob.order_number}
                 />
-                {selectedJob.description && (
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Description</h4>
-                    <p className="text-sm text-muted-foreground">{selectedJob.description}</p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Quantity</p>
-                      <p className="font-medium">{selectedJob.quantity}</p>
-                    </div>
-                  </div>
-                  
-                  {selectedJob.sale_price && (
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Sale Price</p>
-                        <p className="font-medium">${Number(selectedJob.sale_price).toFixed(2)}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {(selectedJob.customer_phone || selectedJob.customer_email) && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium">Contact Info</h4>
-                    {selectedJob.customer_phone && (
-                      <a 
-                        href={`tel:${selectedJob.customer_phone}`}
-                        className="flex items-center gap-2 text-sm text-primary hover:underline"
-                      >
-                        <Phone className="h-4 w-4" />
-                        {selectedJob.customer_phone}
-                      </a>
-                    )}
-                    {selectedJob.customer_email && (
-                      <a 
-                        href={`mailto:${selectedJob.customer_email}`}
-                        className="flex items-center gap-2 text-sm text-primary hover:underline"
-                      >
-                        <Mail className="h-4 w-4" />
-                        {selectedJob.customer_email}
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  Created {new Date(selectedJob.created_at).toLocaleDateString()}
-                </div>
-
-                {/* Due Date & Payment */}
-                <div className="space-y-2">
-                  {(selectedJob as any).due_date && (() => {
-                    const urgency = getUrgencyLevel((selectedJob as any).due_date);
-                    const label = getUrgencyLabel((selectedJob as any).due_date);
-                    return (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm">
-                          <AlertTriangle className={cn("h-4 w-4", URGENCY_TEXT_COLORS[urgency])} />
-                          <span className={cn("font-medium", URGENCY_TEXT_COLORS[urgency])}>{label}</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          Due {new Date((selectedJob as any).due_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                    );
-                  })()}
-                  {!(selectedJob as any).paid_at && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        updateJob.mutate({ 
-                          id: selectedJob.id, 
-                          paid_at: new Date().toISOString(),
-                        } as any);
-                      }}
-                    >
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Mark as Paid (sets due date)
-                    </Button>
-                  )}
-                  {(selectedJob as any).paid_at && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CreditCard className="h-4 w-4" />
-                      Paid {new Date((selectedJob as any).paid_at).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
 
                 {/* Delete Job */}
                 <div className="pt-4 border-t">
@@ -416,7 +411,7 @@ export default function Jobs() {
                   </AlertDialog>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </SheetContent>
       </Sheet>

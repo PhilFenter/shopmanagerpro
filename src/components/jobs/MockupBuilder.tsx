@@ -377,13 +377,47 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
               Create Mockup
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-4xl max-h-[95vh] overflow-y-auto">
+           <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Mockup Builder</DialogTitle>
             </DialogHeader>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
-              {/* Canvas */}
+            <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-4">
+              {/* Left panel: Line items with thumbnails */}
+              <div className="hidden lg:block space-y-2 border-r pr-4 max-h-[70vh] overflow-y-auto">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Line Items</Label>
+                {garments.length > 0 ? garments.map(g => {
+                  const isSelected = g.id === selectedGarmentId;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setSelectedGarmentId(g.id)}
+                      className={cn(
+                        "w-full flex items-center gap-2 rounded-md border p-2 text-left transition-colors",
+                        isSelected ? "border-primary bg-primary/10" : "hover:bg-muted/40"
+                      )}
+                    >
+                      <div className="h-12 w-12 rounded border overflow-hidden bg-muted/20 flex-shrink-0 flex items-center justify-center">
+                        {g.image_url ? (
+                          <GarmentThumb imageUrl={g.image_url} />
+                        ) : (
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate">{g.style || g.description || 'Item'}</p>
+                        {g.color && <p className="text-[10px] text-muted-foreground truncate">{g.color}</p>}
+                        <p className="text-[10px] text-muted-foreground">Qty: {g.quantity}</p>
+                      </div>
+                    </button>
+                  );
+                }) : (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No garments added</p>
+                )}
+              </div>
+
+              {/* Canvas — center */}
               <div className="flex flex-col items-center gap-3">
                 <div className="border rounded-lg overflow-hidden bg-muted/30 inline-block">
                   <canvas ref={canvasRef} />
@@ -629,4 +663,23 @@ export function MockupBuilder({ jobId, customerEmail, customerName, orderNumber 
       )}
     </div>
   );
+}
+
+// Small thumbnail for garment images in the left panel
+function GarmentThumb({ imageUrl }: { imageUrl: string }) {
+  const [src, setSrc] = useState('');
+  
+  useEffect(() => {
+    if (imageUrl.startsWith('http')) {
+      setSrc(imageUrl);
+    } else {
+      supabase.storage.from('job-photos').createSignedUrl(imageUrl, 3600)
+        .then(({ data }) => {
+          if (data?.signedUrl) setSrc(data.signedUrl);
+        });
+    }
+  }, [imageUrl]);
+
+  if (!src) return <ImageIcon className="h-5 w-5 text-muted-foreground" />;
+  return <img src={src} alt="Garment" className="w-full h-full object-cover" />;
 }
