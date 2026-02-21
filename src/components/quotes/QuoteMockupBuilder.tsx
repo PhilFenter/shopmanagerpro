@@ -66,8 +66,8 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
   const [isSaving, setIsSaving] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
 
-  const CANVAS_W = 500;
-  const CANVAS_H = 600;
+  const CANVAS_W = 600;
+  const CANVAS_H = 720;
 
   useEffect(() => {
     if (!open || !canvasRef.current) return;
@@ -237,11 +237,13 @@ export function QuoteMockupBuilder({ quoteId, lineItems, customerEmail, customer
               <ImageIcon className="h-4 w-4 mr-1" /> Create Mockup
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Mockup Builder</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-4">
+          <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none border-none p-0 [&>button]:z-50 [&>button]:top-4 [&>button]:right-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <DialogTitle className="text-lg font-bold">Mockup Builder</DialogTitle>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_300px] gap-6 p-6 h-[calc(100vh-73px)] overflow-hidden">
               {/* Left: Line items */}
-              <div className="hidden lg:block space-y-2 border-r pr-4 max-h-[70vh] overflow-y-auto">
+              <div className="hidden lg:block space-y-2 border-r pr-4 overflow-y-auto">
                 <Label className="text-xs uppercase tracking-wide text-muted-foreground">Line Items</Label>
                 {lineItems.length > 0 ? lineItems.map(li => (
                   <button
