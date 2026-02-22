@@ -13,6 +13,7 @@ import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-reac
 import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
 
 type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time';
+type DateBasis = 'created_at' | 'completed_at';
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'this_month', label: 'This Month' },
@@ -49,18 +50,18 @@ export default function Financials() {
   const { role, loading } = useAuth();
   const metrics = useBusinessMetrics();
   const [period, setPeriod] = useState<Period>('this_month');
+  const [dateBasis, setDateBasis] = useState<DateBasis>('created_at');
 
   const { start, end, label: periodLabel } = getPeriodRange(period);
 
   const { data: periodJobs = [] } = useQuery({
-    queryKey: ['financials-period-jobs', period],
+    queryKey: ['financials-period-jobs', period, dateBasis],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('sale_price, material_cost, service_type, status, completed_at')
-        .gte('completed_at', start.toISOString())
-        .lte('completed_at', end.toISOString())
-        .eq('status', 'completed');
+        .select('sale_price, material_cost, service_type, status, completed_at, created_at')
+        .gte(dateBasis, start.toISOString())
+        .lte(dateBasis, end.toISOString());
       if (error) throw error;
       return data || [];
     },
@@ -111,21 +112,32 @@ export default function Financials() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Financials</h1>
           <p className="text-muted-foreground">Revenue, costs, and break-even tracking</p>
         </div>
-        <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PERIOD_OPTIONS.map(o => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={dateBasis} onValueChange={(v) => setDateBasis(v as DateBasis)}>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at">Order Date</SelectItem>
+              <SelectItem value="completed_at">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIOD_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Summary Cards */}
