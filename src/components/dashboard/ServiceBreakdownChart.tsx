@@ -27,18 +27,21 @@ export function ServiceBreakdownChart({ data }: ServiceBreakdownChartProps) {
         <CardDescription>Active jobs by service</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[280px]">
+        <div className="h-[250px]">
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={70}
+                  cy="45%"
+                  innerRadius={35}
+                  outerRadius={65}
                   paddingAngle={2}
                   dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                  fontSize={10}
                 >
                   {chartData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -51,11 +54,6 @@ export function ServiceBreakdownChart({ data }: ServiceBreakdownChartProps) {
                     borderRadius: '8px',
                     color: 'hsl(var(--popover-foreground))'
                   }}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36}
-                  formatter={(value) => <span className="text-xs text-foreground">{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
