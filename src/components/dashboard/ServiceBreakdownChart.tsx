@@ -27,7 +27,7 @@ export function ServiceBreakdownChart({ data }: ServiceBreakdownChartProps) {
         <CardDescription>Active jobs by service</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px]">
+        <div className="h-[280px]">
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
