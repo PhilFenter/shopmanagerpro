@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useActionItems, ActionItem } from '@/hooks/useActionItems';
+import { useQuery } from '@tanstack/react-query';
 import { QuickCaptureDialog } from '@/components/action-items/QuickCaptureDialog';
 import { ActionItemDetailSheet } from '@/components/action-items/ActionItemDetailSheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ import {
   ListTodo,
   DollarSign,
   Loader2,
+  Package,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -106,7 +108,35 @@ export default function ActionItems() {
   const ItemRow = ({ item, showComplete = true }: { item: ActionItem; showComplete?: boolean }) => {
     const isOverdue = item.status === 'open' && item.due_date && new Date(item.due_date) < new Date();
     const isMissingPrice = item.source === 'shopify-sync' && item.status === 'open' && extractStyle(item.title);
+    const styleNumber = extractStyle(item.title);
     const [priceInput, setPriceInput] = useState('');
+
+    // Query affected orders for missing-price items
+    const { data: affectedOrders } = useQuery({
+      queryKey: ['affected-orders', styleNumber],
+      queryFn: async () => {
+        if (!styleNumber) return [];
+        const { data } = await supabase
+          .from('job_garments')
+          .select('job_id, item_number, jobs:job_id(order_number, customer_name)')
+          .or(`item_number.eq.${styleNumber},style.ilike.%${styleNumber}%`);
+        if (!data) return [];
+        // Deduplicate by order number
+        const seen = new Set<string>();
+        return data
+          .filter((g: any) => {
+            const orderNum = g.jobs?.order_number;
+            if (!orderNum || seen.has(orderNum)) return false;
+            seen.add(orderNum);
+            return true;
+          })
+          .map((g: any) => ({ orderNumber: g.jobs.order_number, customerName: g.jobs.customer_name }))
+          .sort((a: any, b: any) => parseInt(b.orderNumber) - parseInt(a.orderNumber))
+          .slice(0, 10);
+      },
+      enabled: !!isMissingPrice && !!styleNumber,
+      staleTime: 5 * 60 * 1000,
+    });
 
     return (
       <div
@@ -132,6 +162,21 @@ export default function ActionItems() {
             </p>
             {item.description && (
               <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
+            )}
+            {/* Affected orders for missing-price items */}
+            {isMissingPrice && affectedOrders && affectedOrders.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                <Package className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground">Affects:</span>
+                {affectedOrders.map((o: any) => (
+                  <Badge key={o.orderNumber} variant="outline" className="text-xs h-5 px-1.5">
+                    #{o.orderNumber} {o.customerName}
+                  </Badge>
+                ))}
+                {affectedOrders.length >= 10 && (
+                  <span className="text-xs text-muted-foreground">+ more</span>
+                )}
+              </div>
             )}
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
               {item.customer_name && (
