@@ -59,7 +59,20 @@ export default function Jobs() {
       job.description?.toLowerCase().includes(search.toLowerCase());
     
     const jobStage = (job as any).stage as JobStage || 'received';
-    const matchesStage = stageFilter === 'all' || jobStage === stageFilter;
+    const matchesStage = stageFilter === 'all' || 
+      stageFilter === 'overdue' || 
+      stageFilter === 'due_soon' ||
+      jobStage === stageFilter;
+
+    // Urgency filters
+    if (stageFilter === 'overdue') {
+      const urgency = getUrgencyLevel(job.due_date);
+      if (urgency !== 'overdue' && urgency !== 'red') return false;
+    }
+    if (stageFilter === 'due_soon') {
+      const urgency = getUrgencyLevel(job.due_date);
+      if (urgency === 'none' || urgency === 'green') return false;
+    }
     
     return matchesSearch && matchesStage;
   });
@@ -109,6 +122,18 @@ export default function Jobs() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Stages</SelectItem>
+            <SelectItem value="overdue" className="text-red-600 font-medium">
+              <span className="flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Overdue / Urgent
+              </span>
+            </SelectItem>
+            <SelectItem value="due_soon">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Due Soon
+              </span>
+            </SelectItem>
             {STAGE_ORDER.map((stage) => (
               <SelectItem key={stage} value={stage}>
                 {STAGE_LABELS[stage]}
