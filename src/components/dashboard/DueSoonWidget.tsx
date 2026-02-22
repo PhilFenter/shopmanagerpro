@@ -14,11 +14,17 @@ interface DueSoonWidgetProps {
 export function DueSoonWidget({ jobs }: DueSoonWidgetProps) {
   // Get jobs with due dates, sorted by urgency
   const jobsWithDue = jobs
-    .filter(j => (j as any).due_date && j.status !== 'completed')
+    .filter(j => {
+      if (!j.due_date || j.status === 'completed') return false;
+      // Exclude final stages — these jobs are done
+      const stage = (j as any).stage;
+      if (stage === 'picked_up' || stage === 'shipped' || stage === 'delivered') return false;
+      return true;
+    })
     .map(j => ({
       ...j,
-      urgency: getUrgencyLevel((j as any).due_date),
-      urgencyLabel: getUrgencyLabel((j as any).due_date),
+      urgency: getUrgencyLevel(j.due_date),
+      urgencyLabel: getUrgencyLabel(j.due_date),
     }))
     .filter(j => j.urgency !== 'none' && j.urgency !== 'green')
     .sort((a, b) => {
