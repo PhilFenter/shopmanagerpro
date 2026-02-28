@@ -81,6 +81,21 @@ Deno.serve(async (req) => {
       });
     };
 
+    const fetchWithRetry = async (gqlQuery: string, variables: Record<string, unknown>, retries = 3): Promise<Response> => {
+      for (let attempt = 0; attempt < retries; attempt++) {
+        const response = await makePrintavoRequest(gqlQuery, variables);
+        if (response.status === 429) {
+          const wait = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+          console.log(`Rate limited, waiting ${wait}ms (attempt ${attempt + 1}/${retries})...`);
+          await response.text(); // consume body
+          await new Promise(resolve => setTimeout(resolve, wait));
+          continue;
+        }
+        return response;
+      }
+      return makePrintavoRequest(gqlQuery, variables); // final attempt
+    };
+
     let allContacts: any[] = [];
     let hasNextPage = true;
     let endCursor: string | null = null;
@@ -93,11 +108,16 @@ Deno.serve(async (req) => {
       const variables: Record<string, unknown> = { first: 25 };
       if (endCursor) variables.after = endCursor;
 
-      const response = await makePrintavoRequest(contactsQuery, variables);
+      const response = await fetchWithRetry(contactsQuery, variables);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Printavo API error:`, response.status, errorText);
+        // On rate limit after retries, return partial results instead of failing
+        if (response.status === 429 && allContacts.length > 0) {
+          console.log(`Rate limited after retries, proceeding with ${allContacts.length} contacts collected so far`);
+          break;
+        }
         return new Response(
           JSON.stringify({ error: `Printavo API error: ${response.status}` }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -121,7 +141,7 @@ Deno.serve(async (req) => {
       endCursor = pageData?.pageInfo?.endCursor || null;
 
       if (hasNextPage) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300)); // slower pace to avoid rate limits
       }
     }
 
