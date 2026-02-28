@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.ss-activewear-api]
 verify_jwt = false
+
+[functions.printavo-customer-sync]
+verify_jwt = false

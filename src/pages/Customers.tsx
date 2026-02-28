@@ -6,13 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area, CartesianGrid, Cell, PieChart, Pie,
 } from 'recharts';
-import { Users, DollarSign, TrendingUp, Search, Crown } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw } from 'lucide-react';
 import { CustomerDetailSheet } from '@/components/communications/CustomerDetailSheet';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import type { Customer } from '@/hooks/useCustomers';
 
 const COLORS = [
@@ -27,6 +30,8 @@ export default function Customers() {
   const { customers, isLoading, totalRevenue, totalCustomers, paretoCustomerCount, paretoPercent, categories, paretoCurve, topCustomers } = useCustomers();
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isSyncingContacts, setIsSyncingContacts] = useState(false);
+  const { toast } = useToast();
 
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -49,11 +54,71 @@ export default function Customers() {
 
   if (isLoading) return <div className="flex items-center justify-center h-64">Loading CRM data...</div>;
 
+  const handleSyncContacts = async () => {
+    setIsSyncingContacts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('printavo-customer-sync', {
+        body: { maxPages: 200 },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Customer sync complete',
+        description: `${data.inserted} new, ${data.updated} updated, ${data.skipped} unchanged (${data.total} total from Printavo)`,
+      });
+      // Refetch customers
+      window.location.reload();
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Sync failed', description: err instanceof Error ? err.message : 'Unknown error' });
+    } finally {
+      setIsSyncingContacts(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const emailCustomers = filteredCustomers.filter(c => c.email);
+    if (emailCustomers.length === 0) {
+      toast({ variant: 'destructive', title: 'No emails to export', description: 'No customers with email addresses found.' });
+      return;
+    }
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Source', 'Total Revenue', 'Total Orders', 'Tags'];
+    const rows = emailCustomers.map(c => [
+      `"${(c.name || '').replace(/"/g, '""')}"`,
+      c.email || '',
+      c.phone || '',
+      `"${(c.company || '').replace(/"/g, '""')}"`,
+      c.source || '',
+      c.total_revenue?.toString() || '0',
+      c.total_orders?.toString() || '0',
+      `"${(c.tags || []).join(', ')}"`,
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `customer-emails-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: `Exported ${emailCustomers.length} customers with emails` });
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
-        <p className="text-muted-foreground">Customer lifetime value, Pareto analysis, and segmentation</p>
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
+          <p className="text-muted-foreground">Customer lifetime value, Pareto analysis, and segmentation</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleSyncContacts} disabled={isSyncingContacts}>
+            {isSyncingContacts ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            {isSyncingContacts ? 'Syncing...' : 'Pull Printavo Contacts'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportCSV}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
