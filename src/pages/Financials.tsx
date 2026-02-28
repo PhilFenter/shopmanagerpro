@@ -50,7 +50,7 @@ export default function Financials() {
   const { role, loading } = useAuth();
   const metrics = useBusinessMetrics();
   const [period, setPeriod] = useState<Period>('this_month');
-  const [dateBasis, setDateBasis] = useState<DateBasis>('created_at');
+  const [dateBasis, setDateBasis] = useState<DateBasis>('completed_at');
 
   const { start, end, label: periodLabel } = getPeriodRange(period);
 
@@ -126,26 +126,6 @@ export default function Financials() {
     }, 0);
   }, [periodTimeEntries, workerRates]);
 
-  // For monthly periods, use full monthly overhead; for YTD, multiply by months elapsed
-  const overheadForPeriod = useMemo(() => {
-    if (period === 'this_month' || period === 'last_month') {
-      return metrics.totalMonthlyCost; // full monthly operating cost (labor + overhead)
-    }
-    if (period === 'ytd') {
-      const monthsElapsed = new Date().getMonth() + 1;
-      return metrics.totalMonthlyCost * monthsElapsed;
-    }
-    // all_time: approximate using months between first job and now
-    if (periodJobs.length > 0) {
-      const earliest = periodJobs.reduce((min, j) => {
-        const d = j.created_at;
-        return d < min ? d : min;
-      }, periodJobs[0].created_at);
-      const monthsSpan = Math.max(1, Math.ceil((Date.now() - new Date(earliest).getTime()) / (30.44 * 24 * 60 * 60 * 1000)));
-      return metrics.totalMonthlyCost * monthsSpan;
-    }
-    return metrics.totalMonthlyCost;
-  }, [period, metrics.totalMonthlyCost, periodJobs]);
 
   // Total tracked hours for the period
   const periodTrackedHours = useMemo(() => {
@@ -155,11 +135,9 @@ export default function Financials() {
   const stats = useMemo(() => {
     const totalRevenue = periodJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
     const totalMaterialCost = periodJobs.reduce((s, j) => s + (j.material_cost || 0), 0);
-    const totalCost = totalMaterialCost + overheadForPeriod;
-    const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
 
-    // Job-level profitability (based on actual time tracked)
+    // Job-level costs based on actual time tracked
     const jobLaborCost = periodTrackedHours * metrics.laborCostPerHour;
     const jobOverheadCost = periodTrackedHours * metrics.overheadCostPerHour;
     const jobTotalCost = totalMaterialCost + jobLaborCost + jobOverheadCost;
@@ -186,11 +164,11 @@ export default function Financials() {
       .sort((a, b) => b.revenue - a.revenue);
 
     return {
-      totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue,
-      jobCount: periodJobs.length, serviceRevenue, overheadForPeriod,
+      totalRevenue, totalMaterialCost, avgJobValue,
+      jobCount: periodJobs.length, serviceRevenue,
       jobLaborCost, jobOverheadCost, jobTotalCost, jobProfit, jobMargin, periodTrackedHours,
     };
-  }, [periodJobs, overheadForPeriod, periodTrackedHours, metrics.laborCostPerHour, metrics.overheadCostPerHour]);
+  }, [periodJobs, periodTrackedHours, metrics.laborCostPerHour, metrics.overheadCostPerHour]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -204,7 +182,7 @@ export default function Financials() {
     `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const profitMargin = stats.totalRevenue > 0
-    ? ((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1)
+    ? ((stats.jobProfit / stats.totalRevenue) * 100).toFixed(1)
     : '0';
 
   return (
@@ -256,9 +234,9 @@ export default function Financials() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalProfit)}</div>
+            <div className={`text-2xl font-bold ${stats.jobProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>{formatCurrency(stats.jobProfit)}</div>
             <p className="text-xs text-muted-foreground">
-              {profitMargin}% margin · Overhead {formatCurrency(stats.overheadForPeriod)} · Materials {formatCurrency(stats.totalMaterialCost)}
+              {profitMargin}% margin · Materials {formatCurrency(stats.totalMaterialCost)} · Labor {formatCurrency(stats.jobLaborCost)}
             </p>
           </CardContent>
         </Card>
@@ -286,82 +264,42 @@ export default function Financials() {
         </Card>
       </div>
 
-      {/* Job Margin vs Business P&L */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Job Profitability</CardTitle>
-              <CardDescription>Based on actual time tracked per job</CardDescription>
+      {/* Job P&L */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Profit & Loss</CardTitle>
+            <CardDescription>Revenue minus actual costs for completed jobs</CardDescription>
+          </div>
+          <BarChart3 className="h-5 w-5 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Revenue</span>
+              <span>{formatCurrency(stats.totalRevenue)}</span>
             </div>
-            <BarChart3 className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Revenue</span>
-                <span>{formatCurrency(stats.totalRevenue)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Materials</span>
-                <span className="text-destructive">−{formatCurrency(stats.totalMaterialCost)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Labor ({stats.periodTrackedHours.toFixed(1)} hrs × {formatCurrency(metrics.laborCostPerHour)}/hr)</span>
-                <span className="text-destructive">−{formatCurrency(stats.jobLaborCost)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Overhead allocation</span>
-                <span className="text-destructive">−{formatCurrency(stats.jobOverheadCost)}</span>
-              </div>
-              <div className="flex justify-between border-t pt-2 text-lg">
-                <span className="font-bold">Job Margin</span>
-                <span className={`font-bold ${stats.jobProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {formatCurrency(stats.jobProfit)} ({stats.jobMargin.toFixed(1)}%)
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground pt-1">
-                Are our jobs priced correctly? This shows profit after deducting costs allocated by actual hours worked.
-              </p>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Materials</span>
+              <span className="text-destructive">−{formatCurrency(stats.totalMaterialCost)}</span>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Business P&L</CardTitle>
-              <CardDescription>Fixed monthly operating costs</CardDescription>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Labor ({stats.periodTrackedHours.toFixed(1)} hrs × {formatCurrency(metrics.laborCostPerHour)}/hr)</span>
+              <span className="text-destructive">−{formatCurrency(stats.jobLaborCost)}</span>
             </div>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Revenue</span>
-                <span>{formatCurrency(stats.totalRevenue)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Materials</span>
-                <span className="text-destructive">−{formatCurrency(stats.totalMaterialCost)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Operating costs ({periodLabel})</span>
-                <span className="text-destructive">−{formatCurrency(stats.overheadForPeriod)}</span>
-              </div>
-              <div className="flex justify-between border-t pt-2 text-lg">
-                <span className="font-bold">Net Profit</span>
-                <span className={`font-bold ${stats.totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {formatCurrency(stats.totalProfit)} ({stats.totalRevenue > 0 ? ((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1) : '0'}%)
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground pt-1">
-                Is the company profitable? This deducts all fixed monthly costs regardless of how many jobs were done.
-              </p>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Overhead allocation ({stats.periodTrackedHours.toFixed(1)} hrs × {formatCurrency(metrics.overheadCostPerHour)}/hr)</span>
+              <span className="text-destructive">−{formatCurrency(stats.jobOverheadCost)}</span>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="flex justify-between border-t pt-2 text-lg">
+              <span className="font-bold">Net Profit</span>
+              <span className={`font-bold ${stats.jobProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                {formatCurrency(stats.jobProfit)} ({stats.jobMargin.toFixed(1)}%)
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
