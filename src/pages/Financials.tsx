@@ -126,10 +126,31 @@ export default function Financials() {
     }, 0);
   }, [periodTimeEntries, workerRates]);
 
+  // For monthly periods, use full monthly overhead; for YTD, multiply by months elapsed
+  const overheadForPeriod = useMemo(() => {
+    if (period === 'this_month' || period === 'last_month') {
+      return metrics.totalMonthlyCost; // full monthly operating cost (labor + overhead)
+    }
+    if (period === 'ytd') {
+      const monthsElapsed = new Date().getMonth() + 1;
+      return metrics.totalMonthlyCost * monthsElapsed;
+    }
+    // all_time: approximate using months between first job and now
+    if (periodJobs.length > 0) {
+      const earliest = periodJobs.reduce((min, j) => {
+        const d = j.created_at;
+        return d < min ? d : min;
+      }, periodJobs[0].created_at);
+      const monthsSpan = Math.max(1, Math.ceil((Date.now() - new Date(earliest).getTime()) / (30.44 * 24 * 60 * 60 * 1000)));
+      return metrics.totalMonthlyCost * monthsSpan;
+    }
+    return metrics.totalMonthlyCost;
+  }, [period, metrics.totalMonthlyCost, periodJobs]);
+
   const stats = useMemo(() => {
     const totalRevenue = periodJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
     const totalMaterialCost = periodJobs.reduce((s, j) => s + (j.material_cost || 0), 0);
-    const totalCost = totalMaterialCost + periodLaborCost;
+    const totalCost = totalMaterialCost + overheadForPeriod;
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
 
@@ -152,8 +173,8 @@ export default function Financials() {
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, laborCost: periodLaborCost };
-  }, [periodJobs, periodLaborCost]);
+    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod };
+  }, [periodJobs, overheadForPeriod]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -221,7 +242,7 @@ export default function Financials() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalProfit)}</div>
             <p className="text-xs text-muted-foreground">
-              {profitMargin}% margin · Labor {formatCurrency(stats.laborCost)} · Materials {formatCurrency(stats.totalMaterialCost)}
+              {profitMargin}% margin · Overhead {formatCurrency(stats.overheadForPeriod)} · Materials {formatCurrency(stats.totalMaterialCost)}
             </p>
           </CardContent>
         </Card>
