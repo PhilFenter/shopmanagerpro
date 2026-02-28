@@ -392,10 +392,11 @@ Deno.serve(async (req) => {
     // Now insert garments for ALL invoices (new + existing that may not have garments yet)
     let garmentsInserted = 0;
 
-    // Build combined map of external_id -> job_id
-    const allJobMap = new Map(existingMap);
-    for (const [extId, jobId] of insertedJobIds) {
-      allJobMap.set(extId, jobId);
+    // Build map of ONLY jobs touched in this sync run
+    const allJobMap = new Map<string, string>();
+    for (const invoice of allInvoices) {
+      const jobId = insertedJobIds.get(invoice.id) || existingMap.get(invoice.id);
+      if (jobId) allJobMap.set(invoice.id, jobId);
     }
 
     // Check which jobs already have garments
@@ -550,7 +551,7 @@ Deno.serve(async (req) => {
           if (priceMap.has(key)) {
             const price = priceMap.get(key)!;
             if (price > 0) {
-              await supabase.from("job_garments").update({ total_cost: price * g.quantity }).eq("id", g.id);
+              await supabase.from("job_garments").update({ unit_cost: price, total_cost: price * g.quantity }).eq("id", g.id);
               costsMatched++;
             }
           } else {
@@ -632,7 +633,7 @@ Deno.serve(async (req) => {
               if (!key) continue;
               const price = priceMap.get(key) || 0;
               if (price > 0) {
-                await supabase.from("job_garments").update({ total_cost: price * g.quantity }).eq("id", g.id);
+                await supabase.from("job_garments").update({ unit_cost: price, total_cost: price * g.quantity }).eq("id", g.id);
                 costsMatched++;
               }
             }
