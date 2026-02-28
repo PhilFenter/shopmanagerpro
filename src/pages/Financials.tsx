@@ -59,7 +59,7 @@ export default function Financials() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('sale_price, material_cost, service_type, status, completed_at, created_at')
+        .select('id, sale_price, material_cost, service_type, status, completed_at, created_at')
         .gte(dateBasis, start.toISOString())
         .lte(dateBasis, end.toISOString());
       if (error) throw error;
@@ -67,9 +67,69 @@ export default function Financials() {
     },
   });
 
+  // Fetch time entries for the period's jobs to calculate labor costs
+  const jobIds = periodJobs.map(j => j.id);
+  const { data: periodTimeEntries = [] } = useQuery({
+    queryKey: ['financials-time-entries', jobIds],
+    queryFn: async () => {
+      if (jobIds.length === 0) return [];
+      // Query in batches of 100 to avoid URL length limits
+      const allEntries: any[] = [];
+      for (let i = 0; i < jobIds.length; i += 100) {
+        const batch = jobIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('time_entries')
+          .select('job_id, duration, worker_id')
+          .in('job_id', batch);
+        if (error) throw error;
+        if (data) allEntries.push(...data);
+      }
+      return allEntries;
+    },
+    enabled: jobIds.length > 0,
+  });
+
+  // Fetch workers for rate lookup
+  const { data: allWorkers = [] } = useQuery({
+    queryKey: ['financials-workers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('id, hourly_rate, is_salary, monthly_salary');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const PAYROLL_TAX_BURDEN = 0.165;
+  const MONTHLY_HOURS = 176;
+
+  // Build worker rate map
+  const workerRates = useMemo(() => {
+    const map = new Map<string, number>();
+    allWorkers.forEach(w => {
+      const rate = w.is_salary && (w.monthly_salary || 0) > 0
+        ? (w.monthly_salary || 0) / MONTHLY_HOURS
+        : w.hourly_rate || 0;
+      map.set(w.id, rate);
+    });
+    return map;
+  }, [allWorkers]);
+
+  // Calculate total labor cost with burden for the period
+  const periodLaborCost = useMemo(() => {
+    return periodTimeEntries.reduce((sum: number, entry: any) => {
+      const rate = entry.worker_id ? (workerRates.get(entry.worker_id) || 0) : 0;
+      const hours = (entry.duration || 0) / 60;
+      const baseCost = hours * rate;
+      return sum + (baseCost * (1 + PAYROLL_TAX_BURDEN));
+    }, 0);
+  }, [periodTimeEntries, workerRates]);
+
   const stats = useMemo(() => {
     const totalRevenue = periodJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
-    const totalCost = periodJobs.reduce((s, j) => s + (j.material_cost || 0), 0);
+    const totalMaterialCost = periodJobs.reduce((s, j) => s + (j.material_cost || 0), 0);
+    const totalCost = totalMaterialCost + periodLaborCost;
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
 
@@ -92,8 +152,8 @@ export default function Financials() {
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    return { totalRevenue, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue };
-  }, [periodJobs]);
+    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, laborCost: periodLaborCost };
+  }, [periodJobs, periodLaborCost]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -160,7 +220,9 @@ export default function Financials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalProfit)}</div>
-            <p className="text-xs text-muted-foreground">{profitMargin}% margin</p>
+            <p className="text-xs text-muted-foreground">
+              {profitMargin}% margin · Labor {formatCurrency(stats.laborCost)} · Materials {formatCurrency(stats.totalMaterialCost)}
+            </p>
           </CardContent>
         </Card>
 
