@@ -59,13 +59,22 @@ export function useJobs() {
   const jobsQuery = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .order('order_number', { ascending: false, nullsFirst: false });
-      
-      if (error) throw error;
-      return data as Job[];
+      const allJobs: Job[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .order('order_number', { ascending: false, nullsFirst: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allJobs.push(...(data as Job[]));
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return allJobs;
     },
     enabled: !!user,
   });
