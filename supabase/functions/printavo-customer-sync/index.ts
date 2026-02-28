@@ -60,7 +60,6 @@ Deno.serve(async (req) => {
             fullName
             email
             phone
-            company
           }
           pageInfo {
             hasNextPage
@@ -153,7 +152,7 @@ Deno.serve(async (req) => {
         const updates: Record<string, any> = {};
         if (contact.email && !existing.email) updates.email = contact.email;
         if (contact.phone) updates.phone = contact.phone;
-        if (contact.company) updates.company = contact.company;
+        
 
         if (Object.keys(updates).length > 0) {
           await supabase.from("customers").update(updates).eq("id", existing.id);
@@ -166,7 +165,7 @@ Deno.serve(async (req) => {
           name,
           email: contact.email || null,
           phone: contact.phone || null,
-          company: contact.company || null,
+          
           source: "printavo",
         });
         if (error) {
