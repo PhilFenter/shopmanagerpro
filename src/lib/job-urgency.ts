@@ -21,8 +21,9 @@ function getBusinessDaysRemaining(dueDate: Date): number {
   return count;
 }
 
-export function getUrgencyLevel(dueDate: string | null | undefined): UrgencyLevel {
+export function getUrgencyLevel(dueDate: string | null | undefined, status?: string): UrgencyLevel {
   if (!dueDate) return 'none';
+  if (status === 'completed') return 'none';
   
   const due = new Date(dueDate);
   if (isNaN(due.getTime())) return 'none';
@@ -35,8 +36,9 @@ export function getUrgencyLevel(dueDate: string | null | undefined): UrgencyLeve
   return 'green';
 }
 
-export function getUrgencyLabel(dueDate: string | null | undefined): string {
+export function getUrgencyLabel(dueDate: string | null | undefined, status?: string): string {
   if (!dueDate) return '';
+  if (status === 'completed') return '';
   
   const due = new Date(dueDate);
   if (isNaN(due.getTime())) return '';

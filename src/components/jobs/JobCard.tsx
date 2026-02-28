@@ -51,8 +51,8 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const { role: actualRole } = useAuth();
   const { isPreviewingAsTeam } = useRolePreview();
   const role = isPreviewingAsTeam ? 'team' : actualRole;
-  const urgency = getUrgencyLevel((job as any).due_date);
-  const urgencyLabel = getUrgencyLabel((job as any).due_date);
+  const urgency = getUrgencyLevel((job as any).due_date, job.status);
+  const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status);
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];

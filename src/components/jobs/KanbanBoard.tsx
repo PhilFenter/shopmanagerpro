@@ -215,8 +215,8 @@ function KanbanCard({ job, stage, onSelect, onAdvance, isAdvancing }: KanbanCard
   const atFinalStage = isFinalStage(stage);
   const jobSource = (job as any).source || 'manual';
   const sourceInfo = SOURCE_CONFIG[jobSource] || SOURCE_CONFIG.manual;
-  const urgency = getUrgencyLevel((job as any).due_date);
-  const urgencyLabel = getUrgencyLabel((job as any).due_date);
+  const urgency = getUrgencyLevel((job as any).due_date, job.status);
+  const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status);
 
   return (
     <Card 
