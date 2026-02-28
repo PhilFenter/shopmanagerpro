@@ -466,7 +466,7 @@ Deno.serve(async (req) => {
               description: item.description || null,
               sizes: sizesObj,
               quantity: item.items || 0,
-              unit_cost: item.price || 0,
+              unit_sell_price: item.price || 0,
               printavo_line_item_id: item.id,
               image_url: imageUrl,
             });
