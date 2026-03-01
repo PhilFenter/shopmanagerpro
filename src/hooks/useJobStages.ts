@@ -138,15 +138,13 @@ export function useAdvanceStage() {
       }
 
       // Update job stage
-      const isCompleting = isFinalStage(nextStage);
       const { error: updateError } = await supabase
         .from('jobs')
         .update({ 
           stage: nextStage,
           stage_updated_at: new Date().toISOString(),
-          status: isCompleting ? 'completed' : 
+          status: isFinalStage(nextStage) ? 'completed' : 
                   nextStage === 'in_production' ? 'in_progress' : 'pending',
-          ...(isCompleting ? { completed_at: new Date().toISOString() } : {}),
         })
         .eq('id', jobId);
 

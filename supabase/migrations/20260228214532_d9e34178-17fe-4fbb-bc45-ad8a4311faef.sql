@@ -1,1 +1,0 @@
-UPDATE jobs SET completed_at = COALESCE(stage_updated_at, updated_at) WHERE status = 'completed' AND completed_at IS NULL;
