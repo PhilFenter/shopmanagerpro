@@ -66,6 +66,16 @@ function App() {
                   }
                 />
                 <Route
+                  path="/jobs/:id"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Jobs />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/embroidery"
                   element={
                     <ProtectedRoute>

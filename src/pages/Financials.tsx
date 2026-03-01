@@ -11,6 +11,7 @@ import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceC
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
+import { SERVICE_LABELS } from '@/lib/constants';
 
 type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time';
 type DateBasis = 'created_at' | 'completed_at';
@@ -38,13 +39,6 @@ function getPeriodRange(period: Period) {
   }
 }
 
-const SERVICE_LABELS: Record<string, string> = {
-  embroidery: 'Embroidery',
-  screen_print: 'Screen Print',
-  dtf: 'DTF',
-  leather_patch: 'Leather',
-  other: 'Other',
-};
 
 export default function Financials() {
   const { role, loading } = useAuth();

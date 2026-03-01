@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Loader2 } from 'lucide-react';
 import { useJobs, ServiceType } from '@/hooks/useJobs';
+import { SERVICE_TYPE_LABELS } from '@/lib/constants';
 
 const jobSchema = z.object({
   customer_name: z.string().min(1, 'Customer name is required').max(100),
@@ -26,17 +27,6 @@ const jobSchema = z.object({
 
 type JobFormData = z.infer<typeof jobSchema>;
 
-const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  embroidery: 'Embroidery',
-  screen_print: 'Screen Print',
-  dtf: 'DTF',
-  leather_patch: 'Leather Patch',
-  uv_patch: 'UV Patch',
-  heat_press_patch: 'Heat Press Patch',
-  woven_patch: 'Woven Patch',
-  pvc_patch: 'PVC Patch',
-  other: 'Other',
-};
 
 interface JobFormProps {
   onSuccess?: () => void;
