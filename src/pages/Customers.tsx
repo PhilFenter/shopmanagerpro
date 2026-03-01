@@ -16,6 +16,7 @@ import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw } fro
 import { CustomerDetailSheet } from '@/components/communications/CustomerDetailSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Customer } from '@/hooks/useCustomers';
 
 const COLORS = [
@@ -32,6 +33,7 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isSyncingContacts, setIsSyncingContacts] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -65,8 +67,8 @@ export default function Customers() {
         title: 'Customer sync complete',
         description: `${data.inserted} new, ${data.updated} updated, ${data.skipped} unchanged (${data.total} total from Printavo)`,
       });
-      // Refetch customers
-      window.location.reload();
+      // Refetch customers without hard reload
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
     } catch (err) {
       toast({ variant: 'destructive', title: 'Sync failed', description: err instanceof Error ? err.message : 'Unknown error' });
     } finally {

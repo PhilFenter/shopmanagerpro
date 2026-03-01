@@ -14,6 +14,7 @@ export type JobStage =
   | 'qc_complete'
   | 'packaged'
   | 'customer_notified'
+  | 'delivered'
   | 'picked_up'
   | 'shipped';
 
@@ -32,7 +33,7 @@ export const STAGE_ORDER: JobStage[] = [
 ];
 
 // Final stages (after customer_notified, pick one)
-export const FINAL_STAGES: JobStage[] = ['picked_up', 'shipped'];
+export const FINAL_STAGES: JobStage[] = ['delivered', 'picked_up', 'shipped'];
 
 export const STAGE_LABELS: Record<JobStage, string> = {
   received: 'Received',
@@ -45,6 +46,7 @@ export const STAGE_LABELS: Record<JobStage, string> = {
   qc_complete: 'QC Complete',
   packaged: 'Packaged',
   customer_notified: 'Customer Notified',
+  delivered: 'Delivered',
   picked_up: 'Picked Up',
   shipped: 'Shipped',
 };
@@ -60,6 +62,7 @@ export const STAGE_ICONS: Record<JobStage, string> = {
   qc_complete: '🔍',
   packaged: '📦',
   customer_notified: '📧',
+  delivered: '🚛',
   picked_up: '🏪',
   shipped: '🚚',
 };
@@ -182,19 +185,33 @@ export function useAdvanceStage() {
 
       return nextStage;
     },
+    onMutate: async ({ jobId, targetStage, currentStage }) => {
+      await queryClient.cancelQueries({ queryKey: ['jobs'] });
+      const previous = queryClient.getQueryData(['jobs']);
+      const nextStage = targetStage || getNextStage(currentStage);
+      if (nextStage) {
+        queryClient.setQueryData(['jobs'], (old: any[]) =>
+          old?.map((j: any) => j.id === jobId ? { ...j, stage: nextStage, stage_updated_at: new Date().toISOString() } : j)
+        );
+      }
+      return { previous };
+    },
     onSuccess: (nextStage) => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
       toast({ 
         title: 'Stage updated',
         description: `Job moved to ${STAGE_LABELS[nextStage]}`,
       });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['jobs'], context.previous);
       toast({ 
         variant: 'destructive',
         title: 'Failed to advance stage',
         description: error.message,
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
     },
   });
 }
