@@ -1,6 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { useJobs, Job, ServiceType, hasFinancialAccess } from '@/hooks/useJobs';
 import { useAuth } from '@/hooks/useAuth';
 import { JobStage, STAGE_ORDER, STAGE_LABELS, useAdvanceStage } from '@/hooks/useJobStages';
@@ -46,28 +45,9 @@ export default function Jobs() {
   const advanceStage = useAdvanceStage();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [garmentSearchOpen, setGarmentSearchOpen] = useState(false);
-
-  const dateRange = useMemo(() => {
-    const now = new Date();
-    switch (dateFilter) {
-      case 'today':
-        return { start: startOfDay(now), end: endOfDay(now) };
-      case 'this_week':
-        return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
-      case 'this_month':
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-      case 'last_30':
-        return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
-      case 'last_90':
-        return { start: startOfDay(subDays(now, 90)), end: endOfDay(now) };
-      default:
-        return null;
-    }
-  }, [dateFilter]);
 
   // Always get fresh job data from the query
   const selectedJob = selectedJobId ? jobs.find(j => j.id === selectedJobId) ?? null : null;
@@ -94,9 +74,7 @@ export default function Jobs() {
       if (urgency === 'none' || urgency === 'green') return false;
     }
     
-    const matchesDate = !dateRange || isWithinInterval(new Date(job.created_at), dateRange);
-    
-    return matchesSearch && matchesStage && matchesDate;
+    return matchesSearch && matchesStage;
   });
 
   // Count jobs by stage for tabs
@@ -161,19 +139,6 @@ export default function Jobs() {
                 {STAGE_LABELS[stage]}
               </SelectItem>
             ))}
-          </SelectContent>
-        </Select>
-        <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue placeholder="Date range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Dates</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this_week">This Week</SelectItem>
-            <SelectItem value="this_month">This Month</SelectItem>
-            <SelectItem value="last_30">Last 30 Days</SelectItem>
-            <SelectItem value="last_90">Last 90 Days</SelectItem>
           </SelectContent>
         </Select>
         

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceChart';
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { DollarSign, TrendingUp, TrendingDown, Target, Clock, BarChart3 } from 'lucide-react';
-import { startOfMonth, endOfMonth, startOfYear, subMonths, format, differenceInCalendarMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
 
 type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time';
 type DateBasis = 'created_at' | 'completed_at';
@@ -26,17 +26,15 @@ function getPeriodRange(period: Period) {
   const now = new Date();
   switch (period) {
     case 'this_month':
-      return { start: startOfMonth(now), end: endOfMonth(now), label: format(now, 'MMMM yyyy'), months: 1 };
+      return { start: startOfMonth(now), end: endOfMonth(now), label: format(now, 'MMMM yyyy') };
     case 'last_month': {
       const last = subMonths(now, 1);
-      return { start: startOfMonth(last), end: endOfMonth(last), label: format(last, 'MMMM yyyy'), months: 1 };
+      return { start: startOfMonth(last), end: endOfMonth(last), label: format(last, 'MMMM yyyy') };
     }
-    case 'ytd': {
-      const s = startOfYear(now);
-      return { start: s, end: now, label: `${now.getFullYear()} YTD`, months: Math.max(1, differenceInCalendarMonths(now, s) + 1) };
-    }
+    case 'ytd':
+      return { start: startOfYear(now), end: now, label: `${now.getFullYear()} YTD` };
     case 'all_time':
-      return { start: new Date('2000-01-01'), end: now, label: 'All Time', months: 0 }; // 0 = special case
+      return { start: new Date('2000-01-01'), end: now, label: 'All Time' };
   }
 }
 
@@ -52,9 +50,9 @@ export default function Financials() {
   const { role, loading } = useAuth();
   const metrics = useBusinessMetrics();
   const [period, setPeriod] = useState<Period>('this_month');
-  const [dateBasis, setDateBasis] = useState<DateBasis>('completed_at');
+  const [dateBasis, setDateBasis] = useState<DateBasis>('created_at');
 
-  const { start, end, label: periodLabel, months: periodMonths } = getPeriodRange(period);
+  const { start, end, label: periodLabel } = getPeriodRange(period);
 
   const { data: periodJobs = [] } = useQuery({
     queryKey: ['financials-period-jobs', period, dateBasis],
@@ -69,31 +67,104 @@ export default function Financials() {
     },
   });
 
-  // Calculate period months for "all time" based on actual job data
-  const effectiveMonths = useMemo(() => {
-    if (periodMonths > 0) return periodMonths;
-    // For "all time", calculate months spanned by jobs
-    if (periodJobs.length === 0) return 1;
-    const earliest = periodJobs.reduce((min, j) => {
-      const d = new Date(j[dateBasis] || j.created_at);
-      return d < min ? d : min;
-    }, new Date());
-    return Math.max(1, differenceInCalendarMonths(new Date(), earliest) + 1);
-  }, [periodMonths, periodJobs, dateBasis]);
+  // Fetch time entries for the period's jobs to calculate labor costs
+  const jobIds = periodJobs.map(j => j.id);
+  const { data: periodTimeEntries = [] } = useQuery({
+    queryKey: ['financials-time-entries', jobIds],
+    queryFn: async () => {
+      if (jobIds.length === 0) return [];
+      // Query in batches of 100 to avoid URL length limits
+      const allEntries: any[] = [];
+      for (let i = 0; i < jobIds.length; i += 100) {
+        const batch = jobIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('time_entries')
+          .select('job_id, duration, worker_id')
+          .in('job_id', batch);
+        if (error) throw error;
+        if (data) allEntries.push(...data);
+      }
+      return allEntries;
+    },
+    enabled: jobIds.length > 0,
+  });
 
-  // Fixed monthly costs scaled to the period
-  const periodLaborCost = metrics.totalLaborCostWithTaxes * effectiveMonths;
-  const periodOverheadCost = metrics.monthlyOverheadCost * effectiveMonths;
+  // Fetch workers for rate lookup
+  const { data: allWorkers = [] } = useQuery({
+    queryKey: ['financials-workers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('id, hourly_rate, is_salary, monthly_salary');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const PAYROLL_TAX_BURDEN = 0.165;
+  const MONTHLY_HOURS = 176;
+
+  // Build worker rate map
+  const workerRates = useMemo(() => {
+    const map = new Map<string, number>();
+    allWorkers.forEach(w => {
+      const rate = w.is_salary && (w.monthly_salary || 0) > 0
+        ? (w.monthly_salary || 0) / MONTHLY_HOURS
+        : w.hourly_rate || 0;
+      map.set(w.id, rate);
+    });
+    return map;
+  }, [allWorkers]);
+
+  // Calculate total labor cost with burden for the period
+  const periodLaborCost = useMemo(() => {
+    return periodTimeEntries.reduce((sum: number, entry: any) => {
+      const rate = entry.worker_id ? (workerRates.get(entry.worker_id) || 0) : 0;
+      const hours = (entry.duration || 0) / 60;
+      const baseCost = hours * rate;
+      return sum + (baseCost * (1 + PAYROLL_TAX_BURDEN));
+    }, 0);
+  }, [periodTimeEntries, workerRates]);
+
+  // For monthly periods, use full monthly overhead; for YTD, multiply by months elapsed
+  const overheadForPeriod = useMemo(() => {
+    if (period === 'this_month' || period === 'last_month') {
+      return metrics.totalMonthlyCost; // full monthly operating cost (labor + overhead)
+    }
+    if (period === 'ytd') {
+      const monthsElapsed = new Date().getMonth() + 1;
+      return metrics.totalMonthlyCost * monthsElapsed;
+    }
+    // all_time: approximate using months between first job and now
+    if (periodJobs.length > 0) {
+      const earliest = periodJobs.reduce((min, j) => {
+        const d = j.created_at;
+        return d < min ? d : min;
+      }, periodJobs[0].created_at);
+      const monthsSpan = Math.max(1, Math.ceil((Date.now() - new Date(earliest).getTime()) / (30.44 * 24 * 60 * 60 * 1000)));
+      return metrics.totalMonthlyCost * monthsSpan;
+    }
+    return metrics.totalMonthlyCost;
+  }, [period, metrics.totalMonthlyCost, periodJobs]);
+
+  // Total tracked hours for the period
+  const periodTrackedHours = useMemo(() => {
+    return periodTimeEntries.reduce((sum: number, entry: any) => sum + (entry.duration || 0) / 60, 0);
+  }, [periodTimeEntries]);
 
   const stats = useMemo(() => {
     const totalRevenue = periodJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
     const totalMaterialCost = periodJobs.reduce((s, j) => s + (j.material_cost || 0), 0);
+    const totalCost = totalMaterialCost + overheadForPeriod;
+    const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
 
-    // Simple P&L: Revenue - Materials - Labor - Overhead = Profit
-    const totalCosts = totalMaterialCost + periodLaborCost + periodOverheadCost;
-    const profit = totalRevenue - totalCosts;
-    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+    // Job-level profitability (based on actual time tracked)
+    const jobLaborCost = periodTrackedHours * metrics.laborCostPerHour;
+    const jobOverheadCost = periodTrackedHours * metrics.overheadCostPerHour;
+    const jobTotalCost = totalMaterialCost + jobLaborCost + jobOverheadCost;
+    const jobProfit = totalRevenue - jobTotalCost;
+    const jobMargin = totalRevenue > 0 ? (jobProfit / totalRevenue) * 100 : 0;
 
     const serviceRevenueMap: Record<string, { revenue: number; cost: number; count: number }> = {};
     periodJobs.forEach(j => {
@@ -115,11 +186,11 @@ export default function Financials() {
       .sort((a, b) => b.revenue - a.revenue);
 
     return {
-      totalRevenue, totalMaterialCost, avgJobValue,
-      jobCount: periodJobs.length, serviceRevenue,
-      profit, margin,
+      totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue,
+      jobCount: periodJobs.length, serviceRevenue, overheadForPeriod,
+      jobLaborCost, jobOverheadCost, jobTotalCost, jobProfit, jobMargin, periodTrackedHours,
     };
-  }, [periodJobs, periodLaborCost, periodOverheadCost]);
+  }, [periodJobs, overheadForPeriod, periodTrackedHours, metrics.laborCostPerHour, metrics.overheadCostPerHour]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -133,7 +204,7 @@ export default function Financials() {
     `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const profitMargin = stats.totalRevenue > 0
-    ? stats.margin.toFixed(1)
+    ? ((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1)
     : '0';
 
   return (
@@ -185,9 +256,9 @@ export default function Financials() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-destructive'}`}>{formatCurrency(stats.profit)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalProfit)}</div>
             <p className="text-xs text-muted-foreground">
-              {profitMargin}% margin · {effectiveMonths} mo. costs applied
+              {profitMargin}% margin · Overhead {formatCurrency(stats.overheadForPeriod)} · Materials {formatCurrency(stats.totalMaterialCost)}
             </p>
           </CardContent>
         </Card>
@@ -199,7 +270,7 @@ export default function Financials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(metrics.totalMonthlyCost)}</div>
-            <p className="text-xs text-muted-foreground">Labor + overhead per month</p>
+            <p className="text-xs text-muted-foreground">Labor + overhead</p>
           </CardContent>
         </Card>
 
@@ -210,47 +281,87 @@ export default function Financials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.avgJobValue)}</div>
-            <p className="text-xs text-muted-foreground">Per job</p>
+            <p className="text-xs text-muted-foreground">Per completed job</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* P&L */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Profit & Loss</CardTitle>
-            <CardDescription>{periodLabel} · {effectiveMonths} month{effectiveMonths !== 1 ? 's' : ''} of fixed costs applied</CardDescription>
-          </div>
-          <BarChart3 className="h-5 w-5 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Revenue</span>
-              <span>{formatCurrency(stats.totalRevenue)}</span>
+      {/* Job Margin vs Business P&L */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Job Profitability</CardTitle>
+              <CardDescription>Based on actual time tracked per job</CardDescription>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Materials</span>
-              <span className="text-destructive">−{formatCurrency(stats.totalMaterialCost)}</span>
+            <BarChart3 className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Revenue</span>
+                <span>{formatCurrency(stats.totalRevenue)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Materials</span>
+                <span className="text-destructive">−{formatCurrency(stats.totalMaterialCost)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Labor ({stats.periodTrackedHours.toFixed(1)} hrs × {formatCurrency(metrics.laborCostPerHour)}/hr)</span>
+                <span className="text-destructive">−{formatCurrency(stats.jobLaborCost)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Overhead allocation</span>
+                <span className="text-destructive">−{formatCurrency(stats.jobOverheadCost)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 text-lg">
+                <span className="font-bold">Job Margin</span>
+                <span className={`font-bold ${stats.jobProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {formatCurrency(stats.jobProfit)} ({stats.jobMargin.toFixed(1)}%)
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground pt-1">
+                Are our jobs priced correctly? This shows profit after deducting costs allocated by actual hours worked.
+              </p>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Labor ({effectiveMonths} mo. × {formatCurrency(metrics.totalLaborCostWithTaxes)}/mo)</span>
-              <span className="text-destructive">−{formatCurrency(periodLaborCost)}</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Business P&L</CardTitle>
+              <CardDescription>Fixed monthly operating costs</CardDescription>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Overhead ({effectiveMonths} mo. × {formatCurrency(metrics.monthlyOverheadCost)}/mo)</span>
-              <span className="text-destructive">−{formatCurrency(periodOverheadCost)}</span>
+            <TrendingUp className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Revenue</span>
+                <span>{formatCurrency(stats.totalRevenue)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Materials</span>
+                <span className="text-destructive">−{formatCurrency(stats.totalMaterialCost)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Operating costs ({periodLabel})</span>
+                <span className="text-destructive">−{formatCurrency(stats.overheadForPeriod)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 text-lg">
+                <span className="font-bold">Net Profit</span>
+                <span className={`font-bold ${stats.totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {formatCurrency(stats.totalProfit)} ({stats.totalRevenue > 0 ? ((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1) : '0'}%)
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground pt-1">
+                Is the company profitable? This deducts all fixed monthly costs regardless of how many jobs were done.
+              </p>
             </div>
-            <div className="flex justify-between border-t pt-2 text-lg">
-              <span className="font-bold">Net Profit</span>
-              <span className={`font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                {formatCurrency(stats.profit)} ({stats.margin.toFixed(1)}%)
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
