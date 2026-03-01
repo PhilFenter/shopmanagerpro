@@ -3,10 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import type { JobStage } from './useJobStages';
 
 export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'other';
 export type JobStatus = 'pending' | 'in_progress' | 'completed' | 'on_hold';
-export type JobStage = 'received' | 'art_approved' | 'product_ordered' | 'product_arrived' | 'product_staged' | 'in_production' | 'production_complete' | 'qc_complete' | 'packaged' | 'customer_notified' | 'delivered' | 'picked_up' | 'shipped';
 
 // Helper to check if user has financial access
 export const hasFinancialAccess = (role: string | null) => role === 'admin' || role === 'manager';
@@ -134,11 +134,20 @@ export function useJobs() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    onMutate: async ({ id, ...updates }) => {
+      await queryClient.cancelQueries({ queryKey: ['jobs'] });
+      const previous = queryClient.getQueryData<Job[]>(['jobs']);
+      queryClient.setQueryData<Job[]>(['jobs'], (old) =>
+        old?.map((j) => (j.id === id ? { ...j, ...updates } : j))
+      );
+      return { previous };
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['jobs'], context.previous);
       toast({ variant: 'destructive', title: 'Failed to update job', description: error.message });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
     },
   });
 
