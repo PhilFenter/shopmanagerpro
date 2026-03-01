@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useJobs } from './useJobs';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, subMonths, startOfWeek, endOfWeek, eachWeekOfInterval, isSameDay, isWithinInterval } from 'date-fns';
+import { SERVICE_LABELS } from '@/lib/constants';
 
 export interface DailyJobCount {
   date: string;
@@ -36,13 +37,6 @@ export interface ServiceRevenue {
   count: number;
 }
 
-const SERVICE_LABELS: Record<string, string> = {
-  embroidery: 'Embroidery',
-  screen_print: 'Screen Print',
-  dtf: 'DTF',
-  leather_patch: 'Leather',
-  other: 'Other',
-};
 
 const STAGE_LABELS: Record<string, string> = {
   received: 'Received',

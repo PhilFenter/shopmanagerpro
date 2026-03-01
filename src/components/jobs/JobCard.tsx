@@ -15,17 +15,8 @@ import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_C
 import { cn as clsx } from '@/lib/utils';
 import { DueDatePicker } from './DueDatePicker';
 
-export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  embroidery: 'Embroidery',
-  screen_print: 'Screen Print',
-  dtf: 'DTF',
-  leather_patch: 'Leather',
-  uv_patch: 'UV Patch',
-  heat_press_patch: 'Heat Press',
-  woven_patch: 'Woven',
-  pvc_patch: 'PVC',
-  other: 'Other',
-};
+import { SERVICE_TYPE_LABELS } from '@/lib/constants';
+export { SERVICE_TYPE_LABELS };
 
 export const SERVICE_TYPE_COLORS: Record<ServiceType, string> = {
   embroidery: 'bg-blue-500/20 text-blue-400 border-blue-500/30',

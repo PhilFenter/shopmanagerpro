@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useJobs } from './useJobs';
-import { startOfDay, subDays, subWeeks, subMonths, isWithinInterval, format, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { startOfDay, startOfMonth, subDays, subWeeks, subMonths, isWithinInterval, format, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { SERVICE_LABELS } from '@/lib/constants';
 
 export type TimePeriod = 'this_week' | 'this_month' | 'last_30_days' | 'last_90_days' | 'all_time';
 
@@ -31,17 +32,6 @@ export interface StageBreakdown {
   label: string;
 }
 
-const SERVICE_LABELS: Record<string, string> = {
-  embroidery: 'Embroidery',
-  screen_print: 'Screen Print',
-  dtf: 'DTF',
-  leather_patch: 'Leather',
-  uv_patch: 'UV Patch',
-  heat_press_patch: 'Heat Press',
-  woven_patch: 'Woven',
-  pvc_patch: 'PVC',
-  other: 'Other',
-};
 
 const STAGE_LABELS: Record<string, string> = {
   received: 'Received',
@@ -75,7 +65,7 @@ function getPeriodRange(period: TimePeriod): { start: Date; end: Date } {
     case 'this_week':
       return { start: startOfWeek(now), end };
     case 'this_month':
-      return { start: subDays(now, 30), end };
+      return { start: startOfMonth(now), end };
     case 'last_30_days':
       return { start: subDays(now, 30), end };
     case 'last_90_days':

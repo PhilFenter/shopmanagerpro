@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useJobs, Job, ServiceType, hasFinancialAccess } from '@/hooks/useJobs';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,27 +28,27 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2, CreditCard, AlertTriangle, Shirt } from 'lucide-react';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 
-const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  embroidery: 'Embroidery',
-  screen_print: 'Screen Print',
-  dtf: 'DTF',
-  leather_patch: 'Leather',
-  uv_patch: 'UV Patch',
-  heat_press_patch: 'Heat Press',
-  woven_patch: 'Woven',
-  pvc_patch: 'PVC',
-  other: 'Other',
-};
+import { SERVICE_TYPE_LABELS } from '@/lib/constants';
 
 export default function Jobs() {
   const { jobs, isLoading, deleteJob, updateJob } = useJobs();
   const { role } = useAuth();
   const advanceStage = useAdvanceStage();
+  const { id: jobIdParam } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [garmentSearchOpen, setGarmentSearchOpen] = useState(false);
+
+  const selectedJobId = jobIdParam ?? null;
+  const setSelectedJobId = (id: string | null) => {
+    if (id) {
+      navigate(`/jobs/${id}`, { replace: true });
+    } else {
+      navigate('/jobs', { replace: true });
+    }
+  };
 
   // Always get fresh job data from the query
   const selectedJob = selectedJobId ? jobs.find(j => j.id === selectedJobId) ?? null : null;
