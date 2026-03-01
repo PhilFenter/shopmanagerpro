@@ -120,14 +120,21 @@ export default function Financials() {
     }, 0);
   }, [periodTimeEntries, workerRates]);
 
-  // For monthly periods, use full monthly overhead; for YTD, multiply by months elapsed
+  // Fixed cost allocation by period (MTD proration avoids day-1 full-month cost shock)
   const overheadForPeriod = useMemo(() => {
-    if (period === 'this_month' || period === 'last_month') {
-      return metrics.totalMonthlyCost; // full monthly operating cost (labor + overhead)
+    const now = new Date();
+    const daysInCurrentMonth = endOfMonth(now).getDate();
+    const currentMonthProgress = Math.min(1, Math.max(0, now.getDate() / daysInCurrentMonth));
+
+    if (period === 'this_month') {
+      return metrics.totalMonthlyCost * currentMonthProgress;
+    }
+    if (period === 'last_month') {
+      return metrics.totalMonthlyCost;
     }
     if (period === 'ytd') {
-      const monthsElapsed = new Date().getMonth() + 1;
-      return metrics.totalMonthlyCost * monthsElapsed;
+      const completedMonths = now.getMonth(); // 0-indexed (Jan = 0)
+      return metrics.totalMonthlyCost * (completedMonths + currentMonthProgress);
     }
     // all_time: approximate using months between first job and now
     if (periodJobs.length > 0) {
