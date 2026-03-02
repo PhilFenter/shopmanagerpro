@@ -25,6 +25,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { QuoteLineItemsSummary } from '@/components/action-items/QuoteLineItemsSummary';
 
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -162,6 +163,10 @@ export default function ActionItems() {
             </p>
             {item.description && (
               <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
+            )}
+            {/* Quote line items summary for website quotes */}
+            {item.quote_id && (
+              <QuoteLineItemsSummary quoteId={item.quote_id} compact />
             )}
             {/* Affected orders for missing-price items */}
             {isMissingPrice && affectedOrders && affectedOrders.length > 0 && (
