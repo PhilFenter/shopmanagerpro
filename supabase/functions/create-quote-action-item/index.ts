@@ -148,6 +148,155 @@ function buildLineItem(
   };
 }
 
+// ── Email builder ─────────────────────────────────────
+
+interface EmailParams {
+  customerName: string;
+  serviceType?: string;
+  quantity: number;
+  estimate?: { low: number; high: number } | null;
+  timeline?: string;
+  eventDate?: string;
+  quoteNumber: string;
+  artworkNotes?: string;
+  details?: Record<string, unknown>;
+}
+
+function buildConfirmationEmail(p: EmailParams): string {
+  const serviceLabel =
+    p.serviceType === "custom_hats" ? "Custom Hats"
+    : p.serviceType === "embroidery" ? "Embroidery"
+    : p.serviceType === "screen_print" ? "Screen Printing"
+    : p.serviceType === "dtf" ? "DTF Transfers"
+    : p.serviceType === "garments" ? "Custom Garments"
+    : "Custom Order";
+
+  // Build summary rows
+  const summaryRows: string[] = [];
+  summaryRows.push(row("Service", serviceLabel));
+  if (p.quantity > 0) summaryRows.push(row("Quantity", `${p.quantity} pieces`));
+
+  if (p.details) {
+    if (p.serviceType === "custom_hats") {
+      const hat = HAT_LABELS[p.details.hatStyle as string] || p.details.hatStyle;
+      const patch = PATCH_LABELS[p.details.patchType as string] || p.details.patchType;
+      if (hat) summaryRows.push(row("Hat Style", String(hat)));
+      if (patch) summaryRows.push(row("Patch Type", String(patch)));
+      if (p.details.hatColors) summaryRows.push(row("Colors", String(p.details.hatColors)));
+    } else {
+      const garment = GARMENT_LABELS[p.details.garmentType as string] || p.details.garmentType;
+      if (garment) summaryRows.push(row("Garment", String(garment)));
+      if (p.details.printLocations && Array.isArray(p.details.printLocations))
+        summaryRows.push(row("Print Locations", p.details.printLocations.join(", ")));
+      if (p.details.embroideryLocations && Array.isArray(p.details.embroideryLocations))
+        summaryRows.push(row("Embroidery Locations", p.details.embroideryLocations.join(", ")));
+      if (p.details.printColors) summaryRows.push(row("Colors", String(p.details.printColors)));
+    }
+  }
+
+  if (p.timeline) summaryRows.push(row("Timeline", TIMELINE_LABELS[p.timeline] || p.timeline));
+  if (p.eventDate) {
+    try {
+      summaryRows.push(row("Event Date", new Date(p.eventDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })));
+    } catch { /* skip */ }
+  }
+
+  const estimateBlock = p.estimate
+    ? `<tr><td colspan="2" style="padding:16px 0 8px 0;">
+        <div style="background:#1a1a2e;border-radius:8px;padding:20px;text-align:center;">
+          <div style="color:#a0a0b0;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Estimated Range</div>
+          <div style="color:#ffffff;font-size:28px;font-weight:700;">$${p.estimate.low.toLocaleString()} – $${p.estimate.high.toLocaleString()}</div>
+          <div style="color:#a0a0b0;font-size:12px;margin-top:6px;">Final pricing confirmed after we review your details</div>
+        </div>
+      </td></tr>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+        <!-- Header -->
+        <tr><td style="background:#0f0f1a;border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
+          <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">HELL'S CANYON DESIGNS</div>
+          <div style="color:#a0a0b0;font-size:13px;margin-top:4px;">Custom Apparel &amp; Headwear — Lewiston, ID</div>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="background:#ffffff;padding:40px;">
+          <h1 style="margin:0 0 8px 0;font-size:22px;color:#1a1a2e;">Hey ${p.customerName.split(" ")[0]}! 👋</h1>
+          <p style="margin:0 0 24px 0;color:#555;font-size:15px;line-height:1.6;">
+            We got your quote request and we're on it. Here's a summary of what you asked for:
+          </p>
+
+          <!-- Summary Table -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8ed;border-radius:8px;overflow:hidden;">
+            ${summaryRows.join("")}
+            ${estimateBlock}
+          </table>
+
+          ${p.artworkNotes ? `<div style="margin-top:20px;padding:16px;background:#f8f8fb;border-radius:8px;border-left:4px solid #0f0f1a;">
+            <div style="font-size:12px;text-transform:uppercase;color:#888;letter-spacing:0.5px;margin-bottom:4px;">Your Artwork Notes</div>
+            <div style="color:#333;font-size:14px;">${escapeHtml(p.artworkNotes)}</div>
+          </div>` : ""}
+
+          <!-- Next Steps -->
+          <div style="margin-top:32px;padding:24px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+            <h2 style="margin:0 0 12px 0;font-size:16px;color:#166534;">What happens next?</h2>
+            <ol style="margin:0;padding-left:20px;color:#333;font-size:14px;line-height:1.8;">
+              <li>We review your request (usually within a few hours)</li>
+              <li>We'll reach out to confirm sizes, colors, and artwork</li>
+              <li>You'll get a final quote with exact pricing</li>
+              <li>Once approved, we get to work!</li>
+            </ol>
+          </div>
+
+          <!-- Artwork disclaimer -->
+          <p style="margin:24px 0 0 0;color:#888;font-size:12px;line-height:1.5;">
+            <em>For the best print/embroidery results, please have artwork in vector format (.ai, .eps, .svg) or high-resolution PNG (300+ DPI). We can work with most files — just send what you have.</em>
+          </p>
+
+          <!-- CTA -->
+          <div style="margin-top:32px;text-align:center;">
+            <a href="mailto:quotes@hellscanyondesigns.com" style="display:inline-block;background:#0f0f1a;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;">Reply to This Email</a>
+          </div>
+
+          <!-- Text CTA -->
+          <div style="margin-top:24px;text-align:center;padding:20px;background:#f8f8fb;border-radius:8px;">
+            <div style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Prefer to text?</div>
+            <a href="sms:2087486242" style="font-size:20px;font-weight:700;color:#0f0f1a;text-decoration:none;">208-748-6242</a>
+          </div>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#f8f8fb;border-radius:0 0 12px 12px;padding:24px 40px;text-align:center;">
+          <p style="margin:0;color:#aaa;font-size:12px;">
+            Hell's Canyon Designs · Lewiston, Idaho<br>
+            <a href="https://hellscanyondesigns.com" style="color:#888;">hellscanyondesigns.com</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function row(label: string, value: string): string {
+  return `<tr>
+    <td style="padding:12px 16px;font-size:13px;color:#888;border-bottom:1px solid #f0f0f3;width:40%;">${label}</td>
+    <td style="padding:12px 16px;font-size:14px;color:#1a1a2e;font-weight:500;border-bottom:1px solid #f0f0f3;">${value}</td>
+  </tr>`;
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 // ── Main handler ──────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -365,6 +514,53 @@ Deno.serve(async (req) => {
 
     if (aiErr) {
       console.error("Action item error:", aiErr);
+    }
+
+    // 7. Send confirmation email to customer
+    if (email) {
+      try {
+        const resendApiKey = Deno.env.get("RESEND_API_KEY");
+        if (resendApiKey) {
+          const emailHtml = buildConfirmationEmail({
+            customerName: customer_name,
+            serviceType,
+            quantity: totalQty,
+            estimate,
+            timeline,
+            eventDate: details?.eventDate as string | undefined,
+            quoteNumber: quote.quote_number || quote.id,
+            artworkNotes,
+            details,
+          });
+
+          const emailRes = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${resendApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
+              to: [email],
+              subject: `We got your quote request! — Hell's Canyon Designs`,
+              html: emailHtml,
+              reply_to: "quotes@hellscanyondesigns.com",
+            }),
+          });
+
+          if (!emailRes.ok) {
+            const errBody = await emailRes.text();
+            console.error("Resend email error:", emailRes.status, errBody);
+          } else {
+            console.log("Confirmation email sent to", email);
+          }
+        } else {
+          console.warn("RESEND_API_KEY not configured, skipping confirmation email");
+        }
+      } catch (emailErr) {
+        console.error("Email send failed:", emailErr);
+        // Don't fail the whole request if email fails
+      }
     }
 
     return new Response(
