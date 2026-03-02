@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.printavo-customer-sync]
 verify_jwt = false
+
+[functions.create-quote-action-item]
+verify_jwt = false
