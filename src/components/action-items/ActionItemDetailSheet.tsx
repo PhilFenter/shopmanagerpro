@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Save, Plus, Trash2, GripVertical } from 'lucide-react';
+import { Save, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { QuoteLineItemsSummary } from './QuoteLineItemsSummary';
 
 export interface ChecklistItem {
   id: string;
@@ -165,6 +166,17 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
               rows={3}
             />
           </div>
+
+          {/* Quote Details */}
+          {item.quote_id && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Quote Details</Label>
+                <QuoteLineItemsSummary quoteId={item.quote_id} compact={false} />
+              </div>
+            </>
+          )}
 
           <Separator />
 
