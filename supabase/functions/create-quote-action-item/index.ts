@@ -540,7 +540,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "Hell's Canyon Designs <info@hellscanyondesigns.com>",
+              from: "Hell's Canyon Designs <info@mail.hellscanyondesigns.com>",
               to: [email],
               subject: `We got your quote request! — Hell's Canyon Designs`,
               html: emailHtml,
