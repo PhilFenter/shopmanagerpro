@@ -261,7 +261,7 @@ function buildConfirmationEmail(p: EmailParams): string {
 
           <!-- CTA -->
           <div style="margin-top:32px;text-align:center;">
-            <a href="mailto:quotes@hellscanyondesigns.com" style="display:inline-block;background:#0f0f1a;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;">Reply to This Email</a>
+            <a href="mailto:info@hellscanyondesigns.com" style="display:inline-block;background:#0f0f1a;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;">Reply to This Email</a>
           </div>
 
           <!-- Text CTA -->
@@ -540,11 +540,11 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
+              from: "Hell's Canyon Designs <info@hellscanyondesigns.com>",
               to: [email],
               subject: `We got your quote request! — Hell's Canyon Designs`,
               html: emailHtml,
-              reply_to: "quotes@hellscanyondesigns.com",
+              reply_to: "info@hellscanyondesigns.com",
             }),
           });
 
