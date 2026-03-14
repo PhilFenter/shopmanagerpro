@@ -56,7 +56,21 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const isServiceRole = token === serviceRoleKey;
-    const isAnonKeyCall = token === anonKey;
+
+    let tokenRole: string | undefined;
+    let hasSubClaim = false;
+    try {
+      const payloadPart = token.split(".")[1];
+      if (payloadPart) {
+        const payload = JSON.parse(atob(payloadPart));
+        tokenRole = payload?.role;
+        hasSubClaim = !!payload?.sub;
+      }
+    } catch {
+      // Ignore decode errors, JWT validation happens below for user calls
+    }
+
+    const isAnonProjectKeyCall = token === anonKey || (tokenRole === "anon" && !hasSubClaim);
     const userAgent = (req.headers.get("user-agent") || "").toLowerCase();
     const hasClientInfoHeader = !!req.headers.get("x-client-info");
     const hasManualFilters = ["startDate", "endDate", "minOrderNumber", "maxPages", "fullScrape"].some((key) =>
@@ -65,7 +79,7 @@ Deno.serve(async (req) => {
 
     const isAutomatedCronCall =
       isServiceRole ||
-      (isAnonKeyCall && (userAgent.includes("pg_net") || (!hasClientInfoHeader && !hasManualFilters)));
+      (isAnonProjectKeyCall && (userAgent.includes("pg_net") || (!hasClientInfoHeader && !hasManualFilters)));
 
     let supabase;
     let userId: string | undefined;
