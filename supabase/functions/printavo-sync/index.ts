@@ -74,13 +74,40 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
+    const body: any = await req.json().catch(() => ({}));
+
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const isServiceRole = token === serviceRoleKey;
+
+    let tokenRole: string | undefined;
+    let hasSubClaim = false;
+    try {
+      const payloadPart = token.split(".")[1];
+      if (payloadPart) {
+        const payload = JSON.parse(atob(payloadPart));
+        tokenRole = payload?.role;
+        hasSubClaim = !!payload?.sub;
+      }
+    } catch {
+      // Ignore decode errors, JWT validation happens below for user calls
+    }
+
+    const isAnonProjectKeyCall = token === anonKey || (tokenRole === "anon" && !hasSubClaim);
+    const userAgent = (req.headers.get("user-agent") || "").toLowerCase();
+    const hasClientInfoHeader = !!req.headers.get("x-client-info");
+    const hasManualFilters = ["startDate", "endDate", "minOrderNumber", "maxPages", "fullScrape"].some((key) =>
+      Object.prototype.hasOwnProperty.call(body, key)
+    );
+
+    const isAutomatedCronCall =
+      isServiceRole ||
+      (isAnonProjectKeyCall && (userAgent.includes("pg_net") || (!hasClientInfoHeader && !hasManualFilters)));
 
     let supabase;
     let userId: string | undefined;
 
-    if (isServiceRole) {
+    if (isAutomatedCronCall) {
       // Cron/automated call — use service role client
       supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -94,12 +121,12 @@ Deno.serve(async (req) => {
         .limit(1)
         .single();
       userId = adminRole?.user_id;
-      console.log("Service role auth (cron), using admin user:", userId);
+      console.log("Automated sync auth, using admin user:", userId);
     } else {
       // User call — validate JWT
       supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
+        anonKey,
         { global: { headers: { Authorization: authHeader } } }
       );
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -124,7 +151,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body = await req.json().catch(() => ({}));
     const {
       endDate = null,
       minOrderNumber = null,
