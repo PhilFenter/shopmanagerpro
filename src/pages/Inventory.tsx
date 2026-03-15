@@ -46,8 +46,9 @@ export default function Inventory() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
+  const { items, isLoading, totalValue, totalItems, distincts, addItem, updateItem, deleteItem, bulkImport } = useGarmentInventory(debouncedSearch);
+
   const bulkCostLookup = useCallback(async () => {
-    // Get items with no cost or zero cost
     const needsPricing = items.filter(i => !i.unit_cost || i.unit_cost === 0);
     if (needsPricing.length === 0) {
       toast.info('All items already have costs');
@@ -55,7 +56,6 @@ export default function Inventory() {
     }
 
     setBulkLookupRunning(true);
-    // Group by style_number to avoid duplicate API calls
     const styleMap = new Map<string, InventoryItem[]>();
     for (const item of needsPricing) {
       const style = item.style_number.trim().toUpperCase();
@@ -72,7 +72,6 @@ export default function Inventory() {
       setBulkLookupProgress(`Looking up ${style} (${i + 1}/${styles.length})...`);
 
       try {
-        // Try local catalog first
         const { data: catalogHit } = await supabase
           .from('product_catalog')
           .select('piece_price, brand, description')
@@ -90,7 +89,6 @@ export default function Inventory() {
           continue;
         }
 
-        // Try SanMar API
         let found = false;
         try {
           const sanmarRes = await supabase.functions.invoke('sanmar-api', {
@@ -118,7 +116,6 @@ export default function Inventory() {
           }
         } catch { /* try S&S */ }
 
-        // Try S&S
         try {
           const ssRes = await supabase.functions.invoke('ss-activewear-api', {
             body: { action: 'getProducts', styleNumber: style },
@@ -155,8 +152,6 @@ export default function Inventory() {
     setBulkLookupProgress('');
     toast.success(`Cost lookup complete: ${updated} updated, ${failed} not found`);
   }, [items, updateItem]);
-
-  const { items, isLoading, totalValue, totalItems, distincts, addItem, updateItem, deleteItem, bulkImport } = useGarmentInventory(debouncedSearch);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
