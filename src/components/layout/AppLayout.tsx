@@ -26,6 +26,7 @@ import {
   ListTodo,
   UserCheck,
   MessagesSquare,
+  Palette,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -35,6 +36,7 @@ interface AppLayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
+  { name: 'Artwork', href: '/artwork', icon: Palette },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
   
   { 
