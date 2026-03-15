@@ -310,9 +310,6 @@ export default function Inventory() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDeductDialogItem(item); setDeductQty(1); }}>
-                          <Minus className="h-4 w-4" />
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
