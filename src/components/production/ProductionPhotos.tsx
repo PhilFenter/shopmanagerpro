@@ -205,6 +205,11 @@ export default function ProductionPhotos({
         <CardTitle className="text-lg flex items-center gap-2">
           <Camera className="h-5 w-5" />
           Production Photos
+          {jobGalleryPhotos.length > 0 && (
+            <Badge variant="secondary" className="text-xs font-normal">
+              {jobGalleryPhotos.length} from job
+            </Badge>
+          )}
           <div className="ml-auto flex items-center gap-2">
             {/* Send for Approval button */}
             {canSendApproval && (
