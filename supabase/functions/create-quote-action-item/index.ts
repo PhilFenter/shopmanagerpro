@@ -10,10 +10,21 @@ const corsHeaders = {
 
 const SERVICE_TYPE_MAP: Record<string, string> = {
   custom_hats: "leather_patch",
+  leather_patch_hats: "leather_patch",
   embroidery: "embroidery",
   screen_print: "screen_print",
   dtf: "dtf",
   garments: "other",
+};
+
+const SERVICE_TITLE_LABELS: Record<string, string> = {
+  custom_hats: "Custom Hats",
+  leather_patch_hats: "Custom Hats",
+  embroidery: "Embroidery",
+  screen_print: "Screen Print",
+  dtf: "DTF",
+  garments: "Custom Garments",
+  other: "Quote",
 };
 
 const PATCH_LABELS: Record<string, string> = {
@@ -55,6 +66,77 @@ const TIMELINE_LABELS: Record<string, string> = {
   asap: "ASAP",
 };
 
+const CUSTOM_HAT_SERVICE_TYPES = new Set([
+  "custom_hats",
+  "custom_hat",
+  "leather_patch_hats",
+  "leather_patch_hat",
+]);
+
+function normalizeServiceType(serviceType?: string): string {
+  if (!serviceType) return "other";
+
+  const normalized = serviceType
+    .toLowerCase()
+    .trim()
+    .replace(/[\s-]+/g, "_");
+
+  if (CUSTOM_HAT_SERVICE_TYPES.has(normalized)) return "custom_hats";
+  if (normalized === "screenprint") return "screen_print";
+
+  return normalized;
+}
+
+function readDetailString(details: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = details[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function toDisplayLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function resolveHatDetails(details: Record<string, unknown>) {
+  const hatCode = readDetailString(details, ["hatStyle", "hatModel", "style_number", "style"]);
+  const hatLabel = HAT_LABELS[hatCode] || (hatCode ? toDisplayLabel(hatCode) : "");
+
+  const hatColorRaw = readDetailString(details, ["hatColors", "hatColor", "colors"]);
+  const hatColor = hatColorRaw ? toDisplayLabel(hatColorRaw) : "";
+
+  const patchTypeKey = readDetailString(details, ["patchType", "patch_type"]);
+  let patchLabel = PATCH_LABELS[patchTypeKey] || (patchTypeKey ? toDisplayLabel(patchTypeKey) : "");
+
+  if (!patchLabel) {
+    const patchShape = readDetailString(details, ["patchShape", "shape"]);
+    const patchSize = readDetailString(details, ["patchSize", "size"]);
+    const leatherColor = readDetailString(details, ["leatherColor"]);
+
+    const extras = [patchSize, patchShape, leatherColor]
+      .filter(Boolean)
+      .map((value) => toDisplayLabel(value));
+
+    patchLabel = extras.length > 0
+      ? `Leather Patch (${extras.join(" · ")})`
+      : "Leather Patch";
+  }
+
+  return {
+    hatCode,
+    hatLabel,
+    hatColor,
+    patchLabel,
+  };
+}
+
 /** Build a human-readable description from details */
 function buildDescription(
   serviceType: string,
@@ -65,18 +147,19 @@ function buildDescription(
 ): string {
   const parts: string[] = [];
   const missingFields: string[] = [];
+  const normalizedServiceType = normalizeServiceType(serviceType);
 
-  if (serviceType === "custom_hats") {
-    const patch = PATCH_LABELS[details.patchType as string] || details.patchType || "";
-    const hat = HAT_LABELS[details.hatStyle as string] || details.hatStyle || "";
-    const colors = details.hatColors as string || "";
-    parts.push(`Patch: ${patch || "⚠️ Not specified"}`);
-    parts.push(`Hat: ${hat || "⚠️ Not specified"}`);
-    parts.push(`Colors: ${colors || "⚠️ Not specified"}`);
-    if (!patch) missingFields.push("patch type");
-    if (!hat) missingFields.push("hat style");
-    if (!colors) missingFields.push("hat colors");
-  } else if (serviceType === "dtf") {
+  if (normalizedServiceType === "custom_hats") {
+    const { hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
+
+    parts.push(`Patch: ${patchLabel || "⚠️ Not specified"}`);
+    parts.push(`Hat: ${hatLabel || "⚠️ Not specified"}`);
+    parts.push(`Colors: ${hatColor || "⚠️ Not specified"}`);
+
+    if (!patchLabel) missingFields.push("patch type");
+    if (!hatLabel) missingFields.push("hat style");
+    if (!hatColor) missingFields.push("hat colors");
+  } else if (normalizedServiceType === "dtf") {
     if (details.orderType) parts.push(`Order type: ${details.orderType}`);
     if (details.garmentType) parts.push(`Garment: ${GARMENT_LABELS[details.garmentType as string] || details.garmentType}`);
   } else {
@@ -113,15 +196,20 @@ function buildLineItem(
   notes: string,
   estimate?: { low: number; high: number } | null
 ) {
-  const mappedService = SERVICE_TYPE_MAP[serviceType] || "other";
+  const normalizedServiceType = normalizeServiceType(serviceType);
+  const mappedService = SERVICE_TYPE_MAP[normalizedServiceType] || "other";
 
   // Build a description from the details
   let description = "";
-  if (serviceType === "custom_hats") {
-    const hat = HAT_LABELS[details.hatStyle as string] || details.hatStyle || "Custom Hat";
-    const patch = PATCH_LABELS[details.patchType as string] || details.patchType || "";
-    description = `${hat} — ${patch}`;
-  } else if (serviceType === "dtf") {
+  let styleNumber: string | null = null;
+  let color: string | null = null;
+
+  if (normalizedServiceType === "custom_hats") {
+    const { hatCode, hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
+    description = [hatLabel || "Custom Hat", patchLabel].filter(Boolean).join(" — ");
+    styleNumber = hatCode || null;
+    color = hatColor || null;
+  } else if (normalizedServiceType === "dtf") {
     const garment = GARMENT_LABELS[details.garmentType as string] || details.garmentType || "DTF Transfers";
     const orderType = details.orderType === "transfers" ? "Loose transfers" : "Finished garments";
     description = `${garment} (${orderType})`;
@@ -140,8 +228,8 @@ function buildLineItem(
     description,
     quantity: quantity || 1,
     sizes: {},
-    style_number: null,
-    color: (details.hatColors as string) || null,
+    style_number: styleNumber,
+    color,
     placement: Array.isArray(details.printLocations)
       ? details.printLocations.join(", ")
       : Array.isArray(details.embroideryLocations)
@@ -172,12 +260,13 @@ interface EmailParams {
 }
 
 function buildConfirmationEmail(p: EmailParams): string {
+  const normalizedServiceType = normalizeServiceType(p.serviceType);
   const serviceLabel =
-    p.serviceType === "custom_hats" ? "Custom Hats"
-    : p.serviceType === "embroidery" ? "Embroidery"
-    : p.serviceType === "screen_print" ? "Screen Printing"
-    : p.serviceType === "dtf" ? "DTF Transfers"
-    : p.serviceType === "garments" ? "Custom Garments"
+    normalizedServiceType === "custom_hats" ? "Custom Hats"
+    : normalizedServiceType === "embroidery" ? "Embroidery"
+    : normalizedServiceType === "screen_print" ? "Screen Printing"
+    : normalizedServiceType === "dtf" ? "DTF Transfers"
+    : normalizedServiceType === "garments" ? "Custom Garments"
     : "Custom Order";
 
   // Build summary rows
@@ -186,12 +275,11 @@ function buildConfirmationEmail(p: EmailParams): string {
   if (p.quantity > 0) summaryRows.push(row("Quantity", `${p.quantity} pieces`));
 
   if (p.details) {
-    if (p.serviceType === "custom_hats") {
-      const hat = HAT_LABELS[p.details.hatStyle as string] || p.details.hatStyle;
-      const patch = PATCH_LABELS[p.details.patchType as string] || p.details.patchType;
-      if (hat) summaryRows.push(row("Hat Style", String(hat)));
-      if (patch) summaryRows.push(row("Patch Type", String(patch)));
-      if (p.details.hatColors) summaryRows.push(row("Colors", String(p.details.hatColors)));
+    if (normalizedServiceType === "custom_hats") {
+      const { hatLabel, patchLabel, hatColor } = resolveHatDetails(p.details);
+      if (hatLabel) summaryRows.push(row("Hat Style", hatLabel));
+      if (patchLabel) summaryRows.push(row("Patch Type", patchLabel));
+      if (hatColor) summaryRows.push(row("Colors", hatColor));
     } else {
       const garment = GARMENT_LABELS[p.details.garmentType as string] || p.details.garmentType;
       if (garment) summaryRows.push(row("Garment", String(garment)));
@@ -411,9 +499,14 @@ Deno.serve(async (req) => {
       customerId = newCustomer.id;
     }
 
+    const normalizedServiceType = normalizeServiceType(serviceType);
+    const normalizedDetails = (details && typeof details === "object" && !Array.isArray(details))
+      ? details as Record<string, unknown>
+      : {};
+
     // 2. Build enriched notes for the quote
-    const detailDescription = details
-      ? buildDescription(serviceType || "other", details, timeline, artworkNotes, estimate)
+    const detailDescription = Object.keys(normalizedDetails).length > 0
+      ? buildDescription(normalizedServiceType, normalizedDetails, timeline, artworkNotes, estimate)
       : "";
     const fullNotes = [notes, detailDescription].filter(Boolean).join("\n\n---\n");
 
@@ -455,9 +548,9 @@ Deno.serve(async (req) => {
     let resolvedLineItems = line_items;
 
     // If no explicit line_items but we have details from the website builder, synthesize one
-    if ((!Array.isArray(resolvedLineItems) || resolvedLineItems.length === 0) && details && serviceType) {
+    if ((!Array.isArray(resolvedLineItems) || resolvedLineItems.length === 0) && Object.keys(normalizedDetails).length > 0) {
       const qty = parseInt(String(quantity), 10) || 0;
-      resolvedLineItems = [buildLineItem(quote.id, serviceType, qty, details, notes || "", estimate)];
+      resolvedLineItems = [buildLineItem(quote.id, normalizedServiceType, qty, normalizedDetails, notes || "", estimate)];
     }
 
     if (Array.isArray(resolvedLineItems) && resolvedLineItems.length > 0) {
@@ -489,7 +582,7 @@ Deno.serve(async (req) => {
     }
 
     // 5. Build action item title
-    const serviceLabel = SERVICE_TYPE_MAP[serviceType] || serviceType || "quote";
+    const serviceLabel = SERVICE_TITLE_LABELS[normalizedServiceType] || serviceType || "Quote";
     const totalQty = Array.isArray(resolvedLineItems)
       ? resolvedLineItems.reduce((sum: number, li: any) => sum + (parseInt(String(li.quantity), 10) || 0), 0)
       : parseInt(String(quantity), 10) || 0;
@@ -506,13 +599,11 @@ Deno.serve(async (req) => {
 
     // 6. Build auto-checklist for missing info
     const autoChecklist: Array<{ id: string; text: string; done: boolean }> = [];
-    if (details && serviceType === "custom_hats") {
-      const hasPatch = !!(PATCH_LABELS[details.patchType as string] || details.patchType);
-      const hasHat = !!(HAT_LABELS[details.hatStyle as string] || details.hatStyle);
-      const hasColors = !!details.hatColors;
-      if (!hasHat) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
-      if (!hasColors) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
-      if (!hasPatch) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
+    if (Object.keys(normalizedDetails).length > 0 && normalizedServiceType === "custom_hats") {
+      const { patchLabel, hatLabel, hatColor } = resolveHatDetails(normalizedDetails);
+      if (!hatLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
+      if (!hatColor) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
+      if (!patchLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
     }
     autoChecklist.push({ id: crypto.randomUUID(), text: "Review artwork / logo files", done: false });
     autoChecklist.push({ id: crypto.randomUUID(), text: "Send final quote to customer", done: false });
@@ -546,14 +637,14 @@ Deno.serve(async (req) => {
         if (resendApiKey) {
           const emailHtml = buildConfirmationEmail({
             customerName: customer_name,
-            serviceType,
+            serviceType: normalizedServiceType,
             quantity: totalQty,
             estimate,
             timeline,
-            eventDate: details?.eventDate as string | undefined,
+            eventDate: normalizedDetails.eventDate as string | undefined,
             quoteNumber: quote.quote_number || quote.id,
             artworkNotes,
-            details,
+            details: Object.keys(normalizedDetails).length > 0 ? normalizedDetails : undefined,
           });
 
           const emailRes = await fetch("https://api.resend.com/emails", {
