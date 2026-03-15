@@ -183,17 +183,19 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
             </div>
           </div>
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ai-desc">Description</Label>
-            <Textarea
-              id="ai-desc"
-              value={description}
-              onChange={e => { setDescription(e.target.value); markDirty(); }}
-              placeholder="Details, context, requirements..."
-              rows={3}
-            />
-          </div>
+          {/* Description — only show for non-quote items */}
+          {!item.quote_id && (
+            <div className="space-y-1.5">
+              <Label htmlFor="ai-desc">Description</Label>
+              <Textarea
+                id="ai-desc"
+                value={description}
+                onChange={e => { setDescription(e.target.value); markDirty(); }}
+                placeholder="Details, context, requirements..."
+                rows={3}
+              />
+            </div>
+          )}
 
           {/* Quote Details */}
           {item.quote_id && (
