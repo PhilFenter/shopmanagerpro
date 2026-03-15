@@ -178,7 +178,7 @@ function buildDescription(
 
   if (timeline) parts.push(`Timeline: ${TIMELINE_LABELS[timeline] || timeline}`);
   if (artworkNotes) parts.push(`Artwork notes: ${artworkNotes}`);
-  if (estimate) parts.push(`Estimate: $${estimate.low}–$${estimate.high}`);
+  if (estimate) parts.push(`Estimate: $${Math.round(estimate.low * 100) / 100}–$${Math.round(estimate.high * 100) / 100}`);
 
   if (missingFields.length > 0) {
     parts.push(`\n⚠️ MISSING INFO — follow up on: ${missingFields.join(", ")}`);
