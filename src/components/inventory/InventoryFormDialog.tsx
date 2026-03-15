@@ -55,21 +55,38 @@ export function InventoryFormDialog({
         return;
       }
 
-      // Try SanMar API (prefer myPrice = wholesale, fallback to piecePrice = retail)
+      // Try SanMar API (prefer myPrice = wholesale, match size if specified)
       try {
         const sanmarRes = await supabase.functions.invoke('sanmar-api', {
           body: { action: 'getPricing', styleNumber: style },
         });
         if (sanmarRes.data?.success && sanmarRes.data.pricing?.length > 0) {
           const pricing = sanmarRes.data.pricing;
-          // myPrice is the customer-specific wholesale price; piecePrice is retail
-          const wholesalePrices = pricing.map((p: any) => p.myPrice || p.salePrice || 0).filter((p: number) => p > 0);
-          const maxPrice = wholesalePrices.length > 0
-            ? Math.max(...wholesalePrices)
-            : Math.max(...pricing.map((p: any) => p.casePrice || p.piecePrice || 0));
-          if (maxPrice > 0) {
-            updateField('unit_cost', maxPrice);
-            toast.success(`SanMar wholesale: $${maxPrice.toFixed(2)}`);
+          const enteredSize = form.size?.trim().toUpperCase();
+          
+          // If a size is entered, try to match that size's price
+          let matched: any[] = [];
+          if (enteredSize) {
+            matched = pricing.filter((p: any) => p.size?.toUpperCase() === enteredSize);
+          }
+          // Default to standard sizes (S/M/L/XL) — the base price tier
+          if (matched.length === 0) {
+            matched = pricing.filter((p: any) => ['S', 'M', 'L', 'XL'].includes(p.size?.toUpperCase()));
+          }
+          // Final fallback: all entries
+          if (matched.length === 0) matched = pricing;
+          
+          // Use myPrice (wholesale), then salePrice, then casePrice
+          const prices = matched
+            .map((p: any) => p.myPrice || p.salePrice || p.casePrice || 0)
+            .filter((p: number) => p > 0);
+          
+          if (prices.length > 0) {
+            // Use the most common price (mode) for matched sizes, not max
+            const price = prices[0];
+            updateField('unit_cost', price);
+            const sizeLabel = enteredSize || 'S-XL';
+            toast.success(`SanMar wholesale (${sizeLabel}): $${price.toFixed(2)}`);
             setLookingUp(false);
             return;
           }
