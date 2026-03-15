@@ -1,11 +1,21 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Search,
   Download,
@@ -16,6 +26,8 @@ import {
   CloudUpload,
   Check,
   Loader2,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -56,6 +68,11 @@ const isStoredArtworkUrl = (url: string) =>
 const isPreviewableArtwork = (url: string) =>
   isStoredArtworkUrl(url) && PREVIEWABLE_EXTENSIONS.has(getFileExtension(url));
 
+const getStoragePath = (url: string) => {
+  const match = url.match(/\/storage\/v1\/object\/public\/quote-artwork\/(.+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
 const SERVICE_LABELS: Record<string, string> = {
   embroidery: 'Embroidery',
   screen_print: 'Screen Print',
@@ -72,6 +89,12 @@ export default function ArtworkLibrary() {
   const [search, setSearch] = useState('');
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
   const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<ArtworkItem | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadTargetItem, setUploadTargetItem] = useState<ArtworkItem | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: artworks = [], isLoading } = useQuery({
     queryKey: ['artwork-library'],
@@ -162,6 +185,90 @@ export default function ArtworkLibrary() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget.id);
+
+    try {
+      // Remove file from storage
+      const storagePath = getStoragePath(deleteTarget.image_url);
+      if (storagePath) {
+        const { error: storageError } = await supabase.storage
+          .from('quote-artwork')
+          .remove([storagePath]);
+        if (storageError) {
+          console.warn('Storage delete warning:', storageError);
+        }
+      }
+
+      // Clear the image_url on the line item
+      const { error: updateError } = await supabase
+        .from('quote_line_items')
+        .update({ image_url: null })
+        .eq('id', deleteTarget.id);
+
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ['artwork-library'] });
+      toast.success('Artwork deleted');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      toast.error('Failed to delete artwork');
+    } finally {
+      setDeletingId(null);
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleUploadClick = (art: ArtworkItem) => {
+    setUploadTargetItem(art);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadTargetItem) return;
+
+    // Reset the input so the same file can be re-selected
+    e.target.value = '';
+
+    setUploadingId(uploadTargetItem.id);
+
+    try {
+      const safeName = uploadTargetItem.customer_name.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'Unknown';
+      const ext = file.name.includes('.') ? '.' + file.name.split('.').pop() : '';
+      const storagePath = `${safeName}/${crypto.randomUUID()}${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('quote-artwork')
+        .upload(storagePath, file, { upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      // Get the public URL
+      const { data: urlData } = supabase.storage
+        .from('quote-artwork')
+        .getPublicUrl(storagePath);
+
+      // Update the line item with the new URL
+      const { error: updateError } = await supabase
+        .from('quote_line_items')
+        .update({ image_url: urlData.publicUrl })
+        .eq('id', uploadTargetItem.id);
+
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ['artwork-library'] });
+      toast.success(`Updated artwork: ${file.name}`);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast.error('Failed to upload artwork');
+    } finally {
+      setUploadingId(null);
+      setUploadTargetItem(null);
+    }
+  };
+
   const handleSyncToDropbox = async (art: ArtworkItem) => {
     const filename = getFileNameFromUrl(art.image_url);
     setSyncingIds((prev) => new Set(prev).add(art.id));
@@ -207,6 +314,15 @@ export default function ArtworkLibrary() {
 
   return (
     <div className="space-y-6">
+      {/* Hidden file input for uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        accept="image/*,.ai,.eps,.pdf,.svg,.cdr"
+        onChange={handleFileSelected}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -259,6 +375,8 @@ export default function ArtworkLibrary() {
             const extension = getFileExtension(art.image_url).toUpperCase() || 'FILE';
             const isSyncing = syncingIds.has(art.id);
             const isSynced = syncedIds.has(art.id);
+            const isDeleting = deletingId === art.id;
+            const isUploading = uploadingId === art.id;
 
             return (
               <Card key={art.id} className="overflow-hidden group">
@@ -278,10 +396,23 @@ export default function ArtworkLibrary() {
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 flex-wrap p-2">
                     <Button size="sm" onClick={() => handleDownload(art)}>
                       <Download className="h-4 w-4 mr-1" />
                       Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUploadClick(art)}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-1" />
+                      )}
+                      Replace
                     </Button>
                     <Button
                       size="sm"
@@ -303,6 +434,18 @@ export default function ArtworkLibrary() {
                       onClick={() => window.open(art.image_url, '_blank', 'noopener,noreferrer')}
                     >
                       <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setDeleteTarget(art)}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -334,6 +477,30 @@ export default function ArtworkLibrary() {
           })}
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Artwork</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the artwork file for{' '}
+              <strong>{deleteTarget?.customer_name}</strong>
+              {deleteTarget?.quote_number ? ` (${deleteTarget.quote_number})` : ''}.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
