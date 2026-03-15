@@ -223,13 +223,33 @@ Deno.serve(async (req) => {
     });
 
     // --- Step 3: Create the quote ---
-    const noteParts: string[] = [];
-    if (quote.notes) noteParts.push(quote.notes);
-    if (quote.delivery_method) noteParts.push(`Delivery: ${quote.delivery_method}`);
-    if (quote.shipping_address) noteParts.push(`Ship to: ${quote.shipping_address}`);
-    if (quote.is_nonprofit) noteParts.push("⚠️ Nonprofit");
-    if (quote.po_number) noteParts.push(`PO: ${quote.po_number}`);
-    const productionNote = noteParts.join("\n") || undefined;
+    // Build concise production note from line items (not raw quote notes)
+    const prodParts: string[] = [];
+    for (const li of lineItems) {
+      const desc = li.description || li.style_number || "Line item";
+      const color = li.color ? ` — ${li.color}` : "";
+      const qty = li.quantity || 1;
+      prodParts.push(`${desc}${color} × ${qty}`);
+
+      // Add patch/decoration details from decoration_params if present
+      const params = li.decoration_params as Record<string, unknown> | null;
+      if (params) {
+        const patchShape = params.patchShape || params.shape;
+        const patchSize = params.patchSize || params.size;
+        const leatherColor = params.leatherColor;
+        const patchParts = [
+          patchShape ? `Shape: ${patchShape}` : "",
+          patchSize ? `Size: ${patchSize}` : "",
+          leatherColor ? `Leather: ${leatherColor}` : "",
+        ].filter(Boolean);
+        if (patchParts.length > 0) prodParts.push(`  ${patchParts.join(" · ")}`);
+      }
+    }
+    if (quote.delivery_method) prodParts.push(`Delivery: ${quote.delivery_method}`);
+    if (quote.shipping_address) prodParts.push(`Ship to: ${quote.shipping_address}`);
+    if (quote.is_nonprofit) prodParts.push("⚠️ Nonprofit");
+    if (quote.po_number) prodParts.push(`PO: ${quote.po_number}`);
+    const productionNote = prodParts.join("\n") || undefined;
 
     const now = new Date();
     const dueDate = quote.requested_date ? new Date(quote.requested_date) : new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
@@ -242,7 +262,6 @@ Deno.serve(async (req) => {
       dueAt,
       productionNote,
       lineItemGroups: lineItemGroupInputs,
-      customerNote: quote.notes || undefined,
       visualPoNumber: quote.po_number || undefined,
     };
 
