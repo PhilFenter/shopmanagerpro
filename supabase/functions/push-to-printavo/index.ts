@@ -125,6 +125,10 @@ Deno.serve(async (req) => {
     }
 
     if (!contactId) {
+      const fullName = (quote.customer_name || "").trim();
+      const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
+      const lastName = rest.join(" ") || undefined;
+
       const customerData = await makePrintavoRequest(
         `mutation CreateCustomer($input: CustomerCreateInput!) {
           customerCreate(input: $input) {
@@ -140,8 +144,9 @@ Deno.serve(async (req) => {
           input: {
             companyName: quote.company || quote.customer_name,
             primaryContact: {
-              fullName: quote.customer_name,
-              email: quote.customer_email || undefined,
+              firstName: firstName || quote.customer_name,
+              lastName,
+              email: quote.customer_email ? [quote.customer_email] : undefined,
               phone: quote.customer_phone || undefined,
             },
           },
