@@ -187,6 +187,21 @@ export function QuoteLineItemsSummary({ quoteId, compact = true }: QuoteLineItem
             {li.notes && (
               <p className="text-xs text-muted-foreground italic">{li.notes}</p>
             )}
+            {li.image_url && (
+              <div className="mt-2">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <Image className="h-3 w-3" />
+                  <span>Customer Artwork</span>
+                </div>
+                <a href={li.image_url} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={li.image_url}
+                    alt="Customer artwork"
+                    className="rounded-md border max-h-48 object-contain bg-muted/20"
+                  />
+                </a>
+              </div>
+            )}
           </div>
         ))}
       </div>
