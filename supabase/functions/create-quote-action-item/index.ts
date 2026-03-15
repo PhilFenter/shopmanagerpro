@@ -570,6 +570,7 @@ Deno.serve(async (req) => {
         garment_markup_pct: item.garment_markup_pct ?? 200,
         decoration_cost: item.decoration_cost ?? 0,
         decoration_params: item.decoration_params || {},
+        image_url: item.image_url || null,
         line_total: item.line_total ?? 0,
         notes: item.notes || null,
         sort_order: idx,
