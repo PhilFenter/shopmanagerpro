@@ -122,23 +122,38 @@ export default function ArtworkLibrary() {
       )
     : artworks;
 
-  const handleDownload = async (url: string, customerName: string) => {
-    const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
-    const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
-    const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
-    const filename = `${safeName}_artwork.${extension}`;
-
-    toast.info('Downloading...');
+  const handleDownload = async (art: ArtworkItem) => {
+    const filename = getFileNameFromUrl(art.image_url);
+    toast.info('Downloading original file...');
 
     try {
-      const { data, error } = await supabase.functions.invoke('download-artwork', {
-        body: { url, filename },
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('Missing auth session');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-artwork`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          url: art.image_url,
+          filename,
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Download failed');
+      }
 
-      // data is the raw blob from the edge function
-      const blob = new Blob([data], { type: 'application/octet-stream' });
+      const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
@@ -147,10 +162,10 @@ export default function ArtworkLibrary() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-      toast.success('Download started!');
-    } catch {
-      toast.error('Download failed — opening in new tab instead');
-      window.open(url, '_blank', 'noopener,noreferrer');
+      toast.success(`Downloaded ${filename}`);
+    } catch (error) {
+      console.error('Artwork download failed:', error);
+      toast.error('Could not download this file');
     }
   };
 
