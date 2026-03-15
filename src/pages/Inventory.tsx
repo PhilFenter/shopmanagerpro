@@ -100,23 +100,58 @@ export default function Inventory() {
       const buffer = await file.arrayBuffer();
       const workbook = read(buffer);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = utils.sheet_to_json(sheet);
+      const jsonData = utils.sheet_to_json(sheet, { defval: '' });
 
-      setImportStatus(`Parsed ${jsonData.length} rows. Importing...`);
+      setImportStatus(`Parsed ${jsonData.length} rows. Processing...`);
 
-      const rows = jsonData.map((row: any) => ({
-        style_number: String(row['Style'] || row['Style Number'] || row['STYLE'] || row['style_number'] || row['Item'] || '').trim(),
-        color: String(row['Color'] || row['COLOR'] || row['color'] || '').trim() || null,
-        size: String(row['Size'] || row['SIZE'] || row['size'] || '').trim() || null,
-        quantity: parseInt(row['Qty'] || row['Quantity'] || row['QTY'] || row['quantity'] || '0') || 0,
-        unit_cost: parsePrice(row['Cost'] || row['Unit Cost'] || row['COST'] || row['unit_cost']),
-        location: String(row['Location'] || row['LOCATION'] || row['location'] || '').trim() || null,
-        bin: String(row['Bin'] || row['BIN'] || row['bin'] || '').trim() || null,
-        brand: String(row['Brand'] || row['BRAND'] || row['brand'] || '').trim() || null,
-        description: String(row['Description'] || row['DESCRIPTION'] || row['description'] || '').trim() || null,
-        notes: String(row['Notes'] || row['NOTES'] || row['notes'] || '').trim() || null,
-      })).filter((r: any) => r.style_number);
+      // Carry-forward logic for merged/inherited cells
+      let lastBrand = '';
+      let lastStyle = '';
+      let lastColor = '';
+      let lastLocation = '';
+      let lastStyleNumber = '';
 
+      const rows: Partial<InventoryItem>[] = [];
+
+      for (const raw of jsonData as any[]) {
+        const brand = String(raw['Brand'] || raw['BRAND'] || raw['brand'] || '').trim();
+        const style = String(raw['Style'] || raw['Style Number'] || raw['STYLE'] || raw['style_number'] || raw['Item'] || '').trim();
+        const color = String(raw['Color'] || raw['COLOR'] || raw['color'] || '').trim();
+        const size = String(raw['Size'] || raw['SIZE'] || raw['size'] || '').trim();
+        const qtyRaw = raw['Amount'] || raw['Qty'] || raw['Quantity'] || raw['QTY'] || raw['quantity'] || '';
+        const quantity = parseInt(String(qtyRaw)) || 0;
+        const location = String(raw['Location'] || raw['LOCATION'] || raw['location'] || '').trim();
+        const styleNum = String(raw['#'] || raw['Style #'] || '').trim();
+        const cost = parsePrice(raw['Cost'] || raw['Unit Cost'] || raw['COST'] || raw['unit_cost']);
+        const bin = String(raw['Bin'] || raw['BIN'] || raw['bin'] || '').trim() || null;
+        const description = String(raw['Description'] || raw['DESCRIPTION'] || raw['description'] || '').trim() || null;
+        const notes = String(raw['Notes'] || raw['NOTES'] || raw['notes'] || '').trim() || null;
+
+        // Apply carry-forward: if cell is empty, use previous value
+        if (brand) lastBrand = brand;
+        if (style) lastStyle = style;
+        if (color) lastColor = color;
+        if (location) lastLocation = location;
+        if (styleNum) lastStyleNumber = styleNum;
+
+        // Skip rows without size or quantity
+        if (!size || quantity <= 0) continue;
+
+        rows.push({
+          brand: lastBrand || null,
+          style_number: lastStyleNumber || lastStyle || 'UNKNOWN',
+          description: lastStyle || description,
+          color: lastColor || null,
+          size,
+          quantity,
+          unit_cost: cost || null,
+          location: lastLocation || null,
+          bin,
+          notes,
+        });
+      }
+
+      setImportStatus(`Found ${rows.length} inventory items. Importing...`);
       const inserted = await bulkImport.mutateAsync(rows);
       setImportStatus(`Done! ${inserted} items imported.`);
     } catch (err: any) {
