@@ -30,6 +30,29 @@ interface ArtworkItem {
   customer_email: string | null;
 }
 
+const PREVIEWABLE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif']);
+
+const getFileNameFromUrl = (url: string) => {
+  try {
+    const pathname = new URL(url).pathname;
+    return decodeURIComponent(pathname.split('/').pop() || 'artwork');
+  } catch {
+    return 'artwork';
+  }
+};
+
+const getFileExtension = (url: string) => {
+  const fileName = getFileNameFromUrl(url);
+  const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
+  return (extension || '').toLowerCase();
+};
+
+const isStoredArtworkUrl = (url: string) =>
+  url.includes('/storage/v1/object/public/quote-artwork/');
+
+const isPreviewableArtwork = (url: string) =>
+  isStoredArtworkUrl(url) && PREVIEWABLE_EXTENSIONS.has(getFileExtension(url));
+
 export default function ArtworkLibrary() {
   const [search, setSearch] = useState('');
 
