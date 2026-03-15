@@ -194,7 +194,8 @@ function buildLineItem(
   quantity: number,
   details: Record<string, unknown>,
   notes: string,
-  estimate?: { low: number; high: number } | null
+  estimate?: { low: number; high: number } | null,
+  artworkUrl?: string | null
 ) {
   const normalizedServiceType = normalizeServiceType(serviceType);
   const mappedService = SERVICE_TYPE_MAP[normalizedServiceType] || "other";
