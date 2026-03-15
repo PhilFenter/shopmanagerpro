@@ -154,10 +154,10 @@ function buildDescription(
   const normalizedServiceType = normalizeServiceType(serviceType);
 
   if (normalizedServiceType === "custom_hats") {
-    const { hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
+    const { hatLabel, hatBrand, hatColor, patchLabel } = resolveHatDetails(details);
 
     parts.push(`Patch: ${patchLabel || "⚠️ Not specified"}`);
-    parts.push(`Hat: ${hatLabel || "⚠️ Not specified"}`);
+    parts.push(`Hat: ${[hatBrand, hatLabel].filter(Boolean).join(" ") || "⚠️ Not specified"}`);
     parts.push(`Colors: ${hatColor || "⚠️ Not specified"}`);
 
     if (!patchLabel) missingFields.push("patch type");
