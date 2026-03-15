@@ -98,29 +98,16 @@ export default function ArtworkLibrary() {
       )
     : artworks;
 
-  const handleDownload = async (url: string, customerName: string) => {
-    try {
-      // Use no-cors proxy approach: fetch with cors mode
-      const response = await fetch(url, { mode: 'cors' });
-      if (!response.ok) throw new Error('Fetch failed');
-      const blob = await response.blob();
-      const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
-      const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
-      const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
-      const filename = `${safeName}_artwork.${extension}`;
+  const handleDownload = (url: string, customerName: string) => {
+    const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
+    const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
+    const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
+    const filename = `${safeName}_artwork.${extension}`;
 
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-    } catch {
-      // Fallback: open in new tab so user can right-click save
-      window.open(url, '_blank');
-    }
+    // Supabase public URLs support ?download= to force Content-Disposition: attachment
+    const separator = url.includes('?') ? '&' : '?';
+    const downloadUrl = `${url}${separator}download=${encodeURIComponent(filename)}`;
+    window.open(downloadUrl, '_blank');
   };
 
   const SERVICE_LABELS: Record<string, string> = {
