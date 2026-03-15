@@ -154,6 +154,7 @@ export function useGarmentInventory(search?: string) {
     isLoading: inventoryQuery.isLoading,
     totalValue,
     totalItems,
+    distincts: distinctsQuery.data || { brands: [], colors: [], sizes: [], locations: [] },
     addItem,
     updateItem,
     deleteItem,
