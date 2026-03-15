@@ -158,8 +158,11 @@ export default function ActionItems() {
             </button>
           )}
           <div className="flex-1 min-w-0">
-            <p className={cn('font-medium', item.status === 'completed' && 'line-through')}>
+            <p className={cn('font-medium flex items-center gap-1.5', item.status === 'completed' && 'line-through')}>
               {item.title}
+              {item.source === 'website-brand-builder' && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-900 text-amber-400 border-amber-500/30 dark:bg-gray-800">Brand Builder</Badge>
+              )}
             </p>
             {item.description && (
               <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>

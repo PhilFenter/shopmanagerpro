@@ -57,7 +57,12 @@ export function ActionItemsDashboardCard() {
                     <CheckCircle2 className="h-4 w-4" />
                   </button>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{item.title}</p>
+                    <p className="font-medium truncate flex items-center gap-1.5">
+                      {item.title}
+                      {item.source === 'website-brand-builder' && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0 bg-gray-900 text-amber-400 border-amber-500/30 dark:bg-gray-800">Brand Builder</Badge>
+                      )}
+                    </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {item.customer_name && <span>{item.customer_name}</span>}
                       {item.due_date && (
