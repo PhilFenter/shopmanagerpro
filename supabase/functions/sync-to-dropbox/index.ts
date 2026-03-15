@@ -15,44 +15,62 @@ class HttpError extends Error {
   }
 }
 
-/** Exchange a long-lived refresh token for a short-lived access token. */
+/** Get a fresh Dropbox access token using the refresh token. */
 async function getAccessToken(): Promise<string> {
-  // If only a static access token is configured (legacy), use it directly
-  const legacyToken = Deno.env.get("DROPBOX_ACCESS_TOKEN");
-  const refreshToken = Deno.env.get("DROPBOX_REFRESH_TOKEN");
   const appKey = Deno.env.get("DROPBOX_APP_KEY");
   const appSecret = Deno.env.get("DROPBOX_APP_SECRET");
 
-  if (refreshToken && appKey && appSecret) {
-    console.log("Refreshing Dropbox access token via OAuth...");
-    const res = await fetch("https://api.dropboxapi.com/oauth2/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-        client_id: appKey,
-        client_secret: appSecret,
-      }),
-    });
+  if (!appKey || !appSecret) {
+    throw new HttpError(500, "Dropbox app credentials not configured.");
+  }
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Token refresh failed:", res.status, errorText);
-      throw new HttpError(401, "Failed to refresh Dropbox token. Check app credentials.");
+  // Try refresh token from env first, then fall back to database
+  let refreshToken = Deno.env.get("DROPBOX_REFRESH_TOKEN");
+
+  if (!refreshToken) {
+    // Read from business_settings
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const { data } = await adminClient
+      .from("business_settings")
+      .select("value")
+      .eq("key", "dropbox_refresh_token")
+      .maybeSingle();
+
+    if (data?.value) {
+      refreshToken = typeof data.value === "string" ? data.value : JSON.parse(JSON.stringify(data.value));
     }
-
-    const data = await res.json();
-    console.log("Dropbox token refreshed successfully, expires in", data.expires_in, "seconds");
-    return data.access_token;
   }
 
-  if (legacyToken) {
-    console.warn("Using legacy static DROPBOX_ACCESS_TOKEN — this will expire. Set up refresh token for permanent access.");
-    return legacyToken;
+  if (!refreshToken) {
+    throw new HttpError(500, "Dropbox not connected. Go to Integrations → Dropbox to connect your account.");
   }
 
-  throw new HttpError(500, "Dropbox is not configured. Add DROPBOX_REFRESH_TOKEN, DROPBOX_APP_KEY, and DROPBOX_APP_SECRET.");
+  // Clean the token (remove surrounding quotes if stored as JSON string)
+  refreshToken = refreshToken.replace(/^"|"$/g, "");
+
+  console.log("Refreshing Dropbox access token via OAuth...");
+  const res = await fetch("https://api.dropboxapi.com/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: appKey,
+      client_secret: appSecret,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Token refresh failed:", res.status, errorText);
+    throw new HttpError(401, "Dropbox token refresh failed. Try reconnecting Dropbox in Integrations.");
+  }
+
+  const data = await res.json();
+  console.log("Dropbox token refreshed, expires in", data.expires_in, "seconds");
+  return data.access_token;
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -61,7 +79,6 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Authenticate caller
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
