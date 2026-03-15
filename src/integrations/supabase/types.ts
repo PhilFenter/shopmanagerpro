@@ -1214,6 +1214,8 @@ export type Database = {
           notes: string | null
           payment_terms: string | null
           po_number: string | null
+          printavo_order_id: string | null
+          printavo_visual_id: string | null
           quote_number: string | null
           raw_email: string | null
           requested_date: string | null
@@ -1245,6 +1247,8 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           po_number?: string | null
+          printavo_order_id?: string | null
+          printavo_visual_id?: string | null
           quote_number?: string | null
           raw_email?: string | null
           requested_date?: string | null
@@ -1276,6 +1280,8 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           po_number?: string | null
+          printavo_order_id?: string | null
+          printavo_visual_id?: string | null
           quote_number?: string | null
           raw_email?: string | null
           requested_date?: string | null
