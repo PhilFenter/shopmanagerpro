@@ -187,20 +187,23 @@ export default function ArtworkLibrary() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Palette className="h-6 w-6" />
-          Artwork Library
-        </h1>
-        <p className="text-muted-foreground">
-          All customer artwork from quote submissions — {artworks.length} file{artworks.length !== 1 ? 's' : ''}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Palette className="h-6 w-6" />
+            Artwork Library
+          </h1>
+          <p className="text-muted-foreground">
+            All customer artwork from quote submissions — {artworks.length} file{artworks.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {artworks.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleSyncAll}>
+            <CloudUpload className="h-4 w-4 mr-1" />
+            Sync All to Dropbox
+          </Button>
+        )}
       </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by customer, quote number, or description..."
           className="pl-9"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
