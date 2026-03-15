@@ -64,13 +64,18 @@ function buildDescription(
   estimate?: { low: number; high: number } | null
 ): string {
   const parts: string[] = [];
+  const missingFields: string[] = [];
 
   if (serviceType === "custom_hats") {
     const patch = PATCH_LABELS[details.patchType as string] || details.patchType || "";
     const hat = HAT_LABELS[details.hatStyle as string] || details.hatStyle || "";
-    if (patch) parts.push(`Patch: ${patch}`);
-    if (hat) parts.push(`Hat: ${hat}`);
-    if (details.hatColors) parts.push(`Colors: ${details.hatColors}`);
+    const colors = details.hatColors as string || "";
+    parts.push(`Patch: ${patch || "⚠️ Not specified"}`);
+    parts.push(`Hat: ${hat || "⚠️ Not specified"}`);
+    parts.push(`Colors: ${colors || "⚠️ Not specified"}`);
+    if (!patch) missingFields.push("patch type");
+    if (!hat) missingFields.push("hat style");
+    if (!colors) missingFields.push("hat colors");
   } else if (serviceType === "dtf") {
     if (details.orderType) parts.push(`Order type: ${details.orderType}`);
     if (details.garmentType) parts.push(`Garment: ${GARMENT_LABELS[details.garmentType as string] || details.garmentType}`);
@@ -91,6 +96,10 @@ function buildDescription(
   if (timeline) parts.push(`Timeline: ${TIMELINE_LABELS[timeline] || timeline}`);
   if (artworkNotes) parts.push(`Artwork notes: ${artworkNotes}`);
   if (estimate) parts.push(`Estimate: $${estimate.low}–$${estimate.high}`);
+
+  if (missingFields.length > 0) {
+    parts.push(`\n⚠️ MISSING INFO — follow up on: ${missingFields.join(", ")}`);
+  }
 
   return parts.join("\n");
 }
