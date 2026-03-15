@@ -239,7 +239,7 @@ function buildLineItem(
     garment_markup_pct: 200,
     decoration_cost: 0,
     decoration_params: decorationParams,
-    line_total: estimate ? estimate.high : 0,
+    line_total: estimate ? Math.round(estimate.high * 100) / 100 : 0,
     notes: notes || null,
     sort_order: 0,
   };
