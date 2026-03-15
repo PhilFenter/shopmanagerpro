@@ -100,21 +100,25 @@ export default function ArtworkLibrary() {
 
   const handleDownload = async (url: string, customerName: string) => {
     try {
-      const response = await fetch(url);
+      // Use no-cors proxy approach: fetch with cors mode
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) throw new Error('Fetch failed');
       const blob = await response.blob();
-      const extension = url.split('.').pop()?.split('?')[0] || 'png';
+      const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
+      const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
       const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
       const filename = `${safeName}_artwork.${extension}`;
 
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      a.href = blobUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
     } catch {
-      // Fallback: open in new tab
+      // Fallback: open in new tab so user can right-click save
       window.open(url, '_blank');
     }
   };
