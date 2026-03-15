@@ -106,10 +106,13 @@ function toDisplayLabel(value: string): string {
 }
 
 function resolveHatDetails(details: Record<string, unknown>) {
-  const hatCode = readDetailString(details, ["hatStyle", "hatModel", "style_number", "style"]);
+  const hatCode = readDetailString(details, ["hatModel", "hatStyle", "style_number", "style"]);
   const hatLabel = HAT_LABELS[hatCode] || (hatCode ? toDisplayLabel(hatCode) : "");
 
-  const hatColorRaw = readDetailString(details, ["hatColors", "hatColor", "colors"]);
+  const hatBrand = readDetailString(details, ["hatBrand"]);
+  const hatBrandLabel = hatBrand ? toDisplayLabel(hatBrand) : "";
+
+  const hatColorRaw = readDetailString(details, ["hatColor", "hatColors", "colors"]);
   const hatColor = hatColorRaw ? toDisplayLabel(hatColorRaw) : "";
 
   const patchTypeKey = readDetailString(details, ["patchType", "patch_type"]);
@@ -132,6 +135,7 @@ function resolveHatDetails(details: Record<string, unknown>) {
   return {
     hatCode,
     hatLabel,
+    hatBrand: hatBrandLabel,
     hatColor,
     patchLabel,
   };
@@ -150,10 +154,10 @@ function buildDescription(
   const normalizedServiceType = normalizeServiceType(serviceType);
 
   if (normalizedServiceType === "custom_hats") {
-    const { hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
+    const { hatLabel, hatBrand, hatColor, patchLabel } = resolveHatDetails(details);
 
     parts.push(`Patch: ${patchLabel || "⚠️ Not specified"}`);
-    parts.push(`Hat: ${hatLabel || "⚠️ Not specified"}`);
+    parts.push(`Hat: ${[hatBrand, hatLabel].filter(Boolean).join(" ") || "⚠️ Not specified"}`);
     parts.push(`Colors: ${hatColor || "⚠️ Not specified"}`);
 
     if (!patchLabel) missingFields.push("patch type");
@@ -206,8 +210,9 @@ function buildLineItem(
   let color: string | null = null;
 
   if (normalizedServiceType === "custom_hats") {
-    const { hatCode, hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
-    description = [hatLabel || "Custom Hat", patchLabel].filter(Boolean).join(" — ");
+    const { hatCode, hatLabel, hatBrand, hatColor, patchLabel } = resolveHatDetails(details);
+    const hatFull = [hatBrand, hatLabel].filter(Boolean).join(" ") || "Custom Hat";
+    description = [hatFull, patchLabel].filter(Boolean).join(" — ");
     styleNumber = hatCode || null;
     color = hatColor || null;
   } else if (normalizedServiceType === "dtf") {
@@ -278,8 +283,9 @@ function buildConfirmationEmail(p: EmailParams): string {
 
   if (p.details) {
     if (normalizedServiceType === "custom_hats") {
-      const { hatLabel, patchLabel, hatColor } = resolveHatDetails(p.details);
-      if (hatLabel) summaryRows.push(row("Hat Style", hatLabel));
+      const { hatLabel, hatBrand, patchLabel, hatColor } = resolveHatDetails(p.details);
+      const hatFull = [hatBrand, hatLabel].filter(Boolean).join(" ");
+      if (hatFull) summaryRows.push(row("Hat Style", hatFull));
       if (patchLabel) summaryRows.push(row("Patch Type", patchLabel));
       if (hatColor) summaryRows.push(row("Colors", hatColor));
     } else {
@@ -410,7 +416,6 @@ Deno.serve(async (req) => {
     );
 
     const payload = await req.json();
-    console.log("INCOMING PAYLOAD:", JSON.stringify(payload, null, 2));
     const {
       customer_name,
       customer_email,
