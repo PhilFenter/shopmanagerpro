@@ -175,22 +175,22 @@ Deno.serve(async (req) => {
     };
 
     const toLineItemSizes = (sizesRaw: unknown, fallbackQty: number) => {
-      const sizes: Array<{ size: string; count: number }> = [];
+      const sizeCounts: Record<string, number> = {};
 
       if (sizesRaw && typeof sizesRaw === "object" && !Array.isArray(sizesRaw)) {
         for (const [size, qty] of Object.entries(sizesRaw as Record<string, unknown>)) {
           if (typeof qty !== "number" || qty <= 0) continue;
           const normalized = size.trim().toUpperCase();
-          const mapped = sizeEnumMap[normalized] ?? `size_${normalized.toLowerCase()}`;
-          sizes.push({ size: mapped, count: qty });
+          const sizeKey = sizeEnumMap[normalized] ?? "size_other";
+          sizeCounts[sizeKey] = (sizeCounts[sizeKey] ?? 0) + qty;
         }
       }
 
-      if (sizes.length === 0 && fallbackQty > 0) {
-        sizes.push({ size: "size_other", count: fallbackQty });
+      if (Object.keys(sizeCounts).length === 0 && fallbackQty > 0) {
+        sizeCounts.size_other = fallbackQty;
       }
 
-      return sizes;
+      return Object.entries(sizeCounts).map(([size, count]) => ({ size, count }));
     };
 
     const lineItemGroupInputs = lineItems.map((li: any, index: number) => {
