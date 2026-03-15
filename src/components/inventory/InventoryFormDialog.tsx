@@ -78,22 +78,28 @@ export function InventoryFormDialog({
         console.log('SanMar lookup failed, trying S&S:', e);
       }
 
-      // Try S&S Activewear API
+      // Try S&S Activewear API (customerPrice = wholesale)
       try {
         const ssRes = await supabase.functions.invoke('ss-activewear-api', {
           body: { action: 'getProducts', styleNumber: style },
         });
         if (ssRes.data?.success && ssRes.data.products?.length > 0) {
-          const prices = ssRes.data.products
-            .map((p: any) => parseFloat(p.customerPrice) || parseFloat(p.piecePrice) || 0)
+          const products = ssRes.data.products;
+          // customerPrice is the wholesale/account price; piecePrice may be retail
+          const wholesalePrices = products
+            .map((p: any) => parseFloat(p.customerPrice) || 0)
             .filter((p: number) => p > 0);
+          const fallbackPrices = products
+            .map((p: any) => parseFloat(p.casePrice) || parseFloat(p.piecePrice) || 0)
+            .filter((p: number) => p > 0);
+          const prices = wholesalePrices.length > 0 ? wholesalePrices : fallbackPrices;
           if (prices.length > 0) {
             const maxPrice = Math.max(...prices);
             updateField('unit_cost', maxPrice);
             if (ssRes.data.styleInfo?.brandName && !form.brand) {
               updateField('brand', ssRes.data.styleInfo.brandName);
             }
-            toast.success(`S&S price: $${maxPrice.toFixed(2)}`);
+            toast.success(`S&S wholesale: $${maxPrice.toFixed(2)}`);
             setLookingUp(false);
             return;
           }
