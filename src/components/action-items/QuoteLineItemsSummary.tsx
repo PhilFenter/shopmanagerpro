@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Shirt, Package, Truck, MapPin, FileText } from 'lucide-react';
+import { Shirt, Package, Truck, MapPin, FileText, Image } from 'lucide-react';
 
 interface QuoteLineItemsSummaryProps {
   quoteId: string;
