@@ -7,6 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+class HttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -39,7 +48,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const dropboxToken = Deno.env.get("DROPBOX_ACCESS_TOKEN");
     if (!dropboxToken) {
-      throw new Error("DROPBOX_ACCESS_TOKEN is not configured");
+      throw new HttpError(500, "Dropbox is not configured");
     }
 
     const { artwork_url, customer_name, filename } = await req.json();
@@ -51,7 +60,6 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate this is a legitimate artwork URL
     if (!artwork_url.includes("/storage/v1/object/public/quote-artwork/")) {
       return new Response(
         JSON.stringify({ error: "Invalid artwork URL" }),
@@ -59,22 +67,19 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fetch the original file from storage
     const fileResponse = await fetch(artwork_url);
     if (!fileResponse.ok) {
-      throw new Error(`Failed to fetch artwork [${fileResponse.status}]`);
+      throw new HttpError(fileResponse.status, `Failed to fetch artwork [${fileResponse.status}]`);
     }
 
     const fileBuffer = await fileResponse.arrayBuffer();
 
-    // Build Dropbox path: /{customer_name}/{filename}
     const safeName = customer_name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "Unknown";
     const safeFilename = filename || artwork_url.split("/").pop()?.split("?")[0] || "artwork";
     const dropboxPath = `/${safeName}/${safeFilename}`;
 
     console.log(`Uploading to Dropbox: ${dropboxPath} (${fileBuffer.byteLength} bytes)`);
 
-    // Upload to Dropbox using their content upload endpoint
     const dropboxResponse = await fetch("https://content.dropboxapi.com/2/files/upload", {
       method: "POST",
       headers: {
@@ -93,7 +98,16 @@ serve(async (req: Request): Promise<Response> => {
     if (!dropboxResponse.ok) {
       const errorBody = await dropboxResponse.text();
       console.error("Dropbox upload error:", dropboxResponse.status, errorBody);
-      throw new Error(`Dropbox upload failed [${dropboxResponse.status}]: ${errorBody}`);
+
+      if (dropboxResponse.status === 401 && errorBody.includes("expired_access_token")) {
+        throw new HttpError(401, "Dropbox token expired. Reconnect Dropbox by updating the backend secret.");
+      }
+
+      if (dropboxResponse.status === 401) {
+        throw new HttpError(401, "Dropbox authorization failed. Check the configured Dropbox token.");
+      }
+
+      throw new HttpError(dropboxResponse.status, `Dropbox upload failed [${dropboxResponse.status}]`);
     }
 
     const result = await dropboxResponse.json();
@@ -113,8 +127,10 @@ serve(async (req: Request): Promise<Response> => {
   } catch (error: unknown) {
     console.error("sync-to-dropbox error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
+    const status = error instanceof HttpError ? error.status : 500;
+
     return new Response(JSON.stringify({ error: message }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
