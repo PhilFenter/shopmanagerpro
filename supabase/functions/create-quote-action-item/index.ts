@@ -434,6 +434,7 @@ Deno.serve(async (req) => {
       details,
       timeline,
       artworkNotes,
+      artworkUrl,
       estimate,
     } = payload;
 
