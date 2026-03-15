@@ -98,16 +98,30 @@ export default function ArtworkLibrary() {
       )
     : artworks;
 
-  const handleDownload = (url: string, customerName: string) => {
-    const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
-    const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
-    const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
-    const filename = `${safeName}_artwork.${extension}`;
+  const handleDownload = async (url: string, customerName: string) => {
+    try {
+      const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
+      const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
+      const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
+      const filename = `${safeName}_artwork.${extension}`;
 
-    // Supabase public URLs support ?download= to force Content-Disposition: attachment
-    const separator = url.includes('?') ? '&' : '?';
-    const downloadUrl = `${url}${separator}download=${encodeURIComponent(filename)}`;
-    window.open(downloadUrl, '_blank');
+      // Download as blob to avoid blank-tab behavior in preview environments
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch artwork');
+      const blob = await response.blob();
+
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch {
+      // Fallback: open original file URL for manual save
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const SERVICE_LABELS: Record<string, string> = {
