@@ -91,10 +91,14 @@ export function QuoteLineItemsSummary({ quoteId, compact = true }: QuoteLineItem
   if (compact) {
     // Inline badges for the action item row
     return (
-      <div className="flex flex-wrap gap-1 mt-1">
+      <div className="flex flex-wrap items-center gap-1 mt-1">
         {lineItems.map((li) => (
           <Badge key={li.id} variant="outline" className="text-xs font-normal gap-1">
-            <Shirt className="h-3 w-3" />
+            {li.image_url ? (
+              <img src={li.image_url} alt="" className="h-4 w-4 rounded object-contain" />
+            ) : (
+              <Shirt className="h-3 w-3" />
+            )}
             {li.description || li.style_number || SERVICE_LABELS[li.service_type] || li.service_type}
             {li.color && ` — ${li.color}`}
             <span className="text-muted-foreground">×{li.quantity}</span>
