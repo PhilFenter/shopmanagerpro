@@ -95,28 +95,37 @@ export function InventoryFormDialog({
         console.log('SanMar lookup failed, trying S&S:', e);
       }
 
-      // Try S&S Activewear API (customerPrice = wholesale)
+      // Try S&S Activewear API (customerPrice = wholesale, match size if specified)
       try {
         const ssRes = await supabase.functions.invoke('ss-activewear-api', {
           body: { action: 'getProducts', styleNumber: style },
         });
         if (ssRes.data?.success && ssRes.data.products?.length > 0) {
           const products = ssRes.data.products;
-          // customerPrice is the wholesale/account price; piecePrice may be retail
-          const wholesalePrices = products
-            .map((p: any) => parseFloat(p.customerPrice) || 0)
+          const enteredSize = form.size?.trim().toUpperCase();
+          
+          // Match specific size if entered
+          let matched = enteredSize
+            ? products.filter((p: any) => (p.sizeName || p.size || '').toUpperCase() === enteredSize)
+            : [];
+          // Default to standard sizes
+          if (matched.length === 0) {
+            matched = products.filter((p: any) => ['S', 'M', 'L', 'XL'].includes((p.sizeName || p.size || '').toUpperCase()));
+          }
+          if (matched.length === 0) matched = products;
+          
+          const prices = matched
+            .map((p: any) => parseFloat(p.customerPrice) || parseFloat(p.casePrice) || 0)
             .filter((p: number) => p > 0);
-          const fallbackPrices = products
-            .map((p: any) => parseFloat(p.casePrice) || parseFloat(p.piecePrice) || 0)
-            .filter((p: number) => p > 0);
-          const prices = wholesalePrices.length > 0 ? wholesalePrices : fallbackPrices;
+          
           if (prices.length > 0) {
-            const maxPrice = Math.max(...prices);
-            updateField('unit_cost', maxPrice);
+            const price = prices[0];
+            updateField('unit_cost', price);
             if (ssRes.data.styleInfo?.brandName && !form.brand) {
               updateField('brand', ssRes.data.styleInfo.brandName);
             }
-            toast.success(`S&S wholesale: $${maxPrice.toFixed(2)}`);
+            const sizeLabel = enteredSize || 'S-XL';
+            toast.success(`S&S wholesale (${sizeLabel}): $${price.toFixed(2)}`);
             setLookingUp(false);
             return;
           }
