@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { useGarmentInventory, InventoryItem } from '@/hooks/useGarmentInventory';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,12 +39,119 @@ export default function Inventory() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [form, setForm] = useState<Partial<InventoryItem>>(EMPTY_FORM);
   const [importStatus, setImportStatus] = useState('');
+  const [bulkLookupRunning, setBulkLookupRunning] = useState(false);
+  const [bulkLookupProgress, setBulkLookupProgress] = useState('');
   const [deductDialogItem, setDeductDialogItem] = useState<InventoryItem | null>(null);
   const [deductQty, setDeductQty] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   const { items, isLoading, totalValue, totalItems, distincts, addItem, updateItem, deleteItem, bulkImport } = useGarmentInventory(debouncedSearch);
+
+  const bulkCostLookup = useCallback(async () => {
+    const needsPricing = items.filter(i => !i.unit_cost || i.unit_cost === 0);
+    if (needsPricing.length === 0) {
+      toast.info('All items already have costs');
+      return;
+    }
+
+    setBulkLookupRunning(true);
+    const styleMap = new Map<string, InventoryItem[]>();
+    for (const item of needsPricing) {
+      const style = item.style_number.trim().toUpperCase();
+      if (!styleMap.has(style)) styleMap.set(style, []);
+      styleMap.get(style)!.push(item);
+    }
+
+    let updated = 0;
+    let failed = 0;
+    const styles = [...styleMap.entries()];
+
+    for (let i = 0; i < styles.length; i++) {
+      const [style, styleItems] = styles[i];
+      setBulkLookupProgress(`Looking up ${style} (${i + 1}/${styles.length})...`);
+
+      try {
+        const { data: catalogHit } = await supabase
+          .from('product_catalog')
+          .select('piece_price, brand, description')
+          .ilike('style_number', style)
+          .gt('piece_price', 0)
+          .order('piece_price', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (catalogHit?.piece_price) {
+          for (const item of styleItems) {
+            await updateItem.mutateAsync({ id: item.id, unit_cost: catalogHit.piece_price, ...(catalogHit.brand && !item.brand ? { brand: catalogHit.brand } : {}) });
+            updated++;
+          }
+          continue;
+        }
+
+        let found = false;
+        try {
+          const sanmarRes = await supabase.functions.invoke('sanmar-api', {
+            body: { action: 'getPricing', styleNumber: style },
+          });
+          if (sanmarRes.data?.success && sanmarRes.data.pricing?.length > 0) {
+            const pricing = sanmarRes.data.pricing;
+            for (const item of styleItems) {
+              const enteredSize = item.size?.trim().toUpperCase();
+              let matched = enteredSize
+                ? pricing.filter((p: any) => p.size?.toUpperCase() === enteredSize)
+                : [];
+              if (matched.length === 0)
+                matched = pricing.filter((p: any) => ['S', 'M', 'L', 'XL'].includes(p.size?.toUpperCase()));
+              if (matched.length === 0) matched = pricing;
+              
+              const price = matched.map((p: any) => p.myPrice || p.salePrice || p.casePrice || 0).find((p: number) => p > 0);
+              if (price) {
+                await updateItem.mutateAsync({ id: item.id, unit_cost: price });
+                updated++;
+                found = true;
+              }
+            }
+            if (found) continue;
+          }
+        } catch { /* try S&S */ }
+
+        try {
+          const ssRes = await supabase.functions.invoke('ss-activewear-api', {
+            body: { action: 'getProducts', styleNumber: style },
+          });
+          if (ssRes.data?.success && ssRes.data.products?.length > 0) {
+            const products = ssRes.data.products;
+            for (const item of styleItems) {
+              const enteredSize = item.size?.trim().toUpperCase();
+              let matched = enteredSize
+                ? products.filter((p: any) => (p.sizeName || p.size || '').toUpperCase() === enteredSize)
+                : [];
+              if (matched.length === 0)
+                matched = products.filter((p: any) => ['S', 'M', 'L', 'XL'].includes((p.sizeName || p.size || '').toUpperCase()));
+              if (matched.length === 0) matched = products;
+
+              const price = matched.map((p: any) => parseFloat(p.customerPrice) || parseFloat(p.casePrice) || 0).find((p: number) => p > 0);
+              if (price) {
+                await updateItem.mutateAsync({ id: item.id, unit_cost: price, ...(ssRes.data.styleInfo?.brandName && !item.brand ? { brand: ssRes.data.styleInfo.brandName } : {}) });
+                updated++;
+                found = true;
+              }
+            }
+            if (found) continue;
+          }
+        } catch { /* skip */ }
+
+        failed += styleItems.length;
+      } catch {
+        failed += styleItems.length;
+      }
+    }
+
+    setBulkLookupRunning(false);
+    setBulkLookupProgress('');
+    toast.success(`Cost lookup complete: ${updated} updated, ${failed} not found`);
+  }, [items, updateItem]);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
@@ -169,7 +278,11 @@ export default function Inventory() {
           <h1 className="text-2xl font-bold">Garment Inventory</h1>
           <p className="text-muted-foreground">Track loose garment stock across all locations</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={bulkCostLookup} disabled={bulkLookupRunning}>
+            {bulkLookupRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
+            {bulkLookupRunning ? 'Looking up...' : 'Bulk Cost Lookup'}
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
             Import XLS
@@ -182,8 +295,8 @@ export default function Inventory() {
         </div>
       </div>
 
-      {importStatus && (
-        <p className="text-sm text-muted-foreground">{importStatus}</p>
+      {(importStatus || bulkLookupProgress) && (
+        <p className="text-sm text-muted-foreground">{bulkLookupProgress || importStatus}</p>
       )}
 
       {/* Stats */}
