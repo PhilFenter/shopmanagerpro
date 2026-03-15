@@ -196,15 +196,20 @@ function buildLineItem(
   notes: string,
   estimate?: { low: number; high: number } | null
 ) {
-  const mappedService = SERVICE_TYPE_MAP[serviceType] || "other";
+  const normalizedServiceType = normalizeServiceType(serviceType);
+  const mappedService = SERVICE_TYPE_MAP[normalizedServiceType] || "other";
 
   // Build a description from the details
   let description = "";
-  if (serviceType === "custom_hats") {
-    const hat = HAT_LABELS[details.hatStyle as string] || details.hatStyle || "Custom Hat";
-    const patch = PATCH_LABELS[details.patchType as string] || details.patchType || "";
-    description = `${hat} — ${patch}`;
-  } else if (serviceType === "dtf") {
+  let styleNumber: string | null = null;
+  let color: string | null = null;
+
+  if (normalizedServiceType === "custom_hats") {
+    const { hatCode, hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
+    description = [hatLabel || "Custom Hat", patchLabel].filter(Boolean).join(" — ");
+    styleNumber = hatCode || null;
+    color = hatColor || null;
+  } else if (normalizedServiceType === "dtf") {
     const garment = GARMENT_LABELS[details.garmentType as string] || details.garmentType || "DTF Transfers";
     const orderType = details.orderType === "transfers" ? "Loose transfers" : "Finished garments";
     description = `${garment} (${orderType})`;
@@ -223,8 +228,8 @@ function buildLineItem(
     description,
     quantity: quantity || 1,
     sizes: {},
-    style_number: null,
-    color: (details.hatColors as string) || null,
+    style_number: styleNumber,
+    color,
     placement: Array.isArray(details.printLocations)
       ? details.printLocations.join(", ")
       : Array.isArray(details.embroideryLocations)
