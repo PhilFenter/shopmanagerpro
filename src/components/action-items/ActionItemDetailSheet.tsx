@@ -196,8 +196,12 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
           {item.quote_id && (
             <>
               <Separator />
+
+              {/* Brand & Customer Details — structured fields */}
+              <BrandDetailsSection quoteData={quoteData} />
+
               <div className="space-y-3">
-                <Label className="text-base font-semibold">Quote Details</Label>
+                <Label className="text-base font-semibold">Order Details</Label>
                 <QuoteLineItemsSummary quoteId={item.quote_id} compact={false} />
 
                 {/* Push to Printavo */}
