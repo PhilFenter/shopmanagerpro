@@ -55,16 +55,21 @@ export function InventoryFormDialog({
         return;
       }
 
-      // Try SanMar API
+      // Try SanMar API (prefer myPrice = wholesale, fallback to piecePrice = retail)
       try {
         const sanmarRes = await supabase.functions.invoke('sanmar-api', {
           body: { action: 'getPricing', styleNumber: style },
         });
         if (sanmarRes.data?.success && sanmarRes.data.pricing?.length > 0) {
-          const maxPrice = Math.max(...sanmarRes.data.pricing.map((p: any) => p.piecePrice || 0));
+          const pricing = sanmarRes.data.pricing;
+          // myPrice is the customer-specific wholesale price; piecePrice is retail
+          const wholesalePrices = pricing.map((p: any) => p.myPrice || p.salePrice || 0).filter((p: number) => p > 0);
+          const maxPrice = wholesalePrices.length > 0
+            ? Math.max(...wholesalePrices)
+            : Math.max(...pricing.map((p: any) => p.casePrice || p.piecePrice || 0));
           if (maxPrice > 0) {
             updateField('unit_cost', maxPrice);
-            toast.success(`SanMar price: $${maxPrice.toFixed(2)}`);
+            toast.success(`SanMar wholesale: $${maxPrice.toFixed(2)}`);
             setLookingUp(false);
             return;
           }
@@ -73,22 +78,28 @@ export function InventoryFormDialog({
         console.log('SanMar lookup failed, trying S&S:', e);
       }
 
-      // Try S&S Activewear API
+      // Try S&S Activewear API (customerPrice = wholesale)
       try {
         const ssRes = await supabase.functions.invoke('ss-activewear-api', {
           body: { action: 'getProducts', styleNumber: style },
         });
         if (ssRes.data?.success && ssRes.data.products?.length > 0) {
-          const prices = ssRes.data.products
-            .map((p: any) => parseFloat(p.customerPrice) || parseFloat(p.piecePrice) || 0)
+          const products = ssRes.data.products;
+          // customerPrice is the wholesale/account price; piecePrice may be retail
+          const wholesalePrices = products
+            .map((p: any) => parseFloat(p.customerPrice) || 0)
             .filter((p: number) => p > 0);
+          const fallbackPrices = products
+            .map((p: any) => parseFloat(p.casePrice) || parseFloat(p.piecePrice) || 0)
+            .filter((p: number) => p > 0);
+          const prices = wholesalePrices.length > 0 ? wholesalePrices : fallbackPrices;
           if (prices.length > 0) {
             const maxPrice = Math.max(...prices);
             updateField('unit_cost', maxPrice);
             if (ssRes.data.styleInfo?.brandName && !form.brand) {
               updateField('brand', ssRes.data.styleInfo.brandName);
             }
-            toast.success(`S&S price: $${maxPrice.toFixed(2)}`);
+            toast.success(`S&S wholesale: $${maxPrice.toFixed(2)}`);
             setLookingUp(false);
             return;
           }
