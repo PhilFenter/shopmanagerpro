@@ -272,8 +272,8 @@ Deno.serve(async (req) => {
     await serviceClient
       .from("quotes")
       .update({
-        printavo_order_id: printavoInvoice.id,
-        printavo_visual_id: printavoInvoice.visualId,
+        printavo_order_id: printavoQuote.id,
+        printavo_visual_id: printavoQuote.visualId,
         status: "sent",
       })
       .eq("id", quoteId);
