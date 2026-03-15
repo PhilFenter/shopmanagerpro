@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Shirt, Package, Truck, MapPin, FileText, Image } from 'lucide-react';
+import { Shirt, Truck, MapPin, FileText, Image } from 'lucide-react';
+import { stripLegacyBrandInfoFromText } from './brandDetails';
 
 interface QuoteLineItemsSummaryProps {
   quoteId: string;
@@ -90,7 +91,6 @@ export function QuoteLineItemsSummary({ quoteId, compact = true }: QuoteLineItem
   const { quote, lineItems } = data;
 
   if (compact) {
-    // Inline badges for the action item row
     return (
       <div className="flex flex-wrap items-center gap-1 mt-1">
         {lineItems.map((li) => (
@@ -114,10 +114,8 @@ export function QuoteLineItemsSummary({ quoteId, compact = true }: QuoteLineItem
     );
   }
 
-  // Full detail view for the detail sheet
   return (
     <div className="space-y-3">
-      {/* Quote metadata */}
       {quote && (
         <div className="grid grid-cols-2 gap-2 text-sm">
           {quote.quote_number && (
@@ -166,77 +164,52 @@ export function QuoteLineItemsSummary({ quoteId, compact = true }: QuoteLineItem
         </div>
       )}
 
-      {/* Line items */}
       <div className="space-y-2">
-        {lineItems.map((li, idx) => (
-          <div key={li.id} className="rounded-md border p-2.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {SERVICE_LABELS[li.service_type] || li.service_type}
-                </Badge>
-                <span className="text-sm font-medium">
-                  {li.description || li.style_number || `Line ${idx + 1}`}
-                </span>
+        {lineItems.map((li, idx) => {
+          const cleanedNotes = stripLegacyBrandInfoFromText(li.notes || '');
+
+          return (
+            <div key={li.id} className="rounded-md border p-2.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {SERVICE_LABELS[li.service_type] || li.service_type}
+                  </Badge>
+                  <span className="text-sm font-medium">
+                    {li.description || li.style_number || `Line ${idx + 1}`}
+                  </span>
+                </div>
+                <span className="text-sm font-semibold">×{li.quantity}</span>
               </div>
-              <span className="text-sm font-semibold">×{li.quantity}</span>
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-              {li.style_number && <span>Style: {li.style_number}</span>}
-              {li.color && <span>Color: {li.color}</span>}
-              {li.placement && <span>Placement: {li.placement}</span>}
-              {li.sizes && Object.keys(li.sizes).length > 0 && (
-                <span>Sizes: {formatSizes(li.sizes)}</span>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                {li.style_number && <span>Style: {li.style_number}</span>}
+                {li.color && <span>Color: {li.color}</span>}
+                {li.placement && <span>Placement: {li.placement}</span>}
+                {li.sizes && Object.keys(li.sizes).length > 0 && (
+                  <span>Sizes: {formatSizes(li.sizes)}</span>
+                )}
+              </div>
+              {cleanedNotes && (
+                <p className="text-xs text-muted-foreground italic whitespace-pre-wrap break-words">{cleanedNotes}</p>
+              )}
+              {li.image_url && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Image className="h-3 w-3" />
+                    <span>Customer Artwork</span>
+                  </div>
+                  <a href={li.image_url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={li.image_url}
+                      alt="Customer artwork"
+                      className="rounded-md border max-h-48 object-contain bg-muted/20"
+                    />
+                  </a>
+                </div>
               )}
             </div>
-            {li.notes && (
-              <p className="text-xs text-muted-foreground italic">{li.notes}</p>
-            )}
-            {/* Brand / questionnaire details from decoration_params */}
-            {li.decoration_params && (() => {
-              const skipKeys = new Set([
-                'hatModel', 'hatStyle', 'hatBrand', 'hatColor', 'hatColors',
-                'patchType', 'patchShape', 'patchSize', 'leatherColor',
-                'garmentType', 'orderType', 'printLocations', 'embroideryLocations',
-                'printColors', 'style_number', 'style', 'colors', 'shape', 'size',
-                'patch_type', 'intent', 'poloTier', 'recommendedDecoration',
-              ]);
-              const brandFields = Object.entries(li.decoration_params)
-                .filter(([k, v]) => !skipKeys.has(k) && v !== null && v !== undefined && v !== '')
-                .map(([k, v]) => ({
-                  label: k.replace(/([A-Z])/g, ' $1').replace(/[_-]+/g, ' ').trim().replace(/^\w/, c => c.toUpperCase()),
-                  value: typeof v === 'object' ? JSON.stringify(v) : String(v),
-                }));
-              if (brandFields.length === 0) return null;
-              return (
-                <div className="mt-2 space-y-1 p-2 rounded bg-muted/30 border">
-                  <div className="text-xs font-medium text-muted-foreground mb-1">Brand & Project Details</div>
-                  {brandFields.map(({ label, value }) => (
-                    <div key={label} className="text-xs">
-                      <span className="text-muted-foreground">{label}:</span>{' '}
-                      <span className="text-foreground">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-            {li.image_url && (
-              <div className="mt-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Image className="h-3 w-3" />
-                  <span>Customer Artwork</span>
-                </div>
-                <a href={li.image_url} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={li.image_url}
-                    alt="Customer artwork"
-                    className="rounded-md border max-h-48 object-contain bg-muted/20"
-                  />
-                </a>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

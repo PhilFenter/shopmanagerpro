@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { QuoteLineItemsSummary, useQuoteDetails } from './QuoteLineItemsSummary';
 import { BrandDetailsSection } from './BrandDetailsSection';
+import { stripLegacyBrandInfoFromText } from './brandDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -47,29 +48,11 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
   // Fetch quote details to check if already pushed
   const { data: quoteData } = useQuoteDetails(item?.quote_id ?? null);
 
-  // Brand field labels that may appear in description text from old edge function
-  const BRAND_DESC_LABELS = [
-    'Brand Name', 'Brand Story', 'Brand Vibe', 'Target Audience', 'Brand Colors',
-    'Industry', 'Use Case', 'Style Preference', 'Inspiration', 'Design Notes',
-    'Logo Notes', 'Additional Notes', 'Budget Range',
-  ];
-
-  const stripBrandFromDescription = (desc: string) => {
-    if (!desc) return '';
-    const lines = desc.split('\n');
-    const filtered = lines.filter(line => {
-      const trimmed = line.trim();
-      return !BRAND_DESC_LABELS.some(label => trimmed.startsWith(`${label}:`));
-    });
-    return filtered.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-  };
-
   useEffect(() => {
     if (item) {
       setTitle(item.title);
       const rawDesc = item.description || '';
-      // Strip brand fields from description if we have structured brand data
-      setDescription(item.quote_id ? stripBrandFromDescription(rawDesc) : rawDesc);
+      setDescription(item.quote_id ? stripLegacyBrandInfoFromText(rawDesc) : rawDesc);
       setCustomerName(item.customer_name || '');
       setPriority(item.priority || 'normal');
       setDueDate(item.due_date ? format(new Date(item.due_date), 'yyyy-MM-dd') : '');
