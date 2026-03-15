@@ -147,18 +147,19 @@ function buildDescription(
 ): string {
   const parts: string[] = [];
   const missingFields: string[] = [];
+  const normalizedServiceType = normalizeServiceType(serviceType);
 
-  if (serviceType === "custom_hats") {
-    const patch = PATCH_LABELS[details.patchType as string] || details.patchType || "";
-    const hat = HAT_LABELS[details.hatStyle as string] || details.hatStyle || "";
-    const colors = details.hatColors as string || "";
-    parts.push(`Patch: ${patch || "⚠️ Not specified"}`);
-    parts.push(`Hat: ${hat || "⚠️ Not specified"}`);
-    parts.push(`Colors: ${colors || "⚠️ Not specified"}`);
-    if (!patch) missingFields.push("patch type");
-    if (!hat) missingFields.push("hat style");
-    if (!colors) missingFields.push("hat colors");
-  } else if (serviceType === "dtf") {
+  if (normalizedServiceType === "custom_hats") {
+    const { hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
+
+    parts.push(`Patch: ${patchLabel || "⚠️ Not specified"}`);
+    parts.push(`Hat: ${hatLabel || "⚠️ Not specified"}`);
+    parts.push(`Colors: ${hatColor || "⚠️ Not specified"}`);
+
+    if (!patchLabel) missingFields.push("patch type");
+    if (!hatLabel) missingFields.push("hat style");
+    if (!hatColor) missingFields.push("hat colors");
+  } else if (normalizedServiceType === "dtf") {
     if (details.orderType) parts.push(`Order type: ${details.orderType}`);
     if (details.garmentType) parts.push(`Garment: ${GARMENT_LABELS[details.garmentType as string] || details.garmentType}`);
   } else {
