@@ -10,10 +10,21 @@ const corsHeaders = {
 
 const SERVICE_TYPE_MAP: Record<string, string> = {
   custom_hats: "leather_patch",
+  leather_patch_hats: "leather_patch",
   embroidery: "embroidery",
   screen_print: "screen_print",
   dtf: "dtf",
   garments: "other",
+};
+
+const SERVICE_TITLE_LABELS: Record<string, string> = {
+  custom_hats: "Custom Hats",
+  leather_patch_hats: "Custom Hats",
+  embroidery: "Embroidery",
+  screen_print: "Screen Print",
+  dtf: "DTF",
+  garments: "Custom Garments",
+  other: "Quote",
 };
 
 const PATCH_LABELS: Record<string, string> = {
@@ -54,6 +65,77 @@ const TIMELINE_LABELS: Record<string, string> = {
   flexible: "No rush — flexible",
   asap: "ASAP",
 };
+
+const CUSTOM_HAT_SERVICE_TYPES = new Set([
+  "custom_hats",
+  "custom_hat",
+  "leather_patch_hats",
+  "leather_patch_hat",
+]);
+
+function normalizeServiceType(serviceType?: string): string {
+  if (!serviceType) return "other";
+
+  const normalized = serviceType
+    .toLowerCase()
+    .trim()
+    .replace(/[\s-]+/g, "_");
+
+  if (CUSTOM_HAT_SERVICE_TYPES.has(normalized)) return "custom_hats";
+  if (normalized === "screenprint") return "screen_print";
+
+  return normalized;
+}
+
+function readDetailString(details: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = details[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function toDisplayLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function resolveHatDetails(details: Record<string, unknown>) {
+  const hatCode = readDetailString(details, ["hatStyle", "hatModel", "style_number", "style"]);
+  const hatLabel = HAT_LABELS[hatCode] || (hatCode ? toDisplayLabel(hatCode) : "");
+
+  const hatColorRaw = readDetailString(details, ["hatColors", "hatColor", "colors"]);
+  const hatColor = hatColorRaw ? toDisplayLabel(hatColorRaw) : "";
+
+  const patchTypeKey = readDetailString(details, ["patchType", "patch_type"]);
+  let patchLabel = PATCH_LABELS[patchTypeKey] || (patchTypeKey ? toDisplayLabel(patchTypeKey) : "");
+
+  if (!patchLabel) {
+    const patchShape = readDetailString(details, ["patchShape", "shape"]);
+    const patchSize = readDetailString(details, ["patchSize", "size"]);
+    const leatherColor = readDetailString(details, ["leatherColor"]);
+
+    const extras = [patchSize, patchShape, leatherColor]
+      .filter(Boolean)
+      .map((value) => toDisplayLabel(value));
+
+    patchLabel = extras.length > 0
+      ? `Leather Patch (${extras.join(" · ")})`
+      : "Leather Patch";
+  }
+
+  return {
+    hatCode,
+    hatLabel,
+    hatColor,
+    patchLabel,
+  };
+}
 
 /** Build a human-readable description from details */
 function buildDescription(
