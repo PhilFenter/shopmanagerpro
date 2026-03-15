@@ -9,11 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Save, Plus, Trash2 } from 'lucide-react';
+import { Save, Plus, Trash2, Send, Loader2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { QuoteLineItemsSummary } from './QuoteLineItemsSummary';
+import { QuoteLineItemsSummary, useQuoteDetails } from './QuoteLineItemsSummary';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface ChecklistItem {
   id: string;
@@ -38,6 +40,11 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newStep, setNewStep] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch quote details to check if already pushed
+  const { data: quoteData } = useQuoteDetails(item?.quote_id ?? null);
 
   useEffect(() => {
     if (item) {
@@ -89,6 +96,24 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
     } as any);
     setDirty(false);
     toast.success('Action item updated');
+  };
+
+  const handlePushToPrintavo = async () => {
+    if (!item?.quote_id) return;
+    setPushing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('push-to-printavo', {
+        body: { quoteId: item.quote_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Pushed to Printavo as #${data.printavoVisualId}`);
+      queryClient.invalidateQueries({ queryKey: ['quote-details', item.quote_id] });
+    } catch (err: any) {
+      toast.error(`Push failed: ${err.message}`);
+    } finally {
+      setPushing(false);
+    }
   };
 
   if (!item) return null;
@@ -171,9 +196,33 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
           {item.quote_id && (
             <>
               <Separator />
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-base font-semibold">Quote Details</Label>
                 <QuoteLineItemsSummary quoteId={item.quote_id} compact={false} />
+
+                {/* Push to Printavo */}
+                {(quoteData?.quote as any)?.printavo_visual_id ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-md border border-primary/20 bg-primary/5 text-sm">
+                    <ExternalLink className="h-4 w-4 text-primary shrink-0" />
+                    <span>
+                      Pushed to Printavo as <span className="font-semibold">#{(quoteData.quote as any).printavo_visual_id}</span>
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handlePushToPrintavo}
+                    disabled={pushing}
+                  >
+                    {pushing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {pushing ? 'Pushing to Printavo...' : 'Push to Printavo'}
+                  </Button>
+                )}
               </div>
             </>
           )}
