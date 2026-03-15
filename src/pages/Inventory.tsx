@@ -361,67 +361,15 @@ export default function Inventory() {
       </Dialog>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? 'Edit Item' : 'Add Inventory Item'}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Style Number *</Label>
-                <Input value={form.style_number || ''} onChange={(e) => updateField('style_number', e.target.value)} placeholder="PC54" />
-              </div>
-              <div>
-                <Label>Brand</Label>
-                <Input value={form.brand || ''} onChange={(e) => updateField('brand', e.target.value)} placeholder="Port & Company" />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Color</Label>
-                <Input value={form.color || ''} onChange={(e) => updateField('color', e.target.value)} placeholder="Black" />
-              </div>
-              <div>
-                <Label>Size</Label>
-                <Input value={form.size || ''} onChange={(e) => updateField('size', e.target.value)} placeholder="XL" />
-              </div>
-              <div>
-                <Label>Quantity</Label>
-                <Input type="number" value={form.quantity ?? 0} onChange={(e) => updateField('quantity', parseInt(e.target.value) || 0)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Unit Cost ($)</Label>
-                <Input type="number" step="0.01" value={form.unit_cost ?? 0} onChange={(e) => updateField('unit_cost', parseFloat(e.target.value) || 0)} />
-              </div>
-              <div>
-                <Label>Location</Label>
-                <Input value={form.location || ''} onChange={(e) => updateField('location', e.target.value)} placeholder="Shelf A" />
-              </div>
-              <div>
-                <Label>Bin</Label>
-                <Input value={form.bin || ''} onChange={(e) => updateField('bin', e.target.value)} placeholder="B3" />
-              </div>
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Input value={form.description || ''} onChange={(e) => updateField('description', e.target.value)} />
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea value={form.notes || ''} onChange={(e) => updateField('notes', e.target.value)} rows={2} />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={!form.style_number?.trim()}>
-                {editingItem ? 'Save Changes' : 'Add Item'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <InventoryFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        editingItem={editingItem}
+        form={form}
+        updateField={updateField}
+        onSave={handleSave}
+        distincts={distincts}
+      />
     </div>
   );
 }
