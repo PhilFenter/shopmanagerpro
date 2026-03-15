@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Camera, X, Loader2, Cloud, CloudOff, Send, Check } from 'lucide-react';
+import { Camera, X, Loader2, Cloud, CloudOff, Send, Check, ImageIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { usePhotoStorage, StoredPhoto } from '@/hooks/usePhotoStorage';
 import { useJobPhotos } from '@/hooks/useJobPhotos';
 import { useToast } from '@/hooks/use-toast';
@@ -205,6 +206,11 @@ export default function ProductionPhotos({
         <CardTitle className="text-lg flex items-center gap-2">
           <Camera className="h-5 w-5" />
           Production Photos
+          {jobGalleryPhotos.length > 0 && (
+            <Badge variant="secondary" className="text-xs font-normal">
+              {jobGalleryPhotos.length} from job
+            </Badge>
+          )}
           <div className="ml-auto flex items-center gap-2">
             {/* Send for Approval button */}
             {canSendApproval && (
@@ -308,7 +314,34 @@ export default function ProductionPhotos({
           Tap camera to take photos directly
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Existing job photos gallery */}
+        {jobGalleryPhotos.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <ImageIcon className="h-4 w-4" />
+              Job Photos
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+              {jobGalleryPhotos.map((photo) => (
+                <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden border border-border">
+                  <img
+                    src={photo.url}
+                    alt={photo.filename}
+                    className="w-full h-full object-cover"
+                  />
+                  {photo.description && (
+                    <div className="absolute bottom-0 inset-x-0 bg-background/80 px-1 py-0.5">
+                      <p className="text-[10px] text-foreground truncate">{photo.description}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Capture slots */}
         <div className={`grid gap-4 grid-cols-2 ${slots > 2 ? 'lg:grid-cols-4' : ''}`}>
           {displayPhotos.slice(0, slots).map((photo, index) => (
             <div key={index} className="space-y-2">
