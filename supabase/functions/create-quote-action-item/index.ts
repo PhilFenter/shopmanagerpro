@@ -184,37 +184,8 @@ function buildDescription(
   if (artworkNotes) parts.push(`Artwork notes: ${artworkNotes}`);
   if (estimate) parts.push(`Estimate: $${Math.round(estimate.low * 100) / 100}–$${Math.round(estimate.high * 100) / 100}`);
 
-  // Include any remaining brand/questionnaire fields not already handled
-  const handledKeys = new Set([
-    "hatModel", "hatStyle", "style_number", "style", "hatBrand", "hatColor", "hatColors", "colors",
-    "patchType", "patch_type", "patchShape", "shape", "patchSize", "size", "leatherColor",
-    "garmentType", "orderType", "intent", "poloTier", "recommendedDecoration",
-    "printLocations", "embroideryLocations", "printColors", "eventDate",
-  ]);
-
-  const BRAND_FIELD_LABELS: Record<string, string> = {
-    brandName: "Brand Name",
-    brandStory: "Brand Story",
-    brandVibe: "Brand Vibe",
-    targetAudience: "Target Audience",
-    brandColors: "Brand Colors",
-    inspirationNotes: "Inspiration",
-    additionalNotes: "Additional Notes",
-    designNotes: "Design Notes",
-    logoNotes: "Logo Notes",
-    stylePreference: "Style Preference",
-    industry: "Industry",
-    useCase: "Use Case",
-    budgetRange: "Budget Range",
-  };
-
-  for (const [key, value] of Object.entries(details)) {
-    if (handledKeys.has(key)) continue;
-    if (value === null || value === undefined || value === "") continue;
-    const label = BRAND_FIELD_LABELS[key] || toDisplayLabel(key);
-    const displayValue = typeof value === "object" ? JSON.stringify(value) : String(value);
-    if (displayValue.trim()) parts.push(`${label}: ${displayValue}`);
-  }
+  // Brand/questionnaire fields are stored in decoration_params on line items
+  // and displayed as structured fields in the UI — don't duplicate in description
 
   if (missingFields.length > 0) {
     parts.push(`\n⚠️ MISSING INFO — follow up on: ${missingFields.join(", ")}`);
