@@ -178,7 +178,7 @@ function buildDescription(
 
   if (timeline) parts.push(`Timeline: ${TIMELINE_LABELS[timeline] || timeline}`);
   if (artworkNotes) parts.push(`Artwork notes: ${artworkNotes}`);
-  if (estimate) parts.push(`Estimate: $${estimate.low}–$${estimate.high}`);
+  if (estimate) parts.push(`Estimate: $${Math.round(estimate.low * 100) / 100}–$${Math.round(estimate.high * 100) / 100}`);
 
   if (missingFields.length > 0) {
     parts.push(`\n⚠️ MISSING INFO — follow up on: ${missingFields.join(", ")}`);
@@ -239,7 +239,7 @@ function buildLineItem(
     garment_markup_pct: 200,
     decoration_cost: 0,
     decoration_params: decorationParams,
-    line_total: estimate ? estimate.high : 0,
+    line_total: estimate ? Math.round(estimate.high * 100) / 100 : 0,
     notes: notes || null,
     sort_order: 0,
   };
