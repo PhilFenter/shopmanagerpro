@@ -9,11 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Save, Plus, Trash2 } from 'lucide-react';
+import { Save, Plus, Trash2, Send, Loader2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { QuoteLineItemsSummary } from './QuoteLineItemsSummary';
+import { QuoteLineItemsSummary, useQuoteDetails } from './QuoteLineItemsSummary';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface ChecklistItem {
   id: string;

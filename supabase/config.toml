@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.create-quote-action-item]
 verify_jwt = false
+
+[functions.push-to-printavo]
+verify_jwt = false
