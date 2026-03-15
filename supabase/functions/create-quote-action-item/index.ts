@@ -231,6 +231,7 @@ function buildLineItem(
     sizes: {},
     style_number: styleNumber,
     color,
+    image_url: artworkUrl || null,
     placement: Array.isArray(details.printLocations)
       ? details.printLocations.join(", ")
       : Array.isArray(details.embroideryLocations)
