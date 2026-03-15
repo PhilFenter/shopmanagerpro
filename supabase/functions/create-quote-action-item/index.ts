@@ -416,7 +416,6 @@ Deno.serve(async (req) => {
     );
 
     const payload = await req.json();
-    console.log("INCOMING PAYLOAD:", JSON.stringify(payload, null, 2));
     const {
       customer_name,
       customer_email,
