@@ -106,10 +106,13 @@ function toDisplayLabel(value: string): string {
 }
 
 function resolveHatDetails(details: Record<string, unknown>) {
-  const hatCode = readDetailString(details, ["hatStyle", "hatModel", "style_number", "style"]);
+  const hatCode = readDetailString(details, ["hatModel", "hatStyle", "style_number", "style"]);
   const hatLabel = HAT_LABELS[hatCode] || (hatCode ? toDisplayLabel(hatCode) : "");
 
-  const hatColorRaw = readDetailString(details, ["hatColors", "hatColor", "colors"]);
+  const hatBrand = readDetailString(details, ["hatBrand"]);
+  const hatBrandLabel = hatBrand ? toDisplayLabel(hatBrand) : "";
+
+  const hatColorRaw = readDetailString(details, ["hatColor", "hatColors", "colors"]);
   const hatColor = hatColorRaw ? toDisplayLabel(hatColorRaw) : "";
 
   const patchTypeKey = readDetailString(details, ["patchType", "patch_type"]);
@@ -132,6 +135,7 @@ function resolveHatDetails(details: Record<string, unknown>) {
   return {
     hatCode,
     hatLabel,
+    hatBrand: hatBrandLabel,
     hatColor,
     patchLabel,
   };
