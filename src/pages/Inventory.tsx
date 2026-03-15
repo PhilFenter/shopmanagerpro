@@ -295,8 +295,8 @@ export default function Inventory() {
         </div>
       </div>
 
-      {importStatus && (
-        <p className="text-sm text-muted-foreground">{importStatus}</p>
+      {(importStatus || bulkLookupProgress) && (
+        <p className="text-sm text-muted-foreground">{bulkLookupProgress || importStatus}</p>
       )}
 
       {/* Stats */}
