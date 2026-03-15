@@ -101,11 +101,10 @@ Deno.serve(async (req) => {
       return json.data;
     };
 
-    // --- Step 1: Find or create customer ---
+    // --- Step 1: Find contact by email, or create customer + primary contact ---
     let contactId: string | null = null;
 
     if (quote.customer_email) {
-      // Search by email
       const searchData = await makePrintavoRequest(
         `query SearchContacts($query: String!) {
           contacts(first: 5, query: $query) {
@@ -114,9 +113,11 @@ Deno.serve(async (req) => {
         }`,
         { query: quote.customer_email }
       );
+
       const matchingContact = searchData.contacts?.nodes?.find(
         (c: any) => c.email?.toLowerCase() === quote.customer_email.toLowerCase()
       );
+
       if (matchingContact) {
         contactId = matchingContact.id;
         console.log(`Found existing Printavo contact: ${contactId}`);
@@ -124,113 +125,142 @@ Deno.serve(async (req) => {
     }
 
     if (!contactId) {
-      // Create new contact
-      const createData = await makePrintavoRequest(
-        `mutation CreateContact($input: ContactInput!) {
-          contactCreate(input: $input) {
-            contact { id fullName email }
-            errors { message }
+      const customerData = await makePrintavoRequest(
+        `mutation CreateCustomer($input: CustomerCreateInput!) {
+          customerCreate(input: $input) {
+            id
+            primaryContact {
+              id
+              fullName
+              email
+            }
           }
         }`,
         {
           input: {
-            fullName: quote.customer_name,
-            email: quote.customer_email || undefined,
-            phone: quote.customer_phone || undefined,
+            companyName: quote.company || quote.customer_name,
+            primaryContact: {
+              fullName: quote.customer_name,
+              email: quote.customer_email || undefined,
+              phone: quote.customer_phone || undefined,
+            },
           },
         }
       );
-      if (createData.contactCreate?.errors?.length) {
-        throw new Error(createData.contactCreate.errors[0].message);
+
+      contactId = customerData.customerCreate?.primaryContact?.id ?? null;
+      if (!contactId) {
+        throw new Error("Failed to create/find Printavo contact");
       }
-      contactId = createData.contactCreate.contact.id;
-      console.log(`Created Printavo contact: ${contactId}`);
+
+      console.log(`Created Printavo customer + primary contact: ${contactId}`);
     }
 
-    // --- Step 2: Build line item groups ---
-    // Printavo expects lineItemGroups with lineItems inside them
-    // We'll create one group per line item for simplicity
-    const lineItemGroupInputs = lineItems.map((li: any) => {
-      // Build sizes object for Printavo: { sizeS: count, sizeM: count, ... }
-      const sizeMapping: Record<string, string> = {
-        XS: "sizeXs",
-        S: "sizeS",
-        M: "sizeM",
-        L: "sizeL",
-        XL: "sizeXl",
-        "2XL": "size2xl",
-        "3XL": "size3xl",
-        "4XL": "size4xl",
-        "5XL": "size5xl",
-      };
+    // --- Step 2: Build line item groups for quoteCreate ---
+    const sizeEnumMap: Record<string, string> = {
+      XS: "size_xs",
+      S: "size_s",
+      M: "size_m",
+      L: "size_l",
+      XL: "size_xl",
+      "2XL": "size_2xl",
+      "3XL": "size_3xl",
+      "4XL": "size_4xl",
+      "5XL": "size_5xl",
+      YXS: "size_yxs",
+      YS: "size_ys",
+      YM: "size_ym",
+      YL: "size_yl",
+      YXL: "size_yxl",
+    };
 
-      const sizeInputs: Record<string, number> = {};
-      if (li.sizes && typeof li.sizes === "object") {
-        for (const [size, qty] of Object.entries(li.sizes)) {
-          const key = sizeMapping[size.toUpperCase()] || sizeMapping[size];
-          if (key && typeof qty === "number" && qty > 0) {
-            sizeInputs[key] = qty;
-          }
+    const toLineItemSizes = (sizesRaw: unknown, fallbackQty: number) => {
+      const sizeCounts: Record<string, number> = {};
+
+      if (sizesRaw && typeof sizesRaw === "object" && !Array.isArray(sizesRaw)) {
+        for (const [size, qty] of Object.entries(sizesRaw as Record<string, unknown>)) {
+          if (typeof qty !== "number" || qty <= 0) continue;
+          const normalized = size.trim().toUpperCase();
+          const sizeKey = sizeEnumMap[normalized] ?? "size_other";
+          sizeCounts[sizeKey] = (sizeCounts[sizeKey] ?? 0) + qty;
         }
       }
 
+      if (Object.keys(sizeCounts).length === 0 && fallbackQty > 0) {
+        sizeCounts.size_other = fallbackQty;
+      }
+
+      return Object.entries(sizeCounts).map(([size, count]) => ({ size, count }));
+    };
+
+    const lineItemGroupInputs = lineItems.map((li: any, index: number) => {
+      const quantity = typeof li.quantity === "number" && li.quantity > 0 ? li.quantity : 1;
+      const unitPrice =
+        typeof li.line_total === "number" && quantity > 0
+          ? Number((li.line_total / quantity).toFixed(2))
+          : typeof li.garment_cost === "number"
+            ? li.garment_cost
+            : undefined;
+
       return {
-        description: li.description || li.style_number || "Line Item",
+        position: index + 1,
         lineItems: [
           {
-            color: li.color || null,
-            description: li.description || li.style_number || "",
-            itemNumber: li.style_number || null,
-            items: li.quantity || 1,
-            ...sizeInputs,
+            position: 1,
+            color: li.color || undefined,
+            description: li.description || li.style_number || `Line item ${index + 1}`,
+            itemNumber: li.style_number || undefined,
+            price: unitPrice,
+            sizes: toLineItemSizes(li.sizes, quantity),
           },
         ],
       };
     });
 
-    // --- Step 3: Create the invoice ---
+    // --- Step 3: Create the quote ---
     const noteParts: string[] = [];
     if (quote.notes) noteParts.push(quote.notes);
     if (quote.delivery_method) noteParts.push(`Delivery: ${quote.delivery_method}`);
     if (quote.shipping_address) noteParts.push(`Ship to: ${quote.shipping_address}`);
     if (quote.is_nonprofit) noteParts.push("⚠️ Nonprofit");
     if (quote.po_number) noteParts.push(`PO: ${quote.po_number}`);
-    const productionNote = noteParts.join("\n") || null;
+    const productionNote = noteParts.join("\n") || undefined;
 
-    const invoiceInput: Record<string, unknown> = {
-      contactId,
+    const now = new Date();
+    const dueDate = quote.requested_date ? new Date(quote.requested_date) : new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const customerDueAt = dueDate.toISOString().split("T")[0];
+    const dueAt = dueDate.toISOString();
+
+    const quoteInput: Record<string, unknown> = {
+      contact: { id: contactId },
+      customerDueAt,
+      dueAt,
       productionNote,
+      lineItemGroups: lineItemGroupInputs,
+      customerNote: quote.notes || undefined,
+      visualPoNumber: quote.po_number || undefined,
     };
 
-    if (quote.requested_date) {
-      invoiceInput.customerDueAt = quote.requested_date;
-    }
+    console.log("Creating Printavo quote with input:", JSON.stringify(quoteInput, null, 2));
 
-    if (lineItemGroupInputs.length > 0) {
-      invoiceInput.lineItemGroups = lineItemGroupInputs;
-    }
-
-    console.log("Creating Printavo invoice with input:", JSON.stringify(invoiceInput, null, 2));
-
-    const invoiceData = await makePrintavoRequest(
-      `mutation CreateInvoice($input: InvoiceCreateInput!) {
-        invoiceCreate(input: $input) {
-          invoice {
-            id
-            visualId
-          }
-          errors { message }
+    const quoteData = await makePrintavoRequest(
+      `mutation CreateQuote($input: QuoteCreateInput!) {
+        quoteCreate(input: $input) {
+          id
+          visualId
+          publicUrl
+          url
         }
       }`,
-      { input: invoiceInput }
+      { input: quoteInput }
     );
 
-    if (invoiceData.invoiceCreate?.errors?.length) {
-      throw new Error(invoiceData.invoiceCreate.errors[0].message);
+    const printavoQuote = quoteData.quoteCreate;
+    if (!printavoQuote?.id) {
+      throw new Error("Printavo quote creation failed");
     }
 
-    const printavoInvoice = invoiceData.invoiceCreate.invoice;
-    console.log(`Created Printavo invoice: ${printavoInvoice.id} (Visual ID: ${printavoInvoice.visualId})`);
+    console.log(`Created Printavo quote: ${printavoQuote.id} (Visual ID: ${printavoQuote.visualId})`);
 
     // --- Step 4: Link back to the quote ---
     // Use service role to update since the quote may not have RLS for the user
@@ -242,8 +272,8 @@ Deno.serve(async (req) => {
     await serviceClient
       .from("quotes")
       .update({
-        printavo_order_id: printavoInvoice.id,
-        printavo_visual_id: printavoInvoice.visualId,
+        printavo_order_id: printavoQuote.id,
+        printavo_visual_id: printavoQuote.visualId,
         status: "sent",
       })
       .eq("id", quoteId);
@@ -251,8 +281,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        printavoOrderId: printavoInvoice.id,
-        printavoVisualId: printavoInvoice.visualId,
+        printavoOrderId: printavoQuote.id,
+        printavoVisualId: printavoQuote.visualId,
         contactId,
         lineItems: lineItems.length,
       }),
