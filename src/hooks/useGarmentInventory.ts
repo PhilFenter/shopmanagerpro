@@ -44,6 +44,27 @@ export function useGarmentInventory(search?: string) {
     },
   });
 
+  // Fetch distinct values for dropdowns
+  const distinctsQuery = useQuery({
+    queryKey: ['garment-inventory-distincts'],
+    queryFn: async () => {
+      const [brandsRes, colorsRes, sizesRes, locationsRes] = await Promise.all([
+        supabase.from('garment_inventory').select('brand').not('brand', 'is', null).order('brand'),
+        supabase.from('garment_inventory').select('color').not('color', 'is', null).order('color'),
+        supabase.from('garment_inventory').select('size').not('size', 'is', null).order('size'),
+        supabase.from('garment_inventory').select('location').not('location', 'is', null).order('location'),
+      ]);
+      const unique = (arr: any[], key: string) => [...new Set((arr || []).map(r => r[key]).filter(Boolean))].sort();
+      return {
+        brands: unique(brandsRes.data || [], 'brand'),
+        colors: unique(colorsRes.data || [], 'color'),
+        sizes: unique(sizesRes.data || [], 'size'),
+        locations: unique(locationsRes.data || [], 'location'),
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const addItem = useMutation({
     mutationFn: async (item: Partial<InventoryItem>) => {
       const { data: { user } } = await supabase.auth.getUser();
