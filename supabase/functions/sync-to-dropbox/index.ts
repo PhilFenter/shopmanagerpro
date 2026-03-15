@@ -24,23 +24,24 @@ async function getAccessToken(): Promise<string> {
     throw new HttpError(500, "Dropbox app credentials not configured.");
   }
 
-  // Try refresh token from env first, then fall back to database
-  let refreshToken = Deno.env.get("DROPBOX_REFRESH_TOKEN");
+  // Read refresh token from database (set by in-app OAuth flow)
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+  const { data: tokenRow } = await adminClient
+    .from("business_settings")
+    .select("value")
+    .eq("key", "dropbox_refresh_token")
+    .maybeSingle();
 
+  let refreshToken: string | null = null;
+  if (tokenRow?.value) {
+    refreshToken = typeof tokenRow.value === "string" ? tokenRow.value : JSON.parse(JSON.stringify(tokenRow.value));
+  }
+
+  // Fallback to env secret if DB has nothing
   if (!refreshToken) {
-    // Read from business_settings
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data } = await adminClient
-      .from("business_settings")
-      .select("value")
-      .eq("key", "dropbox_refresh_token")
-      .maybeSingle();
-
-    if (data?.value) {
-      refreshToken = typeof data.value === "string" ? data.value : JSON.parse(JSON.stringify(data.value));
-    }
+    refreshToken = Deno.env.get("DROPBOX_REFRESH_TOKEN") || null;
   }
 
   if (!refreshToken) {
