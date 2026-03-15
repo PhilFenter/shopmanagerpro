@@ -27,10 +27,8 @@ const SPEC_KEYS = new Set([
 ]);
 
 interface BrandDetailsSectionProps {
-  quoteData: {
-    quote: unknown;
-    lineItems: Array<{ decoration_params: Record<string, unknown> | null; [key: string]: unknown }>;
-  } | null | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  quoteData: any;
 }
 
 export function BrandDetailsSection({ quoteData }: BrandDetailsSectionProps) {
