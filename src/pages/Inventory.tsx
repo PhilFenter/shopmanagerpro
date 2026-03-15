@@ -274,9 +274,28 @@ export default function Inventory() {
                       {item.size ? <Badge variant="outline">{item.size}</Badge> : '—'}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      <span className={item.quantity <= 0 ? 'text-destructive' : item.quantity <= 5 ? 'text-amber-500' : ''}>
-                        {item.quantity}
-                      </span>
+                      <div className="inline-flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          disabled={item.quantity <= 0}
+                          onClick={() => updateItem.mutate({ id: item.id, quantity: Math.max(0, item.quantity - 1) })}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className={`min-w-[2ch] text-center ${item.quantity <= 0 ? 'text-destructive' : item.quantity <= 5 ? 'text-amber-500' : ''}`}>
+                          {item.quantity}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => updateItem.mutate({ id: item.id, quantity: item.quantity + 1 })}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right hidden sm:table-cell font-mono">
                       {item.unit_cost ? `$${item.unit_cost.toFixed(2)}` : '—'}
@@ -291,9 +310,6 @@ export default function Inventory() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDeductDialogItem(item); setDeductQty(1); }}>
-                          <Minus className="h-4 w-4" />
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
