@@ -22,6 +22,7 @@ interface QuoteLineItem {
   sizes: Record<string, number> | null;
   notes: string | null;
   image_url: string | null;
+  decoration_params: Record<string, unknown> | null;
 }
 
 interface QuoteDetails {
