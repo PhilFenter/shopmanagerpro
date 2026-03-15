@@ -25,6 +25,7 @@ import ActionItems from "./pages/ActionItems";
 import Customers from "./pages/Customers";
 import Messages from "./pages/Messages";
 import Install from "./pages/Install";
+import ArtworkLibrary from "./pages/ArtworkLibrary";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
