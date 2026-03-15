@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { useGarmentInventory, InventoryItem } from '@/hooks/useGarmentInventory';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
