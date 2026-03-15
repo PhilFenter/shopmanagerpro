@@ -26,6 +26,7 @@ import {
   ListTodo,
   UserCheck,
   MessagesSquare,
+  Palette,
 } from 'lucide-react';
 
 interface AppLayoutProps {
