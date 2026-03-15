@@ -283,8 +283,9 @@ function buildConfirmationEmail(p: EmailParams): string {
 
   if (p.details) {
     if (normalizedServiceType === "custom_hats") {
-      const { hatLabel, patchLabel, hatColor } = resolveHatDetails(p.details);
-      if (hatLabel) summaryRows.push(row("Hat Style", hatLabel));
+      const { hatLabel, hatBrand, patchLabel, hatColor } = resolveHatDetails(p.details);
+      const hatFull = [hatBrand, hatLabel].filter(Boolean).join(" ");
+      if (hatFull) summaryRows.push(row("Hat Style", hatFull));
       if (patchLabel) summaryRows.push(row("Patch Type", patchLabel));
       if (hatColor) summaryRows.push(row("Colors", hatColor));
     } else {
