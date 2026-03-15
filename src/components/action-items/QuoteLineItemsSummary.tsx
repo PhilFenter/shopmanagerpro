@@ -22,6 +22,7 @@ interface QuoteLineItem {
   sizes: Record<string, number> | null;
   notes: string | null;
   image_url: string | null;
+  decoration_params: Record<string, unknown> | null;
 }
 
 interface QuoteDetails {
@@ -191,6 +192,34 @@ export function QuoteLineItemsSummary({ quoteId, compact = true }: QuoteLineItem
             {li.notes && (
               <p className="text-xs text-muted-foreground italic">{li.notes}</p>
             )}
+            {/* Brand / questionnaire details from decoration_params */}
+            {li.decoration_params && (() => {
+              const skipKeys = new Set([
+                'hatModel', 'hatStyle', 'hatBrand', 'hatColor', 'hatColors',
+                'patchType', 'patchShape', 'patchSize', 'leatherColor',
+                'garmentType', 'orderType', 'printLocations', 'embroideryLocations',
+                'printColors', 'style_number', 'style', 'colors', 'shape', 'size',
+                'patch_type', 'intent', 'poloTier', 'recommendedDecoration',
+              ]);
+              const brandFields = Object.entries(li.decoration_params)
+                .filter(([k, v]) => !skipKeys.has(k) && v !== null && v !== undefined && v !== '')
+                .map(([k, v]) => ({
+                  label: k.replace(/([A-Z])/g, ' $1').replace(/[_-]+/g, ' ').trim().replace(/^\w/, c => c.toUpperCase()),
+                  value: typeof v === 'object' ? JSON.stringify(v) : String(v),
+                }));
+              if (brandFields.length === 0) return null;
+              return (
+                <div className="mt-2 space-y-1 p-2 rounded bg-muted/30 border">
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Brand & Project Details</div>
+                  {brandFields.map(({ label, value }) => (
+                    <div key={label} className="text-xs">
+                      <span className="text-muted-foreground">{label}:</span>{' '}
+                      <span className="text-foreground">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             {li.image_url && (
               <div className="mt-2">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
