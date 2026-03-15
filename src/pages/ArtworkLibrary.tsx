@@ -13,6 +13,9 @@ import {
   Palette,
   ExternalLink,
   Calendar,
+  CloudUpload,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -53,32 +56,35 @@ const isStoredArtworkUrl = (url: string) =>
 const isPreviewableArtwork = (url: string) =>
   isStoredArtworkUrl(url) && PREVIEWABLE_EXTENSIONS.has(getFileExtension(url));
 
+const SERVICE_LABELS: Record<string, string> = {
+  embroidery: 'Embroidery',
+  screen_print: 'Screen Print',
+  dtf: 'DTF',
+  leather_patch: 'Leather Patch',
+  uv_patch: 'UV Patch',
+  heat_press_patch: 'Heat Press',
+  woven_patch: 'Woven Patch',
+  pvc_patch: 'PVC Patch',
+  other: 'Other',
+};
+
 export default function ArtworkLibrary() {
   const [search, setSearch] = useState('');
+  const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set());
 
   const { data: artworks = [], isLoading } = useQuery({
     queryKey: ['artwork-library'],
     queryFn: async () => {
-      // Get all quote line items that have an image_url
       const { data: lineItems, error: liError } = await supabase
         .from('quote_line_items')
-        .select(`
-          id,
-          image_url,
-          description,
-          style_number,
-          service_type,
-          color,
-          created_at,
-          quote_id
-        `)
+        .select('id, image_url, description, style_number, service_type, color, created_at, quote_id')
         .not('image_url', 'is', null)
         .order('created_at', { ascending: false });
 
       if (liError) throw liError;
       if (!lineItems || lineItems.length === 0) return [];
 
-      // Get the associated quotes for customer info
       const quoteIds = [...new Set(lineItems.map((li) => li.quote_id))];
       const { data: quotes, error: qError } = await supabase
         .from('quotes')
@@ -87,9 +93,7 @@ export default function ArtworkLibrary() {
 
       if (qError) throw qError;
 
-      const quoteMap = new Map(
-        (quotes ?? []).map((q) => [q.id, q])
-      );
+      const quoteMap = new Map((quotes ?? []).map((q) => [q.id, q]));
 
       return lineItems
         .filter((li) => typeof li.image_url === 'string' && isStoredArtworkUrl(li.image_url))
@@ -127,13 +131,8 @@ export default function ArtworkLibrary() {
     toast.info('Downloading original file...');
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        throw new Error('Missing auth session');
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Missing auth session');
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-artwork`, {
         method: 'POST',
@@ -142,16 +141,10 @@ export default function ArtworkLibrary() {
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          url: art.image_url,
-          filename,
-        }),
+        body: JSON.stringify({ url: art.image_url, filename }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Download failed');
-      }
+      if (!response.ok) throw new Error(await response.text());
 
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -169,28 +162,67 @@ export default function ArtworkLibrary() {
     }
   };
 
-  const SERVICE_LABELS: Record<string, string> = {
-    embroidery: 'Embroidery',
-    screen_print: 'Screen Print',
-    dtf: 'DTF',
-    leather_patch: 'Leather Patch',
-    uv_patch: 'UV Patch',
-    heat_press_patch: 'Heat Press',
-    woven_patch: 'Woven Patch',
-    pvc_patch: 'PVC Patch',
-    other: 'Other',
+  const handleSyncToDropbox = async (art: ArtworkItem) => {
+    const filename = getFileNameFromUrl(art.image_url);
+    setSyncingIds((prev) => new Set(prev).add(art.id));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-to-dropbox', {
+        body: {
+          artwork_url: art.image_url,
+          customer_name: art.customer_name,
+          filename,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setSyncedIds((prev) => new Set(prev).add(art.id));
+      toast.success(`Sent ${filename} to Dropbox → ${data.path}`);
+    } catch (error) {
+      console.error('Dropbox sync failed:', error);
+      toast.error('Failed to sync to Dropbox');
+    } finally {
+      setSyncingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(art.id);
+        return next;
+      });
+    }
+  };
+
+  const handleSyncAll = async () => {
+    const unsyncedArt = filtered.filter((a) => !syncedIds.has(a.id));
+    if (unsyncedArt.length === 0) {
+      toast.info('All artwork already synced');
+      return;
+    }
+    toast.info(`Syncing ${unsyncedArt.length} file(s) to Dropbox...`);
+    for (const art of unsyncedArt) {
+      await handleSyncToDropbox(art);
+    }
+    toast.success('All artwork synced to Dropbox!');
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Palette className="h-6 w-6" />
-          Artwork Library
-        </h1>
-        <p className="text-muted-foreground">
-          All customer artwork from quote submissions — {artworks.length} file{artworks.length !== 1 ? 's' : ''}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Palette className="h-6 w-6" />
+            Artwork Library
+          </h1>
+          <p className="text-muted-foreground">
+            All customer artwork from quote submissions — {artworks.length} file{artworks.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {artworks.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleSyncAll}>
+            <CloudUpload className="h-4 w-4 mr-1" />
+            Sync All to Dropbox
+          </Button>
+        )}
       </div>
 
       <div className="relative">
@@ -225,6 +257,8 @@ export default function ArtworkLibrary() {
             const canPreview = isPreviewableArtwork(art.image_url);
             const originalFilename = getFileNameFromUrl(art.image_url);
             const extension = getFileExtension(art.image_url).toUpperCase() || 'FILE';
+            const isSyncing = syncingIds.has(art.id);
+            const isSynced = syncedIds.has(art.id);
 
             return (
               <Card key={art.id} className="overflow-hidden group">
@@ -240,7 +274,7 @@ export default function ArtworkLibrary() {
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-center">
                       <ImageIcon className="h-8 w-8 text-muted-foreground" />
                       <p className="text-sm font-medium text-foreground">{extension}</p>
-                      <p className="text-xs text-muted-foreground">Preview unavailable for this file type</p>
+                      <p className="text-xs text-muted-foreground">Preview unavailable</p>
                     </div>
                   )}
 
@@ -248,6 +282,20 @@ export default function ArtworkLibrary() {
                     <Button size="sm" onClick={() => handleDownload(art)}>
                       <Download className="h-4 w-4 mr-1" />
                       Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={isSynced ? 'secondary' : 'outline'}
+                      onClick={() => handleSyncToDropbox(art)}
+                      disabled={isSyncing}
+                    >
+                      {isSyncing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : isSynced ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <CloudUpload className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button
                       size="sm"
