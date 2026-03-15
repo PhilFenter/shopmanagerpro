@@ -42,7 +42,7 @@ export default function Inventory() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const { items, isLoading, totalValue, totalItems, addItem, updateItem, deleteItem, bulkImport } = useGarmentInventory(debouncedSearch);
+  const { items, isLoading, totalValue, totalItems, distincts, addItem, updateItem, deleteItem, bulkImport } = useGarmentInventory(debouncedSearch);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
