@@ -27,6 +27,7 @@ import {
   UserCheck,
   MessagesSquare,
   Palette,
+  Warehouse,
 } from 'lucide-react';
 
 interface AppLayoutProps {
