@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { QuoteLineItemsSummary, useQuoteDetails } from './QuoteLineItemsSummary';
+import { BrandDetailsSection } from './BrandDetailsSection';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
