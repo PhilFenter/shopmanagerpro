@@ -24,6 +24,25 @@ export function InventoryFormDialog({
   open, onOpenChange, editingItem, form, updateField, onSave, distincts
 }: InventoryFormDialogProps) {
   const [lookingUp, setLookingUp] = useState(false);
+  const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLookedUpRef = useRef<string>('');
+
+  // Auto-lookup when style_number changes (debounced 800ms)
+  useEffect(() => {
+    const style = form.style_number?.trim();
+    if (!style || style.length < 2 || editingItem) return;
+    if (style === lastLookedUpRef.current) return;
+
+    if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+    lookupTimerRef.current = setTimeout(() => {
+      lastLookedUpRef.current = style;
+      lookupCost();
+    }, 800);
+
+    return () => {
+      if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+    };
+  }, [form.style_number]);
 
   const lookupCost = async () => {
     const style = form.style_number?.trim();
