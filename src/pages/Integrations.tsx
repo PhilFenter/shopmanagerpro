@@ -33,6 +33,7 @@ export default function Integrations() {
       <div className="grid gap-6 lg:grid-cols-2">
         <PrintavoSync />
         <ShopifySync />
+        <DropboxSync />
       </div>
 
       <NotificationSettings />
