@@ -583,6 +583,42 @@ Deno.serve(async (req) => {
       if (liErr) {
         console.error("Line items error:", liErr);
       }
+
+      // Auto-sync artwork to Dropbox (fire and forget)
+      const dropboxToken = Deno.env.get("DROPBOX_ACCESS_TOKEN");
+      if (dropboxToken) {
+        for (const row of rows) {
+          if (row.image_url && typeof row.image_url === "string" && row.image_url.includes("/storage/v1/object/public/quote-artwork/")) {
+            try {
+              const artFilename = decodeURIComponent(row.image_url.split("/").pop() || "artwork");
+              const safeName = customer_name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "Unknown";
+              const dropboxPath = `/${safeName}/${artFilename}`;
+
+              const fileRes = await fetch(row.image_url);
+              if (fileRes.ok) {
+                const fileBuffer = await fileRes.arrayBuffer();
+                const dbxRes = await fetch("https://content.dropboxapi.com/2/files/upload", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${dropboxToken}`,
+                    "Dropbox-API-Arg": JSON.stringify({ path: dropboxPath, mode: "add", autorename: true, mute: false }),
+                    "Content-Type": "application/octet-stream",
+                  },
+                  body: fileBuffer,
+                });
+                if (dbxRes.ok) {
+                  const dbxResult = await dbxRes.json();
+                  console.log("Auto-synced artwork to Dropbox:", dbxResult.path_display);
+                } else {
+                  console.error("Dropbox auto-sync failed:", dbxRes.status, await dbxRes.text());
+                }
+              }
+            } catch (dbxErr) {
+              console.error("Dropbox auto-sync error:", dbxErr);
+            }
+          }
+        }
+      }
     }
 
     // 5. Build action item title
