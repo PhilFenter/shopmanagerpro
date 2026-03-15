@@ -553,7 +553,7 @@ Deno.serve(async (req) => {
     // If no explicit line_items but we have details from the website builder, synthesize one
     if ((!Array.isArray(resolvedLineItems) || resolvedLineItems.length === 0) && Object.keys(normalizedDetails).length > 0) {
       const qty = parseInt(String(quantity), 10) || 0;
-      resolvedLineItems = [buildLineItem(quote.id, normalizedServiceType, qty, normalizedDetails, notes || "", estimate)];
+      resolvedLineItems = [buildLineItem(quote.id, normalizedServiceType, qty, normalizedDetails, notes || "", estimate, artworkUrl)];
     }
 
     if (Array.isArray(resolvedLineItems) && resolvedLineItems.length > 0) {
