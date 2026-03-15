@@ -196,9 +196,33 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
           {item.quote_id && (
             <>
               <Separator />
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-base font-semibold">Quote Details</Label>
                 <QuoteLineItemsSummary quoteId={item.quote_id} compact={false} />
+
+                {/* Push to Printavo */}
+                {(quoteData?.quote as any)?.printavo_visual_id ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-md border border-primary/20 bg-primary/5 text-sm">
+                    <ExternalLink className="h-4 w-4 text-primary shrink-0" />
+                    <span>
+                      Pushed to Printavo as <span className="font-semibold">#{(quoteData.quote as any).printavo_visual_id}</span>
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handlePushToPrintavo}
+                    disabled={pushing}
+                  >
+                    {pushing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {pushing ? 'Pushing to Printavo...' : 'Push to Printavo'}
+                  </Button>
+                )}
               </div>
             </>
           )}
