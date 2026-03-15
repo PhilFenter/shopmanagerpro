@@ -40,6 +40,11 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newStep, setNewStep] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch quote details to check if already pushed
+  const { data: quoteData } = useQuoteDetails(item?.quote_id ?? null);
 
   useEffect(() => {
     if (item) {
