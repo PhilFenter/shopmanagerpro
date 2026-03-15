@@ -278,7 +278,11 @@ export default function Inventory() {
           <h1 className="text-2xl font-bold">Garment Inventory</h1>
           <p className="text-muted-foreground">Track loose garment stock across all locations</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={bulkCostLookup} disabled={bulkLookupRunning}>
+            {bulkLookupRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
+            {bulkLookupRunning ? 'Looking up...' : 'Bulk Cost Lookup'}
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
             Import XLS
