@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     if (!contactId) {
       // Create new contact
       const createData = await makePrintavoRequest(
-        `mutation CreateContact($input: ContactCreateInput!) {
+        `mutation CreateContact($input: ContactInput!) {
           contactCreate(input: $input) {
             contact { id fullName email }
             errors { message }
