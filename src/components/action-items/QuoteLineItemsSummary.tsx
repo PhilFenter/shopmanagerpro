@@ -21,6 +21,7 @@ interface QuoteLineItem {
   line_total: number | null;
   sizes: Record<string, number> | null;
   notes: string | null;
+  image_url: string | null;
 }
 
 interface QuoteDetails {
