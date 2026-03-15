@@ -30,6 +30,29 @@ interface ArtworkItem {
   customer_email: string | null;
 }
 
+const PREVIEWABLE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif']);
+
+const getFileNameFromUrl = (url: string) => {
+  try {
+    const pathname = new URL(url).pathname;
+    return decodeURIComponent(pathname.split('/').pop() || 'artwork');
+  } catch {
+    return 'artwork';
+  }
+};
+
+const getFileExtension = (url: string) => {
+  const fileName = getFileNameFromUrl(url);
+  const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
+  return (extension || '').toLowerCase();
+};
+
+const isStoredArtworkUrl = (url: string) =>
+  url.includes('/storage/v1/object/public/quote-artwork/');
+
+const isPreviewableArtwork = (url: string) =>
+  isStoredArtworkUrl(url) && PREVIEWABLE_EXTENSIONS.has(getFileExtension(url));
+
 export default function ArtworkLibrary() {
   const [search, setSearch] = useState('');
 
@@ -69,7 +92,7 @@ export default function ArtworkLibrary() {
       );
 
       return lineItems
-        .filter((li) => li.image_url)
+        .filter((li) => typeof li.image_url === 'string' && isStoredArtworkUrl(li.image_url))
         .map((li) => {
           const quote = quoteMap.get(li.quote_id);
           return {
@@ -99,23 +122,38 @@ export default function ArtworkLibrary() {
       )
     : artworks;
 
-  const handleDownload = async (url: string, customerName: string) => {
-    const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
-    const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
-    const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
-    const filename = `${safeName}_artwork.${extension}`;
-
-    toast.info('Downloading...');
+  const handleDownload = async (art: ArtworkItem) => {
+    const filename = getFileNameFromUrl(art.image_url);
+    toast.info('Downloading original file...');
 
     try {
-      const { data, error } = await supabase.functions.invoke('download-artwork', {
-        body: { url, filename },
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('Missing auth session');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-artwork`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          url: art.image_url,
+          filename,
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Download failed');
+      }
 
-      // data is the raw blob from the edge function
-      const blob = new Blob([data], { type: 'application/octet-stream' });
+      const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
@@ -124,10 +162,10 @@ export default function ArtworkLibrary() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-      toast.success('Download started!');
-    } catch {
-      toast.error('Download failed — opening in new tab instead');
-      window.open(url, '_blank', 'noopener,noreferrer');
+      toast.success(`Downloaded ${filename}`);
+    } catch (error) {
+      console.error('Artwork download failed:', error);
+      toast.error('Could not download this file');
     }
   };
 
@@ -183,56 +221,69 @@ export default function ArtworkLibrary() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((art) => (
-            <Card key={art.id} className="overflow-hidden group">
-              <div className="relative aspect-square bg-muted/20 flex items-center justify-center overflow-hidden">
-                <img
-                  src={art.image_url}
-                  alt={`Artwork for ${art.customer_name}`}
-                  className="max-h-full max-w-full object-contain p-3"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleDownload(art.image_url, art.customer_name)}
-                  >
-                    <Download className="h-4 w-4 mr-1" />
-                    Download
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open(art.image_url, '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <CardContent className="p-3 space-y-1.5">
-                <p className="font-medium text-sm truncate">{art.customer_name}</p>
-                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  {art.quote_number && (
-                    <Badge variant="outline" className="text-xs">
-                      {art.quote_number}
-                    </Badge>
+          {filtered.map((art) => {
+            const canPreview = isPreviewableArtwork(art.image_url);
+            const originalFilename = getFileNameFromUrl(art.image_url);
+            const extension = getFileExtension(art.image_url).toUpperCase() || 'FILE';
+
+            return (
+              <Card key={art.id} className="overflow-hidden group">
+                <div className="relative aspect-square bg-muted/20 flex items-center justify-center overflow-hidden">
+                  {canPreview ? (
+                    <img
+                      src={art.image_url}
+                      alt={`Artwork for ${art.customer_name}`}
+                      className="max-h-full max-w-full object-contain p-3"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-center">
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">{extension}</p>
+                      <p className="text-xs text-muted-foreground">Preview unavailable for this file type</p>
+                    </div>
                   )}
-                  <Badge variant="secondary" className="text-xs">
-                    {SERVICE_LABELS[art.service_type] || art.service_type}
-                  </Badge>
+
+                  <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <Button size="sm" onClick={() => handleDownload(art)}>
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(art.image_url, '_blank', 'noopener,noreferrer')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                {(art.description || art.style_number) && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {art.description || art.style_number}
-                  </p>
-                )}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(art.created_at), 'MMM d, yyyy')}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                <CardContent className="p-3 space-y-1.5">
+                  <p className="font-medium text-sm truncate">{art.customer_name}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    {art.quote_number && (
+                      <Badge variant="outline" className="text-xs">
+                        {art.quote_number}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-xs">
+                      {SERVICE_LABELS[art.service_type] || art.service_type}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{originalFilename}</p>
+                  {(art.description || art.style_number) && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {art.description || art.style_number}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    {format(new Date(art.created_at), 'MMM d, yyyy')}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
