@@ -499,9 +499,14 @@ Deno.serve(async (req) => {
       customerId = newCustomer.id;
     }
 
+    const normalizedServiceType = normalizeServiceType(serviceType);
+    const normalizedDetails = (details && typeof details === "object" && !Array.isArray(details))
+      ? details as Record<string, unknown>
+      : {};
+
     // 2. Build enriched notes for the quote
-    const detailDescription = details
-      ? buildDescription(serviceType || "other", details, timeline, artworkNotes, estimate)
+    const detailDescription = Object.keys(normalizedDetails).length > 0
+      ? buildDescription(normalizedServiceType, normalizedDetails, timeline, artworkNotes, estimate)
       : "";
     const fullNotes = [notes, detailDescription].filter(Boolean).join("\n\n---\n");
 
@@ -543,9 +548,9 @@ Deno.serve(async (req) => {
     let resolvedLineItems = line_items;
 
     // If no explicit line_items but we have details from the website builder, synthesize one
-    if ((!Array.isArray(resolvedLineItems) || resolvedLineItems.length === 0) && details && serviceType) {
+    if ((!Array.isArray(resolvedLineItems) || resolvedLineItems.length === 0) && Object.keys(normalizedDetails).length > 0) {
       const qty = parseInt(String(quantity), 10) || 0;
-      resolvedLineItems = [buildLineItem(quote.id, serviceType, qty, details, notes || "", estimate)];
+      resolvedLineItems = [buildLineItem(quote.id, normalizedServiceType, qty, normalizedDetails, notes || "", estimate)];
     }
 
     if (Array.isArray(resolvedLineItems) && resolvedLineItems.length > 0) {
@@ -577,7 +582,7 @@ Deno.serve(async (req) => {
     }
 
     // 5. Build action item title
-    const serviceLabel = SERVICE_TYPE_MAP[serviceType] || serviceType || "quote";
+    const serviceLabel = SERVICE_TITLE_LABELS[normalizedServiceType] || serviceType || "Quote";
     const totalQty = Array.isArray(resolvedLineItems)
       ? resolvedLineItems.reduce((sum: number, li: any) => sum + (parseInt(String(li.quantity), 10) || 0), 0)
       : parseInt(String(quantity), 10) || 0;
@@ -594,13 +599,11 @@ Deno.serve(async (req) => {
 
     // 6. Build auto-checklist for missing info
     const autoChecklist: Array<{ id: string; text: string; done: boolean }> = [];
-    if (details && serviceType === "custom_hats") {
-      const hasPatch = !!(PATCH_LABELS[details.patchType as string] || details.patchType);
-      const hasHat = !!(HAT_LABELS[details.hatStyle as string] || details.hatStyle);
-      const hasColors = !!details.hatColors;
-      if (!hasHat) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
-      if (!hasColors) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
-      if (!hasPatch) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
+    if (Object.keys(normalizedDetails).length > 0 && normalizedServiceType === "custom_hats") {
+      const { patchLabel, hatLabel, hatColor } = resolveHatDetails(normalizedDetails);
+      if (!hatLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
+      if (!hatColor) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
+      if (!patchLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
     }
     autoChecklist.push({ id: crypto.randomUUID(), text: "Review artwork / logo files", done: false });
     autoChecklist.push({ id: crypto.randomUUID(), text: "Send final quote to customer", done: false });
@@ -634,14 +637,14 @@ Deno.serve(async (req) => {
         if (resendApiKey) {
           const emailHtml = buildConfirmationEmail({
             customerName: customer_name,
-            serviceType,
+            serviceType: normalizedServiceType,
             quantity: totalQty,
             estimate,
             timeline,
-            eventDate: details?.eventDate as string | undefined,
+            eventDate: normalizedDetails.eventDate as string | undefined,
             quoteNumber: quote.quote_number || quote.id,
             artworkNotes,
-            details,
+            details: Object.keys(normalizedDetails).length > 0 ? normalizedDetails : undefined,
           });
 
           const emailRes = await fetch("https://api.resend.com/emails", {
