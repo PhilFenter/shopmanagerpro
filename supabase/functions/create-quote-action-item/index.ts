@@ -260,12 +260,13 @@ interface EmailParams {
 }
 
 function buildConfirmationEmail(p: EmailParams): string {
+  const normalizedServiceType = normalizeServiceType(p.serviceType);
   const serviceLabel =
-    p.serviceType === "custom_hats" ? "Custom Hats"
-    : p.serviceType === "embroidery" ? "Embroidery"
-    : p.serviceType === "screen_print" ? "Screen Printing"
-    : p.serviceType === "dtf" ? "DTF Transfers"
-    : p.serviceType === "garments" ? "Custom Garments"
+    normalizedServiceType === "custom_hats" ? "Custom Hats"
+    : normalizedServiceType === "embroidery" ? "Embroidery"
+    : normalizedServiceType === "screen_print" ? "Screen Printing"
+    : normalizedServiceType === "dtf" ? "DTF Transfers"
+    : normalizedServiceType === "garments" ? "Custom Garments"
     : "Custom Order";
 
   // Build summary rows
@@ -274,12 +275,11 @@ function buildConfirmationEmail(p: EmailParams): string {
   if (p.quantity > 0) summaryRows.push(row("Quantity", `${p.quantity} pieces`));
 
   if (p.details) {
-    if (p.serviceType === "custom_hats") {
-      const hat = HAT_LABELS[p.details.hatStyle as string] || p.details.hatStyle;
-      const patch = PATCH_LABELS[p.details.patchType as string] || p.details.patchType;
-      if (hat) summaryRows.push(row("Hat Style", String(hat)));
-      if (patch) summaryRows.push(row("Patch Type", String(patch)));
-      if (p.details.hatColors) summaryRows.push(row("Colors", String(p.details.hatColors)));
+    if (normalizedServiceType === "custom_hats") {
+      const { hatLabel, patchLabel, hatColor } = resolveHatDetails(p.details);
+      if (hatLabel) summaryRows.push(row("Hat Style", hatLabel));
+      if (patchLabel) summaryRows.push(row("Patch Type", patchLabel));
+      if (hatColor) summaryRows.push(row("Colors", hatColor));
     } else {
       const garment = GARMENT_LABELS[p.details.garmentType as string] || p.details.garmentType;
       if (garment) summaryRows.push(row("Garment", String(garment)));
