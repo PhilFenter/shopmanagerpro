@@ -1,0 +1,392 @@
+import { useState, useRef } from 'react';
+import { useGarmentInventory, InventoryItem } from '@/hooks/useGarmentInventory';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Search, Plus, Upload, Package, DollarSign, MapPin, Pencil, Trash2, Loader2, Minus } from 'lucide-react';
+
+function parsePrice(value: any): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value.replace(/[$,]/g, '')) || 0;
+  return 0;
+}
+
+const EMPTY_FORM: Partial<InventoryItem> = {
+  style_number: '',
+  color: '',
+  size: '',
+  quantity: 0,
+  unit_cost: 0,
+  location: '',
+  bin: '',
+  brand: '',
+  description: '',
+  notes: '',
+};
+
+export default function Inventory() {
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [form, setForm] = useState<Partial<InventoryItem>>(EMPTY_FORM);
+  const [importStatus, setImportStatus] = useState('');
+  const [deductDialogItem, setDeductDialogItem] = useState<InventoryItem | null>(null);
+  const [deductQty, setDeductQty] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const { items, isLoading, totalValue, totalItems, addItem, updateItem, deleteItem, bulkImport } = useGarmentInventory(debouncedSearch);
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => setDebouncedSearch(val), 300);
+  };
+
+  const openAdd = () => {
+    setEditingItem(null);
+    setForm(EMPTY_FORM);
+    setFormOpen(true);
+  };
+
+  const openEdit = (item: InventoryItem) => {
+    setEditingItem(item);
+    setForm({
+      style_number: item.style_number,
+      color: item.color || '',
+      size: item.size || '',
+      quantity: item.quantity,
+      unit_cost: item.unit_cost || 0,
+      location: item.location || '',
+      bin: item.bin || '',
+      brand: item.brand || '',
+      description: item.description || '',
+      notes: item.notes || '',
+    });
+    setFormOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!form.style_number?.trim()) return;
+    if (editingItem) {
+      updateItem.mutate({ id: editingItem.id, ...form });
+    } else {
+      addItem.mutate(form);
+    }
+    setFormOpen(false);
+  };
+
+  const handleDeduct = () => {
+    if (!deductDialogItem || deductQty <= 0) return;
+    const newQty = Math.max(0, deductDialogItem.quantity - deductQty);
+    updateItem.mutate({ id: deductDialogItem.id, quantity: newQty });
+    setDeductDialogItem(null);
+    setDeductQty(1);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportStatus('Reading file...');
+    try {
+      const { read, utils } = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs' as any);
+      const buffer = await file.arrayBuffer();
+      const workbook = read(buffer);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = utils.sheet_to_json(sheet);
+
+      setImportStatus(`Parsed ${jsonData.length} rows. Importing...`);
+
+      const rows = jsonData.map((row: any) => ({
+        style_number: String(row['Style'] || row['Style Number'] || row['STYLE'] || row['style_number'] || row['Item'] || '').trim(),
+        color: String(row['Color'] || row['COLOR'] || row['color'] || '').trim() || null,
+        size: String(row['Size'] || row['SIZE'] || row['size'] || '').trim() || null,
+        quantity: parseInt(row['Qty'] || row['Quantity'] || row['QTY'] || row['quantity'] || '0') || 0,
+        unit_cost: parsePrice(row['Cost'] || row['Unit Cost'] || row['COST'] || row['unit_cost']),
+        location: String(row['Location'] || row['LOCATION'] || row['location'] || '').trim() || null,
+        bin: String(row['Bin'] || row['BIN'] || row['bin'] || '').trim() || null,
+        brand: String(row['Brand'] || row['BRAND'] || row['brand'] || '').trim() || null,
+        description: String(row['Description'] || row['DESCRIPTION'] || row['description'] || '').trim() || null,
+        notes: String(row['Notes'] || row['NOTES'] || row['notes'] || '').trim() || null,
+      })).filter((r: any) => r.style_number);
+
+      const inserted = await bulkImport.mutateAsync(rows);
+      setImportStatus(`Done! ${inserted} items imported.`);
+    } catch (err: any) {
+      setImportStatus(`Error: ${err.message}`);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const updateField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Garment Inventory</h1>
+          <p className="text-muted-foreground">Track loose garment stock across all locations</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import XLS
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
+          <Button onClick={openAdd}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
+      </div>
+
+      {importStatus && (
+        <p className="text-sm text-muted-foreground">{importStatus}</p>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <Package className="h-8 w-8 text-primary" />
+            <div>
+              <p className="text-2xl font-bold">{isLoading ? '...' : items.length}</p>
+              <p className="text-sm text-muted-foreground">SKUs</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <Package className="h-8 w-8 text-primary" />
+            <div>
+              <p className="text-2xl font-bold">{isLoading ? '...' : totalItems.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Total Pieces</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <DollarSign className="h-8 w-8 text-primary" />
+            <div>
+              <p className="text-2xl font-bold">${isLoading ? '...' : totalValue.toFixed(2)}</p>
+              <p className="text-sm text-muted-foreground">Total Value</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by style, color, brand, location..."
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Style</TableHead>
+                <TableHead className="hidden sm:table-cell">Brand</TableHead>
+                <TableHead>Color</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead className="text-right">Qty</TableHead>
+                <TableHead className="text-right hidden sm:table-cell">Cost</TableHead>
+                <TableHead className="hidden md:table-cell">Location</TableHead>
+                <TableHead className="w-[120px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              ) : items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    No inventory items found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div>
+                        <span className="font-mono font-medium">{item.style_number}</span>
+                        {item.description && (
+                          <p className="text-xs text-muted-foreground truncate max-w-[200px]">{item.description}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">{item.brand || '—'}</TableCell>
+                    <TableCell>{item.color || '—'}</TableCell>
+                    <TableCell>
+                      {item.size ? <Badge variant="outline">{item.size}</Badge> : '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      <span className={item.quantity <= 0 ? 'text-destructive' : item.quantity <= 5 ? 'text-amber-500' : ''}>
+                        {item.quantity}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right hidden sm:table-cell font-mono">
+                      {item.unit_cost ? `$${item.unit_cost.toFixed(2)}` : '—'}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {item.location || item.bin ? (
+                        <span className="flex items-center gap-1 text-xs">
+                          <MapPin className="h-3 w-3" />
+                          {[item.location, item.bin].filter(Boolean).join(' / ')}
+                        </span>
+                      ) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDeductDialogItem(item); setDeductQty(1); }}>
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete inventory item?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently remove {item.style_number} {item.color} {item.size} from inventory.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteItem.mutate(item.id)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Deduct Dialog */}
+      <Dialog open={!!deductDialogItem} onOpenChange={(open) => !open && setDeductDialogItem(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Use from Inventory</DialogTitle>
+          </DialogHeader>
+          {deductDialogItem && (
+            <div className="space-y-4">
+              <p className="text-sm">
+                <span className="font-mono font-medium">{deductDialogItem.style_number}</span>
+                {' '}{deductDialogItem.color} {deductDialogItem.size}
+                <span className="text-muted-foreground ml-2">({deductDialogItem.quantity} in stock)</span>
+              </p>
+              <div>
+                <Label>Quantity to deduct</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={deductDialogItem.quantity}
+                  value={deductQty}
+                  onChange={(e) => setDeductQty(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDeductDialogItem(null)}>Cancel</Button>
+                <Button onClick={handleDeduct} disabled={deductQty <= 0 || deductQty > deductDialogItem.quantity}>
+                  Deduct {deductQty}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Edit Item' : 'Add Inventory Item'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Style Number *</Label>
+                <Input value={form.style_number || ''} onChange={(e) => updateField('style_number', e.target.value)} placeholder="PC54" />
+              </div>
+              <div>
+                <Label>Brand</Label>
+                <Input value={form.brand || ''} onChange={(e) => updateField('brand', e.target.value)} placeholder="Port & Company" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Color</Label>
+                <Input value={form.color || ''} onChange={(e) => updateField('color', e.target.value)} placeholder="Black" />
+              </div>
+              <div>
+                <Label>Size</Label>
+                <Input value={form.size || ''} onChange={(e) => updateField('size', e.target.value)} placeholder="XL" />
+              </div>
+              <div>
+                <Label>Quantity</Label>
+                <Input type="number" value={form.quantity ?? 0} onChange={(e) => updateField('quantity', parseInt(e.target.value) || 0)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Unit Cost ($)</Label>
+                <Input type="number" step="0.01" value={form.unit_cost ?? 0} onChange={(e) => updateField('unit_cost', parseFloat(e.target.value) || 0)} />
+              </div>
+              <div>
+                <Label>Location</Label>
+                <Input value={form.location || ''} onChange={(e) => updateField('location', e.target.value)} placeholder="Shelf A" />
+              </div>
+              <div>
+                <Label>Bin</Label>
+                <Input value={form.bin || ''} onChange={(e) => updateField('bin', e.target.value)} placeholder="B3" />
+              </div>
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Input value={form.description || ''} onChange={(e) => updateField('description', e.target.value)} />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea value={form.notes || ''} onChange={(e) => updateField('notes', e.target.value)} rows={2} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!form.style_number?.trim()}>
+                {editingItem ? 'Save Changes' : 'Add Item'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

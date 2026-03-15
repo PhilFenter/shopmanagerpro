@@ -26,6 +26,7 @@ import Customers from "./pages/Customers";
 import Messages from "./pages/Messages";
 import Install from "./pages/Install";
 import ArtworkLibrary from "./pages/ArtworkLibrary";
+import Inventory from "./pages/Inventory";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -192,6 +193,16 @@ function App() {
                     <ProtectedRoute>
                       <AppLayout>
                         <ArtworkLibrary />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inventory"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Inventory />
                       </AppLayout>
                     </ProtectedRoute>
                   }

@@ -407,6 +407,57 @@ export type Database = {
           },
         ]
       }
+      garment_inventory: {
+        Row: {
+          bin: string | null
+          brand: string | null
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          location: string | null
+          notes: string | null
+          quantity: number
+          size: string | null
+          style_number: string
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          bin?: string | null
+          brand?: string | null
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          quantity?: number
+          size?: string | null
+          style_number: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          bin?: string | null
+          brand?: string | null
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          quantity?: number
+          size?: string | null
+          style_number?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       job_garments: {
         Row: {
           color: string | null
