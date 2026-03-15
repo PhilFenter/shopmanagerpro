@@ -504,7 +504,20 @@ Deno.serve(async (req) => {
     if (detailDescription) actionDescParts.push(detailDescription);
     if (notes && !detailDescription.includes(notes)) actionDescParts.push(`Notes: ${notes}`);
 
-    // 6. Create action item for follow-up
+    // 6. Build auto-checklist for missing info
+    const autoChecklist: Array<{ id: string; text: string; done: boolean }> = [];
+    if (details && serviceType === "custom_hats") {
+      const hasPatch = !!(PATCH_LABELS[details.patchType as string] || details.patchType);
+      const hasHat = !!(HAT_LABELS[details.hatStyle as string] || details.hatStyle);
+      const hasColors = !!details.hatColors;
+      if (!hasHat) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
+      if (!hasColors) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
+      if (!hasPatch) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
+    }
+    autoChecklist.push({ id: crypto.randomUUID(), text: "Review artwork / logo files", done: false });
+    autoChecklist.push({ id: crypto.randomUUID(), text: "Send final quote to customer", done: false });
+
+    // 7. Create action item for follow-up
     const { error: aiErr } = await serviceClient
       .from("action_items")
       .insert({
@@ -519,6 +532,7 @@ Deno.serve(async (req) => {
         priority: "high",
         status: "open",
         created_by: "00000000-0000-0000-0000-000000000000",
+        checklist: autoChecklist,
       });
 
     if (aiErr) {
