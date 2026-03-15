@@ -210,8 +210,9 @@ function buildLineItem(
   let color: string | null = null;
 
   if (normalizedServiceType === "custom_hats") {
-    const { hatCode, hatLabel, hatColor, patchLabel } = resolveHatDetails(details);
-    description = [hatLabel || "Custom Hat", patchLabel].filter(Boolean).join(" — ");
+    const { hatCode, hatLabel, hatBrand, hatColor, patchLabel } = resolveHatDetails(details);
+    const hatFull = [hatBrand, hatLabel].filter(Boolean).join(" ") || "Custom Hat";
+    description = [hatFull, patchLabel].filter(Boolean).join(" — ");
     styleNumber = hatCode || null;
     color = hatColor || null;
   } else if (normalizedServiceType === "dtf") {
