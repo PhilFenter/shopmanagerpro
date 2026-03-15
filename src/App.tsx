@@ -186,6 +186,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/artwork"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <ArtworkLibrary />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/install" element={<Install />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
