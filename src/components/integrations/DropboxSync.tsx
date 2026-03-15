@@ -2,15 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { CheckCircle, XCircle, CloudUpload, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const DROPBOX_APP_KEY = import.meta.env.VITE_DROPBOX_APP_KEY || '';
-
 export function DropboxSync() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [authCode, setAuthCode] = useState('');
 
   const checkConnection = useCallback(async () => {
     const { data } = await supabase
@@ -25,72 +26,30 @@ export function DropboxSync() {
     checkConnection();
   }, [checkConnection]);
 
-  // Listen for OAuth callback message from popup
-  useEffect(() => {
-    const handler = async (event: MessageEvent) => {
-      if (event.data?.type === 'dropbox-oauth-code' && event.data.code) {
-        setIsConnecting(true);
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          const res = await supabase.functions.invoke('dropbox-oauth-callback', {
-            body: { code: event.data.code },
-            headers: { Authorization: `Bearer ${session?.access_token}` },
-          });
-
-          if (res.error) throw res.error;
-
-          toast.success('Dropbox connected successfully!');
-          setIsConnected(true);
-        } catch (err: any) {
-          console.error('Dropbox connect error:', err);
-          toast.error(err.message || 'Failed to connect Dropbox');
-        } finally {
-          setIsConnecting(false);
-        }
+  const handleConnect = async () => {
+    try {
+      const res = await supabase.functions.invoke('dropbox-app-key');
+      const appKey = res.data?.app_key;
+      if (!appKey) {
+        toast.error('Dropbox App Key not configured.');
+        return;
       }
-    };
 
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, []);
+      const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&response_type=code&token_access_type=offline`;
 
-  const handleConnect = () => {
-    // We need the app key. Try fetching from business_settings first.
-    fetchAppKeyAndAuthorize();
-  };
+      // Open in popup
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      window.open(authUrl, 'dropbox-auth', `width=${width},height=${height},left=${left},top=${top}`);
 
-  const fetchAppKeyAndAuthorize = async () => {
-    const { data } = await supabase
-      .from('business_settings')
-      .select('value')
-      .eq('key', 'dropbox_app_key')
-      .maybeSingle();
-
-    const appKey = data?.value as string || DROPBOX_APP_KEY;
-
-    if (!appKey) {
-      toast.error('Dropbox App Key not configured. Contact your administrator.');
-      return;
+      setShowCodeInput(true);
+      toast.info('Authorize in the popup, then paste the code here.');
+    } catch (err) {
+      toast.error('Failed to start Dropbox connection');
     }
-
-    const redirectUri = `${window.location.origin}/dropbox-callback`;
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&response_type=code&token_access_type=offline`;
-
-    // Open in popup
-    const width = 600;
-    const height = 700;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-    window.open(authUrl, 'dropbox-auth', `width=${width},height=${height},left=${left},top=${top}`);
-
-    toast.info('Complete the authorization in the popup window, then paste the code below.');
-    setIsConnecting(true);
-    // Show code input
-    setShowCodeInput(true);
   };
-
-  const [showCodeInput, setShowCodeInput] = useState(false);
-  const [authCode, setAuthCode] = useState('');
 
   const handleSubmitCode = async () => {
     if (!authCode.trim()) {
@@ -100,7 +59,6 @@ export function DropboxSync() {
 
     setIsConnecting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke('dropbox-oauth-callback', {
         body: { code: authCode.trim() },
       });
@@ -125,17 +83,14 @@ export function DropboxSync() {
   };
 
   const handleDisconnect = async () => {
-    const { error } = await supabase
+    await supabase
       .from('business_settings')
       .upsert(
         { key: 'dropbox_connected', value: false as any },
         { onConflict: 'key' }
       );
-
-    if (!error) {
-      setIsConnected(false);
-      toast.success('Dropbox disconnected');
-    }
+    setIsConnected(false);
+    toast.success('Dropbox disconnected');
   };
 
   return (
@@ -169,12 +124,11 @@ export function DropboxSync() {
               After authorizing in the Dropbox popup, paste the code you receive here:
             </p>
             <div className="flex gap-2">
-              <input
-                type="text"
+              <Input
                 value={authCode}
                 onChange={(e) => setAuthCode(e.target.value)}
                 placeholder="Paste authorization code here..."
-                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex-1"
               />
               <Button onClick={handleSubmitCode} disabled={isConnecting}>
                 {isConnecting ? 'Connecting...' : 'Submit'}
@@ -189,11 +143,14 @@ export function DropboxSync() {
             <Button variant="outline" onClick={handleDisconnect}>
               Disconnect
             </Button>
+            <Button variant="outline" onClick={handleConnect}>
+              Reconnect
+            </Button>
           </div>
         ) : (
           <Button onClick={handleConnect} disabled={isConnecting}>
             <ExternalLink className="mr-2 h-4 w-4" />
-            {isConnecting ? 'Connecting...' : 'Connect Dropbox'}
+            Connect Dropbox
           </Button>
         )}
 
