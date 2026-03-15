@@ -28,8 +28,8 @@ const SPEC_KEYS = new Set([
 
 interface BrandDetailsSectionProps {
   quoteData: {
-    quote: Record<string, unknown> | null;
-    lineItems: Array<{ decoration_params: Record<string, unknown> | null }>;
+    quote: unknown;
+    lineItems: Array<{ decoration_params: Record<string, unknown> | null; [key: string]: unknown }>;
   } | null | undefined;
 }
 
