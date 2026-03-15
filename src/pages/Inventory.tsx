@@ -1,14 +1,14 @@
 import { useState, useRef } from 'react';
 import { useGarmentInventory, InventoryItem } from '@/hooks/useGarmentInventory';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { InventoryFormDialog } from '@/components/inventory/InventoryFormDialog';
 import { Search, Plus, Upload, Package, DollarSign, MapPin, Pencil, Trash2, Loader2, Minus } from 'lucide-react';
 
 function parsePrice(value: any): number {
