@@ -64,13 +64,18 @@ function buildDescription(
   estimate?: { low: number; high: number } | null
 ): string {
   const parts: string[] = [];
+  const missingFields: string[] = [];
 
   if (serviceType === "custom_hats") {
     const patch = PATCH_LABELS[details.patchType as string] || details.patchType || "";
     const hat = HAT_LABELS[details.hatStyle as string] || details.hatStyle || "";
-    if (patch) parts.push(`Patch: ${patch}`);
-    if (hat) parts.push(`Hat: ${hat}`);
-    if (details.hatColors) parts.push(`Colors: ${details.hatColors}`);
+    const colors = details.hatColors as string || "";
+    parts.push(`Patch: ${patch || "⚠️ Not specified"}`);
+    parts.push(`Hat: ${hat || "⚠️ Not specified"}`);
+    parts.push(`Colors: ${colors || "⚠️ Not specified"}`);
+    if (!patch) missingFields.push("patch type");
+    if (!hat) missingFields.push("hat style");
+    if (!colors) missingFields.push("hat colors");
   } else if (serviceType === "dtf") {
     if (details.orderType) parts.push(`Order type: ${details.orderType}`);
     if (details.garmentType) parts.push(`Garment: ${GARMENT_LABELS[details.garmentType as string] || details.garmentType}`);
@@ -91,6 +96,10 @@ function buildDescription(
   if (timeline) parts.push(`Timeline: ${TIMELINE_LABELS[timeline] || timeline}`);
   if (artworkNotes) parts.push(`Artwork notes: ${artworkNotes}`);
   if (estimate) parts.push(`Estimate: $${estimate.low}–$${estimate.high}`);
+
+  if (missingFields.length > 0) {
+    parts.push(`\n⚠️ MISSING INFO — follow up on: ${missingFields.join(", ")}`);
+  }
 
   return parts.join("\n");
 }
@@ -495,7 +504,20 @@ Deno.serve(async (req) => {
     if (detailDescription) actionDescParts.push(detailDescription);
     if (notes && !detailDescription.includes(notes)) actionDescParts.push(`Notes: ${notes}`);
 
-    // 6. Create action item for follow-up
+    // 6. Build auto-checklist for missing info
+    const autoChecklist: Array<{ id: string; text: string; done: boolean }> = [];
+    if (details && serviceType === "custom_hats") {
+      const hasPatch = !!(PATCH_LABELS[details.patchType as string] || details.patchType);
+      const hasHat = !!(HAT_LABELS[details.hatStyle as string] || details.hatStyle);
+      const hasColors = !!details.hatColors;
+      if (!hasHat) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
+      if (!hasColors) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
+      if (!hasPatch) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
+    }
+    autoChecklist.push({ id: crypto.randomUUID(), text: "Review artwork / logo files", done: false });
+    autoChecklist.push({ id: crypto.randomUUID(), text: "Send final quote to customer", done: false });
+
+    // 7. Create action item for follow-up
     const { error: aiErr } = await serviceClient
       .from("action_items")
       .insert({
@@ -510,6 +532,7 @@ Deno.serve(async (req) => {
         priority: "high",
         status: "open",
         created_by: "00000000-0000-0000-0000-000000000000",
+        checklist: autoChecklist,
       });
 
     if (aiErr) {
