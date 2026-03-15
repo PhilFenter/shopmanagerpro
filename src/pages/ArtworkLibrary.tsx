@@ -92,7 +92,7 @@ export default function ArtworkLibrary() {
       );
 
       return lineItems
-        .filter((li) => li.image_url)
+        .filter((li) => typeof li.image_url === 'string' && isStoredArtworkUrl(li.image_url))
         .map((li) => {
           const quote = quoteMap.get(li.quote_id);
           return {
