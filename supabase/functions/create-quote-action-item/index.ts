@@ -194,7 +194,8 @@ function buildLineItem(
   quantity: number,
   details: Record<string, unknown>,
   notes: string,
-  estimate?: { low: number; high: number } | null
+  estimate?: { low: number; high: number } | null,
+  artworkUrl?: string | null
 ) {
   const normalizedServiceType = normalizeServiceType(serviceType);
   const mappedService = SERVICE_TYPE_MAP[normalizedServiceType] || "other";
@@ -230,6 +231,7 @@ function buildLineItem(
     sizes: {},
     style_number: styleNumber,
     color,
+    image_url: artworkUrl || null,
     placement: Array.isArray(details.printLocations)
       ? details.printLocations.join(", ")
       : Array.isArray(details.embroideryLocations)
@@ -434,6 +436,7 @@ Deno.serve(async (req) => {
       details,
       timeline,
       artworkNotes,
+      artworkUrl,
       estimate,
     } = payload;
 
@@ -550,7 +553,7 @@ Deno.serve(async (req) => {
     // If no explicit line_items but we have details from the website builder, synthesize one
     if ((!Array.isArray(resolvedLineItems) || resolvedLineItems.length === 0) && Object.keys(normalizedDetails).length > 0) {
       const qty = parseInt(String(quantity), 10) || 0;
-      resolvedLineItems = [buildLineItem(quote.id, normalizedServiceType, qty, normalizedDetails, notes || "", estimate)];
+      resolvedLineItems = [buildLineItem(quote.id, normalizedServiceType, qty, normalizedDetails, notes || "", estimate, artworkUrl)];
     }
 
     if (Array.isArray(resolvedLineItems) && resolvedLineItems.length > 0) {
@@ -567,6 +570,7 @@ Deno.serve(async (req) => {
         garment_markup_pct: item.garment_markup_pct ?? 200,
         decoration_cost: item.decoration_cost ?? 0,
         decoration_params: item.decoration_params || {},
+        image_url: item.image_url || null,
         line_total: item.line_total ?? 0,
         notes: item.notes || null,
         sort_order: idx,
