@@ -98,6 +98,24 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
     toast.success('Action item updated');
   };
 
+  const handlePushToPrintavo = async () => {
+    if (!item?.quote_id) return;
+    setPushing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('push-to-printavo', {
+        body: { quoteId: item.quote_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Pushed to Printavo as #${data.printavoVisualId}`);
+      queryClient.invalidateQueries({ queryKey: ['quote-details', item.quote_id] });
+    } catch (err: any) {
+      toast.error(`Push failed: ${err.message}`);
+    } finally {
+      setPushing(false);
+    }
+  };
+
   if (!item) return null;
 
   const completedSteps = checklist.filter(s => s.done).length;
