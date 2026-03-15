@@ -58,7 +58,8 @@ const isPreviewableArtwork = (url: string) =>
 
 export default function ArtworkLibrary() {
   const [search, setSearch] = useState('');
-
+  const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set());
   const { data: artworks = [], isLoading } = useQuery({
     queryKey: ['artwork-library'],
     queryFn: async () => {
