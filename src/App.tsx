@@ -197,6 +197,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/inventory"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Inventory />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/install" element={<Install />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
