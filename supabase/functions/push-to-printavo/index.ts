@@ -281,8 +281,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        printavoOrderId: printavoInvoice.id,
-        printavoVisualId: printavoInvoice.visualId,
+        printavoOrderId: printavoQuote.id,
+        printavoVisualId: printavoQuote.visualId,
         contactId,
         lineItems: lineItems.length,
       }),
