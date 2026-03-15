@@ -100,17 +100,22 @@ export default function ArtworkLibrary() {
     : artworks;
 
   const handleDownload = async (url: string, customerName: string) => {
+    const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
+    const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
+    const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
+    const filename = `${safeName}_artwork.${extension}`;
+
+    toast.info('Downloading...');
+
     try {
-      const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
-      const pathPart = url.split('/').pop()?.split('?')[0] || 'artwork.png';
-      const extension = pathPart.includes('.') ? pathPart.split('.').pop() : 'png';
-      const filename = `${safeName}_artwork.${extension}`;
+      const { data, error } = await supabase.functions.invoke('download-artwork', {
+        body: { url, filename },
+      });
 
-      // Download as blob to avoid blank-tab behavior in preview environments
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch artwork');
-      const blob = await response.blob();
+      if (error) throw error;
 
+      // data is the raw blob from the edge function
+      const blob = new Blob([data], { type: 'application/octet-stream' });
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
@@ -119,8 +124,9 @@ export default function ArtworkLibrary() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      toast.success('Download started!');
     } catch {
-      // Fallback: open original file URL for manual save
+      toast.error('Download failed — opening in new tab instead');
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
