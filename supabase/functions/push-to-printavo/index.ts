@@ -72,6 +72,12 @@ Deno.serve(async (req) => {
     const quote = quoteRes.data;
     const lineItems = lineItemsRes.data ?? [];
 
+    // Apply overrides from action item if quote fields are empty
+    const effectiveName = quote.customer_name || overrideName || "Unknown";
+    const effectiveEmail = quote.customer_email || overrideEmail || null;
+    const effectivePhone = quote.customer_phone || overridePhone || null;
+    const effectiveCompany = quote.company || null;
+
     // Check if already pushed
     if (quote.printavo_order_id) {
       return new Response(
