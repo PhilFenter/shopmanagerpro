@@ -45,7 +45,9 @@ interface ArtworkItem {
   customer_email: string | null;
 }
 
-const PREVIEWABLE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif']);
+const PREVIEWABLE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif', 'pdf']);
+
+const isPdfFile = (url: string) => getFileExtension(url) === 'pdf';
 
 const getFileNameFromUrl = (url: string) => {
   try {
@@ -381,7 +383,14 @@ export default function ArtworkLibrary() {
             return (
               <Card key={art.id} className="overflow-hidden group">
                 <div className="relative aspect-square bg-muted/20 flex items-center justify-center overflow-hidden">
-                  {canPreview ? (
+                  {canPreview && isPdfFile(art.image_url) ? (
+                    <iframe
+                      src={`${art.image_url}#toolbar=0&navpanes=0`}
+                      title={`PDF preview for ${art.customer_name}`}
+                      className="h-full w-full border-0"
+                      loading="lazy"
+                    />
+                  ) : canPreview ? (
                     <img
                       src={art.image_url}
                       alt={`Artwork for ${art.customer_name}`}
