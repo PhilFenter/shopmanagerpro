@@ -270,6 +270,28 @@ Deno.serve(async (req) => {
     const customerDueAt = dueDate.toISOString().split("T")[0];
     const dueAt = dueDate.toISOString();
 
+    const quoteBillingAddress = {
+      companyName: effectiveCompany || undefined,
+      customerName: effectiveName || undefined,
+      address1: quote.address_line1 || undefined,
+      address2: quote.address_line2 || undefined,
+      city: quote.city || undefined,
+      stateIso: quote.state || undefined,
+      zipCode: quote.zip || undefined,
+      countryIso: "US",
+    };
+
+    const quoteShippingAddress = {
+      companyName: effectiveCompany || undefined,
+      customerName: effectiveName || undefined,
+      address1: quote.shipping_address || quote.address_line1 || undefined,
+      address2: quote.address_line2 || undefined,
+      city: quote.city || undefined,
+      stateIso: quote.state || undefined,
+      zipCode: quote.zip || undefined,
+      countryIso: "US",
+    };
+
     const quoteInput: Record<string, unknown> = {
       contact: { id: contactId },
       customerDueAt,
@@ -277,6 +299,8 @@ Deno.serve(async (req) => {
       productionNote,
       lineItemGroups: lineItemGroupInputs,
       visualPoNumber: quote.po_number || undefined,
+      ...(Object.values(quoteBillingAddress).some(Boolean) ? { billingAddress: quoteBillingAddress } : {}),
+      ...(Object.values(quoteShippingAddress).some(Boolean) ? { shippingAddress: quoteShippingAddress } : {}),
     };
 
     console.log("Creating Printavo quote with input:", JSON.stringify(quoteInput, null, 2));
