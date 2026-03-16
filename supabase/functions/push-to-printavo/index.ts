@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
               email: effectiveEmail ? [effectiveEmail] : undefined,
               phone: effectivePhone || undefined,
             },
-            ...(Object.keys(billingAddress).length > 1 ? { billingAddress, shippingAddress: billingAddress } : {}),
+            ...(Object.keys(billingAddress).length > 0 ? { billingAddress, shippingAddress: billingAddress } : {}),
           },
         }
       );
