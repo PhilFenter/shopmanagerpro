@@ -45,7 +45,9 @@ interface ArtworkItem {
   customer_email: string | null;
 }
 
-const PREVIEWABLE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif']);
+const PREVIEWABLE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif', 'pdf']);
+
+const isPdfFile = (url: string) => getFileExtension(url) === 'pdf';
 
 const getFileNameFromUrl = (url: string) => {
   try {
