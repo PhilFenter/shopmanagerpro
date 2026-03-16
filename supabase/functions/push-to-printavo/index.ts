@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { quoteId } = body;
+    const { quoteId, customerName: overrideName, customerEmail: overrideEmail, customerPhone: overridePhone } = body;
     if (!quoteId) {
       return new Response(
         JSON.stringify({ error: "quoteId is required" }),
