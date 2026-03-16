@@ -135,6 +135,18 @@ Deno.serve(async (req) => {
       const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
       const lastName = rest.join(" ") || undefined;
 
+      // Build billing address from quote data
+      const billingAddress: Record<string, unknown> = {};
+      if (effectiveCompany) billingAddress.company = effectiveCompany;
+      if (effectiveName) billingAddress.name = effectiveName;
+      if (effectivePhone) billingAddress.phone = effectivePhone;
+      if (quote.address_line1) billingAddress.address1 = quote.address_line1;
+      if (quote.address_line2) billingAddress.address2 = quote.address_line2;
+      if (quote.city) billingAddress.city = quote.city;
+      if (quote.state) billingAddress.state = quote.state;
+      if (quote.zip) billingAddress.zip = quote.zip;
+      billingAddress.country = "United States";
+
       const customerData = await makePrintavoRequest(
         `mutation CreateCustomer($input: CustomerCreateInput!) {
           customerCreate(input: $input) {
@@ -155,6 +167,7 @@ Deno.serve(async (req) => {
               email: effectiveEmail ? [effectiveEmail] : undefined,
               phone: effectivePhone || undefined,
             },
+            ...(Object.keys(billingAddress).length > 1 ? { billingAddress, shippingAddress: billingAddress } : {}),
           },
         }
       );
