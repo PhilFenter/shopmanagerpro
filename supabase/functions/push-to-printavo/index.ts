@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { quoteId } = body;
+    const { quoteId, customerName: overrideName, customerEmail: overrideEmail, customerPhone: overridePhone } = body;
     if (!quoteId) {
       return new Response(
         JSON.stringify({ error: "quoteId is required" }),
@@ -71,6 +71,12 @@ Deno.serve(async (req) => {
 
     const quote = quoteRes.data;
     const lineItems = lineItemsRes.data ?? [];
+
+    // Apply overrides from action item if quote fields are empty
+    const effectiveName = quote.customer_name || overrideName || "Unknown";
+    const effectiveEmail = quote.customer_email || overrideEmail || null;
+    const effectivePhone = quote.customer_phone || overridePhone || null;
+    const effectiveCompany = quote.company || null;
 
     // Check if already pushed
     if (quote.printavo_order_id) {
@@ -104,18 +110,18 @@ Deno.serve(async (req) => {
     // --- Step 1: Find contact by email, or create customer + primary contact ---
     let contactId: string | null = null;
 
-    if (quote.customer_email) {
+    if (effectiveEmail) {
       const searchData = await makePrintavoRequest(
         `query SearchContacts($query: String!) {
           contacts(first: 5, query: $query) {
             nodes { id fullName email }
           }
         }`,
-        { query: quote.customer_email }
+        { query: effectiveEmail }
       );
 
       const matchingContact = searchData.contacts?.nodes?.find(
-        (c: any) => c.email?.toLowerCase() === quote.customer_email.toLowerCase()
+        (c: any) => c.email?.toLowerCase() === effectiveEmail.toLowerCase()
       );
 
       if (matchingContact) {
@@ -125,7 +131,7 @@ Deno.serve(async (req) => {
     }
 
     if (!contactId) {
-      const fullName = (quote.customer_name || "").trim();
+      const fullName = (effectiveName).trim();
       const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
       const lastName = rest.join(" ") || undefined;
 
@@ -142,12 +148,12 @@ Deno.serve(async (req) => {
         }`,
         {
           input: {
-            companyName: quote.company || quote.customer_name,
+            companyName: effectiveCompany || effectiveName,
             primaryContact: {
-              firstName: firstName || quote.customer_name,
+              firstName: firstName || effectiveName,
               lastName,
-              email: quote.customer_email ? [quote.customer_email] : undefined,
-              phone: quote.customer_phone || undefined,
+              email: effectiveEmail ? [effectiveEmail] : undefined,
+              phone: effectivePhone || undefined,
             },
           },
         }

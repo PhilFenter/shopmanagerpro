@@ -106,7 +106,12 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
     setPushing(true);
     try {
       const { data, error } = await supabase.functions.invoke('push-to-printavo', {
-        body: { quoteId: item.quote_id },
+        body: {
+          quoteId: item.quote_id,
+          customerName: item.customer_name || undefined,
+          customerEmail: item.customer_email || undefined,
+          customerPhone: item.customer_phone || undefined,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
