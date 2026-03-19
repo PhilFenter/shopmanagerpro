@@ -522,8 +522,9 @@ Deno.serve(async (req) => {
         // S&S Activewear fallback for styles SanMar couldn't resolve
         let ssActivewearSynced = 0;
         if (stillUnmatched.size > 0) {
-          console.log(`S&S Activewear fallback: syncing ${stillUnmatched.size} remaining unmatched styles...`);
-          for (const style of stillUnmatched) {
+          const ssStyles = [...stillUnmatched].slice(0, 10); // Cap at 10 to avoid rate limits/timeout
+          console.log(`S&S Activewear fallback: syncing ${ssStyles.length} of ${stillUnmatched.size} remaining unmatched styles...`);
+          for (const style of ssStyles) {
             try {
               const resp = await fetch(`${supabaseUrl}/functions/v1/ss-activewear-api`, {
                 method: "POST",
@@ -533,11 +534,17 @@ Deno.serve(async (req) => {
                 },
                 body: JSON.stringify({ action: "syncProduct", styleNumber: style }),
               });
+              if (resp.status === 429) {
+                console.warn(`S&S rate limited, stopping further lookups`);
+                break;
+              }
               const result = await resp.json();
               if (result.success && result.upserted > 0) {
                 ssActivewearSynced++;
                 console.log(`Synced ${style}: ${result.upserted} variants from S&S Activewear`);
               }
+              // Throttle: wait 1s between calls to avoid rate limits
+              await new Promise(r => setTimeout(r, 1000));
             } catch (err) {
               console.error(`S&S sync failed for ${style}:`, err);
             }
