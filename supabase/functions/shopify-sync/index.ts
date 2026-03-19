@@ -100,21 +100,21 @@ Deno.serve(async (req) => {
       userId = adminRole?.user_id;
       console.log("Automated sync auth, using admin user:", userId);
     } else {
-      // User call — validate JWT
+      // User call — validate JWT using getClaims
       supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         anonKey,
         { global: { headers: { Authorization: authHeader } } }
       );
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError || !user) {
+      const { data: claims, error: authError } = await supabase.auth.getClaims(token);
+      if (authError || !claims?.claims?.sub) {
         console.error("Auth error:", authError);
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      userId = user.id;
+      userId = claims.claims.sub as string;
       console.log("Authenticated user:", userId);
     }
 
