@@ -87,13 +87,11 @@ Deno.serve(async (req) => {
             token: printavoToken,
           },
           body: JSON.stringify({
-            query: `query GetOrderStatus($id: ID!) {
-              order(id: $id) {
+            query: `query GetQuoteStatus($id: ID!) {
+              quote(id: $id) {
                 id
                 visualId
-                orderStatus {
-                  name
-                }
+                status { name }
               }
             }`,
             variables: { id: q.printavo_order_id },
@@ -114,7 +112,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const statusName = json.data?.order?.orderStatus?.name || null;
+        const statusName = json.data?.quote?.status?.name || null;
         if (!statusName) {
           results.push({
             quote_id: q.id,
