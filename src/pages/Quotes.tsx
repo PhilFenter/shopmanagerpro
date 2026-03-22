@@ -130,6 +130,7 @@ export default function Quotes() {
                     <TableHead>Created</TableHead>
                     <TableHead>Printavo</TableHead>
                     <TableHead>Follow-Up</TableHead>
+                    <TableHead className="text-center">Auto F/U</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
