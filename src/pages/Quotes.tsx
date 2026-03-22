@@ -35,6 +35,19 @@ export default function Quotes() {
     }
   };
 
+  const deleteQuote = async (quoteId: string, quoteNumber: string | null) => {
+    if (!confirm(`Delete quote ${quoteNumber || quoteId.slice(0, 8)}? This cannot be undone.`)) return;
+    // Delete line items first, then quote
+    await supabase.from('quote_line_items').delete().eq('quote_id', quoteId);
+    const { error } = await supabase.from('quotes').delete().eq('id', quoteId);
+    if (error) {
+      toast.error('Failed to delete quote — you may not have permission');
+    } else {
+      toast.success('Quote deleted');
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+    }
+  };
+
   const filtered = useMemo(() => {
     if (!quotes) return [];
     return quotes.filter(q => {
