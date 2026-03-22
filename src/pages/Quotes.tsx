@@ -195,6 +195,17 @@ export default function Quotes() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
+                        <TableCell className="text-center">
+                          {!q.converted_job_id && q.status !== 'paid' && q.status !== 'approved' ? (
+                            <Switch
+                              checked={(q as any).follow_up_enabled ?? false}
+                              onCheckedChange={(checked) => toggleFollowUp(q.id, checked)}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
