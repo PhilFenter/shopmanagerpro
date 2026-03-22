@@ -29,6 +29,8 @@ export interface Quote {
   follow_up_count: number;
   notes: string | null;
   requested_date: string | null;
+  printavo_visual_id: string | null;
+  printavo_order_id: string | null;
   quote_line_items: QuoteLineItem[];
 }
 

@@ -28,8 +28,9 @@ function buildFollowUpEmail(params: {
   serviceLabel: string;
   quoteNumber: string;
   totalPrice?: number | null;
+  printavoVisualId?: string | null;
 }): string {
-  const { firstName, serviceLabel, quoteNumber, totalPrice } = params;
+  const { firstName, serviceLabel, quoteNumber, totalPrice, printavoVisualId } = params;
 
   const estimateBlock = totalPrice
     ? `<tr><td style="padding:16px 0;">
@@ -38,6 +39,13 @@ function buildFollowUpEmail(params: {
           <div style="color:#ffffff;font-size:28px;font-weight:700;">$${totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         </div>
       </td></tr>`
+    : "";
+
+  const approveBlock = printavoVisualId
+    ? `<div style="margin-top:24px;text-align:center;">
+        <a href="https://www.printavo.com/invoices/${escapeHtml(printavoVisualId)}" style="display:inline-block;background:#16a34a;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;">View &amp; Approve Your Quote</a>
+      </div>
+      <p style="text-align:center;color:#888;font-size:12px;margin-top:8px;">Click above to review details, approve, and pay — all in one step.</p>`
     : "";
 
   return `<!DOCTYPE html>
@@ -65,6 +73,8 @@ function buildFollowUpEmail(params: {
           </p>
 
           ${estimateBlock}
+
+          ${approveBlock}
 
           <!-- CTA -->
           <div style="margin-top:32px;text-align:center;">
@@ -115,7 +125,7 @@ Deno.serve(async (req) => {
     // Query eligible quotes
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
-      .select("id, quote_number, customer_name, customer_email, total_price, created_at")
+      .select("id, quote_number, customer_name, customer_email, total_price, created_at, printavo_visual_id")
       .eq("status", "draft")
       .is("converted_job_id", null)
       .is("follow_up_sent_at", null)
@@ -187,6 +197,7 @@ Deno.serve(async (req) => {
           serviceLabel,
           quoteNumber,
           totalPrice: q.total_price,
+          printavoVisualId: q.printavo_visual_id,
         });
 
         const emailRes = await fetch("https://api.resend.com/emails", {
