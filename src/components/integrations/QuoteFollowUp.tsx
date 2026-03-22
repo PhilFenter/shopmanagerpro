@@ -83,6 +83,22 @@ export function QuoteFollowUp() {
         </div>
 
         {/* Action buttons */}
+        {/* Delay selector */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium whitespace-nowrap">Follow up after:</span>
+          <Select value={delayDays} onValueChange={setDelayDays}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[1, 2, 3, 5, 7, 10, 14].map(d => (
+                <SelectItem key={d} value={String(d)}>{d} day{d !== 1 ? 's' : ''}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Action buttons */}
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => runFollowUp(true)} disabled={isDryRunning || isRunning}>
             {isDryRunning ? (
