@@ -133,12 +133,19 @@ Deno.serve(async (req) => {
           newStatus = "paid";
         } else if (APPROVED_STATUSES.includes(normalized)) {
           newStatus = "approved";
+        } else if (SENT_STATUSES.includes(normalized)) {
+          newStatus = "sent";
         }
 
         if (newStatus && newStatus !== q.status) {
+          const updateData: Record<string, unknown> = { status: newStatus };
+          // Set quote_sent_at when transitioning to "sent" — this starts the follow-up clock
+          if (newStatus === "sent" && !q.status?.includes("sent")) {
+            updateData.quote_sent_at = new Date().toISOString();
+          }
           await supabase
             .from("quotes")
-            .update({ status: newStatus })
+            .update(updateData)
             .eq("id", q.id);
           updated++;
         }
