@@ -562,6 +562,10 @@ Deno.serve(async (req) => {
               await new Promise(r => setTimeout(r, 1000));
             } catch (err) {
               console.error(`S&S sync failed for ${style}:`, err);
+              if (err?.name === "RateLimitError" || String(err).includes("Rate limit")) {
+                console.warn(`S&S rate limited (exception), stopping`);
+                break;
+              }
             }
           }
         }
