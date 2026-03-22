@@ -89,10 +89,15 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             query: `query GetOrderStatus($id: ID!) {
               order(id: $id) {
-                id
-                visualId
-                orderStatus {
-                  name
+                ... on Quote {
+                  id
+                  visualId
+                  orderStatus { name }
+                }
+                ... on Invoice {
+                  id
+                  visualId
+                  orderStatus { name }
                 }
               }
             }`,
