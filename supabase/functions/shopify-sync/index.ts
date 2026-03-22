@@ -774,9 +774,14 @@ Deno.serve(async (req) => {
         const existing = existingByName.get(key);
 
         if (existing) {
+          // Use the GREATER of job-aggregated revenue vs existing stored revenue
+          // This preserves spreadsheet-imported historical revenue that predates job records
+          const bestRevenue = Math.max(cust.revenue, existing.total_revenue || 0);
+          const bestOrders = Math.max(cust.orders, existing.total_orders || 0);
+          
           const updates: Record<string, any> = {
-            total_revenue: cust.revenue,
-            total_orders: cust.orders,
+            total_revenue: bestRevenue,
+            total_orders: bestOrders,
             last_order_date: cust.lastOrder,
           };
           if (!existing.email && cust.email) updates.email = cust.email;
