@@ -6,16 +6,34 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SERVICE_LABELS } from '@/lib/constants';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export default function Quotes() {
   const { data: quotes, isLoading } = useQuotes();
+  const queryClient = useQueryClient();
   const stats = useQuoteStats(quotes);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const toggleFollowUp = async (quoteId: string, enabled: boolean) => {
+    const { error } = await supabase
+      .from('quotes')
+      .update({ follow_up_enabled: enabled } as any)
+      .eq('id', quoteId);
+    if (error) {
+      toast.error('Failed to update follow-up setting');
+    } else {
+      toast.success(enabled ? 'Follow-up enabled' : 'Follow-up disabled');
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!quotes) return [];
@@ -112,6 +130,7 @@ export default function Quotes() {
                     <TableHead>Created</TableHead>
                     <TableHead>Printavo</TableHead>
                     <TableHead>Follow-Up</TableHead>
+                    <TableHead className="text-center">Auto F/U</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -172,6 +191,17 @@ export default function Quotes() {
                               <AlertTriangle className="h-3.5 w-3.5" />
                               Pending
                             </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {!q.converted_job_id && q.status !== 'paid' && q.status !== 'approved' ? (
+                            <Switch
+                              checked={(q as any).follow_up_enabled ?? false}
+                              onCheckedChange={(checked) => toggleFollowUp(q.id, checked)}
+                              className="data-[state=checked]:bg-primary"
+                            />
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}

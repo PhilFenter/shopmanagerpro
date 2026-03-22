@@ -143,8 +143,9 @@ Deno.serve(async (req) => {
     // - has quote_sent_at set (the clock start timestamp)
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
-      .select("id, quote_number, customer_name, customer_email, total_price, created_at, quote_sent_at, printavo_visual_id, follow_up_sent_at, follow_up_count, status")
+      .select("id, quote_number, customer_name, customer_email, total_price, created_at, quote_sent_at, printavo_visual_id, follow_up_sent_at, follow_up_count, status, follow_up_enabled")
       .eq("status", "sent")
+      .eq("follow_up_enabled", true)
       .is("converted_job_id", null)
       .not("customer_email", "is", null)
       .not("quote_sent_at", "is", null)

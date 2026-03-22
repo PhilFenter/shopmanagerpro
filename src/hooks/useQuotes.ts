@@ -30,6 +30,7 @@ export interface Quote {
   notes: string | null;
   requested_date: string | null;
   quote_sent_at: string | null;
+  follow_up_enabled: boolean;
   printavo_visual_id: string | null;
   printavo_order_id: string | null;
   quote_line_items: QuoteLineItem[];
