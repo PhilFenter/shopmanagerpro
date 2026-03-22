@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     // Fetch all quotes that have been pushed to Printavo and aren't yet approved/paid/converted
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
-      .select("id, printavo_order_id, printavo_visual_id, status")
+      .select("id, printavo_order_id, printavo_visual_id, status, converted_job_id")
       .not("printavo_order_id", "is", null)
       .in("status", ["draft", "sent"])
       .is("converted_job_id", null)
@@ -141,6 +141,23 @@ Deno.serve(async (req) => {
           if (newStatus === "sent" && !q.status?.includes("sent")) {
             updateData.quote_sent_at = new Date().toISOString();
           }
+
+          // When approved or paid, try to link to the matching job created by printavo-sync
+          if ((newStatus === "approved" || newStatus === "paid") && !q.converted_job_id) {
+            const { data: matchingJob } = await supabase
+              .from("jobs")
+              .select("id")
+              .eq("external_id", q.printavo_order_id)
+              .eq("source", "printavo")
+              .limit(1)
+              .maybeSingle();
+
+            if (matchingJob) {
+              updateData.converted_job_id = matchingJob.id;
+              console.log(`Linked quote ${q.id} → job ${matchingJob.id}`);
+            }
+          }
+
           await supabase
             .from("quotes")
             .update(updateData)
