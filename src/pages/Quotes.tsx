@@ -100,16 +100,16 @@ export default function Quotes() {
             </div>
           ) : (
             <div className="overflow-auto">
-              <Table>
+               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Quote #</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>What They Want</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Value</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead>Printavo</TableHead>
                     <TableHead>Follow-Up</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -140,6 +140,21 @@ export default function Quotes() {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {format(new Date(q.created_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          {q.printavo_visual_id ? (
+                            <a
+                              href={`https://www.printavo.com/invoices/${q.printavo_visual_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              #{q.printavo_visual_id}
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {q.follow_up_sent_at ? (
