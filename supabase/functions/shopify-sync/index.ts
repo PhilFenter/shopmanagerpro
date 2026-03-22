@@ -492,11 +492,15 @@ Deno.serve(async (req) => {
       if (unmatchedStyles.size > 0) {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        console.log(`SanMar fallback: syncing ${unmatchedStyles.size} unmatched styles...`);
+        // Cap SanMar lookups to 10 to avoid rate limits on edge function invocations
+        const sanmarStyles = [...unmatchedStyles].slice(0, 10);
+        console.log(`SanMar fallback: syncing ${sanmarStyles.length} of ${unmatchedStyles.size} unmatched styles...`);
 
-        const stillUnmatched = new Set<string>();
+        const stillUnmatched = new Set<string>([...unmatchedStyles]);
 
-        for (const style of unmatchedStyles) {
+        let sanmarRateLimited = false;
+        for (const style of sanmarStyles) {
+          if (sanmarRateLimited) { break; }
           try {
             const resp = await fetch(`${supabaseUrl}/functions/v1/sanmar-api`, {
               method: "POST",
@@ -506,16 +510,27 @@ Deno.serve(async (req) => {
               },
               body: JSON.stringify({ action: "syncProduct", styleNumber: style }),
             });
+            if (resp.status === 429) {
+              console.warn(`SanMar rate limited, stopping further lookups`);
+              sanmarRateLimited = true;
+              break;
+            }
             const result = await resp.json();
             if (result.success && result.upserted > 0) {
               sanmarSynced++;
+              stillUnmatched.delete(style);
               console.log(`Synced ${style}: ${result.upserted} variants from SanMar`);
-            } else {
-              stillUnmatched.add(style);
             }
+            // Throttle: 500ms between calls
+            await new Promise(r => setTimeout(r, 500));
           } catch (err) {
             console.error(`SanMar sync failed for ${style}:`, err);
-            stillUnmatched.add(style);
+            // If it's a rate limit error, stop immediately
+            if (err?.name === "RateLimitError" || String(err).includes("Rate limit")) {
+              console.warn(`SanMar rate limited (exception), stopping further lookups`);
+              sanmarRateLimited = true;
+              break;
+            }
           }
         }
 
