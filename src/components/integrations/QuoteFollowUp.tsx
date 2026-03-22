@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, RefreshCw, CheckCircle, XCircle, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -27,6 +28,7 @@ export function QuoteFollowUp() {
   const [isRunning, setIsRunning] = useState(false);
   const [isDryRunning, setIsDryRunning] = useState(false);
   const [lastResponse, setLastResponse] = useState<FollowUpResponse | null>(null);
+  const [delayDays, setDelayDays] = useState('3');
 
   const runFollowUp = async (dryRun: boolean) => {
     if (dryRun) setIsDryRunning(true);
@@ -34,7 +36,7 @@ export function QuoteFollowUp() {
 
     try {
       const { data, error } = await supabase.functions.invoke('quote-follow-up', {
-        body: { dry_run: dryRun, delay_days: 3 },
+        body: { dry_run: dryRun, delay_days: parseInt(delayDays, 10) },
       });
 
       if (error) throw error;
@@ -63,7 +65,7 @@ export function QuoteFollowUp() {
               Quote Follow-Up
             </CardTitle>
             <CardDescription>
-              Send follow-up emails to unconverted quotes older than 3 days
+              Send follow-up emails to unconverted quotes older than {delayDays} day{delayDays !== '1' ? 's' : ''}
             </CardDescription>
           </div>
           <Badge variant="secondary">Automation</Badge>
@@ -75,9 +77,25 @@ export function QuoteFollowUp() {
           <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
           <div className="text-sm text-muted-foreground">
             Targets quotes that are <strong>draft</strong> status, have a <strong>customer email</strong>,
-            have <strong>no converted job</strong>, are <strong>3+ days old</strong>, and have
+            have <strong>no converted job</strong>, are <strong>{delayDays}+ days old</strong>, and have
             <strong> no prior follow-up</strong> sent.
           </div>
+        </div>
+
+        {/* Action buttons */}
+        {/* Delay selector */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium whitespace-nowrap">Follow up after:</span>
+          <Select value={delayDays} onValueChange={setDelayDays}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[1, 2, 3, 5, 7, 10, 14].map(d => (
+                <SelectItem key={d} value={String(d)}>{d} day{d !== 1 ? 's' : ''}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Action buttons */}

@@ -27,6 +27,7 @@ import Messages from "./pages/Messages";
 import Install from "./pages/Install";
 import ArtworkLibrary from "./pages/ArtworkLibrary";
 import Inventory from "./pages/Inventory";
+import Quotes from "./pages/Quotes";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -203,6 +204,16 @@ function App() {
                     <ProtectedRoute>
                       <AppLayout>
                         <Inventory />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/quotes"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Quotes />
                       </AppLayout>
                     </ProtectedRoute>
                   }
