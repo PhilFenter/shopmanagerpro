@@ -78,9 +78,9 @@ export function QuoteFollowUp() {
           <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
           <div className="text-sm text-muted-foreground">
             <strong>Escalating 3-step sequence:</strong> Day 3 gentle nudge → Day 7 firmer reminder → Day 14 final notice.
-            Targets <strong>draft &amp; sent</strong> quotes with a customer email and no converted job.
+            Clock starts when Printavo status = <strong>"Quote Approval Sent"</strong>.
+            Targets <strong>sent</strong> quotes with a customer email and no converted job.
             Stops automatically when the customer <strong>approves or pays</strong> in Printavo.
-            {' '}Quotes pushed to Printavo include a <strong>"View &amp; Approve"</strong> button.
           </div>
         </div>
 
