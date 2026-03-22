@@ -82,6 +82,7 @@ export default function Quotes() {
             <SelectItem value="draft">Draft</SelectItem>
             <SelectItem value="sent">Sent</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="converted">Converted</SelectItem>
             <SelectItem value="expired">Expired</SelectItem>
           </SelectContent>
