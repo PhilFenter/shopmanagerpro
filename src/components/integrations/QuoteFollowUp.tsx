@@ -13,6 +13,7 @@ interface FollowUpResult {
   quote_number: string | null;
   email: string;
   status: string;
+  tone?: string;
 }
 
 interface FollowUpResponse {
