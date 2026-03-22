@@ -65,7 +65,7 @@ export function QuoteFollowUp() {
               Quote Follow-Up
             </CardTitle>
             <CardDescription>
-              Send follow-up emails to unconverted quotes older than 3 days
+              Send follow-up emails to unconverted quotes older than {delayDays} day{delayDays !== '1' ? 's' : ''}
             </CardDescription>
           </div>
           <Badge variant="secondary">Automation</Badge>
