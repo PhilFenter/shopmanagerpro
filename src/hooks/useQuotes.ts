@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface QuoteLineItem {
+  id: string;
+  service_type: string;
+  description: string | null;
+  style_number: string | null;
+  quantity: number;
+  color: string | null;
+  placement: string | null;
+  line_total: number | null;
+}
+
 export interface Quote {
   id: string;
   quote_number: string | null;
@@ -17,7 +28,8 @@ export interface Quote {
   follow_up_sent_at: string | null;
   follow_up_count: number;
   notes: string | null;
-  line_items_count?: number;
+  requested_date: string | null;
+  quote_line_items: QuoteLineItem[];
 }
 
 export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'converted' | 'expired';
@@ -36,7 +48,7 @@ export function useQuotes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotes')
-        .select('*')
+        .select('*, quote_line_items(id, service_type, description, style_number, quantity, color, placement, line_total)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
