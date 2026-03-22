@@ -221,6 +221,16 @@ export default function Quotes() {
                           )}
                         </TableCell>
                       </TableRow>
+                        <TableCell>
+                          <button
+                            onClick={() => deleteQuote(q.id, q.quote_number)}
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            title="Delete quote"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
                 </TableBody>
