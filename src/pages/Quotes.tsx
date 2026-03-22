@@ -105,6 +105,8 @@ export default function Quotes() {
                   <TableRow>
                     <TableHead>Quote #</TableHead>
                     <TableHead>Customer</TableHead>
+                    <TableHead>What They Want</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Value</TableHead>
                     <TableHead>Created</TableHead>
