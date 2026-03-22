@@ -17,9 +17,23 @@ import { toast } from 'sonner';
 
 export default function Quotes() {
   const { data: quotes, isLoading } = useQuotes();
+  const queryClient = useQueryClient();
   const stats = useQuoteStats(quotes);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const toggleFollowUp = async (quoteId: string, enabled: boolean) => {
+    const { error } = await supabase
+      .from('quotes')
+      .update({ follow_up_enabled: enabled } as any)
+      .eq('id', quoteId);
+    if (error) {
+      toast.error('Failed to update follow-up setting');
+    } else {
+      toast.success(enabled ? 'Follow-up enabled' : 'Follow-up disabled');
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!quotes) return [];
