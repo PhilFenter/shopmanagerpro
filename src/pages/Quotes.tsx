@@ -220,7 +220,6 @@ export default function Quotes() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                      </TableRow>
                         <TableCell>
                           <button
                             onClick={() => deleteQuote(q.id, q.quote_number)}
