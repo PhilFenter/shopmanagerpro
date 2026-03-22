@@ -135,11 +135,12 @@ export function QuoteFollowUp() {
 
             {lastResponse.results.length > 0 && (
               <div className="max-h-64 overflow-auto rounded-lg border">
-                <Table>
+                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Quote #</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Step</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -148,6 +149,11 @@ export function QuoteFollowUp() {
                       <TableRow key={r.quote_id}>
                         <TableCell className="font-medium">{r.quote_number || r.quote_id.slice(0, 8)}</TableCell>
                         <TableCell className="text-muted-foreground">{r.email}</TableCell>
+                        <TableCell>
+                          {r.tone && (
+                            <Badge variant="outline" className="text-[10px] capitalize">{r.tone}</Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {r.status === 'sent' || r.status === 'eligible' ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />
