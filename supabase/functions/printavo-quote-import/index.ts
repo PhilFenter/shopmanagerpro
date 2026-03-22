@@ -63,10 +63,10 @@ Deno.serve(async (req) => {
     let totalFetched = 0;
 
     while (hasNextPage) {
-      const variables: Record<string, unknown> = { first: 10 };
+      const variables: Record<string, unknown> = { first: 5 };
       if (cursor) variables.after = cursor;
 
-      // Step 1: Fetch quote summaries (lightweight query)
+      // Lightweight query — avoid nested contact.customer to reduce complexity
       const data = await makePrintavoRequest(
         `query GetQuotes($first: Int!, $after: String) {
           quotes(first: $first, after: $after) {
@@ -82,7 +82,6 @@ Deno.serve(async (req) => {
                 fullName
                 email
                 phone
-                customer { companyName }
               }
             }
             pageInfo {
