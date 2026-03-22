@@ -64,9 +64,12 @@ export function useShopifySync() {
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
         const pagesMsg = result.pages && result.pages > 1 ? ` across ${result.pages} pages` : '';
         const garmentsMsg = (result as any).garments ? `, ${(result as any).garments} garments` : '';
+        const custCreated = (result as any).customersCreated || 0;
+        const custUpdated = (result as any).customersUpdated || 0;
+        const custMsg = (custCreated + custUpdated) > 0 ? ` | ${custCreated} new customers, ${custUpdated} updated` : '';
         toast({
           title: 'Shopify sync complete',
-          description: `Imported ${result.imported} orders${pagesMsg}${garmentsMsg} (${result.skipped} already existed)`,
+          description: `Imported ${result.imported} orders${pagesMsg}${garmentsMsg} (${result.skipped} already existed)${custMsg}`,
         });
       } else {
         toast({
