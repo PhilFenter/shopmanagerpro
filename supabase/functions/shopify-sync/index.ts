@@ -639,6 +639,126 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully imported ${insertedCount} jobs, ${garmentsInserted} garments, ${costsMatched} costs matched, ${sanmarSynced} SanMar synced`);
 
+    // ── Shopify → Customers sync ──
+    // Aggregate all Shopify jobs by customer name, upsert those with >$50 total spend
+    let customersCreated = 0;
+    let customersUpdated = 0;
+    try {
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      // Fetch ALL shopify jobs (not just this sync batch) for accurate revenue totals
+      const customerAgg = new Map<string, {
+        name: string;
+        email: string | null;
+        phone: string | null;
+        revenue: number;
+        orders: number;
+        firstOrder: string;
+        lastOrder: string;
+      }>();
+
+      let offset = 0;
+      const pgSize = 1000;
+      while (true) {
+        const { data: shopJobs, error: sjErr } = await serviceClient
+          .from("jobs")
+          .select("customer_name, customer_email, customer_phone, sale_price, created_at")
+          .eq("source", "shopify")
+          .order("created_at", { ascending: true })
+          .range(offset, offset + pgSize - 1);
+        if (sjErr) { console.error("Customer agg query error:", sjErr); break; }
+        if (!shopJobs || shopJobs.length === 0) break;
+
+        for (const j of shopJobs) {
+          const key = j.customer_name?.toLowerCase().trim();
+          if (!key || key === "unknown") continue;
+          const existing = customerAgg.get(key);
+          if (existing) {
+            existing.revenue += (j.sale_price || 0);
+            existing.orders += 1;
+            if (!existing.email && j.customer_email) existing.email = j.customer_email;
+            if (!existing.phone && j.customer_phone) existing.phone = j.customer_phone;
+            if (j.created_at < existing.firstOrder) existing.firstOrder = j.created_at;
+            if (j.created_at > existing.lastOrder) existing.lastOrder = j.created_at;
+          } else {
+            customerAgg.set(key, {
+              name: j.customer_name,
+              email: j.customer_email || null,
+              phone: j.customer_phone || null,
+              revenue: j.sale_price || 0,
+              orders: 1,
+              firstOrder: j.created_at,
+              lastOrder: j.created_at,
+            });
+          }
+        }
+
+        offset += shopJobs.length;
+        if (shopJobs.length < pgSize) break;
+      }
+
+      // Filter to >$50 spend
+      const qualifiedCustomers = [...customerAgg.values()].filter(c => c.revenue > 50);
+      console.log(`Shopify customer sync: ${qualifiedCustomers.length} customers with >$50 spend (of ${customerAgg.size} total)`);
+
+      // Get existing customers to match by name
+      const { data: existingCustomers } = await serviceClient
+        .from("customers")
+        .select("id, name, email, phone, source, total_revenue, total_orders");
+
+      const existingByName = new Map(
+        (existingCustomers || []).map(c => [c.name?.toLowerCase().trim(), c])
+      );
+
+      for (const cust of qualifiedCustomers) {
+        const key = cust.name.toLowerCase().trim();
+        const existing = existingByName.get(key);
+
+        if (existing) {
+          // Update with latest aggregated data
+          const updates: Record<string, any> = {
+            total_revenue: cust.revenue,
+            total_orders: cust.orders,
+            last_order_date: cust.lastOrder,
+          };
+          if (!existing.email && cust.email) updates.email = cust.email;
+          if (!existing.phone && cust.phone) updates.phone = cust.phone;
+          if (cust.firstOrder) updates.first_order_date = cust.firstOrder;
+
+          const { error } = await serviceClient
+            .from("customers")
+            .update(updates)
+            .eq("id", existing.id);
+          if (!error) customersUpdated++;
+        } else {
+          const { error } = await serviceClient
+            .from("customers")
+            .insert({
+              name: cust.name,
+              email: cust.email,
+              phone: cust.phone,
+              source: "shopify",
+              total_revenue: cust.revenue,
+              total_orders: cust.orders,
+              first_order_date: cust.firstOrder,
+              last_order_date: cust.lastOrder,
+            });
+          if (!error) {
+            customersCreated++;
+            existingByName.set(key, { id: '', name: cust.name, email: cust.email, phone: cust.phone, source: 'shopify', total_revenue: cust.revenue, total_orders: cust.orders });
+          } else {
+            console.error(`Error inserting customer ${cust.name}:`, error.message);
+          }
+        }
+      }
+      console.log(`Shopify customers: ${customersCreated} created, ${customersUpdated} updated`);
+    } catch (custErr) {
+      console.error("Customer sync error (non-fatal):", custErr);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -649,6 +769,8 @@ Deno.serve(async (req) => {
         garments: garmentsInserted,
         costsMatched,
         sanmarSynced,
+        customersCreated,
+        customersUpdated,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
