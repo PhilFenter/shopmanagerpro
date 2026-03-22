@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
 
       // Find the next step in the escalation sequence
       const nextStep = ESCALATION_STEPS.find(
-        (s) => s.count === currentCount && daysSinceCreated >= (customDelayDays ?? s.minDays)
+        (s) => s.count === currentCount && daysSinceSent >= (customDelayDays ?? s.minDays)
       );
 
       if (nextStep) {
