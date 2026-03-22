@@ -98,10 +98,6 @@ Deno.serve(async (req) => {
       const pageInfo = data.quotes?.pageInfo;
       totalFetched += nodes.length;
 
-      const nodes = data.quotes?.nodes || [];
-      const pageInfo = data.quotes?.pageInfo;
-      totalFetched += nodes.length;
-
       for (const pq of nodes) {
         // Skip if already imported
         if (existingIds.has(pq.id)) {
