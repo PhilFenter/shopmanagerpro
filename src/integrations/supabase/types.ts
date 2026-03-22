@@ -1261,6 +1261,7 @@ export type Database = {
           delivery_method: string | null
           expires_at: string | null
           follow_up_count: number
+          follow_up_enabled: boolean
           follow_up_sent_at: string | null
           id: string
           is_nonprofit: boolean
@@ -1297,6 +1298,7 @@ export type Database = {
           delivery_method?: string | null
           expires_at?: string | null
           follow_up_count?: number
+          follow_up_enabled?: boolean
           follow_up_sent_at?: string | null
           id?: string
           is_nonprofit?: boolean
@@ -1333,6 +1335,7 @@ export type Database = {
           delivery_method?: string | null
           expires_at?: string | null
           follow_up_count?: number
+          follow_up_enabled?: boolean
           follow_up_sent_at?: string | null
           id?: string
           is_nonprofit?: boolean
