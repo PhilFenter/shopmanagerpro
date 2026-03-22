@@ -197,6 +197,7 @@ Deno.serve(async (req) => {
           serviceLabel,
           quoteNumber,
           totalPrice: q.total_price,
+          printavoVisualId: q.printavo_visual_id,
         });
 
         const emailRes = await fetch("https://api.resend.com/emails", {
