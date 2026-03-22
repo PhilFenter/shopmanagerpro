@@ -337,6 +337,7 @@ Deno.serve(async (req) => {
         printavo_order_id: printavoQuote.id,
         printavo_visual_id: printavoQuote.visualId,
         status: "sent",
+        quote_sent_at: new Date().toISOString(),
       })
       .eq("id", quoteId);
 
