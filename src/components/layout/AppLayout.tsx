@@ -28,6 +28,7 @@ import {
   MessagesSquare,
   Palette,
   Warehouse,
+  FileText,
 } from 'lucide-react';
 
 interface AppLayoutProps {
