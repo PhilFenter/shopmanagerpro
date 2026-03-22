@@ -77,7 +77,7 @@ export function QuoteFollowUp() {
           <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
           <div className="text-sm text-muted-foreground">
             Targets quotes that are <strong>draft</strong> status, have a <strong>customer email</strong>,
-            have <strong>no converted job</strong>, are <strong>3+ days old</strong>, and have
+            have <strong>no converted job</strong>, are <strong>{delayDays}+ days old</strong>, and have
             <strong> no prior follow-up</strong> sent.
           </div>
         </div>
