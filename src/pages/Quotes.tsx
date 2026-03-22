@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink } from 'lucide-react';
+import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SERVICE_LABELS } from '@/lib/constants';
