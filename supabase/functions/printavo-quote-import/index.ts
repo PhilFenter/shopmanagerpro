@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
         const contactName = pq.contact?.fullName || "Unknown";
         const contactEmail = pq.contact?.email || null;
         const contactPhone = pq.contact?.phone || null;
-        const companyName = pq.contact?.customer?.companyName || null;
+        // Company name not fetched to reduce query complexity
 
         // Insert the quote
         const { data: insertedQuote, error: insertErr } = await supabase
