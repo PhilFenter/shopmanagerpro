@@ -723,21 +723,33 @@ Deno.serve(async (req) => {
       const qualifiedCustomers = [...customerAgg.values()].filter(c => c.revenue > 50);
       console.log(`Shopify customer sync: ${qualifiedCustomers.length} customers with >$50 spend (of ${customerAgg.size} total)`);
 
-      // Get existing customers to match by name
-      const { data: existingCustomers } = await serviceClient
-        .from("customers")
-        .select("id, name, email, phone, source, total_revenue, total_orders");
+      // Get existing customers to match by name (paginated to avoid 1000-row limit)
+      const allExistingCustomers: any[] = [];
+      let custOffset = 0;
+      while (true) {
+        const { data: custPage } = await serviceClient
+          .from("customers")
+          .select("id, name, email, phone, source, total_revenue, total_orders")
+          .range(custOffset, custOffset + 999);
+        if (!custPage || custPage.length === 0) break;
+        allExistingCustomers.push(...custPage);
+        custOffset += custPage.length;
+        if (custPage.length < 1000) break;
+      }
 
       const existingByName = new Map(
-        (existingCustomers || []).map(c => [c.name?.toLowerCase().trim(), c])
+        allExistingCustomers.map(c => [c.name?.toLowerCase().trim(), c])
       );
+
+      // Batch upserts for speed — separate new inserts from updates
+      const toInsert: any[] = [];
+      const toUpdate: { id: string; updates: Record<string, any> }[] = [];
 
       for (const cust of qualifiedCustomers) {
         const key = cust.name.toLowerCase().trim();
         const existing = existingByName.get(key);
 
         if (existing) {
-          // Update with latest aggregated data
           const updates: Record<string, any> = {
             total_revenue: cust.revenue,
             total_orders: cust.orders,
@@ -746,32 +758,38 @@ Deno.serve(async (req) => {
           if (!existing.email && cust.email) updates.email = cust.email;
           if (!existing.phone && cust.phone) updates.phone = cust.phone;
           if (cust.firstOrder) updates.first_order_date = cust.firstOrder;
-
-          const { error } = await serviceClient
-            .from("customers")
-            .update(updates)
-            .eq("id", existing.id);
-          if (!error) customersUpdated++;
+          toUpdate.push({ id: existing.id, updates });
         } else {
-          const { error } = await serviceClient
-            .from("customers")
-            .insert({
-              name: cust.name,
-              email: cust.email,
-              phone: cust.phone,
-              source: "shopify",
-              total_revenue: cust.revenue,
-              total_orders: cust.orders,
-              first_order_date: cust.firstOrder,
-              last_order_date: cust.lastOrder,
-            });
-          if (!error) {
-            customersCreated++;
-            existingByName.set(key, { id: '', name: cust.name, email: cust.email, phone: cust.phone, source: 'shopify', total_revenue: cust.revenue, total_orders: cust.orders });
-          } else {
-            console.error(`Error inserting customer ${cust.name}:`, error.message);
-          }
+          toInsert.push({
+            name: cust.name,
+            email: cust.email,
+            phone: cust.phone,
+            source: "shopify",
+            total_revenue: cust.revenue,
+            total_orders: cust.orders,
+            first_order_date: cust.firstOrder,
+            last_order_date: cust.lastOrder,
+          });
+          // Mark as seen to avoid dupes
+          existingByName.set(key, { id: '', name: cust.name, email: cust.email, phone: cust.phone, source: 'shopify', total_revenue: cust.revenue, total_orders: cust.orders });
         }
+      }
+
+      // Batch insert new customers (chunks of 50)
+      for (let i = 0; i < toInsert.length; i += 50) {
+        const batch = toInsert.slice(i, i + 50);
+        const { error } = await serviceClient.from("customers").insert(batch);
+        if (error) {
+          console.error(`Batch insert error (batch ${i}):`, error.message);
+        } else {
+          customersCreated += batch.length;
+        }
+      }
+
+      // Batch updates (individual but fast — no API overhead)
+      for (const { id, updates } of toUpdate) {
+        const { error } = await serviceClient.from("customers").update(updates).eq("id", id);
+        if (!error) customersUpdated++;
       }
       console.log(`Shopify customers: ${customersCreated} created, ${customersUpdated} updated`);
     } catch (custErr) {
