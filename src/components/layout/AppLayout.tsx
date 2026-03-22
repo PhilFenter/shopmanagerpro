@@ -61,6 +61,7 @@ const adminNavigation = [
 
 // Financial access navigation (admin or manager)
 const financialNavigation = [
+  { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Customers', href: '/customers', icon: UserCheck },
   { name: 'Messages', href: '/messages', icon: MessagesSquare },
   { name: 'Financials', href: '/financials', icon: DollarSign },

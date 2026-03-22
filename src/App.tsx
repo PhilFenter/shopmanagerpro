@@ -208,6 +208,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/quotes"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Quotes />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/install" element={<Install />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
