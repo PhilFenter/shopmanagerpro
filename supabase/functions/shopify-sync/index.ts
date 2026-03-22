@@ -723,13 +723,22 @@ Deno.serve(async (req) => {
       const qualifiedCustomers = [...customerAgg.values()].filter(c => c.revenue > 50);
       console.log(`Shopify customer sync: ${qualifiedCustomers.length} customers with >$50 spend (of ${customerAgg.size} total)`);
 
-      // Get existing customers to match by name
-      const { data: existingCustomers } = await serviceClient
-        .from("customers")
-        .select("id, name, email, phone, source, total_revenue, total_orders");
+      // Get existing customers to match by name (paginated to avoid 1000-row limit)
+      const allExistingCustomers: any[] = [];
+      let custOffset = 0;
+      while (true) {
+        const { data: custPage } = await serviceClient
+          .from("customers")
+          .select("id, name, email, phone, source, total_revenue, total_orders")
+          .range(custOffset, custOffset + 999);
+        if (!custPage || custPage.length === 0) break;
+        allExistingCustomers.push(...custPage);
+        custOffset += custPage.length;
+        if (custPage.length < 1000) break;
+      }
 
       const existingByName = new Map(
-        (existingCustomers || []).map(c => [c.name?.toLowerCase().trim(), c])
+        allExistingCustomers.map(c => [c.name?.toLowerCase().trim(), c])
       );
 
       // Batch upserts for speed — separate new inserts from updates
