@@ -136,8 +136,8 @@ Deno.serve(async (req) => {
             customer_phone: contactPhone,
             company: companyName,
             status: localStatus,
-            total_price: pq.total || pq.subtotal || 0,
-            notes: pq.productionNote || pq.customerNote || null,
+            total_price: pq.total || 0,
+            notes: pq.productionNote || null,
             requested_date: pq.customerDueAt || null,
             quote_sent_at: localStatus === "sent" ? new Date().toISOString() : null,
           })
@@ -149,50 +149,70 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Import line items from lineItemGroups
-        const lineItemGroups = pq.lineItemGroups?.nodes || [];
-        let sortOrder = 0;
-        for (const group of lineItemGroups) {
-          const lineItems = group.lineItems?.nodes || [];
-          for (const li of lineItems) {
-            sortOrder++;
-            const styleNumber = li.itemNumber || li.product?.itemNumber || null;
-            const description = li.description || li.product?.description || null;
-            const brand = li.product?.brand || null;
-
-            // Convert Printavo size enums back to readable sizes
-            const sizesObj: Record<string, number> = {};
-            if (li.sizes && Array.isArray(li.sizes)) {
-              for (const s of li.sizes) {
-                if (s.count > 0) {
-                  const readable = s.size
-                    .replace("size_", "")
-                    .replace("2xl", "2XL")
-                    .replace("3xl", "3XL")
-                    .replace("4xl", "4XL")
-                    .replace("5xl", "5XL")
-                    .toUpperCase();
-                  sizesObj[readable] = s.count;
+        // Fetch line items for this quote separately (avoids complexity limits)
+        try {
+          const liData = await makePrintavoRequest(
+            `query GetQuoteLineItems($id: ID!) {
+              quote(id: $id) {
+                lineItemGroups(first: 20) {
+                  nodes {
+                    lineItems(first: 20) {
+                      nodes {
+                        description
+                        itemNumber
+                        color
+                        items
+                        price
+                        sizes { size count }
+                      }
+                    }
+                  }
                 }
               }
+            }`,
+            { id: pq.id }
+          );
+
+          const lineItemGroups = liData.quote?.lineItemGroups?.nodes || [];
+          let sortOrder = 0;
+          for (const group of lineItemGroups) {
+            const lineItems = group.lineItems?.nodes || [];
+            for (const li of lineItems) {
+              sortOrder++;
+              const sizesObj: Record<string, number> = {};
+              if (li.sizes && Array.isArray(li.sizes)) {
+                for (const s of li.sizes) {
+                  if (s.count > 0) {
+                    const readable = s.size
+                      .replace("size_", "")
+                      .replace("2xl", "2XL")
+                      .replace("3xl", "3XL")
+                      .replace("4xl", "4XL")
+                      .replace("5xl", "5XL")
+                      .toUpperCase();
+                    sizesObj[readable] = s.count;
+                  }
+                }
+              }
+              const totalQty = li.items || Object.values(sizesObj).reduce((a, b) => a + b, 0) || 1;
+              const unitPrice = li.price || 0;
+
+              await supabase.from("quote_line_items").insert({
+                quote_id: insertedQuote.id,
+                style_number: li.itemNumber || null,
+                description: li.description || li.itemNumber || `Line item ${sortOrder}`,
+                color: li.color || null,
+                quantity: totalQty,
+                sizes: Object.keys(sizesObj).length > 0 ? sizesObj : null,
+                garment_cost: unitPrice,
+                line_total: unitPrice * totalQty,
+                sort_order: sortOrder,
+                service_type: "other",
+              });
             }
-
-            const totalQty = li.items || Object.values(sizesObj).reduce((a, b) => a + b, 0) || 1;
-            const unitPrice = li.price || 0;
-
-            await supabase.from("quote_line_items").insert({
-              quote_id: insertedQuote.id,
-              style_number: styleNumber,
-              description: description ? `${brand ? brand + " " : ""}${description}` : styleNumber,
-              color: li.color || null,
-              quantity: totalQty,
-              sizes: Object.keys(sizesObj).length > 0 ? sizesObj : null,
-              garment_cost: unitPrice,
-              line_total: unitPrice * totalQty,
-              sort_order: sortOrder,
-              service_type: "other",
-            });
           }
+        } catch (liErr) {
+          console.error(`Failed to fetch line items for quote ${pq.visualId}:`, liErr);
         }
 
         imported++;
