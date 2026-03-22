@@ -30,14 +30,33 @@ export function useShopifySync() {
     setLastResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('shopify-sync', {
-        body: { 
+      // Use raw fetch with extended timeout (3 min) since this sync can take a while
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180_000);
+
+      const session = (await supabase.auth.getSession()).data.session;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const resp = await fetch(`${supabaseUrl}/functions/v1/shopify-sync`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || anonKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({
           startDate: options.startDate || null,
           endDate: options.endDate || null,
           minOrderNumber: options.minOrderNumber || null,
           maxPages: options.maxPages || 20,
-        },
+        }),
       });
+      clearTimeout(timeoutId);
+
+      const data = await resp.json();
+      const error = resp.ok ? null : { message: data?.error || `HTTP ${resp.status}` };
 
       if (error) {
         console.error('Shopify sync error:', error);
