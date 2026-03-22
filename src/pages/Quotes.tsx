@@ -128,6 +128,9 @@ export default function Quotes() {
                           </div>
                         </TableCell>
                         <TableCell>
+                          <QuoteDetails quote={q} />
+                        </TableCell>
+                        <TableCell>
                           <Badge variant="secondary" className={cn('text-xs', config.color)}>
                             {config.label}
                           </Badge>
