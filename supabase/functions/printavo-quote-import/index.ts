@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
             customer_name: contactName,
             customer_email: contactEmail,
             customer_phone: contactPhone,
-            company: companyName,
+            company: null,
             status: localStatus,
             total_price: pq.total || 0,
             notes: pq.productionNote || null,
