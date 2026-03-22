@@ -1,0 +1,2 @@
+ALTER TABLE public.quotes
+  ADD COLUMN IF NOT EXISTS quote_sent_at TIMESTAMP WITH TIME ZONE;

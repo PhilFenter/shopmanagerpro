@@ -1270,6 +1270,7 @@ export type Database = {
           printavo_order_id: string | null
           printavo_visual_id: string | null
           quote_number: string | null
+          quote_sent_at: string | null
           raw_email: string | null
           requested_date: string | null
           shipping_address: string | null
@@ -1305,6 +1306,7 @@ export type Database = {
           printavo_order_id?: string | null
           printavo_visual_id?: string | null
           quote_number?: string | null
+          quote_sent_at?: string | null
           raw_email?: string | null
           requested_date?: string | null
           shipping_address?: string | null
@@ -1340,6 +1342,7 @@ export type Database = {
           printavo_order_id?: string | null
           printavo_visual_id?: string | null
           quote_number?: string | null
+          quote_sent_at?: string | null
           raw_email?: string | null
           requested_date?: string | null
           shipping_address?: string | null

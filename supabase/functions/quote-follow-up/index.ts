@@ -136,16 +136,18 @@ Deno.serve(async (req) => {
     );
 
     // Query quotes eligible for follow-up:
-    // - status is draft or sent (not approved/paid/converted)
+    // - status is "sent" (clock starts when Printavo shows "Quote Approval Sent")
     // - has customer email
     // - no converted job
     // - follow_up_count < 3 (max 3 in the escalation sequence)
+    // - has quote_sent_at set (the clock start timestamp)
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
-      .select("id, quote_number, customer_name, customer_email, total_price, created_at, printavo_visual_id, follow_up_sent_at, follow_up_count, status")
-      .in("status", ["draft", "sent"])
+      .select("id, quote_number, customer_name, customer_email, total_price, created_at, quote_sent_at, printavo_visual_id, follow_up_sent_at, follow_up_count, status")
+      .eq("status", "sent")
       .is("converted_job_id", null)
       .not("customer_email", "is", null)
+      .not("quote_sent_at", "is", null)
       .lt("follow_up_count", 3)
       .order("created_at", { ascending: true });
 
@@ -158,13 +160,14 @@ Deno.serve(async (req) => {
     }> = [];
 
     for (const q of quotes || []) {
-      const createdAt = new Date(q.created_at);
-      const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+      // Clock starts from quote_sent_at (when Printavo status = "Quote Approval Sent")
+      const clockStart = new Date(q.quote_sent_at);
+      const daysSinceSent = Math.floor((now.getTime() - clockStart.getTime()) / (1000 * 60 * 60 * 24));
       const currentCount = q.follow_up_count || 0;
 
       // Find the next step in the escalation sequence
       const nextStep = ESCALATION_STEPS.find(
-        (s) => s.count === currentCount && daysSinceCreated >= (customDelayDays ?? s.minDays)
+        (s) => s.count === currentCount && daysSinceSent >= (customDelayDays ?? s.minDays)
       );
 
       if (nextStep) {
