@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
               quote(id: $id) {
                 id
                 visualId
-                orderStatus { name }
+                status { name }
               }
             }`,
             variables: { id: q.printavo_order_id },
