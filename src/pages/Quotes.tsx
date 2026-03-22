@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink } from 'lucide-react';
+import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SERVICE_LABELS } from '@/lib/constants';
@@ -31,6 +31,19 @@ export default function Quotes() {
       toast.error('Failed to update follow-up setting');
     } else {
       toast.success(enabled ? 'Follow-up enabled' : 'Follow-up disabled');
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+    }
+  };
+
+  const deleteQuote = async (quoteId: string, quoteNumber: string | null) => {
+    if (!confirm(`Delete quote ${quoteNumber || quoteId.slice(0, 8)}? This cannot be undone.`)) return;
+    // Delete line items first, then quote
+    await supabase.from('quote_line_items').delete().eq('quote_id', quoteId);
+    const { error } = await supabase.from('quotes').delete().eq('id', quoteId);
+    if (error) {
+      toast.error('Failed to delete quote — you may not have permission');
+    } else {
+      toast.success('Quote deleted');
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
     }
   };
@@ -131,6 +144,7 @@ export default function Quotes() {
                     <TableHead>Printavo</TableHead>
                     <TableHead>Follow-Up</TableHead>
                     <TableHead className="text-center">Auto F/U</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -205,6 +219,15 @@ export default function Quotes() {
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            onClick={() => deleteQuote(q.id, q.quote_number)}
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            title="Delete quote"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     );
