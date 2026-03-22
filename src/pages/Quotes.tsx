@@ -1,15 +1,15 @@
 import { useState, useMemo } from 'react';
-import { useQuotes, useQuoteStats, QUOTE_STATUS_CONFIG } from '@/hooks/useQuotes';
+import { useQuotes, useQuoteStats, QUOTE_STATUS_CONFIG, type Quote } from '@/hooks/useQuotes';
 import { QuoteFollowUp } from '@/components/integrations/QuoteFollowUp';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { SERVICE_LABELS } from '@/lib/constants';
 
 export default function Quotes() {
   const { data: quotes, isLoading } = useQuotes();
