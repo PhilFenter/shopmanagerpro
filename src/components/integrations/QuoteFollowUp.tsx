@@ -13,6 +13,7 @@ interface FollowUpResult {
   quote_number: string | null;
   email: string;
   status: string;
+  tone?: string;
 }
 
 interface FollowUpResponse {
@@ -76,9 +77,10 @@ export function QuoteFollowUp() {
         <div className="flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
           <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
           <div className="text-sm text-muted-foreground">
-            Targets quotes that are <strong>draft</strong> status, have a <strong>customer email</strong>,
-            have <strong>no converted job</strong>, are <strong>{delayDays}+ days old</strong>, and have
-            <strong> no prior follow-up</strong> sent.
+            <strong>Escalating 3-step sequence:</strong> Day 3 gentle nudge → Day 7 firmer reminder → Day 14 final notice.
+            Targets <strong>draft &amp; sent</strong> quotes with a customer email and no converted job.
+            Stops automatically when the customer <strong>approves or pays</strong> in Printavo.
+            {' '}Quotes pushed to Printavo include a <strong>"View &amp; Approve"</strong> button.
           </div>
         </div>
 
@@ -133,11 +135,12 @@ export function QuoteFollowUp() {
 
             {lastResponse.results.length > 0 && (
               <div className="max-h-64 overflow-auto rounded-lg border">
-                <Table>
+                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Quote #</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Step</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -146,6 +149,11 @@ export function QuoteFollowUp() {
                       <TableRow key={r.quote_id}>
                         <TableCell className="font-medium">{r.quote_number || r.quote_id.slice(0, 8)}</TableCell>
                         <TableCell className="text-muted-foreground">{r.email}</TableCell>
+                        <TableCell>
+                          {r.tone && (
+                            <Badge variant="outline" className="text-[10px] capitalize">{r.tone}</Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {r.status === 'sent' || r.status === 'eligible' ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />

@@ -34,12 +34,13 @@ export interface Quote {
   quote_line_items: QuoteLineItem[];
 }
 
-export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'converted' | 'expired';
+export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'paid' | 'converted' | 'expired';
 
 export const QUOTE_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   draft: { label: 'Draft', color: 'bg-muted text-muted-foreground' },
   sent: { label: 'Sent', color: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
   approved: { label: 'Approved', color: 'bg-green-500/15 text-green-600 dark:text-green-400' },
+  paid: { label: 'Paid', color: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' },
   converted: { label: 'Converted', color: 'bg-primary/15 text-primary' },
   expired: { label: 'Expired', color: 'bg-destructive/15 text-destructive' },
 };

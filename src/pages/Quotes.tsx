@@ -82,6 +82,7 @@ export default function Quotes() {
             <SelectItem value="draft">Draft</SelectItem>
             <SelectItem value="sent">Sent</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="converted">Converted</SelectItem>
             <SelectItem value="expired">Expired</SelectItem>
           </SelectContent>
@@ -160,9 +161,13 @@ export default function Quotes() {
                           {q.follow_up_sent_at ? (
                             <div className="flex items-center gap-1 text-xs text-green-600">
                               <CheckCircle className="h-3.5 w-3.5" />
-                              Sent {format(new Date(q.follow_up_sent_at), 'MMM d')}
+                              <span>
+                                {q.follow_up_count >= 3 ? 'Final' : `${q.follow_up_count}/3`}
+                                {' · '}
+                                {format(new Date(q.follow_up_sent_at), 'MMM d')}
+                              </span>
                             </div>
-                          ) : status === 'draft' && !q.converted_job_id ? (
+                          ) : (status === 'draft' || status === 'sent') && !q.converted_job_id ? (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <AlertTriangle className="h-3.5 w-3.5" />
                               Pending

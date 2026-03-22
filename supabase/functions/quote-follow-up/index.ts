@@ -15,6 +15,13 @@ const SERVICE_LABELS: Record<string, string> = {
   other: "custom apparel",
 };
 
+// Escalating sequence config: [days_since_created, follow_up_count_required]
+const ESCALATION_STEPS = [
+  { minDays: 3, count: 0, tone: "gentle" },
+  { minDays: 7, count: 1, tone: "firmer" },
+  { minDays: 14, count: 2, tone: "final" },
+] as const;
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -29,8 +36,32 @@ function buildFollowUpEmail(params: {
   quoteNumber: string;
   totalPrice?: number | null;
   printavoVisualId?: string | null;
-}): string {
-  const { firstName, serviceLabel, quoteNumber, totalPrice, printavoVisualId } = params;
+  tone: "gentle" | "firmer" | "final";
+}): { subject: string; html: string } {
+  const { firstName, serviceLabel, quoteNumber, totalPrice, printavoVisualId, tone } = params;
+
+  const toneConfig = {
+    gentle: {
+      subject: `Still thinking it over? — Hell's Canyon Designs (Quote #${quoteNumber})`,
+      heading: `Hey ${escapeHtml(firstName)}! 👋`,
+      body: `You requested a quote for <strong>${escapeHtml(serviceLabel)}</strong> a few days ago (Quote #${escapeHtml(quoteNumber)}). Still thinking it over?`,
+      followUp: `No pressure at all — we just wanted to make sure your request didn't slip through the cracks. If you have any questions about pricing, timelines, or artwork, we're happy to help.`,
+    },
+    firmer: {
+      subject: `Your quote is waiting — Hell's Canyon Designs (#${quoteNumber})`,
+      heading: `Hey ${escapeHtml(firstName)}, quick check-in`,
+      body: `We wanted to follow up on your <strong>${escapeHtml(serviceLabel)}</strong> quote (#${escapeHtml(quoteNumber)}) from about a week ago.`,
+      followUp: `We'd love to get this on the production schedule for you. If pricing or timing needs adjusting, just let us know — we're flexible and happy to work with you.`,
+    },
+    final: {
+      subject: `Last call on your quote — Hell's Canyon Designs (#${quoteNumber})`,
+      heading: `Hey ${escapeHtml(firstName)} — one last nudge`,
+      body: `Your <strong>${escapeHtml(serviceLabel)}</strong> quote (#${escapeHtml(quoteNumber)}) has been sitting for a couple weeks now.`,
+      followUp: `We totally understand if the timing isn't right. This will be our last reminder — but know that we're here whenever you're ready. Just reply to this email or text us anytime.`,
+    },
+  };
+
+  const config = toneConfig[tone];
 
   const estimateBlock = totalPrice
     ? `<tr><td style="padding:16px 0;">
@@ -48,59 +79,44 @@ function buildFollowUpEmail(params: {
       <p style="text-align:center;color:#888;font-size:12px;margin-top:8px;">Click above to review details, approve, and pay — all in one step.</p>`
     : "";
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;">
     <tr><td align="center" style="padding:40px 16px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-
-        <!-- Header -->
         <tr><td style="background:#0f0f1a;border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
           <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">HELL'S CANYON DESIGNS</div>
           <div style="color:#a0a0b0;font-size:13px;margin-top:4px;">Custom Apparel &amp; Headwear — Lewiston, ID</div>
         </td></tr>
-
-        <!-- Body -->
         <tr><td style="background:#ffffff;padding:40px;">
-          <h1 style="margin:0 0 8px 0;font-size:22px;color:#1a1a2e;">Hey ${escapeHtml(firstName)}! 👋</h1>
-          <p style="margin:0 0 24px 0;color:#555;font-size:15px;line-height:1.6;">
-            You requested a quote for <strong>${escapeHtml(serviceLabel)}</strong> a few days ago (Quote #${escapeHtml(quoteNumber)}). Still thinking it over?
-          </p>
-          <p style="margin:0 0 24px 0;color:#555;font-size:15px;line-height:1.6;">
-            No pressure at all — we just wanted to make sure your request didn't slip through the cracks. If you have any questions about pricing, timelines, or artwork, we're happy to help.
-          </p>
-
+          <h1 style="margin:0 0 8px 0;font-size:22px;color:#1a1a2e;">${config.heading}</h1>
+          <p style="margin:0 0 24px 0;color:#555;font-size:15px;line-height:1.6;">${config.body}</p>
+          <p style="margin:0 0 24px 0;color:#555;font-size:15px;line-height:1.6;">${config.followUp}</p>
           ${estimateBlock}
-
           ${approveBlock}
-
-          <!-- CTA -->
           <div style="margin-top:32px;text-align:center;">
             <a href="mailto:info@hellscanyondesigns.com" style="display:inline-block;background:#0f0f1a;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;">Reply to This Email</a>
           </div>
-
-          <!-- Text CTA -->
           <div style="margin-top:24px;text-align:center;padding:20px;background:#f8f8fb;border-radius:8px;">
             <div style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Prefer to text?</div>
             <a href="sms:2087486242" style="font-size:20px;font-weight:700;color:#0f0f1a;text-decoration:none;">208-748-6242</a>
           </div>
         </td></tr>
-
-        <!-- Footer -->
         <tr><td style="background:#f8f8fb;border-radius:0 0 12px 12px;padding:24px 40px;text-align:center;">
           <p style="margin:0;color:#aaa;font-size:12px;">
             Hell's Canyon Designs · Lewiston, Idaho<br>
             <a href="https://hellscanyondesigns.com" style="color:#888;">hellscanyondesigns.com</a>
           </p>
         </td></tr>
-
       </table>
     </td></tr>
   </table>
 </body>
 </html>`;
+
+  return { subject: config.subject, html };
 }
 
 Deno.serve(async (req) => {
@@ -111,47 +127,74 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const dryRun = body.dry_run === true;
-    const delayDays = typeof body.delay_days === "number" ? body.delay_days : 3;
+    // delay_days overrides the default step 1 timing (for manual triggers)
+    const customDelayDays = typeof body.delay_days === "number" ? body.delay_days : null;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Calculate cutoff date
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - delayDays);
-
-    // Query eligible quotes
+    // Query quotes eligible for follow-up:
+    // - status is draft or sent (not approved/paid/converted)
+    // - has customer email
+    // - no converted job
+    // - follow_up_count < 3 (max 3 in the escalation sequence)
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
-      .select("id, quote_number, customer_name, customer_email, total_price, created_at, printavo_visual_id")
-      .eq("status", "draft")
+      .select("id, quote_number, customer_name, customer_email, total_price, created_at, printavo_visual_id, follow_up_sent_at, follow_up_count, status")
+      .in("status", ["draft", "sent"])
       .is("converted_job_id", null)
-      .is("follow_up_sent_at", null)
       .not("customer_email", "is", null)
-      .lt("created_at", cutoff.toISOString())
+      .lt("follow_up_count", 3)
       .order("created_at", { ascending: true });
 
-    if (qErr) {
-      throw new Error(`Query error: ${qErr.message}`);
+    if (qErr) throw new Error(`Query error: ${qErr.message}`);
+
+    const now = new Date();
+    const eligible: Array<{
+      quote: typeof quotes extends (infer T)[] ? T : never;
+      step: typeof ESCALATION_STEPS[number];
+    }> = [];
+
+    for (const q of quotes || []) {
+      const createdAt = new Date(q.created_at);
+      const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+      const currentCount = q.follow_up_count || 0;
+
+      // Find the next step in the escalation sequence
+      const nextStep = ESCALATION_STEPS.find(
+        (s) => s.count === currentCount && daysSinceCreated >= (customDelayDays ?? s.minDays)
+      );
+
+      if (nextStep) {
+        // Also ensure we don't send too frequently (at least 2 days since last follow-up)
+        if (q.follow_up_sent_at) {
+          const daysSinceLastFollowUp = Math.floor(
+            (now.getTime() - new Date(q.follow_up_sent_at).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysSinceLastFollowUp < 2) continue;
+        }
+        eligible.push({ quote: q, step: nextStep });
+      }
     }
 
-    const eligible = quotes || [];
     const results: Array<{
       quote_id: string;
       quote_number: string | null;
       email: string;
       status: string;
+      tone?: string;
     }> = [];
 
     if (dryRun) {
-      for (const q of eligible) {
+      for (const { quote: q, step } of eligible) {
         results.push({
           quote_id: q.id,
           quote_number: q.quote_number,
           email: q.customer_email!,
           status: "eligible",
+          tone: step.tone,
         });
       }
 
@@ -170,14 +213,12 @@ Deno.serve(async (req) => {
 
     // Live send
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
-    }
+    if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
     let sent = 0;
     let skipped = 0;
 
-    for (const q of eligible) {
+    for (const { quote: q, step } of eligible) {
       try {
         // Fetch first line item for service type
         const { data: lineItems } = await supabase
@@ -192,12 +233,13 @@ Deno.serve(async (req) => {
         const firstName = (q.customer_name || "there").split(" ")[0];
         const quoteNumber = q.quote_number || q.id.slice(0, 8);
 
-        const emailHtml = buildFollowUpEmail({
+        const { subject, html } = buildFollowUpEmail({
           firstName,
           serviceLabel,
           quoteNumber,
           totalPrice: q.total_price,
           printavoVisualId: q.printavo_visual_id,
+          tone: step.tone,
         });
 
         const emailRes = await fetch("https://api.resend.com/emails", {
@@ -209,19 +251,19 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: "Hell's Canyon Designs <info@mail.hellscanyondesigns.com>",
             to: [q.customer_email],
-            subject: `Still thinking it over? — Hell's Canyon Designs (Quote #${quoteNumber})`,
-            html: emailHtml,
+            subject,
+            html,
             reply_to: "info@hellscanyondesigns.com",
           }),
         });
 
         if (emailRes.ok) {
-          // Update quote
+          const newCount = (q.follow_up_count || 0) + 1;
           await supabase
             .from("quotes")
             .update({
               follow_up_sent_at: new Date().toISOString(),
-              follow_up_count: 1,
+              follow_up_count: newCount,
             })
             .eq("id", q.id);
 
@@ -231,6 +273,7 @@ Deno.serve(async (req) => {
             quote_number: q.quote_number,
             email: q.customer_email!,
             status: "sent",
+            tone: step.tone,
           });
         } else {
           const errText = await emailRes.text();
@@ -241,6 +284,7 @@ Deno.serve(async (req) => {
             quote_number: q.quote_number,
             email: q.customer_email!,
             status: "failed",
+            tone: step.tone,
           });
         }
       } catch (err) {
