@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, RefreshCw, CheckCircle, XCircle, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -27,6 +28,7 @@ export function QuoteFollowUp() {
   const [isRunning, setIsRunning] = useState(false);
   const [isDryRunning, setIsDryRunning] = useState(false);
   const [lastResponse, setLastResponse] = useState<FollowUpResponse | null>(null);
+  const [delayDays, setDelayDays] = useState('3');
 
   const runFollowUp = async (dryRun: boolean) => {
     if (dryRun) setIsDryRunning(true);
@@ -34,7 +36,7 @@ export function QuoteFollowUp() {
 
     try {
       const { data, error } = await supabase.functions.invoke('quote-follow-up', {
-        body: { dry_run: dryRun, delay_days: 3 },
+        body: { dry_run: dryRun, delay_days: parseInt(delayDays, 10) },
       });
 
       if (error) throw error;
