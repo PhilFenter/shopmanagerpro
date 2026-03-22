@@ -63,9 +63,10 @@ Deno.serve(async (req) => {
     let totalFetched = 0;
 
     while (hasNextPage) {
-      const variables: Record<string, unknown> = { first: 25 };
+      const variables: Record<string, unknown> = { first: 10 };
       if (cursor) variables.after = cursor;
 
+      // Step 1: Fetch quote summaries (lightweight query)
       const data = await makePrintavoRequest(
         `query GetQuotes($first: Int!, $after: String) {
           quotes(first: $first, after: $after) {
@@ -75,39 +76,13 @@ Deno.serve(async (req) => {
               createdAt
               customerDueAt
               total
-              subtotal
               productionNote
-              customerNote
-              status { id name }
+              status { name }
               contact {
-                id
                 fullName
                 email
                 phone
-                customer {
-                  id
-                  companyName
-                }
-              }
-              lineItemGroups(first: 50) {
-                nodes {
-                  lineItems(first: 50) {
-                    nodes {
-                      id
-                      description
-                      itemNumber
-                      color
-                      items
-                      price
-                      sizes { size count }
-                      product {
-                        brand
-                        description
-                        itemNumber
-                      }
-                    }
-                  }
-                }
+                customer { companyName }
               }
             }
             pageInfo {
@@ -118,6 +93,10 @@ Deno.serve(async (req) => {
         }`,
         variables
       );
+
+      const nodes = data.quotes?.nodes || [];
+      const pageInfo = data.quotes?.pageInfo;
+      totalFetched += nodes.length;
 
       const nodes = data.quotes?.nodes || [];
       const pageInfo = data.quotes?.pageInfo;
