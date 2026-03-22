@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const statusName = json.data?.quote?.orderStatus?.name || null;
+        const statusName = json.data?.quote?.status?.name || null;
         if (!statusName) {
           results.push({
             quote_id: q.id,
