@@ -48,7 +48,7 @@ export function useQuotes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotes')
-        .select('*')
+        .select('*, quote_line_items(id, service_type, description, style_number, quantity, color, placement, line_total)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
