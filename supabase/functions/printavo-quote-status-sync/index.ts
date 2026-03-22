@@ -8,6 +8,13 @@ const corsHeaders = {
 
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
+// Printavo status names that indicate the quote was sent to the customer
+const SENT_STATUSES = [
+  "quote approval sent",
+  "quote sent",
+  "approval sent",
+];
+
 // Printavo status names that indicate the customer approved
 const APPROVED_STATUSES = [
   "quote approved",
