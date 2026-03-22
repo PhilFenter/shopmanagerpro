@@ -668,7 +668,30 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // Fetch ALL shopify jobs (not just this sync batch) for accurate revenue totals
+      // Fetch ALL jobs (all sources) for customers that have at least one Shopify order
+      // This ensures we don't overwrite Printavo/other revenue with just Shopify revenue
+      
+      // Step 1: Get all Shopify customer names
+      const shopifyCustomerNames = new Set<string>();
+      let offset = 0;
+      const pgSize = 1000;
+      while (true) {
+        const { data: shopJobs, error: sjErr } = await serviceClient
+          .from("jobs")
+          .select("customer_name")
+          .eq("source", "shopify")
+          .range(offset, offset + pgSize - 1);
+        if (sjErr) { console.error("Customer name query error:", sjErr); break; }
+        if (!shopJobs || shopJobs.length === 0) break;
+        for (const j of shopJobs) {
+          const key = j.customer_name?.toLowerCase().trim();
+          if (key && key !== "unknown") shopifyCustomerNames.add(key);
+        }
+        offset += shopJobs.length;
+        if (shopJobs.length < pgSize) break;
+      }
+
+      // Step 2: Get ALL jobs for those customer names (all sources) to compute true totals
       const customerAgg = new Map<string, {
         name: string;
         email: string | null;
@@ -679,21 +702,22 @@ Deno.serve(async (req) => {
         lastOrder: string;
       }>();
 
-      let offset = 0;
-      const pgSize = 1000;
+      offset = 0;
       while (true) {
-        const { data: shopJobs, error: sjErr } = await serviceClient
+        const { data: allJobs, error: ajErr } = await serviceClient
           .from("jobs")
           .select("customer_name, customer_email, customer_phone, sale_price, created_at")
-          .eq("source", "shopify")
           .order("created_at", { ascending: true })
           .range(offset, offset + pgSize - 1);
-        if (sjErr) { console.error("Customer agg query error:", sjErr); break; }
-        if (!shopJobs || shopJobs.length === 0) break;
+        if (ajErr) { console.error("Customer agg query error:", ajErr); break; }
+        if (!allJobs || allJobs.length === 0) break;
 
-        for (const j of shopJobs) {
+        for (const j of allJobs) {
           const key = j.customer_name?.toLowerCase().trim();
           if (!key || key === "unknown") continue;
+          // Only aggregate customers that have Shopify orders
+          if (!shopifyCustomerNames.has(key)) continue;
+          
           const existing = customerAgg.get(key);
           if (existing) {
             existing.revenue += (j.sale_price || 0);
@@ -715,8 +739,8 @@ Deno.serve(async (req) => {
           }
         }
 
-        offset += shopJobs.length;
-        if (shopJobs.length < pgSize) break;
+        offset += allJobs.length;
+        if (allJobs.length < pgSize) break;
       }
 
       // Filter to >$50 spend
@@ -750,9 +774,14 @@ Deno.serve(async (req) => {
         const existing = existingByName.get(key);
 
         if (existing) {
+          // Use the GREATER of job-aggregated revenue vs existing stored revenue
+          // This preserves spreadsheet-imported historical revenue that predates job records
+          const bestRevenue = Math.max(cust.revenue, existing.total_revenue || 0);
+          const bestOrders = Math.max(cust.orders, existing.total_orders || 0);
+          
           const updates: Record<string, any> = {
-            total_revenue: cust.revenue,
-            total_orders: cust.orders,
+            total_revenue: bestRevenue,
+            total_orders: bestOrders,
             last_order_date: cust.lastOrder,
           };
           if (!existing.email && cust.email) updates.email = cust.email;
