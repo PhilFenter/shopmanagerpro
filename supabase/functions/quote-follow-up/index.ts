@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     // Query eligible quotes
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
-      .select("id, quote_number, customer_name, customer_email, total_price, created_at")
+      .select("id, quote_number, customer_name, customer_email, total_price, created_at, printavo_visual_id")
       .eq("status", "draft")
       .is("converted_job_id", null)
       .is("follow_up_sent_at", null)
