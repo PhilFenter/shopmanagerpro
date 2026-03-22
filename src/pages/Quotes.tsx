@@ -182,3 +182,55 @@ function StatCard({ icon: Icon, label, value, className }: { icon: any; label: s
     </Card>
   );
 }
+
+const SERVICE_TYPE_FRIENDLY: Record<string, string> = {
+  leather_patch: 'Custom Hats',
+  custom_hats: 'Custom Hats',
+  embroidery: 'Embroidery',
+  screen_print: 'Screen Print',
+  dtf: 'DTF',
+  other: 'Custom Apparel',
+  ...Object.fromEntries(Object.entries(SERVICE_LABELS)),
+};
+
+function QuoteDetails({ quote }: { quote: Quote }) {
+  const items = quote.quote_line_items || [];
+  if (items.length === 0 && !quote.notes) {
+    return <span className="text-xs text-muted-foreground">No details</span>;
+  }
+
+  // Summarize services
+  const services = [...new Set(items.map(i => SERVICE_TYPE_FRIENDLY[i.service_type] || i.service_type))];
+  const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+
+  // Collect descriptions
+  const descriptions = items
+    .map(i => [i.description, i.style_number, i.color].filter(Boolean).join(' · '))
+    .filter(Boolean);
+
+  return (
+    <div className="max-w-[280px] space-y-0.5">
+      {services.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {services.map(s => (
+            <Badge key={s} variant="outline" className="text-[10px] px-1.5 py-0">
+              {s}
+            </Badge>
+          ))}
+          {totalQty > 0 && (
+            <span className="text-[10px] text-muted-foreground ml-1">({totalQty} pcs)</span>
+          )}
+        </div>
+      )}
+      {descriptions.slice(0, 2).map((d, i) => (
+        <div key={i} className="text-xs text-muted-foreground truncate">{d}</div>
+      ))}
+      {descriptions.length > 2 && (
+        <div className="text-[10px] text-muted-foreground">+{descriptions.length - 2} more items</div>
+      )}
+      {!items.length && quote.notes && (
+        <div className="text-xs text-muted-foreground truncate">{quote.notes}</div>
+      )}
+    </div>
+  );
+}
