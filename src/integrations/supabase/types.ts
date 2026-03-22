@@ -1260,6 +1260,8 @@ export type Database = {
           customer_phone: string | null
           delivery_method: string | null
           expires_at: string | null
+          follow_up_count: number
+          follow_up_sent_at: string | null
           id: string
           is_nonprofit: boolean
           notes: string | null
@@ -1293,6 +1295,8 @@ export type Database = {
           customer_phone?: string | null
           delivery_method?: string | null
           expires_at?: string | null
+          follow_up_count?: number
+          follow_up_sent_at?: string | null
           id?: string
           is_nonprofit?: boolean
           notes?: string | null
@@ -1326,6 +1330,8 @@ export type Database = {
           customer_phone?: string | null
           delivery_method?: string | null
           expires_at?: string | null
+          follow_up_count?: number
+          follow_up_sent_at?: string | null
           id?: string
           is_nonprofit?: boolean
           notes?: string | null
