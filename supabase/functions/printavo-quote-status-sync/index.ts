@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     // Fetch all quotes that have been pushed to Printavo and aren't yet approved/paid/converted
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
-      .select("id, printavo_order_id, printavo_visual_id, status")
+      .select("id, printavo_order_id, printavo_visual_id, status, converted_job_id")
       .not("printavo_order_id", "is", null)
       .in("status", ["draft", "sent"])
       .is("converted_job_id", null)
