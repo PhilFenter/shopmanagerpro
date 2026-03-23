@@ -37,6 +37,9 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isSyncingContacts, setIsSyncingContacts] = useState(false);
+  const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
+  const [lastOrderTo, setLastOrderTo] = useState<Date | undefined>();
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
