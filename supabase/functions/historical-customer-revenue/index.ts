@@ -175,14 +175,16 @@ Deno.serve(async (req) => {
       if (printavoEmail && printavoToken) {
         console.log("Starting Printavo historical scrape...");
 
+        // Only fetch invoices that have been paid — excludes quotes and unpaid drafts
         const invoicesQuery = `
           query GetInvoices($first: Int!, $after: String) {
-            invoices(first: $first, after: $after) {
+            invoices(first: $first, after: $after, paymentStatus: PAID) {
               nodes {
                 id
                 visualId
                 total
                 createdAt
+                orderedAt
                 customer {
                   fullName
                   email
@@ -257,7 +259,7 @@ Deno.serve(async (req) => {
                 invoice.customer?.email || null,
                 invoice.customer?.phone || null,
                 total,
-                invoice.createdAt?.split("T")[0] || null,
+                (invoice.orderedAt || invoice.createdAt)?.split("T")[0] || null,
                 "printavo"
               );
               printavoOrders++;
