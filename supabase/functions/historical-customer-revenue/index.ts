@@ -306,35 +306,37 @@ Deno.serve(async (req) => {
     let created = 0;
     let skipped = 0;
 
-    for (const [key, cust] of customerMap) {
-      const existing = existingByName.get(key);
+    // Process in batches of 50 with parallel updates
+    const entries = Array.from(customerMap.entries());
+    const BATCH_SIZE = 50;
 
-      if (existing) {
-        // Use GREATEST logic: only increase, never decrease
-        const newRevenue = Math.max(cust.revenue, existing.total_revenue || 0);
-        const newOrders = Math.max(cust.orders, existing.total_orders || 0);
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      const promises = batch.map(async ([key, cust]) => {
+        const existing = existingByName.get(key);
 
-        const updates: Record<string, any> = {};
-        if (newRevenue > (existing.total_revenue || 0)) updates.total_revenue = newRevenue;
-        if (newOrders > (existing.total_orders || 0)) updates.total_orders = newOrders;
-        if (cust.email && !existing.email) updates.email = cust.email;
-        if (cust.phone && !existing.phone) updates.phone = cust.phone;
-        if (cust.firstOrder && (!existing.first_order_date || cust.firstOrder < existing.first_order_date)) {
-          updates.first_order_date = cust.firstOrder;
-        }
-        if (cust.lastOrder && (!existing.last_order_date || cust.lastOrder > existing.last_order_date)) {
-          updates.last_order_date = cust.lastOrder;
-        }
+        if (existing) {
+          const newRevenue = Math.max(cust.revenue, existing.total_revenue || 0);
+          const newOrders = Math.max(cust.orders, existing.total_orders || 0);
 
-        if (Object.keys(updates).length > 0) {
-          await serviceSupabase.from("customers").update(updates).eq("id", existing.id);
-          updated++;
-        } else {
-          skipped++;
-        }
-      } else {
-        // Only create if they have meaningful revenue
-        if (cust.revenue >= 50) {
+          const updates: Record<string, any> = {};
+          if (newRevenue > (existing.total_revenue || 0)) updates.total_revenue = newRevenue;
+          if (newOrders > (existing.total_orders || 0)) updates.total_orders = newOrders;
+          if (cust.email && !existing.email) updates.email = cust.email;
+          if (cust.phone && !existing.phone) updates.phone = cust.phone;
+          if (cust.firstOrder && (!existing.first_order_date || cust.firstOrder < existing.first_order_date)) {
+            updates.first_order_date = cust.firstOrder;
+          }
+          if (cust.lastOrder && (!existing.last_order_date || cust.lastOrder > existing.last_order_date)) {
+            updates.last_order_date = cust.lastOrder;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await serviceSupabase.from("customers").update(updates).eq("id", existing.id);
+            return "updated";
+          }
+          return "skipped";
+        } else if (cust.revenue >= 50) {
           const { error } = await serviceSupabase.from("customers").insert({
             name: cust.name,
             email: cust.email,
@@ -345,16 +347,19 @@ Deno.serve(async (req) => {
             last_order_date: cust.lastOrder,
             source: cust.source,
           });
-          if (error) {
-            console.error(`Error inserting ${cust.name}:`, error.message);
-            skipped++;
-          } else {
-            created++;
-          }
-        } else {
-          skipped++;
+          return error ? "skipped" : "created";
         }
+        return "skipped";
+      });
+
+      const results = await Promise.all(promises);
+      for (const r of results) {
+        if (r === "updated") updated++;
+        else if (r === "created") created++;
+        else skipped++;
       }
+
+      if (i % 200 === 0 && i > 0) console.log(`Customer update progress: ${i}/${entries.length}`);
     }
 
     console.log(`Done: ${updated} updated, ${created} created, ${skipped} skipped`);
