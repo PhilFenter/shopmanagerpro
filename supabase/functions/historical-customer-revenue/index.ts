@@ -262,12 +262,6 @@ Deno.serve(async (req) => {
                 (invoice.orderedAt || invoice.createdAt)?.split("T")[0] || null,
                 "printavo"
               );
-                invoice.customer?.email || null,
-                invoice.customer?.phone || null,
-                total,
-                invoice.createdAt?.split("T")[0] || null,
-                "printavo"
-              );
               printavoOrders++;
               printavoTotal += total;
             }
