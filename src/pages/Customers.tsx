@@ -40,6 +40,8 @@ export default function Customers() {
   const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
   const [lastOrderTo, setLastOrderTo] = useState<Date | undefined>();
   const [sourceFilters, setSourceFilters] = useState<string[]>([]);
+  const [revenueMin, setRevenueMin] = useState('');
+  const [revenueMax, setRevenueMax] = useState('');
   const [csvExport, setCsvExport] = useState<{ url: string; filename: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
