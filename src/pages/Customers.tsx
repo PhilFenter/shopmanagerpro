@@ -107,26 +107,32 @@ export default function Customers() {
       toast({ variant: 'destructive', title: 'No emails to export', description: 'No customers with email addresses found.' });
       return;
     }
-    const headers = ['Name', 'Email', 'Phone', 'Company', 'Source', 'Total Revenue', 'Total Orders', 'Tags'];
-    const rows = emailCustomers.map(c => [
-      `"${(c.name || '').replace(/"/g, '""')}"`,
-      c.email || '',
-      c.phone || '',
-      `"${(c.company || '').replace(/"/g, '""')}"`,
-      c.source || '',
-      c.total_revenue?.toString() || '0',
-      c.total_orders?.toString() || '0',
-      `"${(c.tags || []).join(', ')}"`,
-    ]);
+    const headers = ['email', 'first_name', 'last_name', 'phone', 'company', 'last_order_date', 'total_orders', 'total_revenue', 'source'];
+    const rows = emailCustomers.map(c => {
+      const nameParts = (c.name || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      return [
+        c.email || '',
+        `"${firstName.replace(/"/g, '""')}"`,
+        `"${lastName.replace(/"/g, '""')}"`,
+        c.phone || '',
+        `"${(c.company || '').replace(/"/g, '""')}"`,
+        c.last_order_date ? c.last_order_date.split('T')[0] : '',
+        c.total_orders?.toString() || '0',
+        c.total_revenue?.toString() || '0',
+        c.source || 'manual',
+      ];
+    });
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `customer-emails-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `klaviyo-customers-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: `Exported ${emailCustomers.length} customers with emails` });
+    toast({ title: `Exported ${emailCustomers.length} customers for Klaviyo` });
   };
 
   return (
