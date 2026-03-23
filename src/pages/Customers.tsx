@@ -56,8 +56,8 @@ export default function Customers() {
         c.tags?.some(t => t.toLowerCase().includes(s))
       );
     }
-    if (sourceFilter !== 'all') {
-      result = result.filter(c => (c.source || 'manual') === sourceFilter);
+    if (sourceFilters.length > 0) {
+      result = result.filter(c => sourceFilters.includes(c.source || 'manual'));
     }
     if (lastOrderFrom) {
       result = result.filter(c => c.last_order_date && new Date(c.last_order_date) >= lastOrderFrom);
