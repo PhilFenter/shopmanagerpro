@@ -101,12 +101,13 @@ export default function Customers() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const emailCustomers = filteredCustomers.filter(c => c.email);
     if (emailCustomers.length === 0) {
       toast({ variant: 'destructive', title: 'No emails to export', description: 'No customers with email addresses found.' });
       return;
     }
+
     const headers = ['email', 'first_name', 'last_name', 'phone', 'company', 'last_order_date', 'total_orders', 'total_revenue', 'source'];
     const rows = emailCustomers.map(c => {
       const nameParts = (c.name || '').trim().split(/\s+/);
@@ -124,18 +125,55 @@ export default function Customers() {
         c.source || 'manual',
       ];
     });
+
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `klaviyo-customers-${new Date().toISOString().split('T')[0]}.csv`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast({ title: `Exported ${emailCustomers.length} customers for Klaviyo` });
+    const filename = `klaviyo-customers-${new Date().toISOString().split('T')[0]}.csv`;
+
+    try {
+      const showSaveFilePicker = (window as Window & {
+        showSaveFilePicker?: (options?: unknown) => Promise<any>;
+      }).showSaveFilePicker;
+
+      if (showSaveFilePicker) {
+        const fileHandle = await showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: 'CSV files',
+              accept: { 'text/csv': ['.csv'] },
+            },
+          ],
+        });
+
+        const writable = await fileHandle.createWritable();
+        await writable.write(csv);
+        await writable.close();
+
+        toast({ title: `Saved ${emailCustomers.length} customers for Klaviyo` });
+        return;
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        console.error('Save file picker failed:', error);
+      } else {
+        return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(csv);
+      toast({
+        title: 'CSV copied to clipboard',
+        description: 'Paste it into a text editor or spreadsheet and save it as a .csv file.',
+      });
+    } catch (error) {
+      console.error('Clipboard fallback failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Export blocked in preview',
+        description: 'The preview browser is blocking downloads. Open the published app and export there.',
+      });
+    }
   };
 
   return (
