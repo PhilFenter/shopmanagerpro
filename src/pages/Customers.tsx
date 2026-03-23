@@ -8,11 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area, CartesianGrid, Cell, PieChart, Pie,
 } from 'recharts';
-import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw, CalendarIcon, Filter } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { CustomerDetailSheet } from '@/components/communications/CustomerDetailSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -32,21 +37,41 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isSyncingContacts, setIsSyncingContacts] = useState(false);
+  const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
+  const [lastOrderTo, setLastOrderTo] = useState<Date | undefined>();
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   const filteredCustomers = useMemo(() => {
-    if (!search.trim()) return customers;
-    const s = search.toLowerCase();
-    return customers.filter(c =>
-      c.name.toLowerCase().includes(s) ||
-      c.email?.toLowerCase().includes(s) ||
-      c.company?.toLowerCase().includes(s) ||
-      c.tags?.some(t => t.toLowerCase().includes(s))
-    );
-  }, [customers, search]);
+    let result = customers;
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(s) ||
+        c.email?.toLowerCase().includes(s) ||
+        c.company?.toLowerCase().includes(s) ||
+        c.tags?.some(t => t.toLowerCase().includes(s))
+      );
+    }
+    if (sourceFilter !== 'all') {
+      result = result.filter(c => (c.source || 'manual') === sourceFilter);
+    }
+    if (lastOrderFrom) {
+      result = result.filter(c => c.last_order_date && new Date(c.last_order_date) >= lastOrderFrom);
+    }
+    if (lastOrderTo) {
+      result = result.filter(c => c.last_order_date && new Date(c.last_order_date) <= lastOrderTo);
+    }
+    return result;
+  }, [customers, search, sourceFilter, lastOrderFrom, lastOrderTo]);
+
+  const uniqueSources = useMemo(() => {
+    const sources = new Set(customers.map(c => c.source || 'manual'));
+    return Array.from(sources).sort();
+  }, [customers]);
 
   const avgLTV = totalCustomers > 0 ? totalRevenue / totalCustomers : 0;
   const topCategories = categories.slice(0, 10);
@@ -82,26 +107,32 @@ export default function Customers() {
       toast({ variant: 'destructive', title: 'No emails to export', description: 'No customers with email addresses found.' });
       return;
     }
-    const headers = ['Name', 'Email', 'Phone', 'Company', 'Source', 'Total Revenue', 'Total Orders', 'Tags'];
-    const rows = emailCustomers.map(c => [
-      `"${(c.name || '').replace(/"/g, '""')}"`,
-      c.email || '',
-      c.phone || '',
-      `"${(c.company || '').replace(/"/g, '""')}"`,
-      c.source || '',
-      c.total_revenue?.toString() || '0',
-      c.total_orders?.toString() || '0',
-      `"${(c.tags || []).join(', ')}"`,
-    ]);
+    const headers = ['email', 'first_name', 'last_name', 'phone', 'company', 'last_order_date', 'total_orders', 'total_revenue', 'source'];
+    const rows = emailCustomers.map(c => {
+      const nameParts = (c.name || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      return [
+        c.email || '',
+        `"${firstName.replace(/"/g, '""')}"`,
+        `"${lastName.replace(/"/g, '""')}"`,
+        c.phone || '',
+        `"${(c.company || '').replace(/"/g, '""')}"`,
+        c.last_order_date ? c.last_order_date.split('T')[0] : '',
+        c.total_orders?.toString() || '0',
+        c.total_revenue?.toString() || '0',
+        c.source || 'manual',
+      ];
+    });
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `customer-emails-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `klaviyo-customers-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: `Exported ${emailCustomers.length} customers with emails` });
+    toast({ title: `Exported ${emailCustomers.length} customers for Klaviyo` });
   };
 
   return (
@@ -118,10 +149,72 @@ export default function Customers() {
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            Export for Klaviyo
           </Button>
         </div>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              Filters
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Last Order From</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !lastOrderFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {lastOrderFrom ? format(lastOrderFrom, "MM/dd/yyyy") : "Any"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={lastOrderFrom} onSelect={setLastOrderFrom} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Last Order To</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !lastOrderTo && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {lastOrderTo ? format(lastOrderTo, "MM/dd/yyyy") : "Any"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={lastOrderTo} onSelect={setLastOrderTo} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Source</label>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  {uniqueSources.map(s => (
+                    <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {(lastOrderFrom || lastOrderTo || sourceFilter !== 'all') && (
+              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilter('all'); }}>
+                Clear filters
+              </Button>
+            )}
+            <div className="ml-auto text-sm text-muted-foreground">
+              {filteredCustomers.filter(c => c.email).length} exportable (with email)
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
