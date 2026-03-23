@@ -36,6 +36,7 @@ export default function Integrations() {
         <PrintavoSync />
         <ShopifySync />
         <DropboxSync />
+        <HistoricalRevenueSync />
       </div>
 
       <NotificationSettings />
