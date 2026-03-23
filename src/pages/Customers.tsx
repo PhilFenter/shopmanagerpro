@@ -8,11 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area, CartesianGrid, Cell, PieChart, Pie,
 } from 'recharts';
-import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw, CalendarIcon, Filter } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { CustomerDetailSheet } from '@/components/communications/CustomerDetailSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
