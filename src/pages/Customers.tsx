@@ -68,8 +68,16 @@ export default function Customers() {
     if (lastOrderTo) {
       result = result.filter(c => c.last_order_date && new Date(c.last_order_date) <= lastOrderTo);
     }
+    const minVal = parseFloat(revenueMin);
+    const maxVal = parseFloat(revenueMax);
+    if (!isNaN(minVal)) {
+      result = result.filter(c => (c.total_revenue || 0) >= minVal);
+    }
+    if (!isNaN(maxVal)) {
+      result = result.filter(c => (c.total_revenue || 0) <= maxVal);
+    }
     return result;
-  }, [customers, search, sourceFilters, lastOrderFrom, lastOrderTo]);
+  }, [customers, search, sourceFilters, lastOrderFrom, lastOrderTo, revenueMin, revenueMax]);
 
   const uniqueSources = useMemo(() => {
     const sources = new Set(customers.map(c => c.source || 'manual'));
