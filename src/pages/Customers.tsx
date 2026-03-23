@@ -46,15 +46,32 @@ export default function Customers() {
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   const filteredCustomers = useMemo(() => {
-    if (!search.trim()) return customers;
-    const s = search.toLowerCase();
-    return customers.filter(c =>
-      c.name.toLowerCase().includes(s) ||
-      c.email?.toLowerCase().includes(s) ||
-      c.company?.toLowerCase().includes(s) ||
-      c.tags?.some(t => t.toLowerCase().includes(s))
-    );
-  }, [customers, search]);
+    let result = customers;
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(s) ||
+        c.email?.toLowerCase().includes(s) ||
+        c.company?.toLowerCase().includes(s) ||
+        c.tags?.some(t => t.toLowerCase().includes(s))
+      );
+    }
+    if (sourceFilter !== 'all') {
+      result = result.filter(c => (c.source || 'manual') === sourceFilter);
+    }
+    if (lastOrderFrom) {
+      result = result.filter(c => c.last_order_date && new Date(c.last_order_date) >= lastOrderFrom);
+    }
+    if (lastOrderTo) {
+      result = result.filter(c => c.last_order_date && new Date(c.last_order_date) <= lastOrderTo);
+    }
+    return result;
+  }, [customers, search, sourceFilter, lastOrderFrom, lastOrderTo]);
+
+  const uniqueSources = useMemo(() => {
+    const sources = new Set(customers.map(c => c.source || 'manual'));
+    return Array.from(sources).sort();
+  }, [customers]);
 
   const avgLTV = totalCustomers > 0 ? totalRevenue / totalCustomers : 0;
   const topCategories = categories.slice(0, 10);
