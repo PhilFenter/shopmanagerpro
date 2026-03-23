@@ -236,8 +236,28 @@ export default function Customers() {
                 })}
               </div>
             </div>
-            {(lastOrderFrom || lastOrderTo || sourceFilters.length > 0) && (
-              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilters([]); }}>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Revenue Min</label>
+              <Input
+                type="number"
+                placeholder="$0"
+                value={revenueMin}
+                onChange={e => setRevenueMin(e.target.value)}
+                className="w-[110px] h-9"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Revenue Max</label>
+              <Input
+                type="number"
+                placeholder="Any"
+                value={revenueMax}
+                onChange={e => setRevenueMax(e.target.value)}
+                className="w-[110px] h-9"
+              />
+            </div>
+            {(lastOrderFrom || lastOrderTo || sourceFilters.length > 0 || revenueMin || revenueMax) && (
+              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilters([]); setRevenueMin(''); setRevenueMax(''); }}>
                 Clear filters
               </Button>
             )}
