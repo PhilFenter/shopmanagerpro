@@ -66,7 +66,7 @@ export default function Customers() {
       result = result.filter(c => c.last_order_date && new Date(c.last_order_date) <= lastOrderTo);
     }
     return result;
-  }, [customers, search, sourceFilter, lastOrderFrom, lastOrderTo]);
+  }, [customers, search, sourceFilters, lastOrderFrom, lastOrderTo]);
 
   const uniqueSources = useMemo(() => {
     const sources = new Set(customers.map(c => c.source || 'manual'));
