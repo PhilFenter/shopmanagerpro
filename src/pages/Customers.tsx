@@ -16,7 +16,7 @@ import {
 import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw, CalendarIcon, Filter } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { cn } from '@/lib/utils';
 import { CustomerDetailSheet } from '@/components/communications/CustomerDetailSheet';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +39,7 @@ export default function Customers() {
   const [isSyncingContacts, setIsSyncingContacts] = useState(false);
   const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
   const [lastOrderTo, setLastOrderTo] = useState<Date | undefined>();
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [sourceFilters, setSourceFilters] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -56,8 +56,8 @@ export default function Customers() {
         c.tags?.some(t => t.toLowerCase().includes(s))
       );
     }
-    if (sourceFilter !== 'all') {
-      result = result.filter(c => (c.source || 'manual') === sourceFilter);
+    if (sourceFilters.length > 0) {
+      result = result.filter(c => sourceFilters.includes(c.source || 'manual'));
     }
     if (lastOrderFrom) {
       result = result.filter(c => c.last_order_date && new Date(c.last_order_date) >= lastOrderFrom);
@@ -66,7 +66,7 @@ export default function Customers() {
       result = result.filter(c => c.last_order_date && new Date(c.last_order_date) <= lastOrderTo);
     }
     return result;
-  }, [customers, search, sourceFilter, lastOrderFrom, lastOrderTo]);
+  }, [customers, search, sourceFilters, lastOrderFrom, lastOrderTo]);
 
   const uniqueSources = useMemo(() => {
     const sources = new Set(customers.map(c => c.source || 'manual'));
@@ -192,20 +192,27 @@ export default function Customers() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Source</label>
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-[130px] h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  {uniqueSources.map(s => (
-                    <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-1.5 flex-wrap">
+                {uniqueSources.map(s => {
+                  const isActive = sourceFilters.includes(s);
+                  return (
+                    <Button
+                      key={s}
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      className="capitalize h-9"
+                      onClick={() => setSourceFilters(prev =>
+                        isActive ? prev.filter(x => x !== s) : [...prev, s]
+                      )}
+                    >
+                      {s}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
-            {(lastOrderFrom || lastOrderTo || sourceFilter !== 'all') && (
-              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilter('all'); }}>
+            {(lastOrderFrom || lastOrderTo || sourceFilters.length > 0) && (
+              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilters([]); }}>
                 Clear filters
               </Button>
             )}
