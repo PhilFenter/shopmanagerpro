@@ -1,9 +1,45 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, CaptionProps, useNavigation } from "react-day-picker";
+import { format, setMonth, setYear } from "date-fns";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+
+function CustomCaption(props: CaptionProps) {
+  const { goToMonth } = useNavigation();
+  const currentMonth = props.displayMonth;
+
+  const months = Array.from({ length: 12 }, (_, i) =>
+    format(new Date(2024, i), "MMMM")
+  );
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 20 }, (_, i) => currentYear - 19 + i);
+
+  return (
+    <div className="flex justify-center gap-1 pt-1 items-center">
+      <select
+        value={currentMonth.getMonth()}
+        onChange={(e) => goToMonth(setMonth(currentMonth, parseInt(e.target.value)))}
+        className="text-sm font-medium bg-transparent border rounded px-1 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        {months.map((m, i) => (
+          <option key={m} value={i}>{m}</option>
+        ))}
+      </select>
+      <select
+        value={currentMonth.getFullYear()}
+        onChange={(e) => goToMonth(setYear(currentMonth, parseInt(e.target.value)))}
+        className="text-sm font-medium bg-transparent border rounded px-1 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
@@ -42,6 +78,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         ...classNames,
       }}
       components={{
+        Caption: CustomCaption,
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
