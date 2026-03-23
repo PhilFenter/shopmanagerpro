@@ -40,6 +40,7 @@ export default function Customers() {
   const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
   const [lastOrderTo, setLastOrderTo] = useState<Date | undefined>();
   const [sourceFilters, setSourceFilters] = useState<string[]>([]);
+  const [csvExport, setCsvExport] = useState<{ url: string; filename: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -92,7 +93,6 @@ export default function Customers() {
         title: 'Customer sync complete',
         description: `${data.inserted} new, ${data.updated} updated, ${data.skipped} unchanged (${data.total} total from Printavo)`,
       });
-      // Refetch customers without hard reload
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     } catch (err) {
       toast({ variant: 'destructive', title: 'Sync failed', description: err instanceof Error ? err.message : 'Unknown error' });
@@ -101,7 +101,7 @@ export default function Customers() {
     }
   };
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = () => {
     const emailCustomers = filteredCustomers.filter(c => c.email);
     if (emailCustomers.length === 0) {
       toast({ variant: 'destructive', title: 'No emails to export', description: 'No customers with email addresses found.' });
@@ -126,54 +126,21 @@ export default function Customers() {
       ];
     });
 
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csv = ['\uFEFF' + headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const filename = `klaviyo-customers-${new Date().toISOString().split('T')[0]}.csv`;
 
-    try {
-      const showSaveFilePicker = (window as Window & {
-        showSaveFilePicker?: (options?: unknown) => Promise<any>;
-      }).showSaveFilePicker;
-
-      if (showSaveFilePicker) {
-        const fileHandle = await showSaveFilePicker({
-          suggestedName: filename,
-          types: [
-            {
-              description: 'CSV files',
-              accept: { 'text/csv': ['.csv'] },
-            },
-          ],
-        });
-
-        const writable = await fileHandle.createWritable();
-        await writable.write(csv);
-        await writable.close();
-
-        toast({ title: `Saved ${emailCustomers.length} customers for Klaviyo` });
-        return;
-      }
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) {
-        console.error('Save file picker failed:', error);
-      } else {
-        return;
-      }
+    if (csvExport?.url) {
+      URL.revokeObjectURL(csvExport.url);
     }
 
-    try {
-      await navigator.clipboard.writeText(csv);
-      toast({
-        title: 'CSV copied to clipboard',
-        description: 'Paste it into a text editor or spreadsheet and save it as a .csv file.',
-      });
-    } catch (error) {
-      console.error('Clipboard fallback failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Export blocked in preview',
-        description: 'The preview browser is blocking downloads. Open the published app and export there.',
-      });
-    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    setCsvExport({ url, filename });
+
+    toast({
+      title: 'CSV ready',
+      description: 'Click “Download ready CSV” to save the file.',
+    });
   };
 
   return (
@@ -183,15 +150,22 @@ export default function Customers() {
           <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
           <p className="text-muted-foreground">Customer lifetime value, Pareto analysis, and segmentation</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleSyncContacts} disabled={isSyncingContacts}>
             {isSyncingContacts ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {isSyncingContacts ? 'Syncing...' : 'Pull Printavo Contacts'}
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="mr-2 h-4 w-4" />
-            Export for Klaviyo
+            Prepare Klaviyo CSV
           </Button>
+          {csvExport && (
+            <Button size="sm" asChild>
+              <a href={csvExport.url} download={csvExport.filename}>
+                Download ready CSV
+              </a>
+            </Button>
+          )}
         </div>
       </div>
 
