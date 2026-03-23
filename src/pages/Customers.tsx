@@ -40,6 +40,8 @@ export default function Customers() {
   const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
   const [lastOrderTo, setLastOrderTo] = useState<Date | undefined>();
   const [sourceFilters, setSourceFilters] = useState<string[]>([]);
+  const [revenueMin, setRevenueMin] = useState('');
+  const [revenueMax, setRevenueMax] = useState('');
   const [csvExport, setCsvExport] = useState<{ url: string; filename: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -66,8 +68,16 @@ export default function Customers() {
     if (lastOrderTo) {
       result = result.filter(c => c.last_order_date && new Date(c.last_order_date) <= lastOrderTo);
     }
+    const minVal = parseFloat(revenueMin);
+    const maxVal = parseFloat(revenueMax);
+    if (!isNaN(minVal)) {
+      result = result.filter(c => (c.total_revenue || 0) >= minVal);
+    }
+    if (!isNaN(maxVal)) {
+      result = result.filter(c => (c.total_revenue || 0) <= maxVal);
+    }
     return result;
-  }, [customers, search, sourceFilters, lastOrderFrom, lastOrderTo]);
+  }, [customers, search, sourceFilters, lastOrderFrom, lastOrderTo, revenueMin, revenueMax]);
 
   const uniqueSources = useMemo(() => {
     const sources = new Set(customers.map(c => c.source || 'manual'));
@@ -226,8 +236,28 @@ export default function Customers() {
                 })}
               </div>
             </div>
-            {(lastOrderFrom || lastOrderTo || sourceFilters.length > 0) && (
-              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilters([]); }}>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Revenue Min</label>
+              <Input
+                type="number"
+                placeholder="$0"
+                value={revenueMin}
+                onChange={e => setRevenueMin(e.target.value)}
+                className="w-[110px] h-9"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Revenue Max</label>
+              <Input
+                type="number"
+                placeholder="Any"
+                value={revenueMax}
+                onChange={e => setRevenueMax(e.target.value)}
+                className="w-[110px] h-9"
+              />
+            </div>
+            {(lastOrderFrom || lastOrderTo || sourceFilters.length > 0 || revenueMin || revenueMax) && (
+              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilters([]); setRevenueMin(''); setRevenueMax(''); }}>
                 Clear filters
               </Button>
             )}
