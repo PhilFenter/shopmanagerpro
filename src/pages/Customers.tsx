@@ -16,7 +16,7 @@ import {
 import { Users, DollarSign, TrendingUp, Search, Crown, Download, RefreshCw, CalendarIcon, Filter } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { cn } from '@/lib/utils';
 import { CustomerDetailSheet } from '@/components/communications/CustomerDetailSheet';
 import { supabase } from '@/integrations/supabase/client';
