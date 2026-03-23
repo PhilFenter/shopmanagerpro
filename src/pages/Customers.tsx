@@ -39,7 +39,7 @@ export default function Customers() {
   const [isSyncingContacts, setIsSyncingContacts] = useState(false);
   const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
   const [lastOrderTo, setLastOrderTo] = useState<Date | undefined>();
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [sourceFilters, setSourceFilters] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
