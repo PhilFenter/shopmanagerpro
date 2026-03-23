@@ -130,8 +130,12 @@ export default function Customers() {
     const filename = `klaviyo-customers-${new Date().toISOString().split('T')[0]}.csv`;
 
     try {
-      if ('showSaveFilePicker' in window) {
-        const fileHandle = await window.showSaveFilePicker({
+      const showSaveFilePicker = (window as Window & {
+        showSaveFilePicker?: (options?: unknown) => Promise<any>;
+      }).showSaveFilePicker;
+
+      if (showSaveFilePicker) {
+        const fileHandle = await showSaveFilePicker({
           suggestedName: filename,
           types: [
             {
