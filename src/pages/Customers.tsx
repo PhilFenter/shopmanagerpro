@@ -149,8 +149,72 @@ export default function Customers() {
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            Export for Klaviyo
           </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              Filters
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Last Order From</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !lastOrderFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {lastOrderFrom ? format(lastOrderFrom, "MM/dd/yyyy") : "Any"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={lastOrderFrom} onSelect={setLastOrderFrom} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Last Order To</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !lastOrderTo && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {lastOrderTo ? format(lastOrderTo, "MM/dd/yyyy") : "Any"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={lastOrderTo} onSelect={setLastOrderTo} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Source</label>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  {uniqueSources.map(s => (
+                    <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {(lastOrderFrom || lastOrderTo || sourceFilter !== 'all') && (
+              <Button variant="ghost" size="sm" onClick={() => { setLastOrderFrom(undefined); setLastOrderTo(undefined); setSourceFilter('all'); }}>
+                Clear filters
+              </Button>
+            )}
+            <div className="ml-auto text-sm text-muted-foreground">
+              {filteredCustomers.filter(c => c.email).length} exportable (with email)
+            </div>
+          </div>
+        </CardContent>
+      </Card>
         </div>
       </div>
 
