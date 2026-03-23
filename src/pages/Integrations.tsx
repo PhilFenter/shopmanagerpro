@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { PrintavoSync } from '@/components/integrations/PrintavoSync';
 import { ShopifySync } from '@/components/integrations/ShopifySync';
 import { DropboxSync } from '@/components/integrations/DropboxSync';
+import { HistoricalRevenueSync } from '@/components/integrations/HistoricalRevenueSync';
 
 import { NotificationSettings } from '@/components/integrations/NotificationSettings';
 import { hasFinancialAccess } from '@/hooks/useJobs';
@@ -35,6 +36,7 @@ export default function Integrations() {
         <PrintavoSync />
         <ShopifySync />
         <DropboxSync />
+        <HistoricalRevenueSync />
       </div>
 
       <NotificationSettings />
