@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMessageTemplates } from '@/hooks/useMessageTemplates';
 import { useCustomerMessages } from '@/hooks/useCustomerMessages';
 import { useAuth } from '@/hooks/useAuth';
-import { Mail, MessageSquare, StickyNote, FileText } from 'lucide-react';
+import { Mail, MessageSquare, StickyNote, FileText, Sparkles, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import type { Customer } from '@/hooks/useCustomers';
 
 interface SendMessageDialogProps {
