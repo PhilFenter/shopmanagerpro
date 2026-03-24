@@ -50,7 +50,7 @@ function sortedSizeKeys(garments: Array<{ sizes: Record<string, number> }>): str
 
 export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps) {
   const { garments, isLoading } = useJobGarments(jobId);
-  const { deleteGarment } = useJobGarmentMutations(jobId);
+  const { deleteGarment, updateGarment } = useJobGarmentMutations(jobId);
 
   if (isLoading || garments.length === 0) return null;
 
