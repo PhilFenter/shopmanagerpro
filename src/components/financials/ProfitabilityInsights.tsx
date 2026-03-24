@@ -32,6 +32,7 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
   const [discountPct, setDiscountPct] = useState(10);
   const [dormantDays, setDormantDays] = useState(90);
   const [selectedService, setSelectedService] = useState<string>('all');
+  const [discountService, setDiscountService] = useState<string>('all');
   const { customers } = useCustomers();
 
   // Filtered data based on selected service
