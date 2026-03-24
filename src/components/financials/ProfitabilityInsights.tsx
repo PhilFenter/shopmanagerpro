@@ -55,10 +55,22 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
     })).sort((a, b) => b.margin - a.margin);
   }, [filteredData.services]);
 
+  // Discount target data (independent service selector)
+  const discountData = useMemo(() => {
+    if (discountService === 'all') {
+      return { revenue: totalRevenue, profit: totalProfit };
+    }
+    const s = serviceRevenue.find(sr => sr.service === discountService);
+    if (!s) return { revenue: 0, profit: 0 };
+    return { revenue: s.revenue, profit: s.profit };
+  }, [discountService, serviceRevenue, totalRevenue, totalProfit]);
+
+  const discountServiceLabel = discountService === 'all' ? 'All Services' : (SERVICE_LABELS[discountService] || discountService);
+
   // Discount affordability
   const discountAnalysis = useMemo(() => {
-    const rev = filteredData.revenue;
-    const prof = filteredData.profit;
+    const rev = discountData.revenue;
+    const prof = discountData.profit;
     const overallMargin = rev > 0 ? (prof / rev) * 100 : 0;
     const revenueAfterDiscount = rev * (1 - discountPct / 100);
     const totalCosts = rev - prof;
@@ -75,7 +87,7 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
       maxDiscountBeforeBreakeven,
       canAfford,
     };
-  }, [filteredData, discountPct]);
+  }, [discountData, discountPct]);
 
   // Dormant customers
   const dormantCustomers = useMemo(() => {
