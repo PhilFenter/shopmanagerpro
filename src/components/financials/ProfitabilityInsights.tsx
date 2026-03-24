@@ -227,8 +227,8 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
               <p className="text-lg font-bold">{discountAnalysis.marginAfterDiscount.toFixed(1)}%</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 space-y-1">
-              <p className="text-xs text-muted-foreground">Profit now ({serviceFilterLabel})</p>
-              <p className="text-lg font-bold">{formatCurrency(filteredData.profit)}</p>
+              <p className="text-xs text-muted-foreground">Profit now ({discountServiceLabel})</p>
+              <p className="text-lg font-bold">{formatCurrency(discountData.profit)}</p>
             </div>
             <div className={`p-3 rounded-lg space-y-1 ${discountAnalysis.canAfford ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
               <p className="text-xs text-muted-foreground">Profit after discount</p>
@@ -239,13 +239,13 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
           {!discountAnalysis.canAfford && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>A {discountPct}% discount{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''} would put you in the red. Consider a smaller discount or targeting it to specific services with higher margins.</span>
+              <span>A {discountPct}% discount{discountService !== 'all' ? ` on ${discountServiceLabel}` : ''} would put you in the red. Consider a smaller discount or targeting it to specific services with higher margins.</span>
             </div>
           )}
           {discountAnalysis.canAfford && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400 text-sm">
               <TrendingUp className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>You can afford a {discountPct}% discount{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''} and still turn a profit. Consider targeting dormant customers below to re-activate them.</span>
+              <span>You can afford a {discountPct}% discount{discountService !== 'all' ? ` on ${discountServiceLabel}` : ''} and still turn a profit. Consider targeting dormant customers below to re-activate them.</span>
             </div>
           )}
         </CardContent>
