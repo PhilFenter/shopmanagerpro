@@ -184,6 +184,23 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Label className="text-sm font-medium whitespace-nowrap">Target service:</Label>
+            <Select value={discountService} onValueChange={setDiscountService}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Services</SelectItem>
+                {serviceRevenue.map(s => (
+                  <SelectItem key={s.service} value={s.service}>
+                    {s.label} ({s.count} jobs)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Discount: {discountPct}%</Label>
