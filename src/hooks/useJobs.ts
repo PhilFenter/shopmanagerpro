@@ -5,7 +5,7 @@ import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import type { JobStage } from './useJobStages';
 
-export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'mixed' | 'other';
+export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'laser_engraving' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'mixed' | 'other';
 export type JobStatus = 'pending' | 'in_progress' | 'completed' | 'on_hold';
 
 // Helper to check if user has financial access

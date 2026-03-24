@@ -23,6 +23,7 @@ export const SERVICE_TYPE_COLORS: Record<ServiceType, string> = {
   screen_print: 'bg-green-500/20 text-green-400 border-green-500/30',
   dtf: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   leather_patch: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  laser_engraving: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   uv_patch: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   heat_press_patch: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   woven_patch: 'bg-pink-500/20 text-pink-400 border-pink-500/30',

@@ -21,10 +21,12 @@ const DECORATION_LABELS: Record<string, string> = {
   embroidery: 'Embroidery',
   dtf: 'DTF',
   leather_patch: 'Leather',
+  laser_engraving: 'Laser Engraving',
   uv_patch: 'UV Patch',
   heat_press_patch: 'Heat Press',
   woven_patch: 'Woven',
   pvc_patch: 'PVC',
+  mixed: 'Mixed',
   other: 'Other',
 };
 
