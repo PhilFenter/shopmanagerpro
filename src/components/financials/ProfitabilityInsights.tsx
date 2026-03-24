@@ -97,11 +97,8 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
     const ids = new Set<string>();
     const names = new Set<string>();
     for (const j of jobs) {
-      // Active job (not completed) — definitely not dormant
       const isActive = j.status !== 'completed';
-      // Completed recently (within dormant window) — also not dormant
       const completedRecently = j.completed_at && differenceInDays(now, new Date(j.completed_at)) < dormantDays;
-      // Created recently (within dormant window) — covers jobs without completed_at
       const createdRecently = differenceInDays(now, new Date(j.created_at)) < dormantDays;
 
       if (isActive || completedRecently || createdRecently) {
@@ -117,8 +114,10 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
     const now = new Date();
     return customers
       .filter(c => {
-        // Skip customers with recent or active jobs
-        if (recentCustomerKeys.ids.has(c.id) || recentCustomerKeys.names.has(c.name.toLowerCase())) return false;
+        // Skip customers with recent or active jobs (match by id, name, or company)
+        if (recentCustomerKeys.ids.has(c.id)) return false;
+        if (recentCustomerKeys.names.has(c.name.toLowerCase())) return false;
+        if (c.company && recentCustomerKeys.names.has(c.company.toLowerCase())) return false;
         if (!c.last_order_date) return (c.total_revenue || 0) > 0;
         const daysSince = differenceInDays(now, new Date(c.last_order_date));
         return daysSince >= dormantDays && (c.total_revenue || 0) > 0;
