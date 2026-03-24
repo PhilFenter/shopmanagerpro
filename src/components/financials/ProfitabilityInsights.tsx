@@ -32,6 +32,7 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
   const [discountPct, setDiscountPct] = useState(10);
   const [dormantDays, setDormantDays] = useState(90);
   const [selectedService, setSelectedService] = useState<string>('all');
+  const [discountService, setDiscountService] = useState<string>('all');
   const { customers } = useCustomers();
 
   // Filtered data based on selected service
@@ -54,10 +55,22 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
     })).sort((a, b) => b.margin - a.margin);
   }, [filteredData.services]);
 
+  // Discount target data (independent service selector)
+  const discountData = useMemo(() => {
+    if (discountService === 'all') {
+      return { revenue: totalRevenue, profit: totalProfit };
+    }
+    const s = serviceRevenue.find(sr => sr.service === discountService);
+    if (!s) return { revenue: 0, profit: 0 };
+    return { revenue: s.revenue, profit: s.profit };
+  }, [discountService, serviceRevenue, totalRevenue, totalProfit]);
+
+  const discountServiceLabel = discountService === 'all' ? 'All Services' : (SERVICE_LABELS[discountService] || discountService);
+
   // Discount affordability
   const discountAnalysis = useMemo(() => {
-    const rev = filteredData.revenue;
-    const prof = filteredData.profit;
+    const rev = discountData.revenue;
+    const prof = discountData.profit;
     const overallMargin = rev > 0 ? (prof / rev) * 100 : 0;
     const revenueAfterDiscount = rev * (1 - discountPct / 100);
     const totalCosts = rev - prof;
@@ -74,7 +87,7 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
       maxDiscountBeforeBreakeven,
       canAfford,
     };
-  }, [filteredData, discountPct]);
+  }, [discountData, discountPct]);
 
   // Dormant customers
   const dormantCustomers = useMemo(() => {
@@ -167,10 +180,27 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
             Discount Calculator
           </CardTitle>
           <CardDescription>
-            Can you afford to run a promotion{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''}?
+            Can you afford to run a promotion? Select a target service below.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Label className="text-sm font-medium whitespace-nowrap">Target service:</Label>
+            <Select value={discountService} onValueChange={setDiscountService}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Services</SelectItem>
+                {serviceRevenue.map(s => (
+                  <SelectItem key={s.service} value={s.service}>
+                    {s.label} ({s.count} jobs)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Discount: {discountPct}%</Label>
@@ -197,8 +227,8 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
               <p className="text-lg font-bold">{discountAnalysis.marginAfterDiscount.toFixed(1)}%</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 space-y-1">
-              <p className="text-xs text-muted-foreground">Profit now ({serviceFilterLabel})</p>
-              <p className="text-lg font-bold">{formatCurrency(filteredData.profit)}</p>
+              <p className="text-xs text-muted-foreground">Profit now ({discountServiceLabel})</p>
+              <p className="text-lg font-bold">{formatCurrency(discountData.profit)}</p>
             </div>
             <div className={`p-3 rounded-lg space-y-1 ${discountAnalysis.canAfford ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
               <p className="text-xs text-muted-foreground">Profit after discount</p>
@@ -209,13 +239,13 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
           {!discountAnalysis.canAfford && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>A {discountPct}% discount{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''} would put you in the red. Consider a smaller discount or targeting it to specific services with higher margins.</span>
+              <span>A {discountPct}% discount{discountService !== 'all' ? ` on ${discountServiceLabel}` : ''} would put you in the red. Consider a smaller discount or targeting it to specific services with higher margins.</span>
             </div>
           )}
           {discountAnalysis.canAfford && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400 text-sm">
               <TrendingUp className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>You can afford a {discountPct}% discount{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''} and still turn a profit. Consider targeting dormant customers below to re-activate them.</span>
+              <span>You can afford a {discountPct}% discount{discountService !== 'all' ? ` on ${discountServiceLabel}` : ''} and still turn a profit. Consider targeting dormant customers below to re-activate them.</span>
             </div>
           )}
         </CardContent>
