@@ -389,6 +389,9 @@ export default function Financials() {
 
       {/* Sales Tax Report */}
       <SalesTaxReport />
+
+      {/* Bulk Reclassification */}
+      <BulkReclassifyTool />
     </div>
   );
 }
