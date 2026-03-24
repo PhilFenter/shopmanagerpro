@@ -27,6 +27,7 @@ export const SERVICE_TYPE_COLORS: Record<ServiceType, string> = {
   heat_press_patch: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   woven_patch: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
   pvc_patch: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
+  mixed: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   other: 'bg-muted text-muted-foreground border-border',
 };
 
