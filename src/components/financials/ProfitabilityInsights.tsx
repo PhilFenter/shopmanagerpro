@@ -91,33 +91,41 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
     };
   }, [discountData, discountPct]);
 
-  // Build set of customer IDs/names with active (non-completed) jobs
-  const activeCustomerIds = useMemo(() => {
+  // Build set of customer IDs/names who have recent or active jobs (not truly dormant)
+  const recentCustomerKeys = useMemo(() => {
+    const now = new Date();
     const ids = new Set<string>();
     const names = new Set<string>();
     for (const j of jobs) {
-      if (j.status !== 'completed') {
+      // Active job (not completed) — definitely not dormant
+      const isActive = j.status !== 'completed';
+      // Completed recently (within dormant window) — also not dormant
+      const completedRecently = j.completed_at && differenceInDays(now, new Date(j.completed_at)) < dormantDays;
+      // Created recently (within dormant window) — covers jobs without completed_at
+      const createdRecently = differenceInDays(now, new Date(j.created_at)) < dormantDays;
+
+      if (isActive || completedRecently || createdRecently) {
         if ((j as any).customer_id) ids.add((j as any).customer_id);
         names.add(j.customer_name.toLowerCase());
       }
     }
     return { ids, names };
-  }, [jobs]);
+  }, [jobs, dormantDays]);
 
-  // Dormant customers — exclude anyone with an active job
+  // Dormant customers — exclude anyone with recent/active jobs
   const dormantCustomers = useMemo(() => {
     const now = new Date();
     return customers
       .filter(c => {
-        // Skip customers with active jobs
-        if (activeCustomerIds.ids.has(c.id) || activeCustomerIds.names.has(c.name.toLowerCase())) return false;
+        // Skip customers with recent or active jobs
+        if (recentCustomerKeys.ids.has(c.id) || recentCustomerKeys.names.has(c.name.toLowerCase())) return false;
         if (!c.last_order_date) return (c.total_revenue || 0) > 0;
         const daysSince = differenceInDays(now, new Date(c.last_order_date));
         return daysSince >= dormantDays && (c.total_revenue || 0) > 0;
       })
       .sort((a, b) => (b.total_revenue || 0) - (a.total_revenue || 0))
       .slice(0, 15);
-  }, [customers, dormantDays, activeCustomerIds]);
+  }, [customers, dormantDays, recentCustomerKeys]);
 
   const dormantTotalLTV = dormantCustomers.reduce((s, c) => s + (c.total_revenue || 0), 0);
 
