@@ -180,7 +180,7 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
             Discount Calculator
           </CardTitle>
           <CardDescription>
-            Can you afford to run a promotion{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''}?
+            Can you afford to run a promotion? Select a target service below.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
