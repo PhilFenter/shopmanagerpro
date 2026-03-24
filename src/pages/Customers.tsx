@@ -162,6 +162,7 @@ export default function Customers() {
           <p className="text-muted-foreground">Customer lifetime value, Pareto analysis, and segmentation</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <AddCustomerDialog />
           <Button variant="outline" size="sm" onClick={handleSyncContacts} disabled={isSyncingContacts}>
             {isSyncingContacts ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {isSyncingContacts ? 'Syncing...' : 'Pull Printavo Contacts'}
