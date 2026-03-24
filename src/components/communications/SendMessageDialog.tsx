@@ -28,6 +28,38 @@ export function SendMessageDialog({ open, onOpenChange, customer, jobId }: SendM
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [aiContext, setAiContext] = useState('');
+  const [drafting, setDrafting] = useState(false);
+  const [showAiInput, setShowAiInput] = useState(false);
+
+  const handleAiDraft = async () => {
+    if (!aiContext.trim()) return;
+    setDrafting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-draft-message', {
+        body: {
+          customerName: customer.name,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          company: customer.company,
+          context: aiContext,
+          channel,
+          totalRevenue: customer.total_revenue,
+          totalOrders: customer.total_orders,
+          lastOrderDate: customer.last_order_date,
+        },
+      });
+      if (error) throw error;
+      if (data?.body) setBody(data.body);
+      if (data?.subject && channel === 'email') setSubject(data.subject);
+      setShowAiInput(false);
+      toast.success('Draft ready — review and edit before sending');
+    } catch (err: any) {
+      toast.error(err.message || 'AI drafting failed');
+    } finally {
+      setDrafting(false);
+    }
+  };
 
   const applyTemplate = (templateId: string) => {
     const t = templates.find(tpl => tpl.id === templateId);
