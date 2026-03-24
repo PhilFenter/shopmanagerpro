@@ -145,25 +145,61 @@ export function SendMessageDialog({ open, onOpenChange, customer, jobId }: SendM
             </Button>
           </div>
 
-          {/* Template picker */}
-          {relevantTemplates.length > 0 && (
-            <div>
-              <Label className="text-xs text-muted-foreground">Use template</Label>
-              <Select onValueChange={applyTemplate}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {relevantTemplates.map(t => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-3 w-3" />
-                        {t.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Template picker + AI Draft */}
+          <div className="flex gap-2">
+            {relevantTemplates.length > 0 && (
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground">Use template</Label>
+                <Select onValueChange={applyTemplate}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select a template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {relevantTemplates.map(t => (
+                      <SelectItem key={t.id} value={t.id}>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3 w-3" />
+                          {t.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {channel !== 'internal_note' && (
+              <div className={relevantTemplates.length > 0 ? '' : 'flex-1'}>
+                <Label className="text-xs text-muted-foreground">Or</Label>
+                <Button
+                  variant="outline"
+                  className="mt-1 w-full gap-1.5"
+                  onClick={() => setShowAiInput(!showAiInput)}
+                  type="button"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  AI Draft
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* AI Context Input */}
+          {showAiInput && (
+            <div className="space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5">
+              <Label className="text-xs">What's the purpose of this message?</Label>
+              <Input
+                value={aiContext}
+                onChange={e => setAiContext(e.target.value)}
+                placeholder="e.g. Follow up on their hat order, offer 10% reorder discount..."
+              />
+              <Button
+                size="sm"
+                onClick={handleAiDraft}
+                disabled={drafting || !aiContext.trim()}
+                className="w-full gap-1.5"
+              >
+                {drafting ? <><RefreshCw className="h-3 w-3 animate-spin" /> Drafting...</> : <><Sparkles className="h-3 w-3" /> Generate Draft</>}
+              </Button>
             </div>
           )}
 

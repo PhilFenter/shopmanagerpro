@@ -374,6 +374,15 @@ export default function Financials() {
         </Card>
       </div>
 
+      {/* Profitability Insights */}
+      <ProfitabilityInsights
+        serviceRevenue={stats.serviceRevenue}
+        totalRevenue={stats.totalRevenue}
+        totalProfit={stats.totalProfit}
+        monthlyCost={metrics.totalMonthlyCost}
+        periodLabel={periodLabel}
+      />
+
       {/* Revenue by Service Chart */}
       <RevenueByServiceChart data={stats.serviceRevenue} />
 
