@@ -1763,6 +1763,7 @@ export type Database = {
         | "woven_patch"
         | "pvc_patch"
         | "mixed"
+        | "laser_engraving"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1918,6 +1919,7 @@ export const Constants = {
         "woven_patch",
         "pvc_patch",
         "mixed",
+        "laser_engraving",
       ],
     },
   },
