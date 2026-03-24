@@ -136,11 +136,21 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
                       {g.item_number && (
                         <span className="text-xs text-muted-foreground">#{g.item_number}</span>
                       )}
-                      {hasDecoration && (
-                        <Badge variant="secondary" className="text-[10px] py-0 h-4">
-                          {DECORATION_LABELS[gAny.decoration_type] || gAny.decoration_type}
-                        </Badge>
-                      )}
+                      <Select
+                        value={gAny.decoration_type || 'other'}
+                        onValueChange={(val) => updateGarment.mutate({ id: g.id, decoration_type: val })}
+                      >
+                        <SelectTrigger className="h-5 w-auto gap-0.5 text-[10px] px-1.5 py-0 border-dashed">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(DECORATION_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value} className="text-xs">
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {gAny.placement && (
                         <Badge variant="outline" className="text-[10px] py-0 h-4">
                           {gAny.placement}
