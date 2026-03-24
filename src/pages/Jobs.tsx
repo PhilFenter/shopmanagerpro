@@ -54,14 +54,17 @@ export default function Jobs() {
   const selectedJob = selectedJobId ? jobs.find(j => j.id === selectedJobId) ?? null : null;
 
   const filteredJobs = jobs.filter((job) => {
-    const matchesSearch = 
-      job.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-      job.order_number?.toLowerCase().includes(search.toLowerCase()) ||
-      job.description?.toLowerCase().includes(search.toLowerCase());
-    
-    const jobStage = (job as any).stage as JobStage || 'received';
-    const matchesStage = stageFilter === 'all' || 
-      stageFilter === 'overdue' || 
+    const normalizedSearch = search.toLowerCase();
+    const matchesSearch =
+      job.customer_name.toLowerCase().includes(normalizedSearch) ||
+      job.order_number?.toLowerCase().includes(normalizedSearch) ||
+      job.invoice_number?.toLowerCase().includes(normalizedSearch) ||
+      job.description?.toLowerCase().includes(normalizedSearch);
+
+    const jobStage = ((job as any).stage as JobStage) || 'received';
+    const matchesStage =
+      stageFilter === 'all' ||
+      stageFilter === 'overdue' ||
       stageFilter === 'due_soon' ||
       jobStage === stageFilter;
 
@@ -74,19 +77,18 @@ export default function Jobs() {
       const urgency = getUrgencyLevel(job.due_date, job.status);
       if (urgency === 'none' || urgency === 'green') return false;
     }
-    
+
     return matchesSearch && matchesStage;
   });
 
-  // Count jobs by stage for tabs
-  const activeJobs = filteredJobs.filter(j => {
-    const stage = (j as any).stage as JobStage;
-    return stage && stage !== 'picked_up' && stage !== 'shipped';
-  });
-  const completedJobs = filteredJobs.filter(j => {
-    const stage = (j as any).stage as JobStage;
-    return stage === 'picked_up' || stage === 'shipped';
-  });
+  const isCompletedJob = (job: Job) => {
+    const stage = (job as any).stage as JobStage | undefined;
+    return job.status === 'completed' || stage === 'picked_up' || stage === 'shipped' || stage === 'delivered';
+  };
+
+  // Count jobs by status/stage for tabs
+  const activeJobs = filteredJobs.filter((job) => !isCompletedJob(job));
+  const completedJobs = filteredJobs.filter(isCompletedJob);
 
   if (isLoading) {
     return (
