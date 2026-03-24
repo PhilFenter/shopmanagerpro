@@ -91,18 +91,33 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
     };
   }, [discountData, discountPct]);
 
-  // Dormant customers
+  // Build set of customer IDs/names with active (non-completed) jobs
+  const activeCustomerIds = useMemo(() => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const j of jobs) {
+      if (j.status !== 'completed') {
+        if ((j as any).customer_id) ids.add((j as any).customer_id);
+        names.add(j.customer_name.toLowerCase());
+      }
+    }
+    return { ids, names };
+  }, [jobs]);
+
+  // Dormant customers — exclude anyone with an active job
   const dormantCustomers = useMemo(() => {
     const now = new Date();
     return customers
       .filter(c => {
+        // Skip customers with active jobs
+        if (activeCustomerIds.ids.has(c.id) || activeCustomerIds.names.has(c.name.toLowerCase())) return false;
         if (!c.last_order_date) return (c.total_revenue || 0) > 0;
         const daysSince = differenceInDays(now, new Date(c.last_order_date));
         return daysSince >= dormantDays && (c.total_revenue || 0) > 0;
       })
       .sort((a, b) => (b.total_revenue || 0) - (a.total_revenue || 0))
       .slice(0, 15);
-  }, [customers, dormantDays]);
+  }, [customers, dormantDays, activeCustomerIds]);
 
   const dormantTotalLTV = dormantCustomers.reduce((s, c) => s + (c.total_revenue || 0), 0);
 
