@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMessageTemplates } from '@/hooks/useMessageTemplates';
 import { useCustomerMessages } from '@/hooks/useCustomerMessages';
 import { useAuth } from '@/hooks/useAuth';
-import { Mail, MessageSquare, StickyNote, FileText } from 'lucide-react';
+import { Mail, MessageSquare, StickyNote, FileText, Sparkles, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import type { Customer } from '@/hooks/useCustomers';
 
 interface SendMessageDialogProps {
@@ -26,6 +28,38 @@ export function SendMessageDialog({ open, onOpenChange, customer, jobId }: SendM
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [aiContext, setAiContext] = useState('');
+  const [drafting, setDrafting] = useState(false);
+  const [showAiInput, setShowAiInput] = useState(false);
+
+  const handleAiDraft = async () => {
+    if (!aiContext.trim()) return;
+    setDrafting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-draft-message', {
+        body: {
+          customerName: customer.name,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          company: customer.company,
+          context: aiContext,
+          channel,
+          totalRevenue: customer.total_revenue,
+          totalOrders: customer.total_orders,
+          lastOrderDate: customer.last_order_date,
+        },
+      });
+      if (error) throw error;
+      if (data?.body) setBody(data.body);
+      if (data?.subject && channel === 'email') setSubject(data.subject);
+      setShowAiInput(false);
+      toast.success('Draft ready — review and edit before sending');
+    } catch (err: any) {
+      toast.error(err.message || 'AI drafting failed');
+    } finally {
+      setDrafting(false);
+    }
+  };
 
   const applyTemplate = (templateId: string) => {
     const t = templates.find(tpl => tpl.id === templateId);
@@ -111,25 +145,61 @@ export function SendMessageDialog({ open, onOpenChange, customer, jobId }: SendM
             </Button>
           </div>
 
-          {/* Template picker */}
-          {relevantTemplates.length > 0 && (
-            <div>
-              <Label className="text-xs text-muted-foreground">Use template</Label>
-              <Select onValueChange={applyTemplate}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {relevantTemplates.map(t => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-3 w-3" />
-                        {t.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Template picker + AI Draft */}
+          <div className="flex gap-2">
+            {relevantTemplates.length > 0 && (
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground">Use template</Label>
+                <Select onValueChange={applyTemplate}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select a template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {relevantTemplates.map(t => (
+                      <SelectItem key={t.id} value={t.id}>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3 w-3" />
+                          {t.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {channel !== 'internal_note' && (
+              <div className={relevantTemplates.length > 0 ? '' : 'flex-1'}>
+                <Label className="text-xs text-muted-foreground">Or</Label>
+                <Button
+                  variant="outline"
+                  className="mt-1 w-full gap-1.5"
+                  onClick={() => setShowAiInput(!showAiInput)}
+                  type="button"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  AI Draft
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* AI Context Input */}
+          {showAiInput && (
+            <div className="space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5">
+              <Label className="text-xs">What's the purpose of this message?</Label>
+              <Input
+                value={aiContext}
+                onChange={e => setAiContext(e.target.value)}
+                placeholder="e.g. Follow up on their hat order, offer 10% reorder discount..."
+              />
+              <Button
+                size="sm"
+                onClick={handleAiDraft}
+                disabled={drafting || !aiContext.trim()}
+                className="w-full gap-1.5"
+              >
+                {drafting ? <><RefreshCw className="h-3 w-3 animate-spin" /> Drafting...</> : <><Sparkles className="h-3 w-3" /> Generate Draft</>}
+              </Button>
             </div>
           )}
 

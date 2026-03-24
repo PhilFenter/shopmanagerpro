@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceChart';
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
+import { ProfitabilityInsights } from '@/components/financials/ProfitabilityInsights';
 import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
@@ -372,6 +373,15 @@ export default function Financials() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Profitability Insights */}
+      <ProfitabilityInsights
+        serviceRevenue={stats.serviceRevenue}
+        totalRevenue={stats.totalRevenue}
+        totalProfit={stats.totalProfit}
+        monthlyCost={metrics.totalMonthlyCost}
+        periodLabel={periodLabel}
+      />
 
       {/* Revenue by Service Chart */}
       <RevenueByServiceChart data={stats.serviceRevenue} />
