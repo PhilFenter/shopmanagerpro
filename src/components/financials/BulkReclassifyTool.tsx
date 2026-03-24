@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'mixed' | 'other';
+type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'laser_engraving' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'mixed' | 'other';
 
 interface ClassifiedJob {
   id: string;
