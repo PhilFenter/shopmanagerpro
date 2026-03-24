@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceChart';
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { ProfitabilityInsights } from '@/components/financials/ProfitabilityInsights';
+import { BulkReclassifyTool } from '@/components/financials/BulkReclassifyTool';
 import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
