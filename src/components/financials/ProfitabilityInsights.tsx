@@ -35,6 +35,7 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
   const [selectedService, setSelectedService] = useState<string>('all');
   const [discountService, setDiscountService] = useState<string>('all');
   const { customers } = useCustomers();
+  const { jobs } = useJobs();
 
   // Filtered data based on selected service
   const filteredData = useMemo(() => {
