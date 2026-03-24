@@ -19,7 +19,7 @@ const jobSchema = z.object({
   order_number: z.string().max(50).optional(),
   invoice_number: z.string().max(50).optional(),
   description: z.string().max(500).optional(),
-  service_type: z.enum(['embroidery', 'screen_print', 'dtf', 'leather_patch', 'uv_patch', 'heat_press_patch', 'woven_patch', 'pvc_patch', 'other']),
+  service_type: z.enum(['embroidery', 'screen_print', 'dtf', 'leather_patch', 'uv_patch', 'heat_press_patch', 'woven_patch', 'pvc_patch', 'mixed', 'other']),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
   sale_price: z.coerce.number().min(0).optional(),
   material_cost: z.coerce.number().min(0).optional(),
