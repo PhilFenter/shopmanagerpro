@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { SERVICE_LABELS } from '@/lib/constants';
 import { TrendingUp, Percent, AlertTriangle, Users } from 'lucide-react';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useJobs } from '@/hooks/useJobs';
 import { differenceInDays } from 'date-fns';
 
 interface ServiceData {
