@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SERVICE_LABELS } from '@/lib/constants';
 import { TrendingUp, Percent, AlertTriangle, Users } from 'lucide-react';
@@ -30,25 +31,39 @@ interface ProfitabilityInsightsProps {
 export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfit, monthlyCost, periodLabel }: ProfitabilityInsightsProps) {
   const [discountPct, setDiscountPct] = useState(10);
   const [dormantDays, setDormantDays] = useState(90);
+  const [selectedService, setSelectedService] = useState<string>('all');
   const { customers } = useCustomers();
+
+  // Filtered data based on selected service
+  const filteredData = useMemo(() => {
+    if (selectedService === 'all') {
+      return { revenue: totalRevenue, profit: totalProfit, services: serviceRevenue };
+    }
+    const s = serviceRevenue.find(sr => sr.service === selectedService);
+    if (!s) return { revenue: 0, profit: 0, services: [] };
+    return { revenue: s.revenue, profit: s.profit, services: [s] };
+  }, [selectedService, serviceRevenue, totalRevenue, totalProfit]);
 
   // Margin by service type
   const serviceMargins = useMemo(() => {
-    return serviceRevenue.map(s => ({
+    return filteredData.services.map(s => ({
       ...s,
       margin: s.revenue > 0 ? ((s.profit / s.revenue) * 100) : 0,
       avgJobRevenue: s.count > 0 ? s.revenue / s.count : 0,
       avgJobProfit: s.count > 0 ? s.profit / s.count : 0,
     })).sort((a, b) => b.margin - a.margin);
-  }, [serviceRevenue]);
+  }, [filteredData.services]);
 
   // Discount affordability
   const discountAnalysis = useMemo(() => {
-    const overallMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-    const revenueAfterDiscount = totalRevenue * (1 - discountPct / 100);
-    const profitAfterDiscount = revenueAfterDiscount - (totalRevenue - totalProfit);
+    const rev = filteredData.revenue;
+    const prof = filteredData.profit;
+    const overallMargin = rev > 0 ? (prof / rev) * 100 : 0;
+    const revenueAfterDiscount = rev * (1 - discountPct / 100);
+    const totalCosts = rev - prof;
+    const profitAfterDiscount = revenueAfterDiscount - totalCosts;
     const marginAfterDiscount = revenueAfterDiscount > 0 ? (profitAfterDiscount / revenueAfterDiscount) * 100 : 0;
-    const maxDiscountBeforeBreakeven = overallMargin; // simplification: margin% ≈ max discount %
+    const maxDiscountBeforeBreakeven = overallMargin;
     const canAfford = profitAfterDiscount > 0;
 
     return {
@@ -59,14 +74,14 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
       maxDiscountBeforeBreakeven,
       canAfford,
     };
-  }, [totalRevenue, totalProfit, discountPct]);
+  }, [filteredData, discountPct]);
 
   // Dormant customers
   const dormantCustomers = useMemo(() => {
     const now = new Date();
     return customers
       .filter(c => {
-        if (!c.last_order_date) return (c.total_revenue || 0) > 0; // had revenue but no last order date
+        if (!c.last_order_date) return (c.total_revenue || 0) > 0;
         const daysSince = differenceInDays(now, new Date(c.last_order_date));
         return daysSince >= dormantDays && (c.total_revenue || 0) > 0;
       })
@@ -78,8 +93,28 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
 
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
+  const serviceFilterLabel = selectedService === 'all' ? 'All Services' : (SERVICE_LABELS[selectedService] || selectedService);
+
   return (
     <div className="space-y-4">
+      {/* Service Filter */}
+      <div className="flex items-center gap-3">
+        <Label className="text-sm font-medium whitespace-nowrap">Analyze service:</Label>
+        <Select value={selectedService} onValueChange={setSelectedService}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Services</SelectItem>
+            {serviceRevenue.map(s => (
+              <SelectItem key={s.service} value={s.service}>
+                {s.label} ({s.count} jobs)
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Margin by Service */}
       <Card>
         <CardHeader>
@@ -87,7 +122,7 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
             <TrendingUp className="h-5 w-5" />
             Margin by Service
           </CardTitle>
-          <CardDescription>Profit margins per service type — {periodLabel}</CardDescription>
+          <CardDescription>Profit margins {selectedService !== 'all' ? `for ${serviceFilterLabel}` : 'per service type'} — {periodLabel}</CardDescription>
         </CardHeader>
         <CardContent>
           {serviceMargins.length === 0 ? (
@@ -131,7 +166,9 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
             <Percent className="h-5 w-5" />
             Discount Calculator
           </CardTitle>
-          <CardDescription>Can you afford to run a promotion?</CardDescription>
+          <CardDescription>
+            Can you afford to run a promotion{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''}?
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -160,8 +197,8 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
               <p className="text-lg font-bold">{discountAnalysis.marginAfterDiscount.toFixed(1)}%</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 space-y-1">
-              <p className="text-xs text-muted-foreground">Profit now</p>
-              <p className="text-lg font-bold">{formatCurrency(totalProfit)}</p>
+              <p className="text-xs text-muted-foreground">Profit now ({serviceFilterLabel})</p>
+              <p className="text-lg font-bold">{formatCurrency(filteredData.profit)}</p>
             </div>
             <div className={`p-3 rounded-lg space-y-1 ${discountAnalysis.canAfford ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
               <p className="text-xs text-muted-foreground">Profit after discount</p>
@@ -172,13 +209,13 @@ export function ProfitabilityInsights({ serviceRevenue, totalRevenue, totalProfi
           {!discountAnalysis.canAfford && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>A {discountPct}% discount would put you in the red. Consider a smaller discount or targeting it to specific services with higher margins.</span>
+              <span>A {discountPct}% discount{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''} would put you in the red. Consider a smaller discount or targeting it to specific services with higher margins.</span>
             </div>
           )}
           {discountAnalysis.canAfford && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400 text-sm">
               <TrendingUp className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>You can afford a {discountPct}% discount and still turn a profit. Consider targeting dormant customers below to re-activate them.</span>
+              <span>You can afford a {discountPct}% discount{selectedService !== 'all' ? ` on ${serviceFilterLabel}` : ''} and still turn a profit. Consider targeting dormant customers below to re-activate them.</span>
             </div>
           )}
         </CardContent>
