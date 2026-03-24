@@ -9,6 +9,7 @@ export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   heat_press_patch: 'Heat Press',
   woven_patch: 'Woven',
   pvc_patch: 'PVC',
+  mixed: 'Mixed',
   other: 'Other',
 };
 
