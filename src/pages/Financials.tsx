@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceChart';
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
+import { ProfitabilityInsights } from '@/components/financials/ProfitabilityInsights';
 import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
