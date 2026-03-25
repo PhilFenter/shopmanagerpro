@@ -133,6 +133,114 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_instances: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          items: Json
+          job_id: string | null
+          status: string
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          job_id?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          job_id?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_instances_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instances_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string
+          department: string | null
+          description: string | null
+          id: string
+          items: Json
+          sop_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          items?: Json
+          sop_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          items?: Json
+          sop_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_sop_id_fkey"
+            columns: ["sop_id"]
+            isOneToOne: false
+            referencedRelation: "sops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_messages: {
         Row: {
           body: string
@@ -1458,6 +1566,101 @@ export type Database = {
           },
         ]
       }
+      sop_steps: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          image_url: string | null
+          sop_id: string
+          sort_order: number
+          tip: string | null
+          title: string
+          updated_at: string
+          video_url: string | null
+          warning: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          sop_id: string
+          sort_order?: number
+          tip?: string | null
+          title: string
+          updated_at?: string
+          video_url?: string | null
+          warning?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          sop_id?: string
+          sort_order?: number
+          tip?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+          warning?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sop_steps_sop_id_fkey"
+            columns: ["sop_id"]
+            isOneToOne: false
+            referencedRelation: "sops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sops: {
+        Row: {
+          category: string
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          department: string | null
+          description: string | null
+          id: string
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          category?: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          category?: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       time_entries: {
         Row: {
           created_at: string
@@ -1525,6 +1728,95 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      training_assignments: {
+        Row: {
+          assigned_by: string
+          assigned_to: string
+          completed_at: string | null
+          completed_checklist_ids: string[] | null
+          completed_sop_ids: string[] | null
+          created_at: string
+          id: string
+          started_at: string | null
+          status: string
+          training_plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by: string
+          assigned_to: string
+          completed_at?: string | null
+          completed_checklist_ids?: string[] | null
+          completed_sop_ids?: string[] | null
+          created_at?: string
+          id?: string
+          started_at?: string | null
+          status?: string
+          training_plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string
+          assigned_to?: string
+          completed_at?: string | null
+          completed_checklist_ids?: string[] | null
+          completed_sop_ids?: string[] | null
+          created_at?: string
+          id?: string
+          started_at?: string | null
+          status?: string
+          training_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_assignments_training_plan_id_fkey"
+            columns: ["training_plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_plans: {
+        Row: {
+          checklist_template_ids: string[] | null
+          created_at: string
+          created_by: string
+          department: string | null
+          description: string | null
+          id: string
+          role: string | null
+          sop_ids: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_template_ids?: string[] | null
+          created_at?: string
+          created_by: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          role?: string | null
+          sop_ids?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_template_ids?: string[] | null
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          role?: string | null
+          sop_ids?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

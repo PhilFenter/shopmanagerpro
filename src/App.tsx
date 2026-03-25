@@ -27,6 +27,7 @@ const Install = lazy(() => import("./pages/Install"));
 const ArtworkLibrary = lazy(() => import("./pages/ArtworkLibrary"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const Quotes = lazy(() => import("./pages/Quotes"));
+const Knowledge = lazy(() => import("./pages/Knowledge"));
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
@@ -225,6 +226,16 @@ function App() {
                   }
                 />
                 <Route path="/install" element={<Install />} />
+                <Route
+                  path="/knowledge"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Knowledge />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </Suspense>
