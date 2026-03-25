@@ -254,13 +254,13 @@ function SOPViewer({ sop, onClose }: { sop: Sop; onClose: () => void }) {
                       </div>
                     )}
                     {step.tip && (
-                      <div className="flex items-start gap-2 bg-blue-50 text-blue-800 rounded-lg p-3 text-sm">
+                      <div className="flex items-start gap-2 bg-primary/10 text-primary rounded-lg p-3 text-sm">
                         <Lightbulb className="h-4 w-4 mt-0.5 shrink-0" />
                         <span>{step.tip}</span>
                       </div>
                     )}
                     {step.warning && (
-                      <div className="flex items-start gap-2 bg-amber-50 text-amber-800 rounded-lg p-3 text-sm">
+                      <div className="flex items-start gap-2 bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
                         <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                         <span>{step.warning}</span>
                       </div>
