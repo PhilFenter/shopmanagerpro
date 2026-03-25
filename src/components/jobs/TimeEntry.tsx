@@ -30,7 +30,7 @@ export function TimeEntry({ job, compact = false }: TimeEntryProps) {
   const [minutes, setMinutes] = useState(String(currentMinutes % 60));
 
   const handleSaveTime = async () => {
-    const totalMinutes = (hours * 60) + minutes;
+    const totalMinutes = ((parseInt(hours) || 0) * 60) + (parseInt(minutes) || 0);
     await updateJob.mutateAsync({
       id: job.id,
       time_tracked: totalMinutes,
@@ -38,7 +38,7 @@ export function TimeEntry({ job, compact = false }: TimeEntryProps) {
   };
 
   const handleComplete = async () => {
-    const totalMinutes = (hours * 60) + minutes;
+    const totalMinutes = ((parseInt(hours) || 0) * 60) + (parseInt(minutes) || 0);
     await updateJob.mutateAsync({
       id: job.id,
       time_tracked: totalMinutes,
