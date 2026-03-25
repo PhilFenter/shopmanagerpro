@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  useSOPs, useSOPSteps, useChecklistTemplates, useTrainingPlans,
+  useSOPs, useSOPSteps, useChecklistTemplates, useChecklistInstances, useTrainingPlans,
   useTrainingAssignments, DEPARTMENTS, CATEGORIES,
   type Sop, type SopStep, type ChecklistTemplate, type TrainingPlan,
 } from '@/hooks/useKnowledge';
