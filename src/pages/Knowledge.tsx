@@ -598,6 +598,7 @@ function TrainingPlanDialog({
 export default function Knowledge() {
   const { sops, isLoading: sopsLoading, deleteSop } = useSOPs();
   const { templates, isLoading: templatesLoading, deleteTemplate } = useChecklistTemplates();
+  const { instances, createInstance, updateInstance } = useChecklistInstances();
   const { plans, isLoading: plansLoading, deletePlan } = useTrainingPlans();
   const { assignments } = useTrainingAssignments();
   const { teamMembers } = useTeamMembers();
