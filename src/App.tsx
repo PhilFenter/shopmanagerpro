@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,26 +8,31 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { RolePreviewProvider } from "@/hooks/useRolePreview";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Jobs from "./pages/Jobs";
-import Embroidery from "./pages/Embroidery";
-import ScreenPrint from "./pages/ScreenPrint";
-import DTF from "./pages/DTF";
-import Leather from "./pages/Leather";
-import Settings from "./pages/Settings";
-import Team from "./pages/Team";
-import Financials from "./pages/Financials";
-import Integrations from "./pages/Integrations";
+const Auth = lazy(() => import("./pages/Auth"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Jobs = lazy(() => import("./pages/Jobs"));
+const Embroidery = lazy(() => import("./pages/Embroidery"));
+const ScreenPrint = lazy(() => import("./pages/ScreenPrint"));
+const DTF = lazy(() => import("./pages/DTF"));
+const Leather = lazy(() => import("./pages/Leather"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Team = lazy(() => import("./pages/Team"));
+const Financials = lazy(() => import("./pages/Financials"));
+const Integrations = lazy(() => import("./pages/Integrations"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const ActionItems = lazy(() => import("./pages/ActionItems"));
+const Customers = lazy(() => import("./pages/Customers"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Install = lazy(() => import("./pages/Install"));
+const ArtworkLibrary = lazy(() => import("./pages/ArtworkLibrary"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const Quotes = lazy(() => import("./pages/Quotes"));
 
-import NotFound from "./pages/NotFound";
-import ActionItems from "./pages/ActionItems";
-import Customers from "./pages/Customers";
-import Messages from "./pages/Messages";
-import Install from "./pages/Install";
-import ArtworkLibrary from "./pages/ArtworkLibrary";
-import Inventory from "./pages/Inventory";
-import Quotes from "./pages/Quotes";
+const PageLoader = () => (
+  <div className="flex h-screen items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  </div>
+);
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -40,6 +45,7 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <RolePreviewProvider>
+              <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Root redirects to dashboard (auth guard will send to /auth if not logged in) */}
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -221,6 +227,7 @@ function App() {
                 <Route path="/install" element={<Install />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </RolePreviewProvider>
           </AuthProvider>
         </BrowserRouter>
