@@ -380,7 +380,7 @@ function ChecklistEditorDialog({
   const [description, setDescription] = useState(template?.description ?? '');
   const [category, setCategory] = useState(template?.category ?? 'General');
   const [department, setDepartment] = useState(template?.department ?? '');
-  const [sopId, setSopId] = useState(template?.sop_id ?? '');
+  const [sopId, setSopId] = useState(template?.sop_id ?? 'none');
   const [items, setItems] = useState<{ text: string; required: boolean }[]>(template?.items ?? []);
   const [saving, setSaving] = useState(false);
 
@@ -390,7 +390,7 @@ function ChecklistEditorDialog({
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const payload = { title, description, category, department, sop_id: sopId || null, items: items.filter(i => i.text.trim()) };
+      const payload = { title, description, category, department, sop_id: sopId === 'none' ? null : sopId, items: items.filter(i => i.text.trim()) };
       if (template) {
         await updateTemplate.mutateAsync({ id: template.id, ...payload });
       } else {
@@ -440,7 +440,7 @@ function ChecklistEditorDialog({
             <Select value={sopId} onValueChange={setSopId}>
               <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {sops.filter(s => s.status === 'published').map(s => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}
               </SelectContent>
             </Select>
