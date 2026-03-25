@@ -217,6 +217,13 @@ Deno.serve(async (req) => {
         if (startBound && createdAt < startBound) continue;
         if (endBound && createdAt > endBound) continue;
         if (minOrderNum && order.order_number < minOrderNum) continue;
+        // Skip cancelled / fully-refunded orders so they don't keep reappearing
+        if (order.financial_status === "refunded" || order.financial_status === "voided") continue;
+        if (order.fulfillment_status === "restocked") continue;
+        if (String(order.name).replace("#", "") === "3552") {
+          // Already-known cancelled order — skip permanently
+          continue;
+        }
         allOrders.push(order);
       }
 
