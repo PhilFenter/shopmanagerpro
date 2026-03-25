@@ -78,7 +78,8 @@ export function TimeEntry({ job, compact = false }: TimeEntryProps) {
               min={0}
               max={999}
               value={hours}
-              onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+              onChange={(e) => setHours(e.target.value)}
+              onBlur={() => setHours(String(parseInt(hours) || 0))}
               className="w-16 text-center"
             />
             <span className="text-sm text-muted-foreground">hrs</span>
