@@ -29,7 +29,9 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
     
     if (!workerId) return;
     
-    const totalMinutes = (hours * 60) + minutes;
+    const h = parseInt(hours) || 0;
+    const m = parseInt(minutes) || 0;
+    const totalMinutes = (h * 60) + m;
     if (totalMinutes <= 0) return;
     
     await createTimeEntry.mutateAsync({
