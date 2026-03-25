@@ -20,8 +20,8 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
   const { updateJob } = useJobs();
   
   const [workerId, setWorkerId] = useState<string>('');
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
+  const [hours, setHours] = useState('0');
+  const [minutes, setMinutes] = useState('0');
   const [notes, setNotes] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
