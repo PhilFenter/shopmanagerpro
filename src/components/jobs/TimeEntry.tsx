@@ -26,8 +26,8 @@ export function formatTime(totalMinutes: number): string {
 export function TimeEntry({ job, compact = false }: TimeEntryProps) {
   const { updateJob, completeJob } = useJobs();
   const currentMinutes = job.time_tracked;
-  const [hours, setHours] = useState(Math.floor(currentMinutes / 60));
-  const [minutes, setMinutes] = useState(currentMinutes % 60);
+  const [hours, setHours] = useState(String(Math.floor(currentMinutes / 60)));
+  const [minutes, setMinutes] = useState(String(currentMinutes % 60));
 
   const handleSaveTime = async () => {
     const totalMinutes = (hours * 60) + minutes;
