@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
   FileText, Trash2, Edit, Eye, ChevronRight, AlertTriangle, Lightbulb,
-  Video, Image as ImageIcon,
+  Video, Image as ImageIcon, Camera, Upload, Loader2,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useSOPs, useSOPSteps, useChecklistTemplates, useTrainingPlans,
   useTrainingAssignments, DEPARTMENTS, CATEGORIES,
@@ -85,7 +86,7 @@ function SOPEditorDialog({
         <div className="space-y-4">
           <div>
             <Label>Title</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Tajima Left-Chest Logo Setup" />
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Barudan Left-Chest Logo Setup" />
           </div>
           <div>
             <Label>Description</Label>
@@ -163,6 +164,15 @@ function SOPEditorDialog({
   );
 }
 
+async function uploadSopMedia(file: File, folder: 'images' | 'videos'): Promise<string> {
+  const ext = file.name.split('.').pop() || (folder === 'images' ? 'jpg' : 'mp4');
+  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from('sop-media').upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from('sop-media').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 function StepEditor({
   step, index, onSave, onDelete,
 }: {
@@ -172,6 +182,41 @@ function StepEditor({
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(!step.id);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const url = await uploadSopMedia(file, 'images');
+      onSave({ ...step, image_url: url });
+      toast({ title: 'Photo uploaded' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Upload failed', description: err.message });
+    }
+    setUploadingImage(false);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingVideo(true);
+    try {
+      const url = await uploadSopMedia(file, 'videos');
+      onSave({ ...step, video_url: url });
+      toast({ title: 'Video uploaded' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Upload failed', description: err.message });
+    }
+    setUploadingVideo(false);
+    if (videoInputRef.current) videoInputRef.current.value = '';
+  };
 
   return (
     <div className="border rounded-lg mb-2 bg-card">
@@ -187,16 +232,57 @@ function StepEditor({
         <div className="px-3 pb-3 space-y-3">
           <Input placeholder="Step title" value={step.title ?? ''} onChange={e => onSave({ ...step, title: e.target.value })} />
           <Textarea placeholder="Step instructions..." value={step.content ?? ''} onChange={e => onSave({ ...step, content: e.target.value })} rows={3} />
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs flex items-center gap-1"><ImageIcon className="h-3 w-3" /> Image URL</Label>
-              <Input placeholder="https://..." value={step.image_url ?? ''} onChange={e => onSave({ ...step, image_url: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs flex items-center gap-1"><Video className="h-3 w-3" /> Video URL</Label>
-              <Input placeholder="YouTube or direct link" value={step.video_url ?? ''} onChange={e => onSave({ ...step, video_url: e.target.value })} />
-            </div>
+
+          {/* Photo upload */}
+          <div>
+            <Label className="text-xs flex items-center gap-1 mb-1"><Camera className="h-3 w-3" /> Photo</Label>
+            {step.image_url ? (
+              <div className="relative">
+                <img src={step.image_url} alt="Step" className="rounded-lg max-h-40 object-cover" />
+                <Button size="sm" variant="destructive" className="absolute top-1 right-1 h-7 w-7 p-0" onClick={() => onSave({ ...step, image_url: '' })}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input ref={imageInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                <Button size="sm" variant="outline" disabled={uploadingImage} onClick={() => imageInputRef.current?.click()}>
+                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Camera className="h-4 w-4 mr-1" />}
+                  Take Photo
+                </Button>
+                <input id={`img-file-${index}`} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <Button size="sm" variant="outline" disabled={uploadingImage} onClick={() => document.getElementById(`img-file-${index}`)?.click()}>
+                  <Upload className="h-4 w-4 mr-1" /> Upload
+                </Button>
+              </div>
+            )}
           </div>
+
+          {/* Video upload */}
+          <div>
+            <Label className="text-xs flex items-center gap-1 mb-1"><Video className="h-3 w-3" /> Video</Label>
+            {step.video_url ? (
+              <div className="relative">
+                <video src={step.video_url} controls className="rounded-lg max-h-40 w-full" />
+                <Button size="sm" variant="destructive" className="absolute top-1 right-1 h-7 w-7 p-0" onClick={() => onSave({ ...step, video_url: '' })}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input ref={videoInputRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={handleVideoUpload} />
+                <Button size="sm" variant="outline" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()}>
+                  {uploadingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Video className="h-4 w-4 mr-1" />}
+                  Record Video
+                </Button>
+                <input id={`vid-file-${index}`} type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+                <Button size="sm" variant="outline" disabled={uploadingVideo} onClick={() => document.getElementById(`vid-file-${index}`)?.click()}>
+                  <Upload className="h-4 w-4 mr-1" /> Upload
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Pro Tip</Label>
