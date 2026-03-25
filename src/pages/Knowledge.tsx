@@ -440,7 +440,7 @@ function ChecklistEditorDialog({
             <Select value={sopId} onValueChange={setSopId}>
               <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {sops.filter(s => s.status === 'published').map(s => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}
               </SelectContent>
             </Select>
