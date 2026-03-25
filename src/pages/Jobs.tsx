@@ -18,6 +18,7 @@ import { MaterialCostInput } from '@/components/jobs/MaterialCostInput';
 import { JobGarmentsList } from '@/components/jobs/JobGarmentsList';
 import { GarmentSearchDialog } from '@/components/jobs/GarmentSearchDialog';
 import { MockupBuilder } from '@/components/jobs/MockupBuilder';
+import { JobChecklistPanel } from '@/components/jobs/JobChecklistPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -396,6 +397,9 @@ export default function Jobs() {
                   customerName={selectedJob.customer_name}
                   orderNumber={selectedJob.order_number}
                 />
+
+                {/* Checklists */}
+                <JobChecklistPanel jobId={selectedJob.id} serviceType={selectedJob.service_type} />
 
                 {/* Mockup Builder */}
                 <MockupBuilder

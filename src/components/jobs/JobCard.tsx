@@ -9,7 +9,8 @@ import { JobStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
 import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
-import { Package, Clock, AlertTriangle } from 'lucide-react';
+import { Package, Clock, AlertTriangle, ClipboardList } from 'lucide-react';
+import { useJobChecklists } from '@/hooks/useJobChecklists';
 import { JobGarmentsList } from './JobGarmentsList';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 import { cn as clsx } from '@/lib/utils';
@@ -46,6 +47,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const role = isPreviewingAsTeam ? 'team' : actualRole;
   const urgency = getUrgencyLevel((job as any).due_date, job.status);
   const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status);
+  const { activeCount, totalItems, doneItems } = useJobChecklists(job.id);
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];
@@ -138,6 +140,12 @@ export function JobCard({ job, onClick }: JobCardProps) {
             <span className="font-medium text-foreground ml-auto">
               ${Number(job.sale_price).toFixed(2)}
             </span>
+          )}
+          {activeCount > 0 && (
+            <div className="flex items-center gap-1 ml-auto">
+              <ClipboardList className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-medium">{doneItems}/{totalItems}</span>
+            </div>
           )}
         </div>
 
