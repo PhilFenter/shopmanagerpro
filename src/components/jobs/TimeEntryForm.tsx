@@ -42,8 +42,8 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
     });
     
     // Reset form
-    setHours(0);
-    setMinutes(0);
+    setHours('0');
+    setMinutes('0');
     setNotes('');
     onSuccess?.();
   };
