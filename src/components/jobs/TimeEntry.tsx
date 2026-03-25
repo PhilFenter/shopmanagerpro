@@ -90,7 +90,8 @@ export function TimeEntry({ job, compact = false }: TimeEntryProps) {
               min={0}
               max={59}
               value={minutes}
-              onChange={(e) => setMinutes(Math.min(59, parseInt(e.target.value) || 0))}
+              onChange={(e) => setMinutes(e.target.value)}
+              onBlur={() => setMinutes(String(Math.min(59, parseInt(minutes) || 0)))}
               className="w-16 text-center"
             />
             <span className="text-sm text-muted-foreground">min</span>

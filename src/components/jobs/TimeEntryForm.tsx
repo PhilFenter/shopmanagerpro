@@ -131,7 +131,7 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
       <Button 
         type="submit" 
         className="w-full"
-        disabled={!workerId || (hours === 0 && minutes === 0) || createTimeEntry.isPending}
+        disabled={!workerId || ((parseInt(hours) || 0) === 0 && (parseInt(minutes) || 0) === 0) || createTimeEntry.isPending}
       >
         {createTimeEntry.isPending ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
