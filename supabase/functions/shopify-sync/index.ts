@@ -252,6 +252,7 @@ Deno.serve(async (req) => {
 
     const newOrders = allOrders.filter((o) => !existingExternalIds.has(o.id.toString()));
     const existingOrders = allOrders.filter((o) => existingExternalIds.has(o.id.toString()));
+    const syncedExternalIds = new Set(allOrders.map((order) => order.id.toString()));
 
     const newJobs = newOrders.map((order) => {
       const customerName = order.customer
@@ -338,7 +339,9 @@ Deno.serve(async (req) => {
     }
 
     // Delete existing garments for all synced jobs, then re-insert fresh data
-    const jobIdsToSync = [...allJobMap.values()];
+    const jobIdsToSync = [...syncedExternalIds]
+      .map((externalId) => allJobMap.get(externalId))
+      .filter((jobId): jobId is string => Boolean(jobId));
     for (let i = 0; i < jobIdsToSync.length; i += 100) {
       const batch = jobIdsToSync.slice(i, i + 100);
       await supabase.from("job_garments").delete().in("job_id", batch);
@@ -668,30 +671,20 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // Fetch ALL jobs (all sources) for customers that have at least one Shopify order
-      // This ensures we don't overwrite Printavo/other revenue with just Shopify revenue
-      
-      // Step 1: Get all Shopify customer names
-      const shopifyCustomerNames = new Set<string>();
-      let offset = 0;
-      const pgSize = 1000;
-      while (true) {
-        const { data: shopJobs, error: sjErr } = await serviceClient
-          .from("jobs")
-          .select("customer_name")
-          .eq("source", "shopify")
-          .range(offset, offset + pgSize - 1);
-        if (sjErr) { console.error("Customer name query error:", sjErr); break; }
-        if (!shopJobs || shopJobs.length === 0) break;
-        for (const j of shopJobs) {
-          const key = j.customer_name?.toLowerCase().trim();
-          if (key && key !== "unknown") shopifyCustomerNames.add(key);
-        }
-        offset += shopJobs.length;
-        if (shopJobs.length < pgSize) break;
+      // Only recalculate customers touched by this sync window to keep manual syncs fast.
+      const touchedCustomerNames = new Set<string>();
+      for (const order of allOrders) {
+        const customerName = order.customer
+          ? `${order.customer.first_name || ""} ${order.customer.last_name || ""}`.trim() || "Unknown"
+          : "Unknown";
+        const key = customerName.toLowerCase().trim();
+        if (key && key !== "unknown") touchedCustomerNames.add(key);
       }
 
-      // Step 2: Get ALL jobs for those customer names (all sources) to compute true totals
+      if (touchedCustomerNames.size === 0) {
+        console.log("Shopify customer sync skipped: no named customers in current sync window");
+      }
+
       const customerAgg = new Map<string, {
         name: string;
         email: string | null;
@@ -702,8 +695,9 @@ Deno.serve(async (req) => {
         lastOrder: string;
       }>();
 
-      offset = 0;
-      while (true) {
+      let offset = 0;
+      const pgSize = 1000;
+      while (touchedCustomerNames.size > 0) {
         const { data: allJobs, error: ajErr } = await serviceClient
           .from("jobs")
           .select("customer_name, customer_email, customer_phone, sale_price, created_at")
@@ -715,8 +709,7 @@ Deno.serve(async (req) => {
         for (const j of allJobs) {
           const key = j.customer_name?.toLowerCase().trim();
           if (!key || key === "unknown") continue;
-          // Only aggregate customers that have Shopify orders
-          if (!shopifyCustomerNames.has(key)) continue;
+          if (!touchedCustomerNames.has(key)) continue;
           
           const existing = customerAgg.get(key);
           if (existing) {
