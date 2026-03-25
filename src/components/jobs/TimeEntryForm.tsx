@@ -20,8 +20,8 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
   const { updateJob } = useJobs();
   
   const [workerId, setWorkerId] = useState<string>('');
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
+  const [hours, setHours] = useState('0');
+  const [minutes, setMinutes] = useState('0');
   const [notes, setNotes] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,7 +29,9 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
     
     if (!workerId) return;
     
-    const totalMinutes = (hours * 60) + minutes;
+    const h = parseInt(hours) || 0;
+    const m = parseInt(minutes) || 0;
+    const totalMinutes = (h * 60) + m;
     if (totalMinutes <= 0) return;
     
     await createTimeEntry.mutateAsync({
@@ -40,8 +42,8 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
     });
     
     // Reset form
-    setHours(0);
-    setMinutes(0);
+    setHours('0');
+    setMinutes('0');
     setNotes('');
     onSuccess?.();
   };
@@ -92,7 +94,8 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
                 min={0}
                 max={999}
                 value={hours}
-                onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+                onChange={(e) => setHours(e.target.value)}
+                onBlur={() => setHours(String(parseInt(hours) || 0))}
                 className="w-16 text-center"
               />
               <span className="text-sm text-muted-foreground">hrs</span>
@@ -103,7 +106,8 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
                 min={0}
                 max={59}
                 value={minutes}
-                onChange={(e) => setMinutes(Math.min(59, parseInt(e.target.value) || 0))}
+                onChange={(e) => setMinutes(e.target.value)}
+                onBlur={() => setMinutes(String(Math.min(59, parseInt(minutes) || 0)))}
                 className="w-16 text-center"
               />
               <span className="text-sm text-muted-foreground">min</span>
@@ -127,7 +131,7 @@ export function TimeEntryForm({ jobId, onSuccess }: TimeEntryFormProps) {
       <Button 
         type="submit" 
         className="w-full"
-        disabled={!workerId || (hours === 0 && minutes === 0) || createTimeEntry.isPending}
+        disabled={!workerId || ((parseInt(hours) || 0) === 0 && (parseInt(minutes) || 0) === 0) || createTimeEntry.isPending}
       >
         {createTimeEntry.isPending ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

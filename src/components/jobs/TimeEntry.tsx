@@ -26,11 +26,11 @@ export function formatTime(totalMinutes: number): string {
 export function TimeEntry({ job, compact = false }: TimeEntryProps) {
   const { updateJob, completeJob } = useJobs();
   const currentMinutes = job.time_tracked;
-  const [hours, setHours] = useState(Math.floor(currentMinutes / 60));
-  const [minutes, setMinutes] = useState(currentMinutes % 60);
+  const [hours, setHours] = useState(String(Math.floor(currentMinutes / 60)));
+  const [minutes, setMinutes] = useState(String(currentMinutes % 60));
 
   const handleSaveTime = async () => {
-    const totalMinutes = (hours * 60) + minutes;
+    const totalMinutes = ((parseInt(hours) || 0) * 60) + (parseInt(minutes) || 0);
     await updateJob.mutateAsync({
       id: job.id,
       time_tracked: totalMinutes,
@@ -38,7 +38,7 @@ export function TimeEntry({ job, compact = false }: TimeEntryProps) {
   };
 
   const handleComplete = async () => {
-    const totalMinutes = (hours * 60) + minutes;
+    const totalMinutes = ((parseInt(hours) || 0) * 60) + (parseInt(minutes) || 0);
     await updateJob.mutateAsync({
       id: job.id,
       time_tracked: totalMinutes,
@@ -78,7 +78,8 @@ export function TimeEntry({ job, compact = false }: TimeEntryProps) {
               min={0}
               max={999}
               value={hours}
-              onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+              onChange={(e) => setHours(e.target.value)}
+              onBlur={() => setHours(String(parseInt(hours) || 0))}
               className="w-16 text-center"
             />
             <span className="text-sm text-muted-foreground">hrs</span>
@@ -89,7 +90,8 @@ export function TimeEntry({ job, compact = false }: TimeEntryProps) {
               min={0}
               max={59}
               value={minutes}
-              onChange={(e) => setMinutes(Math.min(59, parseInt(e.target.value) || 0))}
+              onChange={(e) => setMinutes(e.target.value)}
+              onBlur={() => setMinutes(String(Math.min(59, parseInt(minutes) || 0)))}
               className="w-16 text-center"
             />
             <span className="text-sm text-muted-foreground">min</span>
