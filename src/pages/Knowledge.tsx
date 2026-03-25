@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
   FileText, Trash2, Edit, Eye, ChevronRight, AlertTriangle, Lightbulb,
-  Video, Image as ImageIcon, Camera, Upload, Loader2,
+  Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  useSOPs, useSOPSteps, useChecklistTemplates, useTrainingPlans,
+  useSOPs, useSOPSteps, useChecklistTemplates, useChecklistInstances, useTrainingPlans,
   useTrainingAssignments, DEPARTMENTS, CATEGORIES,
   type Sop, type SopStep, type ChecklistTemplate, type TrainingPlan,
 } from '@/hooks/useKnowledge';
@@ -598,6 +598,7 @@ function TrainingPlanDialog({
 export default function Knowledge() {
   const { sops, isLoading: sopsLoading, deleteSop } = useSOPs();
   const { templates, isLoading: templatesLoading, deleteTemplate } = useChecklistTemplates();
+  const { instances, createInstance, updateInstance } = useChecklistInstances();
   const { plans, isLoading: plansLoading, deletePlan } = useTrainingPlans();
   const { assignments } = useTrainingAssignments();
   const { teamMembers } = useTeamMembers();
@@ -745,44 +746,121 @@ export default function Knowledge() {
         </TabsContent>
 
         {/* Checklists Tab */}
-        <TabsContent value="checklists" className="mt-4">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => { setEditingChecklist(null); setChecklistEditorOpen(true); }}>
-              <Plus className="h-4 w-4 mr-1" /> New Checklist
-            </Button>
-          </div>
-          {templatesLoading ? (
-            <p className="text-muted-foreground text-center py-8">Loading...</p>
-          ) : filteredTemplates.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <CheckSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium">No checklists yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Create daily task lists to keep the team on point.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {filteredTemplates.map(t => (
-                <Card key={t.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">{t.title}</CardTitle>
-                    {t.description && <CardDescription className="line-clamp-2">{t.description}</CardDescription>}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-1 flex-wrap mb-2">
-                      {t.department && <Badge variant="outline" className="text-xs">{t.department}</Badge>}
-                      <Badge variant="outline" className="text-xs">{t.items.length} items</Badge>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteTemplate.mutateAsync(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+        <TabsContent value="checklists" className="mt-4 space-y-6">
+          {/* Active Checklists */}
+          {instances.filter(i => i.status !== 'completed').length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Play className="h-5 w-5 text-primary" /> Active Checklists
+              </h3>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {instances.filter(i => i.status !== 'completed').map(inst => {
+                  const totalItems = inst.items.length;
+                  const doneItems = inst.items.filter((item: any) => item.done).length;
+                  const progress = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+                  return (
+                    <Card key={inst.id} className="border-primary/30">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base">{inst.title}</CardTitle>
+                          <Badge variant="secondary" className="text-xs">{doneItems}/{totalItems}</Badge>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2 mt-1">
+                          <div className="bg-primary rounded-full h-2 transition-all" style={{ width: `${progress}%` }} />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                          {inst.items.map((item: any, idx: number) => (
+                            <button
+                              key={idx}
+                              className="flex items-center gap-2 text-sm w-full text-left hover:bg-accent/50 rounded p-1"
+                              onClick={() => {
+                                const updatedItems = inst.items.map((it: any, i: number) =>
+                                  i === idx ? { ...it, done: !it.done } : it
+                                );
+                                const allDone = updatedItems.every((it: any) => it.done);
+                                updateInstance.mutateAsync({
+                                  id: inst.id,
+                                  items: updatedItems,
+                                  status: allDone ? 'completed' : 'in_progress',
+                                  completed_at: allDone ? new Date().toISOString() : null,
+                                });
+                              }}
+                            >
+                              {item.done
+                                ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                                : <Circle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                              <span className={item.done ? 'line-through text-muted-foreground' : ''}>{item.text}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           )}
+
+          {/* Completed Checklists count */}
+          {instances.filter(i => i.status === 'completed').length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              ✓ {instances.filter(i => i.status === 'completed').length} completed checklist(s)
+            </p>
+          )}
+
+          {/* Templates */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Templates</h3>
+              <Button onClick={() => { setEditingChecklist(null); setChecklistEditorOpen(true); }}>
+                <Plus className="h-4 w-4 mr-1" /> New Checklist
+              </Button>
+            </div>
+            {templatesLoading ? (
+              <p className="text-muted-foreground text-center py-8">Loading...</p>
+            ) : filteredTemplates.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <CheckSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="font-medium">No checklists yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">Create daily task lists to keep the team on point.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {filteredTemplates.map(t => (
+                  <Card key={t.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{t.title}</CardTitle>
+                      {t.description && <CardDescription className="line-clamp-2">{t.description}</CardDescription>}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-1 flex-wrap mb-2">
+                        {t.department && <Badge variant="outline" className="text-xs">{t.department}</Badge>}
+                        <Badge variant="outline" className="text-xs">{t.items.length} items</Badge>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="default" onClick={() => {
+                          createInstance.mutateAsync({
+                            template_id: t.id,
+                            title: t.title,
+                            items: t.items.map(item => ({ ...item, done: false })),
+                            status: 'in_progress',
+                          });
+                        }}>
+                          <Play className="h-4 w-4 mr-1" /> Start
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteTemplate.mutateAsync(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         {/* Training Tab */}
