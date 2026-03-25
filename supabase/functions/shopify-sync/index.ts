@@ -21,6 +21,7 @@ interface ShopifyOrder {
   name: string;
   order_number: number;
   created_at: string;
+  cancelled_at?: string | null;
   customer?: {
     id: number;
     first_name?: string;
@@ -220,10 +221,7 @@ Deno.serve(async (req) => {
         // Skip cancelled / fully-refunded orders so they don't keep reappearing
         if (order.financial_status === "refunded" || order.financial_status === "voided") continue;
         if (order.fulfillment_status === "restocked") continue;
-        if (String(order.name).replace("#", "") === "3552") {
-          // Already-known cancelled order — skip permanently
-          continue;
-        }
+        if (order.cancelled_at) continue;
         allOrders.push(order);
       }
 
