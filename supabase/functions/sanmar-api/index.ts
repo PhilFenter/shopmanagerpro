@@ -429,12 +429,13 @@ serve(async (req) => {
               sizes: [] as string[],
             });
           } else {
-            // Keep highest price (for larger sizes like 2XL+)
+            // Keep LOWEST price (base S-XL tier) for accurate COGS
+            // The upcharge for 2XL+ is stored via msrp if needed
             const existing = catalogMap.get(key)!;
-            if (item.piecePrice > existing.piece_price) {
+            if (item.piecePrice > 0 && (existing.piece_price === 0 || item.piecePrice < existing.piece_price)) {
               existing.piece_price = item.piecePrice;
             }
-            if (item.casePrice > existing.case_price) {
+            if (item.casePrice > 0 && (existing.case_price === 0 || item.casePrice < existing.case_price)) {
               existing.case_price = item.casePrice;
             }
           }
