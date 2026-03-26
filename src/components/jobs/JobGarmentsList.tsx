@@ -203,8 +203,19 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
                 {/* Pricing */}
                 {hasPricing && (
                   <>
-                    <TableCell className="text-right py-1.5 tabular-nums text-sm text-muted-foreground">
-                      {g.unit_cost != null && g.unit_cost > 0 ? `$${Number(g.unit_cost).toFixed(2)}` : '—'}
+                    <TableCell className="text-right py-1.5 tabular-nums text-sm">
+                      <EditableCostCell
+                        value={g.unit_cost}
+                        quantity={g.quantity}
+                        garmentId={g.id}
+                        onSave={(unitCost) => {
+                          const totalCost = unitCost * g.quantity;
+                          updateGarment.mutate(
+                            { id: g.id, unit_cost: unitCost, total_cost: totalCost },
+                            { onSuccess: () => reaggregateMaterialCost() }
+                          );
+                        }}
+                      />
                     </TableCell>
                     <TableCell className="text-right py-1.5 tabular-nums text-sm font-medium">
                       {gAny.unit_sell_price != null && gAny.unit_sell_price > 0 
