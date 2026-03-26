@@ -391,9 +391,11 @@ serve(async (req) => {
           }
         } else {
           // Overlay wholesale prices onto product info items by color
+          // Try full color name first, then abbreviated catalogColor
           for (const item of items) {
-            const color = item.color || item.catalogColor || "";
-            const wholesale = wholesaleByColor.get(color);
+            const wholesale = wholesaleByColor.get(item.color || "") 
+              || wholesaleByColor.get(item.catalogColor || "")
+              || null;
             if (wholesale) {
               item.piecePrice = wholesale.myPrice;
               item.casePrice = wholesale.casePrice;
