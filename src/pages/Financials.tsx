@@ -238,7 +238,7 @@ export default function Financials() {
       .sort((a, b) => b.revenue - a.revenue);
 
     return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod };
-  }, [periodJobs, overheadForPeriod]);
+  }, [periodJobs, overheadForPeriod, mixedLineItems]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
