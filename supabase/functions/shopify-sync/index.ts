@@ -616,7 +616,21 @@ Deno.serve(async (req) => {
             const upper = sku.toUpperCase().trim();
             const richardsonMatch = upper.match(/^R[- ](\d+\w*)/);
             const baseStyle = richardsonMatch ? richardsonMatch[1] : upper.split(/[-_ ]/)[0];
-            if (baseStyle) finalUnmatched.add(baseStyle);
+            // Skip vague words that aren't real style numbers
+            const SKIP_WORDS = new Set([
+              "HEATHER","BLACK","WHITE","GREY","GRAY","NAVY","RED","BLUE","GREEN",
+              "YELLOW","ORANGE","PURPLE","PINK","BROWN","TAN","CREAM","CHARCOAL",
+              "ROYAL","MAROON","TEAL","KHAKI","OLIVE","CORAL","SAND","SLATE",
+              "DARK","LIGHT","NEON","BRIGHT","ASH","SPORT","ATHLETIC","CLASSIC",
+              "VINTAGE","PREMIUM","CUSTOM","ADULT","YOUTH","MENS","WOMENS","UNISEX",
+              "SMALL","MEDIUM","LARGE","XL","XXL","XXXL","2XL","3XL","4XL","5XL",
+              "SHIRT","TEE","HOODIE","TANK","POLO","CAP","HAT","JACKET","FLEECE",
+              "COTTON","POLYESTER","BLEND","TRI","JERSEY","PERFORMANCE",
+            ]);
+            if (!baseStyle || baseStyle.length < 2 || SKIP_WORDS.has(baseStyle)) continue;
+            // Real style numbers usually contain at least one digit
+            if (!/\d/.test(baseStyle)) continue;
+            finalUnmatched.add(baseStyle);
           }
         }
 
