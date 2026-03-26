@@ -3,11 +3,13 @@ import { useJobGarments } from '@/hooks/useJobGarments';
 import { useJobGarmentMutations } from '@/hooks/useJobGarmentMutations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Shirt, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useJobs } from '@/hooks/useJobs';
 
 interface JobGarmentsListProps {
   jobId: string;
@@ -53,6 +55,20 @@ function sortedSizeKeys(garments: Array<{ sizes: Record<string, number> }>): str
 export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps) {
   const { garments, isLoading } = useJobGarments(jobId);
   const { deleteGarment, updateGarment } = useJobGarmentMutations(jobId);
+  const { updateJob } = useJobs();
+
+  // Re-aggregate material_cost on the job after garment cost changes
+  const reaggregateMaterialCost = async () => {
+    const { data } = await supabase
+      .from('job_garments')
+      .select('total_cost')
+      .eq('job_id', jobId)
+      .gt('total_cost', 0);
+    if (data) {
+      const total = data.reduce((s, g) => s + (g.total_cost || 0), 0);
+      updateJob.mutate({ id: jobId, material_cost: total });
+    }
+  };
 
   if (isLoading || garments.length === 0) return null;
 
@@ -187,8 +203,19 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
                 {/* Pricing */}
                 {hasPricing && (
                   <>
-                    <TableCell className="text-right py-1.5 tabular-nums text-sm text-muted-foreground">
-                      {g.unit_cost != null && g.unit_cost > 0 ? `$${Number(g.unit_cost).toFixed(2)}` : '—'}
+                    <TableCell className="text-right py-1.5 tabular-nums text-sm">
+                      <EditableCostCell
+                        value={g.unit_cost}
+                        quantity={g.quantity}
+                        garmentId={g.id}
+                        onSave={(unitCost) => {
+                          const totalCost = unitCost * g.quantity;
+                          updateGarment.mutate(
+                            { id: g.id, unit_cost: unitCost, total_cost: totalCost },
+                            { onSuccess: () => reaggregateMaterialCost() }
+                          );
+                        }}
+                      />
                     </TableCell>
                     <TableCell className="text-right py-1.5 tabular-nums text-sm font-medium">
                       {gAny.unit_sell_price != null && gAny.unit_sell_price > 0 
@@ -241,7 +268,62 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
   );
 }
 
-// Garment thumbnail with signed URL support
+// Inline editable cost cell
+function EditableCostCell({ value, quantity, garmentId, onSave }: {
+  value: number | null;
+  quantity: number;
+  garmentId: string;
+  onSave: (unitCost: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState('');
+
+  const handleStart = () => {
+    setInputVal(value && value > 0 ? value.toFixed(2) : '');
+    setEditing(true);
+  };
+
+  const handleSave = () => {
+    const parsed = parseFloat(inputVal);
+    if (!isNaN(parsed) && parsed >= 0) {
+      onSave(parsed);
+    }
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <Input
+        type="number"
+        min={0}
+        step="0.01"
+        value={inputVal}
+        onChange={(e) => setInputVal(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSave();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className="h-7 w-20 text-right text-sm tabular-nums ml-auto"
+        autoFocus
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={handleStart}
+      className={cn(
+        "text-right w-full cursor-pointer hover:underline",
+        value && value > 0 ? "text-muted-foreground" : "text-primary/60 italic"
+      )}
+    >
+      {value != null && value > 0 ? `$${Number(value).toFixed(2)}` : 'add'}
+    </button>
+  );
+}
+
+
 function GarmentThumbnail({ imageUrl, alt }: { imageUrl: string; alt: string }) {
   const [src, setSrc] = useState(imageUrl.startsWith('http') ? imageUrl : '');
   
