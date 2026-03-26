@@ -268,7 +268,62 @@ export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps
   );
 }
 
-// Garment thumbnail with signed URL support
+// Inline editable cost cell
+function EditableCostCell({ value, quantity, garmentId, onSave }: {
+  value: number | null;
+  quantity: number;
+  garmentId: string;
+  onSave: (unitCost: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState('');
+
+  const handleStart = () => {
+    setInputVal(value && value > 0 ? value.toFixed(2) : '');
+    setEditing(true);
+  };
+
+  const handleSave = () => {
+    const parsed = parseFloat(inputVal);
+    if (!isNaN(parsed) && parsed >= 0) {
+      onSave(parsed);
+    }
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <Input
+        type="number"
+        min={0}
+        step="0.01"
+        value={inputVal}
+        onChange={(e) => setInputVal(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSave();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className="h-7 w-20 text-right text-sm tabular-nums ml-auto"
+        autoFocus
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={handleStart}
+      className={cn(
+        "text-right w-full cursor-pointer hover:underline",
+        value && value > 0 ? "text-muted-foreground" : "text-primary/60 italic"
+      )}
+    >
+      {value != null && value > 0 ? `$${Number(value).toFixed(2)}` : 'add'}
+    </button>
+  );
+}
+
+
 function GarmentThumbnail({ imageUrl, alt }: { imageUrl: string; alt: string }) {
   const [src, setSrc] = useState(imageUrl.startsWith('http') ? imageUrl : '');
   
