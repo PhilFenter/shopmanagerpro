@@ -347,7 +347,8 @@ serve(async (req) => {
         }
 
         // 2. ALWAYS get account-specific pricing (myPrice = your wholesale cost)
-        const wholesalePrices = new Map<string, { myPrice: number; casePrice: number }>();
+        // Map by color → lowest myPrice (base S-XL tier) for accurate COGS
+        const wholesaleByColor = new Map<string, { myPrice: number; casePrice: number }>();
         try {
           const pricingXml = await soapPost(
             ENDPOINTS.pricing,
@@ -358,15 +359,16 @@ serve(async (req) => {
             const pricingBlocks = extractBlocks(pricingXml, "listResponse");
             for (const block of pricingBlocks) {
               const color = extractTag(block, "color");
-              const size = extractTag(block, "size");
               const myPrice = parseFloat(extractTag(block, "myPrice")) || 0;
               const caseP = parseFloat(extractTag(block, "casePrice")) || 0;
-              const key = `${color}|${size}`;
-              if (myPrice > 0 || caseP > 0) {
-                wholesalePrices.set(key, { myPrice, casePrice: caseP });
+              if (myPrice > 0) {
+                const existing = wholesaleByColor.get(color);
+                if (!existing || myPrice < existing.myPrice) {
+                  wholesaleByColor.set(color, { myPrice, casePrice: caseP });
+                }
               }
             }
-            console.log(`Got ${wholesalePrices.size} wholesale price entries for ${styleUpper}`);
+            console.log(`Got wholesale prices for ${wholesaleByColor.size} colors of ${styleUpper}`);
           }
         } catch (e) {
           console.log("Pricing endpoint failed:", e);
@@ -374,12 +376,11 @@ serve(async (req) => {
 
         // 3. If no product info items, build from pricing data
         if (items.length === 0) {
-          for (const [key, prices] of wholesalePrices) {
-            const [color, size] = key.split("|");
+          for (const [color, prices] of wholesaleByColor) {
             items.push({
               style: styleUpper,
               color,
-              size,
+              size: "",
               brandName: "",
               productTitle: "",
               category: "",
@@ -389,14 +390,13 @@ serve(async (req) => {
             });
           }
         } else {
-          // Overlay wholesale prices onto product info items
+          // Overlay wholesale prices onto product info items by color
           for (const item of items) {
-            const key = `${item.color || item.catalogColor || ""}|${item.size || ""}`;
-            const wholesale = wholesalePrices.get(key);
+            const color = item.color || item.catalogColor || "";
+            const wholesale = wholesaleByColor.get(color);
             if (wholesale) {
-              // Use myPrice (account wholesale) instead of retail piecePrice
-              if (wholesale.myPrice > 0) item.piecePrice = wholesale.myPrice;
-              if (wholesale.casePrice > 0) item.casePrice = wholesale.casePrice;
+              item.piecePrice = wholesale.myPrice;
+              item.casePrice = wholesale.casePrice;
             }
           }
         }
