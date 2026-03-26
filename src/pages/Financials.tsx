@@ -69,13 +69,12 @@ export default function Financials() {
     queryKey: ['financials-time-entries', jobIds],
     queryFn: async () => {
       if (jobIds.length === 0) return [];
-      // Query in batches of 100 to avoid URL length limits
       const allEntries: any[] = [];
       for (let i = 0; i < jobIds.length; i += 100) {
         const batch = jobIds.slice(i, i + 100);
         const { data, error } = await supabase
           .from('time_entries')
-          .select('job_id, duration, worker_id')
+          .select('job_id, duration, worker_id, line_item_id')
           .in('job_id', batch);
         if (error) throw error;
         if (data) allEntries.push(...data);
@@ -83,6 +82,27 @@ export default function Financials() {
       return allEntries;
     },
     enabled: jobIds.length > 0,
+  });
+
+  // Fetch line items for Mixed jobs to split revenue/cost by actual service type
+  const mixedJobIds = periodJobs.filter(j => j.service_type === 'mixed').map(j => j.id);
+  const { data: mixedLineItems = [] } = useQuery({
+    queryKey: ['financials-mixed-line-items', mixedJobIds],
+    queryFn: async () => {
+      if (mixedJobIds.length === 0) return [];
+      const allItems: any[] = [];
+      for (let i = 0; i < mixedJobIds.length; i += 100) {
+        const batch = mixedJobIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('job_line_items')
+          .select('id, job_id, service_type, sale_price, material_cost')
+          .in('job_id', batch);
+        if (error) throw error;
+        if (data) allItems.push(...data);
+      }
+      return allItems;
+    },
+    enabled: mixedJobIds.length > 0,
   });
 
   // Fetch workers for rate lookup
@@ -157,13 +177,54 @@ export default function Financials() {
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
 
+    // Build line-item lookup for Mixed jobs
+    const mixedJobLineItems = new Map<string, typeof mixedLineItems>();
+    for (const li of mixedLineItems) {
+      const existing = mixedJobLineItems.get(li.job_id) || [];
+      existing.push(li);
+      mixedJobLineItems.set(li.job_id, existing);
+    }
+
     const serviceRevenueMap: Record<string, { revenue: number; cost: number; count: number }> = {};
-    periodJobs.forEach(j => {
-      const st = j.service_type;
+    const addToService = (st: string, revenue: number, cost: number, countFraction: number) => {
       if (!serviceRevenueMap[st]) serviceRevenueMap[st] = { revenue: 0, cost: 0, count: 0 };
-      serviceRevenueMap[st].revenue += (j.sale_price || 0);
-      serviceRevenueMap[st].cost += (j.material_cost || 0);
-      serviceRevenueMap[st].count += 1;
+      serviceRevenueMap[st].revenue += revenue;
+      serviceRevenueMap[st].cost += cost;
+      serviceRevenueMap[st].count += countFraction;
+    };
+
+    periodJobs.forEach(j => {
+      if (j.service_type === 'mixed') {
+        const lineItems = mixedJobLineItems.get(j.id);
+        if (lineItems && lineItems.length > 0) {
+          const liTotalRevenue = lineItems.reduce((s: number, li: any) => s + (li.sale_price || 0), 0);
+          const liTotalCost = lineItems.reduce((s: number, li: any) => s + (li.material_cost || 0), 0);
+          const jobRevenue = j.sale_price || 0;
+          const jobCost = j.material_cost || 0;
+
+          // Group line items by service type first
+          const grouped: Record<string, { revShare: number; costShare: number }> = {};
+          lineItems.forEach((li: any) => {
+            const st = li.service_type || 'other';
+            if (!grouped[st]) grouped[st] = { revShare: 0, costShare: 0 };
+            grouped[st].revShare += liTotalRevenue > 0
+              ? jobRevenue * ((li.sale_price || 0) / liTotalRevenue)
+              : jobRevenue / lineItems.length;
+            grouped[st].costShare += liTotalCost > 0
+              ? jobCost * ((li.material_cost || 0) / liTotalCost)
+              : jobCost / lineItems.length;
+          });
+
+          const serviceCount = Object.keys(grouped).length;
+          Object.entries(grouped).forEach(([st, shares]) => {
+            addToService(st, shares.revShare, shares.costShare, 1 / serviceCount);
+          });
+        } else {
+          addToService('mixed', j.sale_price || 0, j.material_cost || 0, 1);
+        }
+      } else {
+        addToService(j.service_type, j.sale_price || 0, j.material_cost || 0, 1);
+      }
     });
     const serviceRevenue = Object.entries(serviceRevenueMap)
       .map(([service, data]) => ({
@@ -172,12 +233,12 @@ export default function Financials() {
         revenue: data.revenue,
         cost: data.cost,
         profit: data.revenue - data.cost,
-        count: data.count,
+        count: Math.round(data.count * 10) / 10,
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
     return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod };
-  }, [periodJobs, overheadForPeriod]);
+  }, [periodJobs, overheadForPeriod, mixedLineItems]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
