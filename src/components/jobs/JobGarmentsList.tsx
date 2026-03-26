@@ -55,6 +55,20 @@ function sortedSizeKeys(garments: Array<{ sizes: Record<string, number> }>): str
 export function JobGarmentsList({ jobId, compact = false }: JobGarmentsListProps) {
   const { garments, isLoading } = useJobGarments(jobId);
   const { deleteGarment, updateGarment } = useJobGarmentMutations(jobId);
+  const { updateJob } = useJobs();
+
+  // Re-aggregate material_cost on the job after garment cost changes
+  const reaggregateMaterialCost = async () => {
+    const { data } = await supabase
+      .from('job_garments')
+      .select('total_cost')
+      .eq('job_id', jobId)
+      .gt('total_cost', 0);
+    if (data) {
+      const total = data.reduce((s, g) => s + (g.total_cost || 0), 0);
+      updateJob.mutate({ id: jobId, material_cost: total });
+    }
+  };
 
   if (isLoading || garments.length === 0) return null;
 
