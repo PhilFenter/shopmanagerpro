@@ -76,7 +76,6 @@ export function useGarmentSearch() {
               const first = items[0];
               const colors = [...new Set(items.map((i: any) => i.color).filter(Boolean))] as string[];
               const sizes = [...new Set(items.map((i: any) => i.size).filter(Boolean))] as string[];
-              // Find the first image URL from any item
               const imageUrl = items.find((i: any) => i.thumbnailImage)?.thumbnailImage || undefined;
               
               allResults.push({
@@ -87,21 +86,23 @@ export function useGarmentSearch() {
                 category: first.category,
                 colors,
                 sizes,
-                piece_price: 0, // Will be fetched with pricing action
+                piece_price: 0,
                 case_price: 0,
                 image_url: imageUrl,
               });
 
-              // Also fetch pricing
+              // Fetch account-specific wholesale pricing (myPrice)
               try {
                 const pricingResp = await supabase.functions.invoke('sanmar-api', {
                   body: { action: 'getPricing', styleNumber: query.toUpperCase().trim() },
                 });
                 if (pricingResp.data?.success && pricingResp.data?.pricing?.length > 0) {
                   const pricing = pricingResp.data.pricing;
-                  // Use the first pricing entry as representative
-                  allResults[allResults.length - 1].piece_price = pricing[0].piecePrice || pricing[0].myPrice || 0;
-                  allResults[allResults.length - 1].case_price = pricing[0].casePrice || 0;
+                  // Use myPrice (wholesale) from base S-XL tier
+                  const baseTier = pricing.filter((p: any) => ['S', 'M', 'L', 'XL'].includes(p.size?.toUpperCase()));
+                  const priceSource = baseTier.length > 0 ? baseTier[0] : pricing[0];
+                  allResults[allResults.length - 1].piece_price = priceSource.myPrice || priceSource.salePrice || priceSource.casePrice || 0;
+                  allResults[allResults.length - 1].case_price = priceSource.casePrice || 0;
                 }
               } catch { /* pricing is optional */ }
             }

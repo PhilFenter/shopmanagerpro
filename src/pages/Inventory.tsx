@@ -72,23 +72,7 @@ export default function Inventory() {
       setBulkLookupProgress(`Looking up ${style} (${i + 1}/${styles.length})...`);
 
       try {
-        const { data: catalogHit } = await supabase
-          .from('product_catalog')
-          .select('piece_price, brand, description')
-          .ilike('style_number', style)
-          .gt('piece_price', 0)
-          .order('piece_price', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (catalogHit?.piece_price) {
-          for (const item of styleItems) {
-            await updateItem.mutateAsync({ id: item.id, unit_cost: catalogHit.piece_price, ...(catalogHit.brand && !item.brand ? { brand: catalogHit.brand } : {}) });
-            updated++;
-          }
-          continue;
-        }
-
+        // Try SanMar API first for wholesale pricing (myPrice)
         let found = false;
         try {
           const sanmarRes = await supabase.functions.invoke('sanmar-api', {
@@ -114,7 +98,27 @@ export default function Inventory() {
             }
             if (found) continue;
           }
-        } catch { /* try S&S */ }
+        } catch (e) {
+          console.log('SanMar lookup failed for', style, e);
+        }
+
+        // Fallback to local catalog
+        const { data: catalogHit } = await supabase
+          .from('product_catalog')
+          .select('piece_price, brand, description')
+          .ilike('style_number', style)
+          .gt('piece_price', 0)
+          .order('piece_price', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (catalogHit?.piece_price) {
+          for (const item of styleItems) {
+            await updateItem.mutateAsync({ id: item.id, unit_cost: catalogHit.piece_price, ...(catalogHit.brand && !item.brand ? { brand: catalogHit.brand } : {}) });
+            updated++;
+          }
+          continue;
+        }
 
         try {
           const ssRes = await supabase.functions.invoke('ss-activewear-api', {
