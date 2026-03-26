@@ -119,31 +119,6 @@ export default function Inventory() {
           }
           continue;
         }
-        try {
-          const sanmarRes = await supabase.functions.invoke('sanmar-api', {
-            body: { action: 'getPricing', styleNumber: style },
-          });
-          if (sanmarRes.data?.success && sanmarRes.data.pricing?.length > 0) {
-            const pricing = sanmarRes.data.pricing;
-            for (const item of styleItems) {
-              const enteredSize = item.size?.trim().toUpperCase();
-              let matched = enteredSize
-                ? pricing.filter((p: any) => p.size?.toUpperCase() === enteredSize)
-                : [];
-              if (matched.length === 0)
-                matched = pricing.filter((p: any) => ['S', 'M', 'L', 'XL'].includes(p.size?.toUpperCase()));
-              if (matched.length === 0) matched = pricing;
-              
-              const price = matched.map((p: any) => p.myPrice || p.salePrice || p.casePrice || 0).find((p: number) => p > 0);
-              if (price) {
-                await updateItem.mutateAsync({ id: item.id, unit_cost: price });
-                updated++;
-                found = true;
-              }
-            }
-            if (found) continue;
-          }
-        } catch { /* try S&S */ }
 
         try {
           const ssRes = await supabase.functions.invoke('ss-activewear-api', {
