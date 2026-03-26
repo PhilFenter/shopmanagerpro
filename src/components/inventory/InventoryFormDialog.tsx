@@ -56,12 +56,49 @@ export function InventoryFormDialog({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not logged in');
 
-      // Try local catalog first
+      // Try SanMar API first (myPrice = your actual wholesale cost)
+      try {
+        const sanmarRes = await supabase.functions.invoke('sanmar-api', {
+          body: { action: 'getPricing', styleNumber: style },
+        });
+        if (sanmarRes.data?.success && sanmarRes.data.pricing?.length > 0) {
+          const pricing = sanmarRes.data.pricing;
+          const enteredSize = form.size?.trim().toUpperCase();
+          
+          let matched: any[] = [];
+          if (enteredSize) {
+            matched = pricing.filter((p: any) => p.size?.toUpperCase() === enteredSize);
+          }
+          if (matched.length === 0) {
+            matched = pricing.filter((p: any) => ['S', 'M', 'L', 'XL'].includes(p.size?.toUpperCase()));
+          }
+          if (matched.length === 0) matched = pricing;
+          
+          const prices = matched
+            .map((p: any) => p.myPrice || p.salePrice || p.casePrice || 0)
+            .filter((p: number) => p > 0);
+          
+          if (prices.length > 0) {
+            const price = prices[0];
+            updateField('unit_cost', price);
+            // Also grab brand/description from the response if available
+            const sizeLabel = enteredSize || 'S-XL';
+            toast.success(`SanMar wholesale (${sizeLabel}): $${price.toFixed(2)}`);
+            setLookingUp(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.log('SanMar lookup failed, trying catalog:', e);
+      }
+
+      // Fallback to local catalog
       const { data: catalogHit } = await supabase
         .from('product_catalog')
         .select('piece_price, brand, description')
         .ilike('style_number', style)
-        .order('piece_price', { ascending: false })
+        .gt('piece_price', 0)
+        .order('piece_price', { ascending: true })
         .limit(1)
         .maybeSingle();
 
@@ -72,46 +109,6 @@ export function InventoryFormDialog({
         toast.success(`Found in catalog: $${catalogHit.piece_price.toFixed(2)}`);
         setLookingUp(false);
         return;
-      }
-
-      // Try SanMar API (prefer myPrice = wholesale, match size if specified)
-      try {
-        const sanmarRes = await supabase.functions.invoke('sanmar-api', {
-          body: { action: 'getPricing', styleNumber: style },
-        });
-        if (sanmarRes.data?.success && sanmarRes.data.pricing?.length > 0) {
-          const pricing = sanmarRes.data.pricing;
-          const enteredSize = form.size?.trim().toUpperCase();
-          
-          // If a size is entered, try to match that size's price
-          let matched: any[] = [];
-          if (enteredSize) {
-            matched = pricing.filter((p: any) => p.size?.toUpperCase() === enteredSize);
-          }
-          // Default to standard sizes (S/M/L/XL) — the base price tier
-          if (matched.length === 0) {
-            matched = pricing.filter((p: any) => ['S', 'M', 'L', 'XL'].includes(p.size?.toUpperCase()));
-          }
-          // Final fallback: all entries
-          if (matched.length === 0) matched = pricing;
-          
-          // Use myPrice (wholesale), then salePrice, then casePrice
-          const prices = matched
-            .map((p: any) => p.myPrice || p.salePrice || p.casePrice || 0)
-            .filter((p: number) => p > 0);
-          
-          if (prices.length > 0) {
-            // Use the most common price (mode) for matched sizes, not max
-            const price = prices[0];
-            updateField('unit_cost', price);
-            const sizeLabel = enteredSize || 'S-XL';
-            toast.success(`SanMar wholesale (${sizeLabel}): $${price.toFixed(2)}`);
-            setLookingUp(false);
-            return;
-          }
-        }
-      } catch (e) {
-        console.log('SanMar lookup failed, trying S&S:', e);
       }
 
       // Try S&S Activewear API (customerPrice = wholesale, match size if specified)
