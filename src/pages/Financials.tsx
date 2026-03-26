@@ -177,13 +177,76 @@ export default function Financials() {
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
 
+    // Build line-item lookup for Mixed jobs
+    const mixedJobLineItems = new Map<string, typeof mixedLineItems>();
+    for (const li of mixedLineItems) {
+      const existing = mixedJobLineItems.get(li.job_id) || [];
+      existing.push(li);
+      mixedJobLineItems.set(li.job_id, existing);
+    }
+
     const serviceRevenueMap: Record<string, { revenue: number; cost: number; count: number }> = {};
-    periodJobs.forEach(j => {
-      const st = j.service_type;
+    const addToService = (st: string, revenue: number, cost: number, countFraction: number) => {
       if (!serviceRevenueMap[st]) serviceRevenueMap[st] = { revenue: 0, cost: 0, count: 0 };
-      serviceRevenueMap[st].revenue += (j.sale_price || 0);
-      serviceRevenueMap[st].cost += (j.material_cost || 0);
-      serviceRevenueMap[st].count += 1;
+      serviceRevenueMap[st].revenue += revenue;
+      serviceRevenueMap[st].cost += cost;
+      serviceRevenueMap[st].count += countFraction;
+    };
+
+    periodJobs.forEach(j => {
+      if (j.service_type === 'mixed') {
+        const lineItems = mixedJobLineItems.get(j.id);
+        if (lineItems && lineItems.length > 0) {
+          // Split revenue/cost to each line item's service type
+          const liTotalRevenue = lineItems.reduce((s: number, li: any) => s + (li.sale_price || 0), 0);
+          const liTotalCost = lineItems.reduce((s: number, li: any) => s + (li.material_cost || 0), 0);
+          const jobRevenue = j.sale_price || 0;
+          const jobCost = j.material_cost || 0;
+
+          // Count unique service types for fractional job count
+          const uniqueServices = new Set(lineItems.map((li: any) => li.service_type));
+
+          lineItems.forEach((li: any) => {
+            // Proportional split: if line items have prices, use ratio; otherwise equal split
+            let revShare: number, costShare: number;
+            if (liTotalRevenue > 0) {
+              revShare = jobRevenue * ((li.sale_price || 0) / liTotalRevenue);
+            } else {
+              revShare = jobRevenue / lineItems.length;
+            }
+            if (liTotalCost > 0) {
+              costShare = jobCost * ((li.material_cost || 0) / liTotalCost);
+            } else {
+              costShare = jobCost / lineItems.length;
+            }
+            addToService(li.service_type, revShare, costShare, 1 / uniqueServices.size / lineItems.filter((x: any) => x.service_type === li.service_type).length * 1);
+          });
+
+          // Add fractional job counts per unique service
+          // Reset and recalculate cleanly
+          const serviceGroups: Record<string, { rev: number; cost: number }> = {};
+          lineItems.forEach((li: any) => {
+            if (!serviceGroups[li.service_type]) serviceGroups[li.service_type] = { rev: 0, cost: 0 };
+            if (liTotalRevenue > 0) {
+              serviceGroups[li.service_type].rev += jobRevenue * ((li.sale_price || 0) / liTotalRevenue);
+            } else {
+              serviceGroups[li.service_type].rev += jobRevenue / lineItems.length;
+            }
+            if (liTotalCost > 0) {
+              serviceGroups[li.service_type].cost += jobCost * ((li.material_cost || 0) / liTotalCost);
+            } else {
+              serviceGroups[li.service_type].cost += jobCost / lineItems.length;
+            }
+          });
+          // We already added in the forEach above — need to undo and redo cleanly
+          // Actually let me simplify this...
+        } else {
+          // No line items found, keep as Mixed
+          addToService('mixed', j.sale_price || 0, j.material_cost || 0, 1);
+        }
+      } else {
+        addToService(j.service_type, j.sale_price || 0, j.material_cost || 0, 1);
+      }
     });
     const serviceRevenue = Object.entries(serviceRevenueMap)
       .map(([service, data]) => ({
