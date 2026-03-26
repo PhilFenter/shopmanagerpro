@@ -35,6 +35,28 @@ export function ProductCatalogSettings() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
   const [syncSupplier, setSyncSupplier] = useState<Supplier>('sanmar');
+  const [isRepricing, setIsRepricing] = useState(false);
+  const [repriceResult, setRepriceResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBulkReprice = async (dryRun = false) => {
+    setIsRepricing(true);
+    setRepriceResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-reprice', {
+        body: { dryRun },
+      });
+      if (error) throw error;
+      setRepriceResult(data);
+      if (!dryRun && data?.summary?.garmentsUpdated > 0) {
+        toast.success(`Updated ${data.summary.garmentsUpdated} garments across ${data.summary.jobsReaggregated} jobs`);
+      }
+    } catch (err: any) {
+      toast.error('Reprice failed: ' + err.message);
+    } finally {
+      setIsRepricing(false);
+    }
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBulkSync = async () => {
