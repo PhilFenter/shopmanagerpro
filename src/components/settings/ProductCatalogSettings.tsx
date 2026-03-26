@@ -9,6 +9,7 @@ import { Upload, Search, Package, Loader2, Database, RefreshCw, DollarSign } fro
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 
 function parsePrice(value: any): number {
   if (typeof value === 'number') return value;
@@ -36,25 +37,68 @@ export function ProductCatalogSettings() {
   const [syncStatus, setSyncStatus] = useState('');
   const [syncSupplier, setSyncSupplier] = useState<Supplier>('sanmar');
   const [isRepricing, setIsRepricing] = useState(false);
+  const [repriceProgress, setRepriceProgress] = useState<{ processed: number; total: number } | null>(null);
   const [repriceResult, setRepriceResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBulkReprice = async (dryRun = false) => {
     setIsRepricing(true);
     setRepriceResult(null);
+    setRepriceProgress(null);
+
     try {
-      const { data, error } = await supabase.functions.invoke('bulk-reprice', {
-        body: { dryRun },
-      });
-      if (error) throw error;
-      setRepriceResult(data);
-      if (!dryRun && data?.summary?.garmentsUpdated > 0) {
-        toast.success(`Updated ${data.summary.garmentsUpdated} garments across ${data.summary.jobsReaggregated} jobs`);
+      let offset = 0;
+      let allDetails: any[] = [];
+      let totalUpdated = 0;
+      let totalSkipped = 0;
+      let totalErrors = 0;
+      let totalJobsReaggregated = 0;
+      let totalStyles = 0;
+
+      // Process in batches until no more
+      while (true) {
+        const { data, error } = await supabase.functions.invoke('bulk-reprice', {
+          body: { dryRun, offset },
+        });
+        if (error) throw error;
+
+        totalStyles = data.summary.totalStyles;
+        totalUpdated += data.summary.garmentsUpdated;
+        totalSkipped += data.summary.garmentsSkipped;
+        totalErrors += data.summary.errors;
+        totalJobsReaggregated += data.summary.jobsReaggregated;
+        if (data.details) allDetails = [...allDetails, ...data.details];
+
+        const processed = Math.min(offset + data.summary.batchProcessed, totalStyles);
+        setRepriceProgress({ processed, total: totalStyles });
+
+        if (!data.hasMore) break;
+        offset = data.nextOffset;
+      }
+
+      const result = {
+        dryRun,
+        summary: {
+          totalStyles,
+          garmentsUpdated: totalUpdated,
+          garmentsSkipped: totalSkipped,
+          errors: totalErrors,
+          jobsReaggregated: totalJobsReaggregated,
+        },
+        details: allDetails,
+      };
+      setRepriceResult(result);
+
+      if (!dryRun && totalUpdated > 0) {
+        toast.success(`Updated ${totalUpdated} garments across ${totalJobsReaggregated} jobs`);
+      } else if (!dryRun && totalUpdated === 0) {
+        toast.info('All garments already at correct wholesale prices');
       }
     } catch (err: any) {
       toast.error('Reprice failed: ' + err.message);
     } finally {
       setIsRepricing(false);
+      setRepriceProgress(null);
     }
   };
 
@@ -181,7 +225,7 @@ export function ProductCatalogSettings() {
                 Bulk Wholesale Reprice
               </p>
               <p className="text-xs text-muted-foreground">
-                Update ALL job garments with your SanMar wholesale (myPrice) rates
+                Update ALL job garments with wholesale rates (SanMar → S&amp;S fallback)
               </p>
             </div>
             <div className="flex gap-2">
@@ -206,6 +250,15 @@ export function ProductCatalogSettings() {
             </div>
           </div>
 
+          {isRepricing && repriceProgress && (
+            <div className="space-y-1">
+              <Progress value={(repriceProgress.processed / repriceProgress.total) * 100} className="h-2" />
+              <p className="text-xs text-muted-foreground">
+                Processing {repriceProgress.processed} of {repriceProgress.total} styles...
+              </p>
+            </div>
+          )}
+
           {repriceResult && (
             <Alert className="mt-2">
               <AlertDescription>
@@ -218,14 +271,22 @@ export function ProductCatalogSettings() {
                     <strong> {repriceResult.summary?.garmentsUpdated}</strong> garments {repriceResult.dryRun ? 'would be' : ''} updated · 
                     <strong> {repriceResult.summary?.jobsReaggregated}</strong> jobs {repriceResult.dryRun ? 'would be' : ''} re-aggregated
                   </p>
+                  {repriceResult.summary?.errors > 0 && (
+                    <p className="text-destructive text-xs">{repriceResult.summary.errors} errors encountered</p>
+                  )}
                   {repriceResult.details?.length > 0 && (
-                    <div className="max-h-40 overflow-y-auto mt-2 border rounded divide-y text-xs">
+                    <div className="max-h-48 overflow-y-auto mt-2 border rounded divide-y text-xs">
                       {repriceResult.details.map((d: any, i: number) => (
                         <div key={i} className="flex justify-between px-2 py-1">
                           <span className="font-mono">{d.style}</span>
                           <span>
                             {d.oldPrice > 0 && <span className="text-muted-foreground line-through mr-1">${d.oldPrice.toFixed(2)}</span>}
                             {d.newPrice > 0 && <span className="text-primary font-medium">${d.newPrice.toFixed(2)}</span>}
+                            {d.source && d.source !== 'none' && (
+                              <Badge variant="outline" className="ml-1 text-[10px] py-0">
+                                {d.source === 'ss_activewear' ? 'S&S' : 'SanMar'}
+                              </Badge>
+                            )}
                             <span className="text-muted-foreground ml-2">({d.status})</span>
                           </span>
                         </div>

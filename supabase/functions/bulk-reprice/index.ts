@@ -38,28 +38,76 @@ function buildPricingRequest(user: string, pass: string, custNum: string, style:
 </soapenv:Envelope>`;
 }
 
-/** Extract the base style number from a garment style string.
- *  e.g. "Port & Co Port & Co Core Cotton Tee. PC54" → "PC54"
- *  e.g. "Richardson Snapback Trucker Cap - 112" → "112"
- */
 function extractStyleNumber(raw: string): string {
-  // Try after last dot+space: "Brand Name Product. STYLE123"
   const dotMatch = raw.match(/\.\s*([A-Z0-9][\w-]*)\s*$/i);
   if (dotMatch) return dotMatch[1].toUpperCase().trim();
-  // Try after last dash: "Product Name - STYLE123"
   const dashMatch = raw.match(/-\s*([A-Z0-9][\w-]*)\s*$/i);
   if (dashMatch) return dashMatch[1].toUpperCase().trim();
-  // Try after last space if it looks like a style number
   const spaceMatch = raw.match(/\s([A-Z]{1,4}\d{2,}[\w]*)\s*$/i);
   if (spaceMatch) return spaceMatch[1].toUpperCase().trim();
-  // Fallback: whole string
   return raw.toUpperCase().trim();
 }
 
-/** Strip common brand prefixes that don't match API (e.g. R-112 → 112) */
 function normalizeStyleForApi(style: string): string {
   return style.replace(/^R-/i, "").replace(/^R\s+/i, "").trim();
 }
+
+const SS_API_BASE = "https://api.ssactivewear.com/v2";
+
+async function ssGetPrice(styleNumber: string, accountNum: string, apiKey: string): Promise<number | null> {
+  try {
+    // Try to find the style
+    let styleID: number | null = null;
+    
+    for (const path of [
+      `/styles/${encodeURIComponent(styleNumber)}`,
+      `/styles/?partnumber=${encodeURIComponent(styleNumber)}`,
+    ]) {
+      try {
+        const resp = await fetch(`${SS_API_BASE}${path}`, {
+          headers: {
+            "Authorization": "Basic " + btoa(`${accountNum}:${apiKey}`),
+            "Content-Type": "application/json",
+          },
+        });
+        if (!resp.ok) { await resp.text(); continue; }
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          styleID = data[0].styleID;
+          break;
+        }
+      } catch { continue; }
+    }
+    
+    if (!styleID) return null;
+    
+    // Fetch products for pricing
+    const resp = await fetch(`${SS_API_BASE}/products/?style=${styleID}`, {
+      headers: {
+        "Authorization": "Basic " + btoa(`${accountNum}:${apiKey}`),
+        "Content-Type": "application/json",
+      },
+    });
+    if (!resp.ok) { await resp.text(); return null; }
+    const products = await resp.json();
+    
+    if (!Array.isArray(products) || products.length === 0) return null;
+    
+    // Find lowest customerPrice (your contract rate)
+    let lowest = Infinity;
+    for (const p of products) {
+      const price = parseFloat(p.customerPrice) || parseFloat(p.piecePrice) || 0;
+      if (price > 0 && price < lowest) lowest = price;
+    }
+    
+    return lowest === Infinity ? null : lowest;
+  } catch {
+    return null;
+  }
+}
+
+// Batch size per invocation to avoid timeouts
+const BATCH_SIZE = 30;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -91,6 +139,9 @@ Deno.serve(async (req) => {
     const sanmarUser = Deno.env.get("SANMAR_API_USERNAME")!;
     const sanmarPass = Deno.env.get("SANMAR_API_PASSWORD")!;
     const sanmarCustNum = Deno.env.get("SANMAR_CUSTOMER_NUMBER") || sanmarUser;
+    const ssAccountNum = Deno.env.get("SS_ACTIVEWEAR_ACCOUNT_NUMBER") || "";
+    const ssApiKey = Deno.env.get("SS_ACTIVEWEAR_API_KEY") || "";
+    const hasSSCredentials = !!(ssAccountNum && ssApiKey);
 
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -99,8 +150,9 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const dryRun = body.dryRun === true;
+    const offset = body.offset || 0; // Which batch to process
 
-    // 1. Get all distinct style values from job_garments that have costs
+    // 1. Get all garments
     const { data: garments, error: gErr } = await serviceClient
       .from("job_garments")
       .select("id, job_id, style, item_number, quantity, unit_cost, total_cost")
@@ -108,26 +160,27 @@ Deno.serve(async (req) => {
 
     if (gErr) throw new Error(`Failed to fetch garments: ${gErr.message}`);
 
-    // Build map of distinct style numbers to look up
-    const styleMap = new Map<string, string[]>(); // apiStyle → garment IDs
+    // Build map of distinct style numbers
+    const styleMap = new Map<string, string[]>();
     const garmentLookup = new Map<string, typeof garments[0]>();
 
     for (const g of garments || []) {
       const rawStyle = g.style || g.item_number || "";
       if (!rawStyle) continue;
-
       garmentLookup.set(g.id, g);
       const extracted = extractStyleNumber(rawStyle);
       const normalized = normalizeStyleForApi(extracted);
       if (!normalized || normalized.length < 2) continue;
-
-      if (!styleMap.has(normalized)) {
-        styleMap.set(normalized, []);
-      }
+      if (!styleMap.has(normalized)) styleMap.set(normalized, []);
       styleMap.get(normalized)!.push(g.id);
     }
 
-    console.log(`Found ${styleMap.size} distinct styles to price-check across ${(garments || []).length} garments`);
+    const allStyles = [...styleMap.entries()];
+    const totalStyles = allStyles.length;
+    const batchStyles = allStyles.slice(offset, offset + BATCH_SIZE);
+    const hasMore = offset + BATCH_SIZE < totalStyles;
+
+    console.log(`Processing batch: offset=${offset}, batchSize=${batchStyles.length}, totalStyles=${totalStyles}, hasMore=${hasMore}`);
 
     const results: Array<{
       style: string;
@@ -135,6 +188,7 @@ Deno.serve(async (req) => {
       newPrice: number;
       garmentCount: number;
       status: string;
+      source: string;
     }> = [];
 
     let totalUpdated = 0;
@@ -142,14 +196,14 @@ Deno.serve(async (req) => {
     let totalErrors = 0;
     const jobsToReaggregate = new Set<string>();
 
-    // 2. For each style, call SanMar getPricing for wholesale myPrice
-    const styles = [...styleMap.entries()];
-
-    for (const [apiStyle, garmentIds] of styles) {
+    for (const [apiStyle, garmentIds] of batchStyles) {
       try {
-        // Rate limit: small delay between API calls
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 200));
 
+        let lowestPrice: number | null = null;
+        let priceSource = "sanmar";
+
+        // Try SanMar first
         const xml = await fetch("https://ws.sanmar.com:8080/SanMarWebService/SanMarPricingServicePort", {
           method: "POST",
           headers: { "Content-Type": "text/xml; charset=utf-8" },
@@ -157,52 +211,52 @@ Deno.serve(async (req) => {
         }).then(r => r.text());
 
         const errorOccurred = extractTag(xml, "errorOccured") || extractTag(xml, "errorOccurred");
-        if (errorOccurred === "true") {
-          const msg = extractTag(xml, "message");
-          console.log(`Style ${apiStyle}: API error - ${msg}`);
-          results.push({ style: apiStyle, oldPrice: 0, newPrice: 0, garmentCount: garmentIds.length, status: `api_error: ${msg}` });
-          totalSkipped += garmentIds.length;
-          continue;
-        }
-
-        // Find lowest myPrice across all color/size variants (base S-XL tier)
-        const blocks = extractBlocks(xml, "listResponse");
-        let lowestMyPrice = Infinity;
-        for (const block of blocks) {
-          const myPrice = parseFloat(extractTag(block, "myPrice")) || 0;
-          if (myPrice > 0 && myPrice < lowestMyPrice) {
-            lowestMyPrice = myPrice;
+        if (errorOccurred !== "true") {
+          const blocks = extractBlocks(xml, "listResponse");
+          let lowest = Infinity;
+          for (const block of blocks) {
+            const myPrice = parseFloat(extractTag(block, "myPrice")) || 0;
+            if (myPrice > 0 && myPrice < lowest) lowest = myPrice;
+          }
+          if (lowest !== Infinity && lowest > 0) {
+            lowestPrice = lowest;
           }
         }
 
-        if (lowestMyPrice === Infinity || lowestMyPrice <= 0) {
-          console.log(`Style ${apiStyle}: no valid myPrice found`);
-          results.push({ style: apiStyle, oldPrice: 0, newPrice: 0, garmentCount: garmentIds.length, status: "no_price" });
+        // Fallback to S&S Activewear if SanMar didn't return pricing
+        if (lowestPrice === null && hasSSCredentials) {
+          console.log(`Style ${apiStyle}: SanMar miss, trying S&S Activewear...`);
+          const ssPrice = await ssGetPrice(apiStyle, ssAccountNum, ssApiKey);
+          if (ssPrice !== null) {
+            lowestPrice = ssPrice;
+            priceSource = "ss_activewear";
+          }
+        }
+
+        if (lowestPrice === null || lowestPrice <= 0) {
+          const msg = errorOccurred === "true" ? extractTag(xml, "message") : "no_price";
+          console.log(`Style ${apiStyle}: no price found from any supplier`);
+          results.push({ style: apiStyle, oldPrice: 0, newPrice: 0, garmentCount: garmentIds.length, status: `no_price: ${msg}`, source: "none" });
           totalSkipped += garmentIds.length;
           continue;
         }
 
-        // 3. Update garments with this style
+        // Update garments
         let updated = 0;
         const sampleOldPrice = garmentLookup.get(garmentIds[0])?.unit_cost || 0;
 
         for (const gId of garmentIds) {
           const g = garmentLookup.get(gId)!;
           const currentCost = g.unit_cost || 0;
+          if (Math.abs(currentCost - lowestPrice) < 0.005) continue;
 
-          // Skip if already at the correct price
-          if (Math.abs(currentCost - lowestMyPrice) < 0.005) {
-            continue;
-          }
-
-          const newTotal = lowestMyPrice * g.quantity;
+          const newTotal = lowestPrice * g.quantity;
 
           if (!dryRun) {
             const { error: updateErr } = await serviceClient
               .from("job_garments")
-              .update({ unit_cost: lowestMyPrice, total_cost: newTotal })
+              .update({ unit_cost: lowestPrice, total_cost: newTotal })
               .eq("id", gId);
-
             if (!updateErr) {
               updated++;
               jobsToReaggregate.add(g.job_id);
@@ -217,21 +271,21 @@ Deno.serve(async (req) => {
         results.push({
           style: apiStyle,
           oldPrice: sampleOldPrice,
-          newPrice: lowestMyPrice,
+          newPrice: lowestPrice,
           garmentCount: garmentIds.length,
           status: updated > 0 ? `updated ${updated}` : "already_correct",
+          source: priceSource,
         });
 
-        console.log(`Style ${apiStyle}: $${sampleOldPrice} → $${lowestMyPrice} (${updated}/${garmentIds.length} updated)`);
-
+        console.log(`Style ${apiStyle}: $${sampleOldPrice} → $${lowestPrice} [${priceSource}] (${updated}/${garmentIds.length} updated)`);
       } catch (err) {
         console.error(`Style ${apiStyle} error:`, err);
-        results.push({ style: apiStyle, oldPrice: 0, newPrice: 0, garmentCount: garmentIds.length, status: `error: ${err.message}` });
+        results.push({ style: apiStyle, oldPrice: 0, newPrice: 0, garmentCount: garmentIds.length, status: `error: ${err.message}`, source: "none" });
         totalErrors++;
       }
     }
 
-    // 4. Re-aggregate material_cost for all affected jobs
+    // Re-aggregate material_cost for affected jobs
     let jobsUpdated = 0;
     if (!dryRun) {
       for (const jobId of jobsToReaggregate) {
@@ -247,28 +301,17 @@ Deno.serve(async (req) => {
           jobsUpdated++;
         }
       }
-
-      // 5. Also update product_catalog with wholesale prices
-      for (const r of results) {
-        if (r.newPrice > 0 && r.status.startsWith("updated")) {
-          await serviceClient
-            .from("product_catalog")
-            .upsert({
-              style_number: r.style,
-              piece_price: r.newPrice,
-              supplier: "sanmar_wholesale",
-            }, { onConflict: "style_number,color_group,size_range,supplier" })
-            .then(() => {});
-        }
-      }
     }
 
     return new Response(JSON.stringify({
       success: true,
       dryRun,
+      hasMore,
+      nextOffset: hasMore ? offset + BATCH_SIZE : null,
       summary: {
-        totalStyles: styleMap.size,
-        totalGarments: (garments || []).length,
+        totalStyles,
+        batchProcessed: batchStyles.length,
+        batchOffset: offset,
         garmentsUpdated: totalUpdated,
         garmentsSkipped: totalSkipped,
         errors: totalErrors,
