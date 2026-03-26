@@ -331,7 +331,7 @@ serve(async (req) => {
         if (!params.styleNumber) throw new Error("styleNumber required");
         const styleUpper = params.styleNumber.toUpperCase().trim();
 
-        // 1. Get product info (includes pricing, colors, images)
+        // 1. Get product info (includes description, colors, images)
         let items: any[] = [];
         try {
           const infoXml = await soapPost(
@@ -346,38 +346,68 @@ serve(async (req) => {
           console.log("ProductInfo failed, falling back to pricing:", e);
         }
 
-        // 2. If no product info items, fall back to pricing endpoint
-        if (items.length === 0) {
+        // 2. ALWAYS get account-specific pricing (myPrice = your wholesale cost)
+        const wholesalePrices = new Map<string, { myPrice: number; casePrice: number }>();
+        try {
           const pricingXml = await soapPost(
             ENDPOINTS.pricing,
             buildPricingRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, styleUpper)
           );
-          const errorOccurred = extractTag(pricingXml, "errorOccured") || extractTag(pricingXml, "errorOccurred");
-          if (errorOccurred === "true") {
-            throw new Error(`SanMar pricing error: ${extractTag(pricingXml, "message")}`);
+          const pricingError = extractTag(pricingXml, "errorOccured") || extractTag(pricingXml, "errorOccurred");
+          if (pricingError !== "true") {
+            const pricingBlocks = extractBlocks(pricingXml, "listResponse");
+            for (const block of pricingBlocks) {
+              const color = extractTag(block, "color");
+              const size = extractTag(block, "size");
+              const myPrice = parseFloat(extractTag(block, "myPrice")) || 0;
+              const caseP = parseFloat(extractTag(block, "casePrice")) || 0;
+              const key = `${color}|${size}`;
+              if (myPrice > 0 || caseP > 0) {
+                wholesalePrices.set(key, { myPrice, casePrice: caseP });
+              }
+            }
+            console.log(`Got ${wholesalePrices.size} wholesale price entries for ${styleUpper}`);
           }
-          const syncBlocks = extractBlocks(pricingXml, "listResponse");
-          items = syncBlocks.map(block => ({
-            style: extractTag(block, "style") || styleUpper,
-            color: extractTag(block, "color"),
-            size: extractTag(block, "size"),
-            brandName: "",
-            productTitle: "",
-            category: "",
-            piecePrice: parseFloat(extractTag(block, "piecePrice")) || 0,
-            casePrice: parseFloat(extractTag(block, "casePrice")) || 0,
-            priceCode: "",
-          }));
+        } catch (e) {
+          console.log("Pricing endpoint failed:", e);
         }
 
-        // 3. Group by style+color, aggregate sizes
+        // 3. If no product info items, build from pricing data
+        if (items.length === 0) {
+          for (const [key, prices] of wholesalePrices) {
+            const [color, size] = key.split("|");
+            items.push({
+              style: styleUpper,
+              color,
+              size,
+              brandName: "",
+              productTitle: "",
+              category: "",
+              piecePrice: prices.myPrice || 0,
+              casePrice: prices.casePrice || 0,
+              priceCode: "",
+            });
+          }
+        } else {
+          // Overlay wholesale prices onto product info items
+          for (const item of items) {
+            const key = `${item.color || item.catalogColor || ""}|${item.size || ""}`;
+            const wholesale = wholesalePrices.get(key);
+            if (wholesale) {
+              // Use myPrice (account wholesale) instead of retail piecePrice
+              if (wholesale.myPrice > 0) item.piecePrice = wholesale.myPrice;
+              if (wholesale.casePrice > 0) item.casePrice = wholesale.casePrice;
+            }
+          }
+        }
+
+        // 4. Group by style+color, aggregate sizes
         const catalogMap = new Map<string, any>();
         let brandName = "";
         let title = "";
 
         for (const item of items) {
           const style = (item.style || styleUpper).toUpperCase().trim();
-          // Use full color name (e.g. "Athletic Heather") not abbreviated catalogColor ("Athletic Hthr")
           const color = item.color || item.catalogColor || "";
           const size = item.size || "";
           const key = `${style}|${color}`;
@@ -399,7 +429,7 @@ serve(async (req) => {
               sizes: [] as string[],
             });
           } else {
-            // Keep highest price (for larger sizes)
+            // Keep highest price (for larger sizes like 2XL+)
             const existing = catalogMap.get(key)!;
             if (item.piecePrice > existing.piece_price) {
               existing.piece_price = item.piecePrice;
