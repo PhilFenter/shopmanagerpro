@@ -57,7 +57,6 @@ export function ProductCatalogSettings() {
       setIsRepricing(false);
     }
   };
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBulkSync = async () => {
     const styles = bulkStyles.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
