@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProductCatalog, CatalogItem } from '@/hooks/useProductCatalog';
-import { Upload, Search, Package, Loader2, Database, RefreshCw } from 'lucide-react';
+import { Upload, Search, Package, Loader2, Database, RefreshCw, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 function parsePrice(value: any): number {
   if (typeof value === 'number') return value;
@@ -34,7 +35,28 @@ export function ProductCatalogSettings() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
   const [syncSupplier, setSyncSupplier] = useState<Supplier>('sanmar');
+  const [isRepricing, setIsRepricing] = useState(false);
+  const [repriceResult, setRepriceResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBulkReprice = async (dryRun = false) => {
+    setIsRepricing(true);
+    setRepriceResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-reprice', {
+        body: { dryRun },
+      });
+      if (error) throw error;
+      setRepriceResult(data);
+      if (!dryRun && data?.summary?.garmentsUpdated > 0) {
+        toast.success(`Updated ${data.summary.garmentsUpdated} garments across ${data.summary.jobsReaggregated} jobs`);
+      }
+    } catch (err: any) {
+      toast.error('Reprice failed: ' + err.message);
+    } finally {
+      setIsRepricing(false);
+    }
+  };
 
   const handleBulkSync = async () => {
     const styles = bulkStyles.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
@@ -150,7 +172,72 @@ export function ProductCatalogSettings() {
           </div>
         </div>
 
-        {/* Import */}
+        {/* Bulk Wholesale Reprice */}
+        <div className="space-y-2 p-3 border border-dashed border-primary/30 rounded-lg bg-primary/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4" />
+                Bulk Wholesale Reprice
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Update ALL job garments with your SanMar wholesale (myPrice) rates
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkReprice(true)}
+                disabled={isRepricing}
+              >
+                {isRepricing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                Preview
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => handleBulkReprice(false)}
+                disabled={isRepricing}
+              >
+                {isRepricing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                Reprice All Jobs
+              </Button>
+            </div>
+          </div>
+
+          {repriceResult && (
+            <Alert className="mt-2">
+              <AlertDescription>
+                <div className="text-sm space-y-1">
+                  {repriceResult.dryRun && (
+                    <p className="font-medium text-amber-600">⚠️ DRY RUN — no changes made</p>
+                  )}
+                  <p>
+                    <strong>{repriceResult.summary?.totalStyles}</strong> styles checked · 
+                    <strong> {repriceResult.summary?.garmentsUpdated}</strong> garments {repriceResult.dryRun ? 'would be' : ''} updated · 
+                    <strong> {repriceResult.summary?.jobsReaggregated}</strong> jobs {repriceResult.dryRun ? 'would be' : ''} re-aggregated
+                  </p>
+                  {repriceResult.details?.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto mt-2 border rounded divide-y text-xs">
+                      {repriceResult.details.map((d: any, i: number) => (
+                        <div key={i} className="flex justify-between px-2 py-1">
+                          <span className="font-mono">{d.style}</span>
+                          <span>
+                            {d.oldPrice > 0 && <span className="text-muted-foreground line-through mr-1">${d.oldPrice.toFixed(2)}</span>}
+                            {d.newPrice > 0 && <span className="text-primary font-medium">${d.newPrice.toFixed(2)}</span>}
+                            <span className="text-muted-foreground ml-2">({d.status})</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
         <div className="space-y-2">
           <div className="flex gap-2">
             <Button
