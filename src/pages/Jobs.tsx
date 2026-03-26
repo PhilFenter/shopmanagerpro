@@ -14,7 +14,7 @@ import { JobPhotoUpload } from '@/components/jobs/JobPhotoUpload';
 import { StageProgress } from '@/components/jobs/StageProgress';
 import { AdvanceStageButton } from '@/components/jobs/AdvanceStageButton';
 import { JobRecipesList } from '@/components/jobs/JobRecipesList';
-import { MaterialCostInput } from '@/components/jobs/MaterialCostInput';
+
 import { JobGarmentsList } from '@/components/jobs/JobGarmentsList';
 import { GarmentSearchDialog } from '@/components/jobs/GarmentSearchDialog';
 import { MockupBuilder } from '@/components/jobs/MockupBuilder';
@@ -367,12 +367,7 @@ export default function Jobs() {
                 jobServiceType={selectedJob.service_type}
               />
 
-              {/* Production sections */}
               <div className="px-6 py-4 space-y-6">
-                {/* Material Cost Input - Admin/Manager only */}
-                {hasFinancialAccess(role) && (
-                  <MaterialCostInput jobId={selectedJob.id} currentValue={selectedJob.material_cost} />
-                )}
 
                 {/* Cost Summary - Admin/Manager only */}
                 {hasFinancialAccess(role) && <JobCostSummary job={selectedJob} />}
