@@ -233,7 +233,7 @@ export default function Financials() {
         revenue: data.revenue,
         cost: data.cost,
         profit: data.revenue - data.cost,
-        count: data.count,
+        count: Math.round(data.count * 10) / 10,
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
