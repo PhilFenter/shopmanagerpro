@@ -331,7 +331,7 @@ serve(async (req) => {
         if (!params.styleNumber) throw new Error("styleNumber required");
         const styleUpper = params.styleNumber.toUpperCase().trim();
 
-        // 1. Get product info (includes pricing, colors, images)
+        // 1. Get product info (includes description, colors, images)
         let items: any[] = [];
         try {
           const infoXml = await soapPost(
@@ -346,38 +346,70 @@ serve(async (req) => {
           console.log("ProductInfo failed, falling back to pricing:", e);
         }
 
-        // 2. If no product info items, fall back to pricing endpoint
-        if (items.length === 0) {
+        // 2. ALWAYS get account-specific pricing (myPrice = your wholesale cost)
+        // Map by color → lowest myPrice (base S-XL tier) for accurate COGS
+        const wholesaleByColor = new Map<string, { myPrice: number; casePrice: number }>();
+        try {
           const pricingXml = await soapPost(
             ENDPOINTS.pricing,
             buildPricingRequest(sanmarUser, sanmarPass, sanmarCustNum || sanmarUser, styleUpper)
           );
-          const errorOccurred = extractTag(pricingXml, "errorOccured") || extractTag(pricingXml, "errorOccurred");
-          if (errorOccurred === "true") {
-            throw new Error(`SanMar pricing error: ${extractTag(pricingXml, "message")}`);
+          const pricingError = extractTag(pricingXml, "errorOccured") || extractTag(pricingXml, "errorOccurred");
+          if (pricingError !== "true") {
+            const pricingBlocks = extractBlocks(pricingXml, "listResponse");
+            for (const block of pricingBlocks) {
+              const color = extractTag(block, "color");
+              const myPrice = parseFloat(extractTag(block, "myPrice")) || 0;
+              const caseP = parseFloat(extractTag(block, "casePrice")) || 0;
+              if (myPrice > 0) {
+                const existing = wholesaleByColor.get(color);
+                if (!existing || myPrice < existing.myPrice) {
+                  wholesaleByColor.set(color, { myPrice, casePrice: caseP });
+                }
+              }
+            }
+            console.log(`Got wholesale prices for ${wholesaleByColor.size} colors of ${styleUpper}`);
           }
-          const syncBlocks = extractBlocks(pricingXml, "listResponse");
-          items = syncBlocks.map(block => ({
-            style: extractTag(block, "style") || styleUpper,
-            color: extractTag(block, "color"),
-            size: extractTag(block, "size"),
-            brandName: "",
-            productTitle: "",
-            category: "",
-            piecePrice: parseFloat(extractTag(block, "piecePrice")) || 0,
-            casePrice: parseFloat(extractTag(block, "casePrice")) || 0,
-            priceCode: "",
-          }));
+        } catch (e) {
+          console.log("Pricing endpoint failed:", e);
         }
 
-        // 3. Group by style+color, aggregate sizes
+        // 3. If no product info items, build from pricing data
+        if (items.length === 0) {
+          for (const [color, prices] of wholesaleByColor) {
+            items.push({
+              style: styleUpper,
+              color,
+              size: "",
+              brandName: "",
+              productTitle: "",
+              category: "",
+              piecePrice: prices.myPrice || 0,
+              casePrice: prices.casePrice || 0,
+              priceCode: "",
+            });
+          }
+        } else {
+          // Overlay wholesale prices onto product info items by color
+          // Try full color name first, then abbreviated catalogColor
+          for (const item of items) {
+            const wholesale = wholesaleByColor.get(item.color || "") 
+              || wholesaleByColor.get(item.catalogColor || "")
+              || null;
+            if (wholesale) {
+              item.piecePrice = wholesale.myPrice;
+              item.casePrice = wholesale.casePrice;
+            }
+          }
+        }
+
+        // 4. Group by style+color, aggregate sizes
         const catalogMap = new Map<string, any>();
         let brandName = "";
         let title = "";
 
         for (const item of items) {
           const style = (item.style || styleUpper).toUpperCase().trim();
-          // Use full color name (e.g. "Athletic Heather") not abbreviated catalogColor ("Athletic Hthr")
           const color = item.color || item.catalogColor || "";
           const size = item.size || "";
           const key = `${style}|${color}`;
@@ -399,12 +431,13 @@ serve(async (req) => {
               sizes: [] as string[],
             });
           } else {
-            // Keep highest price (for larger sizes)
+            // Keep LOWEST price (base S-XL tier) for accurate COGS
+            // The upcharge for 2XL+ is stored via msrp if needed
             const existing = catalogMap.get(key)!;
-            if (item.piecePrice > existing.piece_price) {
+            if (item.piecePrice > 0 && (existing.piece_price === 0 || item.piecePrice < existing.piece_price)) {
               existing.piece_price = item.piecePrice;
             }
-            if (item.casePrice > existing.case_price) {
+            if (item.casePrice > 0 && (existing.case_price === 0 || item.casePrice < existing.case_price)) {
               existing.case_price = item.casePrice;
             }
           }
