@@ -69,13 +69,12 @@ export default function Financials() {
     queryKey: ['financials-time-entries', jobIds],
     queryFn: async () => {
       if (jobIds.length === 0) return [];
-      // Query in batches of 100 to avoid URL length limits
       const allEntries: any[] = [];
       for (let i = 0; i < jobIds.length; i += 100) {
         const batch = jobIds.slice(i, i + 100);
         const { data, error } = await supabase
           .from('time_entries')
-          .select('job_id, duration, worker_id')
+          .select('job_id, duration, worker_id, line_item_id')
           .in('job_id', batch);
         if (error) throw error;
         if (data) allEntries.push(...data);
@@ -83,6 +82,27 @@ export default function Financials() {
       return allEntries;
     },
     enabled: jobIds.length > 0,
+  });
+
+  // Fetch line items for Mixed jobs to split revenue/cost by actual service type
+  const mixedJobIds = periodJobs.filter(j => j.service_type === 'mixed').map(j => j.id);
+  const { data: mixedLineItems = [] } = useQuery({
+    queryKey: ['financials-mixed-line-items', mixedJobIds],
+    queryFn: async () => {
+      if (mixedJobIds.length === 0) return [];
+      const allItems: any[] = [];
+      for (let i = 0; i < mixedJobIds.length; i += 100) {
+        const batch = mixedJobIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('job_line_items')
+          .select('id, job_id, service_type, sale_price, material_cost')
+          .in('job_id', batch);
+        if (error) throw error;
+        if (data) allItems.push(...data);
+      }
+      return allItems;
+    },
+    enabled: mixedJobIds.length > 0,
   });
 
   // Fetch workers for rate lookup
