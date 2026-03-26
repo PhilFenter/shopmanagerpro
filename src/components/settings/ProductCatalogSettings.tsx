@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProductCatalog, CatalogItem } from '@/hooks/useProductCatalog';
-import { Upload, Search, Package, Loader2, Database, RefreshCw } from 'lucide-react';
+import { Upload, Search, Package, Loader2, Database, RefreshCw, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 function parsePrice(value: any): number {
   if (typeof value === 'number') return value;
