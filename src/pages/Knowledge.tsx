@@ -22,6 +22,8 @@ import {
 } from '@/hooks/useKnowledge';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { cn } from '@/lib/utils';
+import { AIGenerateDialog } from '@/components/knowledge/AIGenerateDialog';
+import { Sparkles } from 'lucide-react';
 
 // ─── SOP Editor Dialog ───
 function SOPEditorDialog({
