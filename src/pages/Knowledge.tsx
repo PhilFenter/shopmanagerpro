@@ -45,6 +45,7 @@ function SOPEditorDialog({
   const [status, setStatus] = useState(sop?.status ?? 'draft');
   const [localSteps, setLocalSteps] = useState<Partial<SopStep>[]>([]);
   const [saving, setSaving] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const isEditing = !!sop;
 
@@ -130,10 +131,39 @@ function SOPEditorDialog({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label className="text-base font-semibold">Steps</Label>
-              <Button size="sm" variant="outline" onClick={addStep}>
-                <Plus className="h-4 w-4 mr-1" /> Add Step
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
+                  <Sparkles className="h-4 w-4 mr-1" /> AI Generate
+                </Button>
+                <Button size="sm" variant="outline" onClick={addStep}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Step
+                </Button>
+              </div>
             </div>
+
+            <AIGenerateDialog
+              open={aiOpen}
+              onOpenChange={setAiOpen}
+              type="sop"
+              department={department}
+              category={category}
+              onGenerated={(result) => {
+                if (result.title && !title) setTitle(result.title);
+                if (result.description && !description) setDescription(result.description);
+                if (result.steps?.length) {
+                  const newSteps = result.steps.map((s: any, i: number) => ({
+                    title: s.title,
+                    content: s.content,
+                    tip: s.tip || '',
+                    warning: s.warning || '',
+                    sort_order: (isEditing ? steps.length : 0) + localSteps.length + i,
+                    image_url: '',
+                    video_url: '',
+                  }));
+                  setLocalSteps(prev => [...prev, ...newSteps]);
+                }
+              }}
+            />
 
             {isEditing && steps.map((step, i) => (
               <StepEditor key={step.id} step={step} index={i} onSave={(s) => upsertStep.mutateAsync({ ...s, sop_id: sop.id })} onDelete={() => deleteStep.mutateAsync(step.id)} />
