@@ -120,10 +120,32 @@ export function useJobs() {
         .single();
       
       if (error) throw error;
+
+      // Auto-attach checklist templates matching this service type
+      const departments = SERVICE_DEPT_MAP[input.service_type] ?? [];
+      if (departments.length > 0) {
+        const { data: templates } = await supabase
+          .from('checklist_templates')
+          .select('id, title, items')
+          .in('department', departments);
+
+        if (templates && templates.length > 0) {
+          const instances = templates.map(t => ({
+            job_id: data.id,
+            template_id: t.id,
+            title: t.title,
+            items: (Array.isArray(t.items) ? t.items : []).map((it: any) => ({ ...it, done: false })),
+            status: 'in_progress',
+          }));
+          await supabase.from('checklist_instances').insert(instances as any);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['checklist-instances'] });
       toast({ title: 'Job created' });
     },
     onError: (error) => {
