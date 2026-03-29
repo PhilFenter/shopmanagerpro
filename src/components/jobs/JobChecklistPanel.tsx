@@ -7,7 +7,9 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ClipboardList, Plus, ChevronDown, CheckCircle2, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { ClipboardList, Plus, ChevronDown, CheckCircle2, Trash2, ArrowUp, ArrowDown, PlusCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { ServiceType } from '@/hooks/useJobs';
 
 // Map service types to departments for auto-suggest
@@ -41,6 +43,41 @@ export function JobChecklistPanel({ jobId, serviceType }: JobChecklistPanelProps
       completed_at: allDone ? new Date().toISOString() : null,
     });
   };
+
+  const handleMoveItem = (checklist: typeof checklists[0], idx: number, dir: -1 | 1) => {
+    const to = idx + dir;
+    if (to < 0 || to >= checklist.items.length) return;
+    const next = [...checklist.items];
+    [next[idx], next[to]] = [next[to], next[idx]];
+    updateChecklist.mutate({ id: checklist.id, items: next });
+  };
+
+  const handleInsertItem = (checklist: typeof checklists[0], afterIdx: number) => {
+    const next = [...checklist.items];
+    next.splice(afterIdx + 1, 0, { text: '', required: false, done: false });
+    updateChecklist.mutate({ id: checklist.id, items: next });
+    setEditingItem({ checklistId: checklist.id, idx: afterIdx + 1 });
+  };
+
+  const handleUpdateItemText = (checklist: typeof checklists[0], idx: number, text: string) => {
+    const next = checklist.items.map((it, i) => i === idx ? { ...it, text } : it);
+    updateChecklist.mutate({ id: checklist.id, items: next });
+    setEditingItem(null);
+  };
+
+  const handleDeleteItem = (checklist: typeof checklists[0], idx: number) => {
+    const next = checklist.items.filter((_, i) => i !== idx);
+    const allDone = next.length > 0 && next.every(it => it.done);
+    updateChecklist.mutate({
+      id: checklist.id,
+      items: next,
+      status: allDone ? 'completed' : 'in_progress',
+      completed_at: allDone ? new Date().toISOString() : null,
+    });
+  };
+
+  const [editingItem, setEditingItem] = useState<{ checklistId: string; idx: number } | null>(null);
+  const [editText, setEditText] = useState('');
 
   const handleAttach = (template: { id: string; title: string; items: { text: string; required: boolean }[] }) => {
     attachChecklist.mutate({
@@ -103,22 +140,76 @@ export function JobChecklistPanel({ jobId, serviceType }: JobChecklistPanelProps
                     <div className="px-3 pb-3 space-y-2">
                       <Progress value={pct} className="h-1.5" />
                       <div className="space-y-1.5">
-                        {cl.items.map((item, idx) => (
-                          <label
-                            key={idx}
-                            className="flex items-start gap-2 cursor-pointer group"
-                          >
-                            <Checkbox
-                              checked={item.done}
-                              onCheckedChange={() => handleToggleItem(cl, idx)}
-                              className="mt-0.5"
-                            />
-                            <span className={`text-sm ${item.done ? 'line-through text-muted-foreground' : ''}`}>
-                              {item.text}
-                              {item.required && <span className="text-destructive ml-1">*</span>}
-                            </span>
-                          </label>
-                        ))}
+                        <TooltipProvider delayDuration={200}>
+                        {cl.items.map((item, idx) => {
+                          const isEditing = editingItem?.checklistId === cl.id && editingItem?.idx === idx;
+                          return (
+                            <div key={idx} className="flex items-center gap-1 group">
+                              <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-4 w-4" disabled={idx === 0} onClick={() => handleMoveItem(cl, idx, -1)}>
+                                      <ArrowUp className="h-2.5 w-2.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left">Move up</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-4 w-4" disabled={idx === cl.items.length - 1} onClick={() => handleMoveItem(cl, idx, 1)}>
+                                      <ArrowDown className="h-2.5 w-2.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left">Move down</TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <Checkbox
+                                checked={item.done}
+                                onCheckedChange={() => handleToggleItem(cl, idx)}
+                                className="mt-0.5"
+                              />
+                              {isEditing ? (
+                                <Input
+                                  autoFocus
+                                  className="flex-1 h-7 text-sm"
+                                  defaultValue={item.text}
+                                  onBlur={e => handleUpdateItemText(cl, idx, e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') handleUpdateItemText(cl, idx, (e.target as HTMLInputElement).value);
+                                    if (e.key === 'Escape') setEditingItem(null);
+                                  }}
+                                />
+                              ) : (
+                                <span
+                                  className={`text-sm flex-1 cursor-text ${item.done ? 'line-through text-muted-foreground' : ''}`}
+                                  onClick={() => { setEditingItem({ checklistId: cl.id, idx }); setEditText(item.text); }}
+                                >
+                                  {item.text || <span className="text-muted-foreground italic">Empty item</span>}
+                                  {item.required && <span className="text-destructive ml-1">*</span>}
+                                </span>
+                              )}
+                              <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleInsertItem(cl, idx)}>
+                                      <PlusCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Insert below</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleDeleteItem(cl, idx)}>
+                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Remove item</TooltipContent>
+                                </Tooltip>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        </TooltipProvider>
                       </div>
                       <Button
                         variant="ghost"
