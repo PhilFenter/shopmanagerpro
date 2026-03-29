@@ -6,6 +6,15 @@ import { useToast } from './use-toast';
 import type { JobStage } from './useJobStages';
 
 export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'laser_engraving' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'mixed' | 'other';
+
+// Map service types to checklist template departments for auto-attach
+const SERVICE_DEPT_MAP: Record<string, string[]> = {
+  embroidery: ['Embroidery'],
+  screen_print: ['Screen Print'],
+  dtf: ['DTF'],
+  leather_patch: ['Leather'],
+  laser_engraving: ['Leather'],
+};
 export type JobStatus = 'pending' | 'in_progress' | 'completed' | 'on_hold';
 
 // Helper to check if user has financial access
