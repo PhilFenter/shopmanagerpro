@@ -22,6 +22,8 @@ import {
 } from '@/hooks/useKnowledge';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { cn } from '@/lib/utils';
+import { AIGenerateDialog } from '@/components/knowledge/AIGenerateDialog';
+import { Sparkles } from 'lucide-react';
 
 // ─── SOP Editor Dialog ───
 function SOPEditorDialog({
@@ -43,6 +45,7 @@ function SOPEditorDialog({
   const [status, setStatus] = useState(sop?.status ?? 'draft');
   const [localSteps, setLocalSteps] = useState<Partial<SopStep>[]>([]);
   const [saving, setSaving] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const isEditing = !!sop;
 
@@ -128,10 +131,39 @@ function SOPEditorDialog({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label className="text-base font-semibold">Steps</Label>
-              <Button size="sm" variant="outline" onClick={addStep}>
-                <Plus className="h-4 w-4 mr-1" /> Add Step
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
+                  <Sparkles className="h-4 w-4 mr-1" /> AI Generate
+                </Button>
+                <Button size="sm" variant="outline" onClick={addStep}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Step
+                </Button>
+              </div>
             </div>
+
+            <AIGenerateDialog
+              open={aiOpen}
+              onOpenChange={setAiOpen}
+              type="sop"
+              department={department}
+              category={category}
+              onGenerated={(result) => {
+                if (result.title && !title) setTitle(result.title);
+                if (result.description && !description) setDescription(result.description);
+                if (result.steps?.length) {
+                  const newSteps = result.steps.map((s: any, i: number) => ({
+                    title: s.title,
+                    content: s.content,
+                    tip: s.tip || '',
+                    warning: s.warning || '',
+                    sort_order: (isEditing ? steps.length : 0) + localSteps.length + i,
+                    image_url: '',
+                    video_url: '',
+                  }));
+                  setLocalSteps(prev => [...prev, ...newSteps]);
+                }
+              }}
+            />
 
             {isEditing && steps.map((step, i) => (
               <StepEditor key={step.id} step={step} index={i} onSave={(s) => upsertStep.mutateAsync({ ...s, sop_id: sop.id })} onDelete={() => deleteStep.mutateAsync(step.id)} />
@@ -383,6 +415,7 @@ function ChecklistEditorDialog({
   const [sopId, setSopId] = useState(template?.sop_id ?? 'none');
   const [items, setItems] = useState<{ text: string; required: boolean }[]>(template?.items ?? []);
   const [saving, setSaving] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const addItem = () => setItems(prev => [...prev, { text: '', required: false }]);
 
@@ -449,8 +482,28 @@ function ChecklistEditorDialog({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label className="text-base font-semibold">Items</Label>
-              <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
+                  <Sparkles className="h-4 w-4 mr-1" /> AI Generate
+                </Button>
+                <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
+              </div>
             </div>
+
+            <AIGenerateDialog
+              open={aiOpen}
+              onOpenChange={setAiOpen}
+              type="checklist"
+              department={department}
+              category={category}
+              onGenerated={(result) => {
+                if (result.title && !title) setTitle(result.title);
+                if (result.description && !description) setDescription(result.description);
+                if (result.items?.length) {
+                  setItems(prev => [...prev, ...result.items]);
+                }
+              }}
+            />
             {items.map((item, i) => (
               <div key={i} className="flex items-center gap-2 mb-2">
                 <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
