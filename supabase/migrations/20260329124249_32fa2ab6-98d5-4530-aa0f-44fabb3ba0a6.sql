@@ -1,0 +1,6 @@
+
+-- Delete old DTF SOP steps
+DELETE FROM sop_steps WHERE sop_id IN ('b3955140-99c5-4da9-95ae-34508ab82e06','0920f07c-d034-4302-98ad-f8bf3e7548e8','59d973c0-b253-4bde-8a73-494968d9d051');
+
+-- Delete old DTF SOPs
+DELETE FROM sops WHERE id IN ('b3955140-99c5-4da9-95ae-34508ab82e06','0920f07c-d034-4302-98ad-f8bf3e7548e8','59d973c0-b253-4bde-8a73-494968d9d051');
