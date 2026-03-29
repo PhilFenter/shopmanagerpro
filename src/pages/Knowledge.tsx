@@ -482,8 +482,28 @@ function ChecklistEditorDialog({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label className="text-base font-semibold">Items</Label>
-              <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
+                  <Sparkles className="h-4 w-4 mr-1" /> AI Generate
+                </Button>
+                <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
+              </div>
             </div>
+
+            <AIGenerateDialog
+              open={aiOpen}
+              onOpenChange={setAiOpen}
+              type="checklist"
+              department={department}
+              category={category}
+              onGenerated={(result) => {
+                if (result.title && !title) setTitle(result.title);
+                if (result.description && !description) setDescription(result.description);
+                if (result.items?.length) {
+                  setItems(prev => [...prev, ...result.items]);
+                }
+              }}
+            />
             {items.map((item, i) => (
               <div key={i} className="flex items-center gap-2 mb-2">
                 <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
