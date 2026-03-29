@@ -415,6 +415,7 @@ function ChecklistEditorDialog({
   const [sopId, setSopId] = useState(template?.sop_id ?? 'none');
   const [items, setItems] = useState<{ text: string; required: boolean }[]>(template?.items ?? []);
   const [saving, setSaving] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const addItem = () => setItems(prev => [...prev, { text: '', required: false }]);
 
