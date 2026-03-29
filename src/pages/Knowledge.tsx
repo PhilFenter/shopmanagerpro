@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
   FileText, Trash2, Edit, Eye, ChevronRight, AlertTriangle, Lightbulb,
   Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
+  ArrowUp, ArrowDown, PlusCircle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -418,6 +420,16 @@ function ChecklistEditorDialog({
   const [aiOpen, setAiOpen] = useState(false);
 
   const addItem = () => setItems(prev => [...prev, { text: '', required: false }]);
+  const insertItemAt = (idx: number) => setItems(prev => [...prev.slice(0, idx + 1), { text: '', required: false }, ...prev.slice(idx + 1)]);
+  const moveItem = (from: number, dir: -1 | 1) => {
+    setItems(prev => {
+      const to = from + dir;
+      if (to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[from], next[to]] = [next[to], next[from]];
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     if (!title.trim()) return;
@@ -504,23 +516,53 @@ function ChecklistEditorDialog({
                 }
               }}
             />
+            <TooltipProvider delayDuration={200}>
             {items.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
-                <Input
-                  className="flex-1"
-                  value={item.text}
-                  onChange={e => setItems(prev => prev.map((p, j) => j === i ? { ...p, text: e.target.value } : p))}
-                  placeholder="Checklist item..."
-                />
-                <Button
-                  size="sm" variant="ghost"
-                  onClick={() => setItems(prev => prev.filter((_, j) => j !== i))}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+              <div key={i} className="group">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
+                  <div className="flex flex-col">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-5 w-5" disabled={i === 0} onClick={() => moveItem(i, -1)}>
+                          <ArrowUp className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">Move up</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-5 w-5" disabled={i === items.length - 1} onClick={() => moveItem(i, 1)}>
+                          <ArrowDown className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">Move down</TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    className="flex-1"
+                    value={item.text}
+                    onChange={e => setItems(prev => prev.map((p, j) => j === i ? { ...p, text: e.target.value } : p))}
+                    placeholder="Checklist item..."
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => insertItemAt(i)}>
+                        <PlusCircle className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Insert item below</TooltipContent>
+                  </Tooltip>
+                  <Button
+                    size="sm" variant="ghost"
+                    onClick={() => setItems(prev => prev.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             ))}
+            </TooltipProvider>
             {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">No items yet.</p>}
           </div>
 
