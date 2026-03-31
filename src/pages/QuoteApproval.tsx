@@ -351,7 +351,7 @@ export default function QuoteApproval() {
                   )}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  By approving, you authorize Hat Creek Designs to begin work on this order.
+                  By approving, you authorize Hell's Canyon Designs to begin work on this order.
                 </p>
               </div>
             )}
