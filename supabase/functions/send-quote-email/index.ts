@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         <!-- Header -->
         <tr>
           <td style="background: linear-gradient(135deg, #0284c7, #0369a1); padding: 32px 40px; text-align: center;">
-            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Hat Creek Designs</h1>
+            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Hell's Canyon Designs</h1>
             <p style="margin: 8px 0 0; color: #bae6fd; font-size: 14px;">Quote ${quote.quote_number || ""}</p>
           </td>
         </tr>
