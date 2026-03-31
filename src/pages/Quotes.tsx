@@ -246,13 +246,29 @@ export default function Quotes() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <button
-                            onClick={() => deleteQuote(q.id, q.quote_number)}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                            title="Delete quote"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {q.customer_email && !q.converted_job_id && q.status !== 'approved' && q.status !== 'paid' && (
+                              <button
+                                onClick={() => sendQuoteEmail(q.id, q.quote_number, q.customer_email)}
+                                className="text-primary hover:text-primary/80 transition-colors"
+                                title="Send quote email"
+                                disabled={sendingQuoteId === q.id}
+                              >
+                                {sendingQuoteId === q.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteQuote(q.id, q.quote_number)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              title="Delete quote"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
