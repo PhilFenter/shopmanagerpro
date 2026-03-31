@@ -21,6 +21,31 @@ export default function Quotes() {
   const stats = useQuoteStats(quotes);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null);
+
+  const sendQuoteEmail = async (quoteId: string, quoteNumber: string | null, customerEmail: string | null) => {
+    if (!customerEmail) {
+      toast.error('No email address on this quote');
+      return;
+    }
+    if (!confirm(`Send quote ${quoteNumber || quoteId.slice(0, 8)} to ${customerEmail}?`)) return;
+    setSendingQuoteId(quoteId);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-quote-email', {
+        body: { quoteId },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || error?.message || 'Failed to send');
+      } else {
+        toast.success(`Quote sent to ${customerEmail}`);
+        queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send');
+    } finally {
+      setSendingQuoteId(null);
+    }
+  };
 
   const toggleFollowUp = async (quoteId: string, enabled: boolean) => {
     const { error } = await supabase
