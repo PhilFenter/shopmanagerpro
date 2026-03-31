@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
 
     const { data: quote, error } = await supabase
       .from("quotes")
-      .select("id, quote_number, customer_name, company, customer_email, status, total_price, notes, requested_date, approved_at, converted_job_id, apply_sales_tax, tax_rate, is_nonprofit, delivery_method, payment_terms, quote_line_items(id, service_type, description, style_number, quantity, color, placement, line_total, sizes, sort_order, image_url)")
+      .select("id, quote_number, customer_name, company, customer_email, customer_phone, status, total_price, notes, requested_date, approved_at, converted_job_id, apply_sales_tax, tax_rate, is_nonprofit, delivery_method, payment_terms, address_line1, address_line2, city, state, zip, created_at, quote_line_items(id, service_type, description, style_number, quantity, color, placement, line_total, sizes, sort_order, image_url)")
       .eq("approval_token", token)
       .single();
 
