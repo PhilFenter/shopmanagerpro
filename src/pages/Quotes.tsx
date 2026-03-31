@@ -242,7 +242,7 @@ export default function Quotes() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center" onClick={e => e.stopPropagation()}>
                           {!q.converted_job_id && q.status !== 'paid' && q.status !== 'approved' ? (
                             <Switch
                               checked={(q as any).follow_up_enabled ?? false}
