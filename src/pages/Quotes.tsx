@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 
 export default function Quotes() {
   const { data: quotes, isLoading } = useQuotes();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const stats = useQuoteStats(quotes);
   const [search, setSearch] = useState('');
