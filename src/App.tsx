@@ -227,6 +227,7 @@ function App() {
                   }
                 />
                 <Route path="/install" element={<Install />} />
+                <Route path="/quote/approve/:token" element={<QuoteApproval />} />
                 <Route
                   path="/knowledge"
                   element={
