@@ -253,7 +253,7 @@ export default function Quotes() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
                             {q.customer_email && !q.converted_job_id && q.status !== 'approved' && q.status !== 'paid' && (
                               <button
