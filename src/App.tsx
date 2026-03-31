@@ -29,6 +29,7 @@ const Inventory = lazy(() => import("./pages/Inventory"));
 const Quotes = lazy(() => import("./pages/Quotes"));
 const Knowledge = lazy(() => import("./pages/Knowledge"));
 const QuoteApproval = lazy(() => import("./pages/QuoteApproval"));
+const QuoteDetail = lazy(() => import("./pages/QuoteDetail"));
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
