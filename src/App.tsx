@@ -28,6 +28,7 @@ const ArtworkLibrary = lazy(() => import("./pages/ArtworkLibrary"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const Quotes = lazy(() => import("./pages/Quotes"));
 const Knowledge = lazy(() => import("./pages/Knowledge"));
+const QuoteApproval = lazy(() => import("./pages/QuoteApproval"));
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
@@ -226,6 +227,7 @@ function App() {
                   }
                 />
                 <Route path="/install" element={<Install />} />
+                <Route path="/quote/approve/:token" element={<QuoteApproval />} />
                 <Route
                   path="/knowledge"
                   element={

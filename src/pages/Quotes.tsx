@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink, Trash2 } from 'lucide-react';
+import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink, Trash2, Mail, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SERVICE_LABELS } from '@/lib/constants';
@@ -21,6 +21,31 @@ export default function Quotes() {
   const stats = useQuoteStats(quotes);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null);
+
+  const sendQuoteEmail = async (quoteId: string, quoteNumber: string | null, customerEmail: string | null) => {
+    if (!customerEmail) {
+      toast.error('No email address on this quote');
+      return;
+    }
+    if (!confirm(`Send quote ${quoteNumber || quoteId.slice(0, 8)} to ${customerEmail}?`)) return;
+    setSendingQuoteId(quoteId);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-quote-email', {
+        body: { quoteId },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || error?.message || 'Failed to send');
+      } else {
+        toast.success(`Quote sent to ${customerEmail}`);
+        queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send');
+    } finally {
+      setSendingQuoteId(null);
+    }
+  };
 
   const toggleFollowUp = async (quoteId: string, enabled: boolean) => {
     const { error } = await supabase
@@ -144,7 +169,7 @@ export default function Quotes() {
                     <TableHead>Printavo</TableHead>
                     <TableHead>Follow-Up</TableHead>
                     <TableHead className="text-center">Auto F/U</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -221,13 +246,29 @@ export default function Quotes() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <button
-                            onClick={() => deleteQuote(q.id, q.quote_number)}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                            title="Delete quote"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {q.customer_email && !q.converted_job_id && q.status !== 'approved' && q.status !== 'paid' && (
+                              <button
+                                onClick={() => sendQuoteEmail(q.id, q.quote_number, q.customer_email)}
+                                className="text-primary hover:text-primary/80 transition-colors"
+                                title="Send quote email"
+                                disabled={sendingQuoteId === q.id}
+                              >
+                                {sendingQuoteId === q.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteQuote(q.id, q.quote_number)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              title="Delete quote"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
