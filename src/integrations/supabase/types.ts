@@ -1357,6 +1357,8 @@ export type Database = {
           address_line1: string | null
           address_line2: string | null
           apply_sales_tax: boolean
+          approval_token: string | null
+          approved_at: string | null
           city: string | null
           company: string | null
           converted_job_id: string | null
@@ -1385,6 +1387,8 @@ export type Database = {
           shipping_address: string | null
           state: string | null
           status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
           tax_rate: number
           total_price: number | null
           updated_at: string
@@ -1394,6 +1398,8 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           apply_sales_tax?: boolean
+          approval_token?: string | null
+          approved_at?: string | null
           city?: string | null
           company?: string | null
           converted_job_id?: string | null
@@ -1422,6 +1428,8 @@ export type Database = {
           shipping_address?: string | null
           state?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           tax_rate?: number
           total_price?: number | null
           updated_at?: string
@@ -1431,6 +1439,8 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           apply_sales_tax?: boolean
+          approval_token?: string | null
+          approved_at?: string | null
           city?: string | null
           company?: string | null
           converted_job_id?: string | null
@@ -1459,6 +1469,8 @@ export type Database = {
           shipping_address?: string | null
           state?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           tax_rate?: number
           total_price?: number | null
           updated_at?: string
