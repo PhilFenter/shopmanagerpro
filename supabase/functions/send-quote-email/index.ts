@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         <!-- Header -->
         <tr>
           <td style="background: linear-gradient(135deg, #0284c7, #0369a1); padding: 32px 40px; text-align: center;">
-            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Hat Creek Designs</h1>
+            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Hell's Canyon Designs</h1>
             <p style="margin: 8px 0 0; color: #bae6fd; font-size: 14px;">Quote ${quote.quote_number || ""}</p>
           </td>
         </tr>
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         <tr>
           <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
             <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.5;">
-              Hat Creek Designs · Custom Apparel &amp; Embroidery<br>
+              Hell's Canyon Designs · Custom Apparel &amp; Embroidery<br>
               Questions? Reply to this email or call us.
             </p>
           </td>
@@ -185,9 +185,9 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Hat Creek Designs <quotes@hatcreekdesigns.com>",
+        from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
         to: [quote.customer_email],
-        subject: `Quote ${quote.quote_number || ""} — $${grandTotal.toFixed(2)} | Hat Creek Designs`,
+        subject: `Quote ${quote.quote_number || ""} — $${grandTotal.toFixed(2)} | Hell's Canyon Designs`,
         html: emailHtml,
       }),
     });

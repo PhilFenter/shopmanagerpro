@@ -171,7 +171,7 @@ export default function QuoteApproval() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-sky-700 tracking-tight">Hat Creek Designs</h1>
+          <h1 className="text-3xl font-bold text-sky-700 tracking-tight">Hell's Canyon Designs</h1>
           <p className="text-sm text-muted-foreground">Custom Apparel & Embroidery</p>
         </div>
 
@@ -351,7 +351,7 @@ export default function QuoteApproval() {
                   )}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  By approving, you authorize Hat Creek Designs to begin work on this order.
+                  By approving, you authorize Hell's Canyon Designs to begin work on this order.
                 </p>
               </div>
             )}
@@ -360,7 +360,7 @@ export default function QuoteApproval() {
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground pb-8">
-          <p>Hat Creek Designs · Custom Apparel & Embroidery</p>
+          <p>Hell's Canyon Designs · Custom Apparel & Embroidery</p>
           <p className="mt-1">Questions? Email us or give us a call.</p>
         </div>
       </div>
