@@ -171,7 +171,7 @@ export default function QuoteApproval() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-sky-700 tracking-tight">Hat Creek Designs</h1>
+          <h1 className="text-3xl font-bold text-sky-700 tracking-tight">Hell's Canyon Designs</h1>
           <p className="text-sm text-muted-foreground">Custom Apparel & Embroidery</p>
         </div>
 
