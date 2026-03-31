@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuotes, useQuoteStats, QUOTE_STATUS_CONFIG, type Quote } from '@/hooks/useQuotes';
 import { QuoteFollowUp } from '@/components/integrations/QuoteFollowUp';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink, Trash2, Mail, Loader2 } from 'lucide-react';
+import { FileText, Search, DollarSign, TrendingUp, Clock, CheckCircle, Send, AlertTriangle, ExternalLink, Trash2, Mail, Loader2, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SERVICE_LABELS } from '@/lib/constants';
@@ -17,6 +19,7 @@ import { toast } from 'sonner';
 
 export default function Quotes() {
   const { data: quotes, isLoading } = useQuotes();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const stats = useQuoteStats(quotes);
   const [search, setSearch] = useState('');
@@ -97,12 +100,17 @@ export default function Quotes() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          Quotes
-        </h1>
-        <p className="text-muted-foreground">Track, manage, and follow up on all quotes</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <FileText className="h-6 w-6" />
+            Quotes
+          </h1>
+          <p className="text-muted-foreground">Track, manage, and follow up on all quotes</p>
+        </div>
+        <Button onClick={() => navigate('/quotes/new')}>
+          <Plus className="h-4 w-4" /> New Quote
+        </Button>
       </div>
 
       {/* Stats Bar */}
@@ -177,7 +185,7 @@ export default function Quotes() {
                     const status = getDisplayStatus(q);
                     const config = QUOTE_STATUS_CONFIG[status] || QUOTE_STATUS_CONFIG.draft;
                     return (
-                      <TableRow key={q.id}>
+                      <TableRow key={q.id} className="cursor-pointer" onClick={() => navigate(`/quotes/${q.id}`)}>
                         <TableCell className="font-medium">{q.quote_number || q.id.slice(0, 8)}</TableCell>
                         <TableCell>
                           <div>
@@ -234,7 +242,7 @@ export default function Quotes() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center" onClick={e => e.stopPropagation()}>
                           {!q.converted_job_id && q.status !== 'paid' && q.status !== 'approved' ? (
                             <Switch
                               checked={(q as any).follow_up_enabled ?? false}
@@ -245,7 +253,7 @@ export default function Quotes() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
                             {q.customer_email && !q.converted_job_id && q.status !== 'approved' && q.status !== 'paid' && (
                               <button
