@@ -185,7 +185,7 @@ export default function Quotes() {
                     const status = getDisplayStatus(q);
                     const config = QUOTE_STATUS_CONFIG[status] || QUOTE_STATUS_CONFIG.draft;
                     return (
-                      <TableRow key={q.id}>
+                      <TableRow key={q.id} className="cursor-pointer" onClick={() => navigate(`/quotes/${q.id}`)}>
                         <TableCell className="font-medium">{q.quote_number || q.id.slice(0, 8)}</TableCell>
                         <TableCell>
                           <div>
