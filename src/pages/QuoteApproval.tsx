@@ -360,7 +360,7 @@ export default function QuoteApproval() {
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground pb-8">
-          <p>Hat Creek Designs · Custom Apparel & Embroidery</p>
+          <p>Hell's Canyon Designs · Custom Apparel & Embroidery</p>
           <p className="mt-1">Questions? Email us or give us a call.</p>
         </div>
       </div>

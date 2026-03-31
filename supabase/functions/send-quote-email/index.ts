@@ -185,9 +185,9 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Hat Creek Designs <quotes@hatcreekdesigns.com>",
+        from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
         to: [quote.customer_email],
-        subject: `Quote ${quote.quote_number || ""} — $${grandTotal.toFixed(2)} | Hat Creek Designs`,
+        subject: `Quote ${quote.quote_number || ""} — $${grandTotal.toFixed(2)} | Hell's Canyon Designs`,
         html: emailHtml,
       }),
     });
