@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         <tr>
           <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
             <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.5;">
-              Hat Creek Designs · Custom Apparel &amp; Embroidery<br>
+              Hell's Canyon Designs · Custom Apparel &amp; Embroidery<br>
               Questions? Reply to this email or call us.
             </p>
           </td>
