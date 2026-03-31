@@ -99,12 +99,17 @@ export default function Quotes() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          Quotes
-        </h1>
-        <p className="text-muted-foreground">Track, manage, and follow up on all quotes</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <FileText className="h-6 w-6" />
+            Quotes
+          </h1>
+          <p className="text-muted-foreground">Track, manage, and follow up on all quotes</p>
+        </div>
+        <Button onClick={() => navigate('/quotes/new')}>
+          <Plus className="h-4 w-4" /> New Quote
+        </Button>
       </div>
 
       {/* Stats Bar */}
