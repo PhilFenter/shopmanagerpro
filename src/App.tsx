@@ -227,6 +227,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/quotes/:id"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <QuoteDetail />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/install" element={<Install />} />
                 <Route path="/quote/approve/:token" element={<QuoteApproval />} />
                 <Route

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuotes, useQuoteStats, QUOTE_STATUS_CONFIG, type Quote } from '@/hooks/useQuotes';
 import { QuoteFollowUp } from '@/components/integrations/QuoteFollowUp';
 import { Card, CardContent } from '@/components/ui/card';
