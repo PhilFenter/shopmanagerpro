@@ -1278,6 +1278,60 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_imprints: {
+        Row: {
+          column_value: string | null
+          created_at: string
+          decoration_type: string
+          description: string | null
+          id: string
+          matrix_id: string | null
+          placement: string | null
+          quote_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          column_value?: string | null
+          created_at?: string
+          decoration_type?: string
+          description?: string | null
+          id?: string
+          matrix_id?: string | null
+          placement?: string | null
+          quote_id: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          column_value?: string | null
+          created_at?: string
+          decoration_type?: string
+          description?: string | null
+          id?: string
+          matrix_id?: string | null
+          placement?: string | null
+          quote_id?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_imprints_matrix_id_fkey"
+            columns: ["matrix_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_matrices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_imprints_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_line_items: {
         Row: {
           color: string | null
@@ -1289,12 +1343,14 @@ export type Database = {
           garment_markup_pct: number | null
           id: string
           image_url: string | null
+          imprint_id: string | null
           line_total: number | null
           notes: string | null
           placement: string | null
           quantity: number
           quote_id: string
           service_type: string
+          size_costs: Json | null
           sizes: Json | null
           sort_order: number | null
           style_number: string | null
@@ -1310,12 +1366,14 @@ export type Database = {
           garment_markup_pct?: number | null
           id?: string
           image_url?: string | null
+          imprint_id?: string | null
           line_total?: number | null
           notes?: string | null
           placement?: string | null
           quantity?: number
           quote_id: string
           service_type?: string
+          size_costs?: Json | null
           sizes?: Json | null
           sort_order?: number | null
           style_number?: string | null
@@ -1331,18 +1389,27 @@ export type Database = {
           garment_markup_pct?: number | null
           id?: string
           image_url?: string | null
+          imprint_id?: string | null
           line_total?: number | null
           notes?: string | null
           placement?: string | null
           quantity?: number
           quote_id?: string
           service_type?: string
+          size_costs?: Json | null
           sizes?: Json | null
           sort_order?: number | null
           style_number?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "quote_line_items_imprint_id_fkey"
+            columns: ["imprint_id"]
+            isOneToOne: false
+            referencedRelation: "quote_imprints"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quote_line_items_quote_id_fkey"
             columns: ["quote_id"]
