@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -11,6 +11,31 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // --- AUTH CHECK ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await authClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // --- END AUTH CHECK ---
+
     const { quoteId } = await req.json();
     if (!quoteId) {
       return new Response(JSON.stringify({ error: "quoteId required" }), {
@@ -19,7 +44,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendKey = Deno.env.get("RESEND_API_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -46,18 +70,18 @@ Deno.serve(async (req) => {
     }
 
     // Generate approval token if not exists
-    let token = quote.approval_token;
-    if (!token) {
-      token = crypto.randomUUID();
+    let approvalToken = quote.approval_token;
+    if (!approvalToken) {
+      approvalToken = crypto.randomUUID();
       await supabase
         .from("quotes")
-        .update({ approval_token: token })
+        .update({ approval_token: approvalToken })
         .eq("id", quoteId);
     }
 
     // Build the approval URL
     const appUrl = "https://shopmanagerpro.lovable.app";
-    const approvalUrl = `${appUrl}/quote/approve/${token}`;
+    const approvalUrl = `${appUrl}/quote/approve/${approvalToken}`;
 
     // Calculate totals
     const subtotal = quote.total_price || 0;

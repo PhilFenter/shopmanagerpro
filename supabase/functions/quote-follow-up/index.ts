@@ -125,22 +125,40 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // --- AUTH CHECK ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await authClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // --- END AUTH CHECK ---
+
     const body = await req.json().catch(() => ({}));
     const dryRun = body.dry_run === true;
-    // delay_days overrides the default step 1 timing (for manual triggers)
     const customDelayDays = typeof body.delay_days === "number" ? body.delay_days : null;
 
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Query quotes eligible for follow-up:
-    // - status is "sent" (clock starts when Printavo shows "Quote Approval Sent")
-    // - has customer email
-    // - no converted job
-    // - follow_up_count < 3 (max 3 in the escalation sequence)
-    // - has quote_sent_at set (the clock start timestamp)
     const { data: quotes, error: qErr } = await supabase
       .from("quotes")
       .select("id, quote_number, customer_name, customer_email, total_price, created_at, quote_sent_at, printavo_visual_id, follow_up_sent_at, follow_up_count, status, follow_up_enabled")
@@ -161,18 +179,15 @@ Deno.serve(async (req) => {
     }> = [];
 
     for (const q of quotes || []) {
-      // Clock starts from quote_sent_at (when Printavo status = "Quote Approval Sent")
       const clockStart = new Date(q.quote_sent_at);
       const daysSinceSent = Math.floor((now.getTime() - clockStart.getTime()) / (1000 * 60 * 60 * 24));
       const currentCount = q.follow_up_count || 0;
 
-      // Find the next step in the escalation sequence
       const nextStep = ESCALATION_STEPS.find(
         (s) => s.count === currentCount && daysSinceSent >= (customDelayDays ?? s.minDays)
       );
 
       if (nextStep) {
-        // Also ensure we don't send too frequently (at least 2 days since last follow-up)
         if (q.follow_up_sent_at) {
           const daysSinceLastFollowUp = Math.floor(
             (now.getTime() - new Date(q.follow_up_sent_at).getTime()) / (1000 * 60 * 60 * 24)
@@ -183,25 +198,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const results: Array<{
-      quote_id: string;
-      quote_number: string | null;
-      email: string;
-      status: string;
-      tone?: string;
-    }> = [];
-
     if (dryRun) {
-      for (const { quote: q, step } of eligible) {
-        results.push({
-          quote_id: q.id,
-          quote_number: q.quote_number,
-          email: q.customer_email!,
-          status: "eligible",
-          tone: step.tone,
-        });
-      }
-
       return new Response(
         JSON.stringify({
           success: true,
@@ -209,80 +206,71 @@ Deno.serve(async (req) => {
           eligible: eligible.length,
           sent: 0,
           skipped: 0,
-          results,
+          results: eligible.map(({ quote: q, step }) => ({
+            quote_id: q.id,
+            quote_number: q.quote_number,
+            email: q.customer_email,
+            status: "eligible",
+            tone: step.tone,
+          })),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Live send
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendKey) throw new Error("RESEND_API_KEY not configured");
 
+    const results: Array<{
+      quote_id: string;
+      quote_number: string | null;
+      email: string;
+      status: string;
+      tone?: string;
+    }> = [];
     let sent = 0;
     let skipped = 0;
 
     for (const { quote: q, step } of eligible) {
       try {
-        // Fetch first line item for service type
+        const firstName = (q.customer_name || "there").split(" ")[0];
+
         const { data: lineItems } = await supabase
           .from("quote_line_items")
           .select("service_type")
           .eq("quote_id", q.id)
-          .order("sort_order", { ascending: true })
           .limit(1);
 
         const serviceType = lineItems?.[0]?.service_type || "other";
-        const serviceLabel = SERVICE_LABELS[serviceType] || serviceType;
-        const firstName = (q.customer_name || "there").split(" ")[0];
-        const quoteNumber = q.quote_number || q.id.slice(0, 8);
+        const serviceLabel = SERVICE_LABELS[serviceType] || "custom apparel";
 
         const { subject, html } = buildFollowUpEmail({
           firstName,
           serviceLabel,
-          quoteNumber,
+          quoteNumber: q.quote_number || q.id.slice(0, 8),
           totalPrice: q.total_price,
           printavoVisualId: q.printavo_visual_id,
-          tone: step.tone,
+          tone: step.tone as "gentle" | "firmer" | "final",
         });
 
         const emailRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${resendApiKey}`,
+            Authorization: `Bearer ${resendKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Hell's Canyon Designs <info@mail.hellscanyondesigns.com>",
+            from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
+            reply_to: "info@hellscanyondesigns.com",
             to: [q.customer_email],
             subject,
             html,
-            reply_to: "info@hellscanyondesigns.com",
           }),
         });
 
-        if (emailRes.ok) {
-          const newCount = (q.follow_up_count || 0) + 1;
-          await supabase
-            .from("quotes")
-            .update({
-              follow_up_sent_at: new Date().toISOString(),
-              follow_up_count: newCount,
-            })
-            .eq("id", q.id);
-
-          sent++;
-          results.push({
-            quote_id: q.id,
-            quote_number: q.quote_number,
-            email: q.customer_email!,
-            status: "sent",
-            tone: step.tone,
-          });
-        } else {
-          const errText = await emailRes.text();
-          console.error(`Failed to send to ${q.customer_email}:`, errText);
-          skipped++;
+        if (!emailRes.ok) {
+          const errData = await emailRes.json().catch(() => ({}));
+          console.error(`Failed to send follow-up for ${q.id}:`, errData);
           results.push({
             quote_id: q.id,
             quote_number: q.quote_number,
@@ -290,16 +278,35 @@ Deno.serve(async (req) => {
             status: "failed",
             tone: step.tone,
           });
+          skipped++;
+          continue;
         }
-      } catch (err) {
-        console.error(`Error processing quote ${q.id}:`, err);
-        skipped++;
+
+        await supabase
+          .from("quotes")
+          .update({
+            follow_up_count: (q.follow_up_count || 0) + 1,
+            follow_up_sent_at: new Date().toISOString(),
+          })
+          .eq("id", q.id);
+
         results.push({
           quote_id: q.id,
           quote_number: q.quote_number,
           email: q.customer_email!,
+          status: "sent",
+          tone: step.tone,
+        });
+        sent++;
+      } catch (err) {
+        console.error(`Error processing quote ${q.id}:`, err);
+        results.push({
+          quote_id: q.id,
+          quote_number: q.quote_number,
+          email: q.customer_email || "",
           status: "error",
         });
+        skipped++;
       }
     }
 

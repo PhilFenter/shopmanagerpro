@@ -18,20 +18,42 @@ interface SendMockupRequest {
 }
 
 serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // --- AUTH CHECK ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await authClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- END AUTH CHECK ---
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       throw new Error("RESEND_API_KEY is not configured");
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Supabase configuration missing");
     }
@@ -41,14 +63,12 @@ serve(async (req: Request): Promise<Response> => {
 
     const { jobId, photoIds, customerEmail, customerName, message, orderNumber }: SendMockupRequest = await req.json();
 
-    // Validate required fields
     if (!jobId || !photoIds?.length || !customerEmail || !customerName) {
       throw new Error("Missing required fields: jobId, photoIds, customerEmail, customerName");
     }
 
     console.log(`Sending mockup email for job ${jobId} to ${customerEmail}`);
 
-    // Fetch photo URLs from database
     const { data: photos, error: photosError } = await supabase
       .from("job_photos")
       .select("storage_path, filename")
@@ -63,11 +83,10 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("No photos found for the provided IDs");
     }
 
-    // Get signed URLs for photos (bucket is private)
     const photoUrls = await Promise.all(photos.map(async (photo) => {
       const { data } = await supabase.storage
         .from("job-photos")
-        .createSignedUrl(photo.storage_path, 86400); // 24 hour expiry for email
+        .createSignedUrl(photo.storage_path, 86400);
       return {
         url: data?.signedUrl || '',
         filename: photo.filename,
@@ -76,7 +95,6 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log(`Found ${photoUrls.length} photos to include in email`);
 
-    // Build email HTML
     const orderRef = orderNumber ? ` (Order #${orderNumber})` : "";
     const customMessage = message || "Please review the attached mockup(s) for your upcoming order.";
     

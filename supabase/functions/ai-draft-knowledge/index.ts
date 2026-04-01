@@ -12,11 +12,35 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // --- AUTH CHECK ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await authClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // --- END AUTH CHECK ---
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const { type, prompt, department, category } = await req.json();
-    // type: "sop" | "checklist"
 
     const systemPrompt = type === "sop"
       ? `You are an expert SOP writer for Hell's Canyon Designs, a custom apparel shop doing embroidery, screen printing, DTF transfers, leather patches, and laser engraving.
@@ -38,95 +62,42 @@ Return a JSON object with this exact structure:
 }
 
 Rules:
-- Generate 4-12 practical steps
-- Each step should be actionable and specific
-- Include tips for efficiency or quality where relevant
-- Include warnings for safety-critical steps
-- Use plain language a shop floor worker would understand
-- Reference specific equipment, materials, and settings when appropriate
-- Department context: ${department || 'General'}
-- Category context: ${category || 'General'}
-- Return ONLY valid JSON, no markdown fences`
-      : `You are an expert checklist builder for Hell's Canyon Designs, a custom apparel shop doing embroidery, screen printing, DTF transfers, leather patches, and laser engraving.
+- Generate 4-10 steps depending on complexity
+- Be specific to custom apparel/decoration industry
+- Include safety warnings where relevant
+- Include pro tips for efficiency
+- Use plain language a shop worker can follow
+- Reference specific equipment names when relevant (Barudan, ROQ, Hotronix, etc.)
+${department ? `\nDepartment context: ${department}` : ""}
+${category ? `\nCategory context: ${category}` : ""}
 
-Generate practical checklist items based on the user's description or pasted notes.
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences.`
+      : `You are an expert quality/process checklist writer for Hell's Canyon Designs, a custom apparel shop.
+
+Generate a practical checklist based on the user's description or pasted notes.
 
 Return a JSON object with this exact structure:
 {
   "title": "Checklist title",
-  "description": "Brief description of when to use this checklist",
+  "description": "Brief description",
   "items": [
     {
-      "text": "Checklist item text",
+      "label": "Checklist item text",
       "required": true
     }
   ]
 }
 
 Rules:
-- Generate 5-15 clear, actionable checklist items
-- Mark critical/safety items as required: true
+- Generate 5-15 items depending on complexity
+- Mark critical quality/safety items as required: true
 - Mark nice-to-have items as required: false
-- Keep items concise but specific
-- Order items in logical sequence
-- Department context: ${department || 'General'}
-- Category context: ${category || 'General'}
-- Return ONLY valid JSON, no markdown fences`;
+- Use clear, actionable language
+- Be specific to the decoration/apparel industry
+${department ? `\nDepartment context: ${department}` : ""}
+${category ? `\nCategory context: ${category}` : ""}
 
-    const tools = [
-      {
-        type: "function",
-        function: {
-          name: type === "sop" ? "generate_sop" : "generate_checklist",
-          description: type === "sop" ? "Generate SOP steps from a description" : "Generate checklist items from a description",
-          parameters: type === "sop"
-            ? {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  description: { type: "string" },
-                  steps: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        title: { type: "string" },
-                        content: { type: "string" },
-                        tip: { type: "string", nullable: true },
-                        warning: { type: "string", nullable: true },
-                      },
-                      required: ["title", "content"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["title", "description", "steps"],
-                additionalProperties: false,
-              }
-            : {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  description: { type: "string" },
-                  items: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        text: { type: "string" },
-                        required: { type: "boolean" },
-                      },
-                      required: ["text", "required"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["title", "description", "items"],
-                additionalProperties: false,
-              },
-        },
-      },
-    ];
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -135,13 +106,11 @@ Rules:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-        tools,
-        tool_choice: { type: "function", function: { name: type === "sop" ? "generate_sop" : "generate_checklist" } },
       }),
     });
 
@@ -160,23 +129,26 @@ Rules:
       }
       const errText = await response.text();
       console.error("AI gateway error:", response.status, errText);
-      throw new Error("AI gateway error");
+      throw new Error("AI generation failed");
     }
 
     const data = await response.json();
-    
-    // Extract from tool call
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      throw new Error("No tool call in response");
-    }
-    
-    const result = JSON.parse(toolCall.function.arguments);
+    const raw = data.choices?.[0]?.message?.content || "";
 
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Strip markdown fences if present
+    const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      console.error("Failed to parse AI response:", raw);
+      throw new Error("AI returned invalid JSON — try rephrasing your prompt");
+    }
+
+    return new Response(JSON.stringify(parsed), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("ai-draft-knowledge error:", error);
     return new Response(
