@@ -60,7 +60,7 @@ export function useQuoteImprints(quoteId?: string) {
         .select()
         .single();
       if (error) throw error;
-      return data as QuoteImprint;
+      return data as unknown as QuoteImprint;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quote-imprints', quoteId] });
@@ -79,7 +79,7 @@ export function useQuoteImprints(quoteId?: string) {
         .select()
         .single();
       if (error) throw error;
-      return data as QuoteImprint;
+      return data as unknown as QuoteImprint;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quote-imprints', quoteId] });
