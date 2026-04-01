@@ -2097,6 +2097,19 @@ export type Database = {
         Args: { num_days: number; start_date: string }
         Returns: string
       }
+      get_team_members_safe: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          full_name: string
+          hourly_rate: number
+          id: string
+          is_salary: boolean
+          monthly_salary: number
+          user_id: string
+          weekly_hours: number
+        }[]
+      }
       has_financial_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
