@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { ALL_SIZES } from '@/components/quotes/SizeColumnManager';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuoteImprints, DECORATION_TYPES } from '@/hooks/useQuoteImprints';
