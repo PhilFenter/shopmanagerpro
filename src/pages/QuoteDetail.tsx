@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { useCustomers } from '@/hooks/useCustomers';
+import { useQuoteImprints, DECORATION_TYPES } from '@/hooks/useQuoteImprints';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,13 +17,12 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { QUOTE_STATUS_CONFIG } from '@/hooks/useQuotes';
-import { SERVICE_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { ImprintCard } from '@/components/quotes/ImprintCard';
+import { SizeColumnManager, DEFAULT_VISIBLE_SIZES } from '@/components/quotes/SizeColumnManager';
 import {
-  ArrowLeft, Save, Trash2, Plus, Mail, Loader2, FileText, GripVertical,
+  ArrowLeft, Save, Trash2, Plus, Mail, Loader2, FileText, Stamp, RefreshCw, Image,
 } from 'lucide-react';
-
-const SIZE_COLUMNS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
 
 const SERVICE_OPTIONS = [
   { value: 'embroidery', label: 'Embroidery' },
@@ -56,6 +55,7 @@ interface LineItem {
   description: string | null;
   placement: string | null;
   sizes: Record<string, number>;
+  size_costs: Record<string, number>;
   quantity: number;
   garment_cost: number;
   garment_markup_pct: number;
@@ -64,6 +64,7 @@ interface LineItem {
   sort_order: number;
   notes: string | null;
   image_url: string | null;
+  imprint_id: string | null;
   _dirty?: boolean;
   _new?: boolean;
 }
@@ -98,6 +99,26 @@ interface QuoteData {
   customer_id: string | null;
 }
 
+function calculateLineTotal(item: LineItem): number {
+  // Per-size-tier pricing: Σ(size_qty × tier_cost × markup) + (total_qty × decoration)
+  const hasSizeCosts = Object.keys(item.size_costs).length > 0;
+  
+  if (hasSizeCosts) {
+    let garmentTotal = 0;
+    for (const [size, qty] of Object.entries(item.sizes)) {
+      if (!qty) continue;
+      const tierCost = item.size_costs[size] ?? item.garment_cost;
+      garmentTotal += qty * tierCost * (1 + item.garment_markup_pct / 100);
+    }
+    const decorTotal = item.quantity * item.decoration_cost;
+    return Number((garmentTotal + decorTotal).toFixed(2));
+  }
+  
+  // Fallback: flat garment cost
+  const garmentSell = item.garment_cost * (1 + item.garment_markup_pct / 100);
+  return Number(((garmentSell + item.decoration_cost) * item.quantity).toFixed(2));
+}
+
 export default function QuoteDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -110,9 +131,14 @@ export default function QuoteDetail() {
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [visibleSizes, setVisibleSizes] = useState<string[]>(DEFAULT_VISIBLE_SIZES);
+
+  // Imprints hook — only for saved quotes
+  const actualQuoteId = !isNew && id ? id : undefined;
+  const { imprints, createImprint, updateImprint, deleteImprint } = useQuoteImprints(actualQuoteId);
 
   // Fetch existing quote
-  const { isLoading } = useQuery({
+  const { data: fetchedQuote, isLoading } = useQuery({
     queryKey: ['quote-detail', id],
     queryFn: async () => {
       if (isNew) return null;
@@ -127,7 +153,7 @@ export default function QuoteDetail() {
     enabled: !isNew && !!id,
   });
 
-  // Initialize state from query
+  // Initialize state for new quote
   useEffect(() => {
     if (isNew) {
       setQuote({
@@ -164,21 +190,6 @@ export default function QuoteDetail() {
   }, [isNew]);
 
   // Sync fetched data
-  const { data: fetchedQuote } = useQuery({
-    queryKey: ['quote-detail', id],
-    queryFn: async () => {
-      if (isNew) return null;
-      const { data, error } = await supabase
-        .from('quotes')
-        .select('*, quote_line_items(*)')
-        .eq('id', id!)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !isNew && !!id,
-  });
-
   useEffect(() => {
     if (fetchedQuote && !dirty) {
       const { quote_line_items, ...rest } = fetchedQuote;
@@ -193,6 +204,7 @@ export default function QuoteDetail() {
           description: li.description,
           placement: li.placement,
           sizes: li.sizes || {},
+          size_costs: li.size_costs || {},
           quantity: li.quantity || 0,
           garment_cost: li.garment_cost || 0,
           garment_markup_pct: li.garment_markup_pct ?? 200,
@@ -201,8 +213,20 @@ export default function QuoteDetail() {
           sort_order: li.sort_order || 0,
           notes: li.notes,
           image_url: li.image_url,
+          imprint_id: li.imprint_id || null,
         }));
       setLineItems(items.length > 0 ? items : [createEmptyLineItem(0)]);
+      
+      // Detect which sizes are in use and expand visible columns
+      const usedSizes = new Set<string>();
+      items.forEach((li: LineItem) => {
+        Object.keys(li.sizes).forEach(s => { if (li.sizes[s]) usedSizes.add(s); });
+      });
+      if (usedSizes.size > 0) {
+        const combined = [...new Set([...DEFAULT_VISIBLE_SIZES, ...usedSizes])];
+        const { ALL_SIZES } = require('@/components/quotes/SizeColumnManager');
+        setVisibleSizes(ALL_SIZES.filter((s: string) => combined.includes(s)));
+      }
     }
   }, [fetchedQuote]);
 
@@ -215,6 +239,7 @@ export default function QuoteDetail() {
       description: null,
       placement: null,
       sizes: {},
+      size_costs: {},
       quantity: 0,
       garment_cost: 0,
       garment_markup_pct: 200,
@@ -223,6 +248,7 @@ export default function QuoteDetail() {
       sort_order: sortOrder,
       notes: null,
       image_url: null,
+      imprint_id: null,
       _new: true,
       _dirty: true,
     };
@@ -244,10 +270,8 @@ export default function QuoteDetail() {
         updated[index].quantity = Object.values(sizes).reduce((s: number, v: number) => s + (v || 0), 0);
       }
 
-      // Recalculate line total
-      const item = updated[index];
-      const garmentSell = item.garment_cost * (1 + item.garment_markup_pct / 100);
-      updated[index].line_total = Number(((garmentSell + item.decoration_cost) * item.quantity).toFixed(2));
+      // Recalculate line total with per-size-tier pricing
+      updated[index].line_total = calculateLineTotal(updated[index]);
 
       return updated;
     });
@@ -257,7 +281,6 @@ export default function QuoteDetail() {
   const updateSizeQty = (itemIndex: number, size: string, qty: number) => {
     const item = lineItems[itemIndex];
     const newSizes = { ...item.sizes, [size]: qty || 0 };
-    // Remove zero entries
     if (!qty) delete newSizes[size];
     updateLineItem(itemIndex, 'sizes', newSizes);
   };
@@ -271,6 +294,18 @@ export default function QuoteDetail() {
     if (lineItems.length <= 1) return;
     setLineItems(prev => prev.filter((_, i) => i !== index));
     setDirty(true);
+  };
+
+  const addImprint = async () => {
+    if (!actualQuoteId) {
+      toast.error('Save the quote first before adding imprints');
+      return;
+    }
+    await createImprint.mutateAsync({
+      quote_id: actualQuoteId,
+      decoration_type: 'screen_print',
+      sort_order: imprints.length,
+    });
   };
 
   // Calculate totals
@@ -329,7 +364,7 @@ export default function QuoteDetail() {
         if (error) throw error;
       }
 
-      // Save line items — delete all and re-insert for simplicity
+      // Save line items — delete all and re-insert
       if (!isNew) {
         await supabase.from('quote_line_items').delete().eq('quote_id', quoteId);
       }
@@ -344,6 +379,7 @@ export default function QuoteDetail() {
           description: li.description,
           placement: li.placement,
           sizes: li.sizes,
+          size_costs: li.size_costs,
           quantity: li.quantity,
           garment_cost: li.garment_cost,
           garment_markup_pct: li.garment_markup_pct,
@@ -352,6 +388,7 @@ export default function QuoteDetail() {
           sort_order: i,
           notes: li.notes,
           image_url: li.image_url,
+          imprint_id: li.imprint_id,
         }));
 
       if (lineItemPayloads.length > 0) {
@@ -408,7 +445,7 @@ export default function QuoteDetail() {
   const statusConfig = QUOTE_STATUS_CONFIG[quote.status] || QUOTE_STATUS_CONFIG.draft;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Top bar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
@@ -618,9 +655,10 @@ export default function QuoteDetail() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Line Items</CardTitle>
-            <Button variant="outline" size="sm" onClick={addLineItem}>
-              <Plus className="h-4 w-4" /> Add Item
-            </Button>
+            <SizeColumnManager
+              visibleSizes={visibleSizes}
+              onVisibleSizesChange={setVisibleSizes}
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -629,11 +667,10 @@ export default function QuoteDetail() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[120px]">Category</TableHead>
-                  <TableHead className="w-[100px]">Style #</TableHead>
+                  <TableHead className="w-[100px]">Item #</TableHead>
                   <TableHead className="w-[80px]">Color</TableHead>
                   <TableHead className="min-w-[140px]">Description</TableHead>
-                  <TableHead className="w-[90px]">Placement</TableHead>
-                  {SIZE_COLUMNS.map(s => (
+                  {visibleSizes.map(s => (
                     <TableHead key={s} className="w-[48px] text-center text-xs">{s}</TableHead>
                   ))}
                   <TableHead className="w-[56px] text-center">Qty</TableHead>
@@ -683,15 +720,7 @@ export default function QuoteDetail() {
                         placeholder="Port & Co Tee"
                       />
                     </TableCell>
-                    <TableCell className="p-1">
-                      <Input
-                        value={li.placement || ''}
-                        onChange={e => updateLineItem(idx, 'placement', e.target.value || null)}
-                        className="h-8 text-xs border-0 bg-transparent px-1"
-                        placeholder="Front"
-                      />
-                    </TableCell>
-                    {SIZE_COLUMNS.map(size => (
+                    {visibleSizes.map(size => (
                       <TableCell key={size} className="p-1">
                         <Input
                           type="number"
@@ -755,8 +784,43 @@ export default function QuoteDetail() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Action Bar — Printavo-style */}
+          <div className="flex items-center justify-between gap-2 p-3 border-t bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Button variant="default" size="sm" onClick={addLineItem}>
+                <Plus className="h-4 w-4" /> Line Item
+              </Button>
+              <Button variant="secondary" size="sm" onClick={addImprint}>
+                <Stamp className="h-4 w-4" /> Imprint
+              </Button>
+              <Button variant="outline" size="sm" className="text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => toast.info('Refresh pricing coming soon — will re-pull garment costs from SanMar/S&S')}>
+                <RefreshCw className="h-4 w-4" /> Refresh Pricing
+              </Button>
+            </div>
+            {!isNew && (
+              <Button variant="outline" size="sm" onClick={() => navigate(`/quotes/${id}/mockup`)}>
+                <Image className="h-4 w-4" /> Mockup Creator
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Imprint Cards */}
+      {imprints.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {imprints.map((imp, idx) => (
+            <ImprintCard
+              key={imp.id}
+              imprint={imp}
+              index={idx}
+              onUpdate={(id, updates) => updateImprint.mutate({ id, ...updates })}
+              onDelete={(id) => deleteImprint.mutate(id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Notes & Totals */}
       <div className="grid gap-6 md:grid-cols-2">
