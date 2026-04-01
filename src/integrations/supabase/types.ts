@@ -1966,13 +1966,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "workers_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "team_members_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
@@ -2049,45 +2042,6 @@ export type Database = {
           time_tracked?: number | null
           timer_started_at?: string | null
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      team_members_public: {
-        Row: {
-          avatar_url: string | null
-          created_at: string | null
-          full_name: string | null
-          hourly_rate: number | null
-          id: string | null
-          is_salary: boolean | null
-          monthly_salary: number | null
-          updated_at: string | null
-          user_id: string | null
-          weekly_hours: number | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          hourly_rate?: never
-          id?: string | null
-          is_salary?: never
-          monthly_salary?: never
-          updated_at?: string | null
-          user_id?: string | null
-          weekly_hours?: never
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          hourly_rate?: never
-          id?: string | null
-          is_salary?: never
-          monthly_salary?: never
-          updated_at?: string | null
-          user_id?: string | null
-          weekly_hours?: never
         }
         Relationships: []
       }
