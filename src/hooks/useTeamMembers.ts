@@ -31,12 +31,15 @@ export function useTeamMembers() {
     queryKey: ['team-members'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('team_members_public')
-        .select('*')
-        .order('full_name', { ascending: true });
+        .rpc('get_team_members_safe');
       
       if (error) throw error;
-      return data as TeamMember[];
+      
+      // Sort by full_name
+      const sorted = (data ?? []).sort((a, b) => 
+        (a.full_name ?? '').localeCompare(b.full_name ?? '')
+      );
+      return sorted as TeamMember[];
     },
   });
 
