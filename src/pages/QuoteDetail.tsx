@@ -225,7 +225,6 @@ export default function QuoteDetail() {
       });
       if (usedSizes.size > 0) {
         const combined = [...new Set([...DEFAULT_VISIBLE_SIZES, ...usedSizes])];
-        const { ALL_SIZES } = require('@/components/quotes/SizeColumnManager');
         setVisibleSizes(ALL_SIZES.filter((s: string) => combined.includes(s)));
       }
     }
