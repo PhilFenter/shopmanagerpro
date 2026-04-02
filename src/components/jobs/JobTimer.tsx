@@ -18,6 +18,7 @@ export function JobTimer({ job }: JobTimerProps) {
   const { activeWorkers } = useWorkers();
   const [workerId, setWorkerId] = useState<string>('');
   const [elapsed, setElapsed] = useState(0); // seconds
+  const [notes, setNotes] = useState('');
   const [stopping, setStopping] = useState(false);
 
   const isRunning = !!job.timer_started_at;
