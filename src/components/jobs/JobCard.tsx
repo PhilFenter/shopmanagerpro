@@ -130,7 +130,13 @@ export function JobCard({ job, onClick }: JobCardProps) {
             <Package className="h-4 w-4" />
             <span>Qty: {job.quantity}</span>
           </div>
-          {job.time_tracked > 0 && (
+          {job.timer_started_at && (
+            <div className="flex items-center gap-1 text-primary animate-pulse">
+              <Clock className="h-4 w-4" />
+              <span className="text-xs font-medium">Timer running</span>
+            </div>
+          )}
+          {!job.timer_started_at && job.time_tracked > 0 && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>{formatTime(job.time_tracked)}</span>
