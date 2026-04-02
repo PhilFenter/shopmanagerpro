@@ -108,6 +108,26 @@ export function useTimeEntries(jobId?: string) {
     },
   });
 
+  const updateTimeEntry = useMutation({
+    mutationFn: async ({ id, jobId, ...fields }: { id: string; jobId: string; worker_id?: string; duration?: number; notes?: string | null }) => {
+      const { error } = await supabase
+        .from('time_entries')
+        .update(fields)
+        .eq('id', id);
+      
+      if (error) throw error;
+      return { id, jobId };
+    },
+    onSuccess: ({ jobId }) => {
+      queryClient.invalidateQueries({ queryKey: ['time-entries', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      toast({ title: 'Time entry updated' });
+    },
+    onError: (error) => {
+      toast({ variant: 'destructive', title: 'Failed to update time entry', description: error.message });
+    },
+  });
+
   const deleteTimeEntry = useMutation({
     mutationFn: async ({ id, jobId }: { id: string; jobId: string }) => {
       const { error } = await supabase
@@ -137,6 +157,7 @@ export function useTimeEntries(jobId?: string) {
     isLoading: timeEntriesQuery.isLoading,
     error: timeEntriesQuery.error,
     createTimeEntry,
+    updateTimeEntry,
     deleteTimeEntry,
   };
 }
