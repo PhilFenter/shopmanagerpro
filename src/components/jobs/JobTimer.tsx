@@ -61,7 +61,7 @@ export function JobTimer({ job }: JobTimerProps) {
           job_id: job.id,
           worker_id: workerId,
           duration: elapsedMinutes,
-          notes: 'Timer entry',
+          notes: notes.trim() || undefined,
         });
       }
 
