@@ -73,8 +73,9 @@ export function JobTimer({ job }: JobTimerProps) {
       });
     } finally {
       setStopping(false);
+      setNotes('');
     }
-  }, [job, workerId, stopping, createTimeEntry, updateJob]);
+  }, [job, workerId, notes, stopping, createTimeEntry, updateJob]);
 
   // Format elapsed seconds as HH:MM:SS
   const formatElapsed = (totalSeconds: number) => {
