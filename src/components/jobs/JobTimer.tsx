@@ -115,6 +115,14 @@ export function JobTimer({ job }: JobTimerProps) {
         </Select>
       )}
 
+      {/* What are you doing? */}
+      <Input
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="What are you working on?"
+        className="h-12 text-base"
+      />
+
       {/* Timer display */}
       {isRunning && (
         <div className="text-center">
