@@ -9,6 +9,7 @@ import { JobForm } from '@/components/jobs/JobForm';
 import { KanbanBoard } from '@/components/jobs/KanbanBoard';
 import { TimeEntryForm } from '@/components/jobs/TimeEntryForm';
 import { TimeEntriesList } from '@/components/jobs/TimeEntriesList';
+import { JobTimer } from '@/components/jobs/JobTimer';
 import { JobCostSummary } from '@/components/jobs/JobCostSummary';
 import { JobPhotoUpload } from '@/components/jobs/JobPhotoUpload';
 import { StageProgress } from '@/components/jobs/StageProgress';
