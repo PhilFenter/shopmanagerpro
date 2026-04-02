@@ -376,6 +376,7 @@ export default function Jobs() {
                 {/* Time Tracking */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Time Tracking</h4>
+                  <JobTimer job={selectedJob} />
                   <TimeEntryForm jobId={selectedJob.id} />
                   <TimeEntriesList jobId={selectedJob.id} />
                 </div>
