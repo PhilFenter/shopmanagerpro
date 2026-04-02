@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Play, Square, User, Clock } from 'lucide-react';
 import { useJobs, Job } from '@/hooks/useJobs';
@@ -17,6 +18,7 @@ export function JobTimer({ job }: JobTimerProps) {
   const { activeWorkers } = useWorkers();
   const [workerId, setWorkerId] = useState<string>('');
   const [elapsed, setElapsed] = useState(0); // seconds
+  const [notes, setNotes] = useState('');
   const [stopping, setStopping] = useState(false);
 
   const isRunning = !!job.timer_started_at;
@@ -59,7 +61,7 @@ export function JobTimer({ job }: JobTimerProps) {
           job_id: job.id,
           worker_id: workerId,
           duration: elapsedMinutes,
-          notes: 'Timer entry',
+          notes: notes.trim() || undefined,
         });
       }
 
@@ -71,8 +73,9 @@ export function JobTimer({ job }: JobTimerProps) {
       });
     } finally {
       setStopping(false);
+      setNotes('');
     }
-  }, [job, workerId, stopping, createTimeEntry, updateJob]);
+  }, [job, workerId, notes, stopping, createTimeEntry, updateJob]);
 
   // Format elapsed seconds as HH:MM:SS
   const formatElapsed = (totalSeconds: number) => {
@@ -112,6 +115,14 @@ export function JobTimer({ job }: JobTimerProps) {
           </SelectContent>
         </Select>
       )}
+
+      {/* What are you doing? */}
+      <Input
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="What are you working on?"
+        className="h-12 text-base"
+      />
 
       {/* Timer display */}
       {isRunning && (
