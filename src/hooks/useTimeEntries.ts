@@ -157,6 +157,7 @@ export function useTimeEntries(jobId?: string) {
     isLoading: timeEntriesQuery.isLoading,
     error: timeEntriesQuery.error,
     createTimeEntry,
+    updateTimeEntry,
     deleteTimeEntry,
   };
 }
