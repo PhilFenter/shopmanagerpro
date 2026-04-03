@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Package, Plus, Trash2, Download, ShoppingCart, Truck, Loader2, FileText, Import,
 } from 'lucide-react';
+import { JobImportDialog } from '@/components/purchase-orders/JobImportDialog';
 import { format } from 'date-fns';
 
 function ShippingTracker({ progress, remaining, threshold }: { progress: number; remaining: number; threshold: number }) {
