@@ -238,6 +238,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/purchase-orders"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <PurchaseOrders />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/install" element={<Install />} />
                 <Route path="/quote/approve/:token" element={<QuoteApproval />} />
                 <Route
