@@ -30,6 +30,7 @@ import {
   Warehouse,
   FileText,
   BookOpen,
+  Package,
 } from 'lucide-react';
 
 interface AppLayoutProps {
