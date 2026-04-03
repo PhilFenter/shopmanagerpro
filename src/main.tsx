@@ -11,7 +11,7 @@ const isPreviewContext = (() => {
     return (
       window.self !== window.top ||
       window.location.hostname.includes("id-preview--") ||
-      window.location.hostname.includes("lovable.app")
+      window.location.hostname.includes("lovableproject.com")
     );
   } catch {
     return true;
