@@ -30,6 +30,7 @@ import {
   Warehouse,
   FileText,
   BookOpen,
+  Package,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -64,6 +65,7 @@ const adminNavigation = [
 // Financial access navigation (admin or manager)
 const financialNavigation = [
   { name: 'Quotes', href: '/quotes', icon: FileText },
+  { name: 'Purchase Orders', href: '/purchase-orders', icon: Package },
   { name: 'Customers', href: '/customers', icon: UserCheck },
   { name: 'Messages', href: '/messages', icon: MessagesSquare },
   { name: 'Financials', href: '/financials', icon: DollarSign },

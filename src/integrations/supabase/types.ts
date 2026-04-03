@@ -1152,6 +1152,85 @@ export type Database = {
         }
         Relationships: []
       }
+      po_line_items: {
+        Row: {
+          brand: string | null
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          job_id: string | null
+          po_id: string
+          quantity: number
+          size: string | null
+          source: string | null
+          source_order_id: string | null
+          source_order_name: string | null
+          style_number: string
+          total_cost: number | null
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          po_id: string
+          quantity?: number
+          size?: string | null
+          source?: string | null
+          source_order_id?: string | null
+          source_order_name?: string | null
+          style_number: string
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          po_id?: string
+          quantity?: number
+          size?: string | null
+          source?: string | null
+          source_order_id?: string | null
+          source_order_name?: string | null
+          style_number?: string
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "po_line_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "po_line_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "po_line_items_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_matrices: {
         Row: {
           column_headers: Json
@@ -1275,6 +1354,48 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weekly_hours?: number
+        }
+        Relationships: []
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          po_number: string | null
+          status: string
+          submitted_at: string | null
+          supplier: string
+          total_cost: number | null
+          total_items: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          po_number?: string | null
+          status?: string
+          submitted_at?: string | null
+          supplier?: string
+          total_cost?: number | null
+          total_items?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          po_number?: string | null
+          status?: string
+          submitted_at?: string | null
+          supplier?: string
+          total_cost?: number | null
+          total_items?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
