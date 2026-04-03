@@ -230,6 +230,7 @@ function PODetail({ po }: { po: any }) {
 
       <div className="flex flex-wrap gap-2">
         <InkSoftImportDialog poId={po.id} onImported={() => {}} />
+        <JobImportDialog poId={po.id} />
         <AddManualItemDialog poId={po.id} />
       </div>
 
