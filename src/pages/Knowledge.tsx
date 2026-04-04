@@ -892,6 +892,116 @@ function TrainingPlanDetailSheet({
   );
 }
 
+// ─── SOP Card with Hover Preview ───
+function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const { steps, isLoading } = useSOPSteps(expanded ? sop.id : null);
+
+  return (
+    <Card
+      className="hover:shadow-md transition-all cursor-pointer"
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      onClick={onView}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <CardTitle className="text-base">{sop.title}</CardTitle>
+          <Badge variant={sop.status === 'published' ? 'default' : 'secondary'} className="text-xs">{sop.status}</Badge>
+        </div>
+        {sop.description && <CardDescription className="line-clamp-2">{sop.description}</CardDescription>}
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-1 flex-wrap mb-3">
+          {sop.department && <Badge variant="outline" className="text-xs">{sop.department}</Badge>}
+          <Badge variant="outline" className="text-xs">{sop.category}</Badge>
+        </div>
+
+        {/* Hover preview of steps */}
+        <div className={cn(
+          'overflow-hidden transition-all duration-300 ease-in-out',
+          expanded ? 'max-h-60 opacity-100 mb-3' : 'max-h-0 opacity-0'
+        )}>
+          {isLoading ? (
+            <p className="text-xs text-muted-foreground py-2">Loading steps...</p>
+          ) : steps.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">No steps defined yet.</p>
+          ) : (
+            <div className="space-y-1.5 border-t pt-2 max-h-52 overflow-y-auto">
+              {steps.map((step, i) => (
+                <div key={step.id} className="flex items-start gap-2 text-xs">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px]">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{step.title}</p>
+                    {step.content && <p className="text-muted-foreground line-clamp-1">{step.content}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+          <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+          <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Checklist Card with Hover Preview ───
+function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { template: ChecklistTemplate; onStart: () => void; onEdit: () => void; onDelete: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card
+      className="hover:shadow-md transition-all"
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+    >
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{template.title}</CardTitle>
+        {template.description && <CardDescription className="line-clamp-2">{template.description}</CardDescription>}
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-1 flex-wrap mb-2">
+          {template.department && <Badge variant="outline" className="text-xs">{template.department}</Badge>}
+          <Badge variant="outline" className="text-xs">{template.items.length} items</Badge>
+        </div>
+
+        {/* Hover preview of items */}
+        <div className={cn(
+          'overflow-hidden transition-all duration-300 ease-in-out',
+          expanded ? 'max-h-60 opacity-100 mb-3' : 'max-h-0 opacity-0'
+        )}>
+          {template.items.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">No items defined.</p>
+          ) : (
+            <div className="space-y-1 border-t pt-2 max-h-52 overflow-y-auto">
+              {template.items.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className={cn("flex-1", item.required && "font-medium")}>{item.text}</span>
+                  {item.required && <Badge variant="outline" className="text-[10px] px-1 py-0">Required</Badge>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-1">
+          <Button size="sm" variant="default" onClick={onStart}>
+            <Play className="h-4 w-4 mr-1" /> Start
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+          <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Knowledge() {
   const { sops, isLoading: sopsLoading, deleteSop } = useSOPs();
   const { templates, isLoading: templatesLoading, deleteTemplate } = useChecklistTemplates();
@@ -1018,26 +1128,13 @@ export default function Knowledge() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {filteredSops.map(sop => (
-                <Card key={sop.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-base">{sop.title}</CardTitle>
-                      <Badge variant={sop.status === 'published' ? 'default' : 'secondary'} className="text-xs">{sop.status}</Badge>
-                    </div>
-                    {sop.description && <CardDescription className="line-clamp-2">{sop.description}</CardDescription>}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-1 flex-wrap mb-3">
-                      {sop.department && <Badge variant="outline" className="text-xs">{sop.department}</Badge>}
-                      <Badge variant="outline" className="text-xs">{sop.category}</Badge>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setViewingSop(sop)}><Eye className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingSop(sop); setSopEditorOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteSop.mutateAsync(sop.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <SOPCardWithPreview
+                  key={sop.id}
+                  sop={sop}
+                  onView={() => setViewingSop(sop)}
+                  onEdit={() => { setEditingSop(sop); setSopEditorOpen(true); }}
+                  onDelete={() => deleteSop.mutateAsync(sop.id)}
+                />
               ))}
             </div>
           )}
@@ -1129,32 +1226,20 @@ export default function Knowledge() {
             ) : (
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {filteredTemplates.map(t => (
-                  <Card key={t.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{t.title}</CardTitle>
-                      {t.description && <CardDescription className="line-clamp-2">{t.description}</CardDescription>}
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex gap-1 flex-wrap mb-2">
-                        {t.department && <Badge variant="outline" className="text-xs">{t.department}</Badge>}
-                        <Badge variant="outline" className="text-xs">{t.items.length} items</Badge>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="default" onClick={() => {
-                          createInstance.mutateAsync({
-                            template_id: t.id,
-                            title: t.title,
-                            items: t.items.map(item => ({ ...item, done: false })),
-                            status: 'in_progress',
-                          });
-                        }}>
-                          <Play className="h-4 w-4 mr-1" /> Start
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => deleteTemplate.mutateAsync(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <ChecklistCardWithPreview
+                    key={t.id}
+                    template={t}
+                    onStart={() => {
+                      createInstance.mutateAsync({
+                        template_id: t.id,
+                        title: t.title,
+                        items: t.items.map(item => ({ ...item, done: false })),
+                        status: 'in_progress',
+                      });
+                    }}
+                    onEdit={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}
+                    onDelete={() => deleteTemplate.mutateAsync(t.id)}
+                  />
                 ))}
               </div>
             )}
