@@ -23,7 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   useSOPs, useSOPSteps, useChecklistTemplates, useChecklistInstances, useTrainingPlans,
   useTrainingAssignments, DEPARTMENTS, CATEGORIES,
-  type Sop, type SopStep, type ChecklistTemplate, type TrainingPlan,
+  type Sop, type SopStep, type ChecklistTemplate, type TrainingPlan, type TrainingAssignment,
 } from '@/hooks/useKnowledge';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { cn } from '@/lib/utils';
