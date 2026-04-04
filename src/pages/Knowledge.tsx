@@ -12,9 +12,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
-  FileText, Trash2, Edit, Eye, ChevronRight, AlertTriangle, Lightbulb,
+  FileText, Trash2, Edit, Eye, ChevronRight, ChevronLeft, AlertTriangle, Lightbulb,
   Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
-  ArrowUp, ArrowDown, PlusCircle,
+  ArrowUp, ArrowDown, PlusCircle, FolderOpen,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
