@@ -1012,6 +1012,7 @@ export default function Knowledge() {
 
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sopEditorOpen, setSopEditorOpen] = useState(false);
   const [editingSop, setEditingSop] = useState<Sop | null>(null);
   const [viewingSop, setViewingSop] = useState<Sop | null>(null);
