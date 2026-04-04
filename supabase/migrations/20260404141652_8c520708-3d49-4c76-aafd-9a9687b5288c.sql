@@ -1,0 +1,1 @@
+UPDATE sops SET category = 'UV Printing', department = 'UV Printing' WHERE id = '3629913a-a42d-4999-a89e-21fc08994cc3';
