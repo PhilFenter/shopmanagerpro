@@ -953,52 +953,104 @@ function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onVie
 // ─── Checklist Card with Hover Preview ───
 function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { template: ChecklistTemplate; onStart: () => void; onEdit: () => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
-    <Card
-      className="hover:shadow-md transition-all"
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
-    >
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">{template.title}</CardTitle>
-        {template.description && <CardDescription className="line-clamp-2">{template.description}</CardDescription>}
-      </CardHeader>
-      <CardContent>
-        <div className="flex gap-1 flex-wrap mb-2">
-          {template.department && <Badge variant="outline" className="text-xs">{template.department}</Badge>}
-          <Badge variant="outline" className="text-xs">{template.items.length} items</Badge>
-        </div>
+    <>
+      <Card
+        className="hover:shadow-md transition-all cursor-pointer"
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+        onClick={() => setSheetOpen(true)}
+      >
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{template.title}</CardTitle>
+          {template.description && <CardDescription className="line-clamp-2">{template.description}</CardDescription>}
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-1 flex-wrap mb-2">
+            {template.department && <Badge variant="outline" className="text-xs">{template.department}</Badge>}
+            <Badge variant="outline" className="text-xs">{template.items.length} items</Badge>
+          </div>
 
-        {/* Hover preview of items */}
-        <div className={cn(
-          'overflow-hidden transition-all duration-300 ease-in-out',
-          expanded ? 'max-h-60 opacity-100 mb-3' : 'max-h-0 opacity-0'
-        )}>
-          {template.items.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">No items defined.</p>
-          ) : (
-            <div className="space-y-1 border-t pt-2 max-h-52 overflow-y-auto">
-              {template.items.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className={cn("flex-1", item.required && "font-medium")}>{item.text}</span>
-                  {item.required && <Badge variant="outline" className="text-[10px] px-1 py-0">Required</Badge>}
-                </div>
-              ))}
+          {/* Hover preview of items */}
+          <div className={cn(
+            'overflow-hidden transition-all duration-300 ease-in-out',
+            expanded ? 'max-h-60 opacity-100 mb-3' : 'max-h-0 opacity-0'
+          )}>
+            {template.items.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">No items defined.</p>
+            ) : (
+              <div className="space-y-1 border-t pt-2 max-h-52 overflow-y-auto">
+                {template.items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className={cn("flex-1", item.required && "font-medium")}>{item.text}</span>
+                    {item.required && <Badge variant="outline" className="text-[10px] px-1 py-0">Required</Badge>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+            <Button size="sm" variant="default" onClick={onStart}>
+              <Play className="h-4 w-4 mr-1" /> Start
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+            <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Full-height detail sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
+          <SheetHeader className="pb-4">
+            <SheetTitle>{template.title}</SheetTitle>
+            {template.description && (
+              <p className="text-sm text-muted-foreground">{template.description}</p>
+            )}
+            <div className="flex gap-1.5 flex-wrap pt-1">
+              {template.department && <Badge variant="outline">{template.department}</Badge>}
+              <Badge variant="outline">{template.items.length} items</Badge>
             </div>
-          )}
-        </div>
-
-        <div className="flex gap-1">
-          <Button size="sm" variant="default" onClick={onStart}>
-            <Play className="h-4 w-4 mr-1" /> Start
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
-          <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-        </div>
-      </CardContent>
-    </Card>
+          </SheetHeader>
+          <Separator />
+          <ScrollArea className="flex-1 py-4">
+            {template.items.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No items defined.</p>
+            ) : (
+              <div className="space-y-3 pr-4">
+                {template.items.map((item, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                    <div className="mt-0.5">
+                      <Circle className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className={cn("text-sm", item.required && "font-semibold")}>{item.text}</p>
+                      {item.required && (
+                        <Badge variant="secondary" className="text-xs mt-1">Required</Badge>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground mt-0.5">#{i + 1}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          <Separator />
+          <div className="flex gap-2 pt-4">
+            <Button className="flex-1" onClick={() => { setSheetOpen(false); onStart(); }}>
+              <Play className="h-4 w-4 mr-1" /> Start Checklist
+            </Button>
+            <Button variant="outline" onClick={() => { setSheetOpen(false); onEdit(); }}>
+              <Edit className="h-4 w-4 mr-1" /> Edit
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
