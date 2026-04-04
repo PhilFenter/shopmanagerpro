@@ -1018,26 +1018,13 @@ export default function Knowledge() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {filteredSops.map(sop => (
-                <Card key={sop.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-base">{sop.title}</CardTitle>
-                      <Badge variant={sop.status === 'published' ? 'default' : 'secondary'} className="text-xs">{sop.status}</Badge>
-                    </div>
-                    {sop.description && <CardDescription className="line-clamp-2">{sop.description}</CardDescription>}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-1 flex-wrap mb-3">
-                      {sop.department && <Badge variant="outline" className="text-xs">{sop.department}</Badge>}
-                      <Badge variant="outline" className="text-xs">{sop.category}</Badge>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setViewingSop(sop)}><Eye className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingSop(sop); setSopEditorOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteSop.mutateAsync(sop.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <SOPCardWithPreview
+                  key={sop.id}
+                  sop={sop}
+                  onView={() => setViewingSop(sop)}
+                  onEdit={() => { setEditingSop(sop); setSopEditorOpen(true); }}
+                  onDelete={() => deleteSop.mutateAsync(sop.id)}
+                />
               ))}
             </div>
           )}
