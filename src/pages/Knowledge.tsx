@@ -896,12 +896,13 @@ function TrainingPlanDetailSheet({
 function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onView: () => void; onEdit: () => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const { steps, isLoading } = useSOPSteps(expanded ? sop.id : null);
+  const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
 
   return (
     <Card
       className="hover:shadow-md transition-all cursor-pointer"
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
+      onMouseEnter={() => { if (!isTouchDevice) setExpanded(true); }}
+      onMouseLeave={() => { if (!isTouchDevice) setExpanded(false); }}
       onClick={onView}
     >
       <CardHeader className="pb-2">
