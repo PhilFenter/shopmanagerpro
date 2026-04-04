@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
+import { useAuth } from './useAuth';
 
 export interface TeamMember {
   id: string;
@@ -26,6 +27,7 @@ export interface UpdateTeamMemberInput {
 export function useTeamMembers() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, loading } = useAuth();
 
   const teamMembersQuery = useQuery({
     queryKey: ['team-members'],
@@ -41,6 +43,7 @@ export function useTeamMembers() {
       );
       return sorted as TeamMember[];
     },
+    enabled: !!user && !loading,
   });
 
   const updateMember = useMutation({
