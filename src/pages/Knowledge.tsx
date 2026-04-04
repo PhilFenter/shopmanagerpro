@@ -12,9 +12,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
-  FileText, Trash2, Edit, Eye, ChevronRight, AlertTriangle, Lightbulb,
+  FileText, Trash2, Edit, Eye, ChevronRight, ChevronLeft, AlertTriangle, Lightbulb,
   Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
-  ArrowUp, ArrowDown, PlusCircle,
+  ArrowUp, ArrowDown, PlusCircle, FolderOpen,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1012,6 +1012,7 @@ export default function Knowledge() {
 
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sopEditorOpen, setSopEditorOpen] = useState(false);
   const [editingSop, setEditingSop] = useState<Sop | null>(null);
   const [viewingSop, setViewingSop] = useState<Sop | null>(null);
@@ -1101,119 +1102,50 @@ export default function Knowledge() {
         </Card>
       </div>
 
-      <Tabs defaultValue="sops">
+      <Tabs defaultValue="knowledge">
         <TabsList>
-          <TabsTrigger value="sops" className="gap-1.5"><BookOpen className="h-4 w-4" /> SOPs</TabsTrigger>
-          <TabsTrigger value="checklists" className="gap-1.5"><CheckSquare className="h-4 w-4" /> Checklists</TabsTrigger>
+          <TabsTrigger value="knowledge" className="gap-1.5"><FolderOpen className="h-4 w-4" /> Knowledge Base</TabsTrigger>
           <TabsTrigger value="training" className="gap-1.5"><GraduationCap className="h-4 w-4" /> Training</TabsTrigger>
         </TabsList>
 
-        {/* SOPs Tab */}
-        <TabsContent value="sops" className="mt-4">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => { setEditingSop(null); setSopEditorOpen(true); }}>
-              <Plus className="h-4 w-4 mr-1" /> New SOP
-            </Button>
-          </div>
-          {sopsLoading ? (
-            <p className="text-muted-foreground text-center py-8">Loading...</p>
-          ) : filteredSops.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium">No SOPs yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Start by documenting Rachael's embroidery procedures!</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-6">
-              {(() => {
-                const grouped: Record<string, typeof filteredSops> = {};
-                filteredSops.forEach(sop => {
-                  const cat = sop.category || sop.department || 'Uncategorized';
-                  if (!grouped[cat]) grouped[cat] = [];
-                  grouped[cat].push(sop);
-                });
-                const categoryOrder = CATEGORIES;
-                const sortedKeys = Object.keys(grouped).sort((a, b) => {
-                  const ai = categoryOrder.indexOf(a);
-                  const bi = categoryOrder.indexOf(b);
-                  return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-                });
-                return sortedKeys.map(cat => (
-                  <div key={cat}>
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-primary" />
-                      {cat}
-                      <Badge variant="secondary" className="ml-1">{grouped[cat].length}</Badge>
-                    </h3>
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                      {grouped[cat].map(sop => (
-                        <SOPCardWithPreview
-                          key={sop.id}
-                          sop={sop}
-                          onView={() => setViewingSop(sop)}
-                          onEdit={() => { setEditingSop(sop); setSopEditorOpen(true); }}
-                          onDelete={() => deleteSop.mutateAsync(sop.id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ));
-              })()}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Checklists Tab */}
-        <TabsContent value="checklists" className="mt-4 space-y-6">
-          {/* Active Checklists */}
-          {instances.filter(i => i.status !== 'completed').length > 0 && (
+        {/* Knowledge Base Tab */}
+        <TabsContent value="knowledge" className="mt-4">
+          {selectedCategory === null ? (
             <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Play className="h-5 w-5 text-primary" /> Active Checklists
-              </h3>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {instances.filter(i => i.status !== 'completed').map(inst => {
-                  const totalItems = inst.items.length;
-                  const doneItems = inst.items.filter((item: any) => item.done).length;
-                  const progress = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+              <div className="flex justify-end mb-4 gap-2">
+                <Button variant="outline" onClick={() => { setEditingChecklist(null); setChecklistEditorOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-1" /> New Checklist
+                </Button>
+                <Button onClick={() => { setEditingSop(null); setSopEditorOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-1" /> New SOP
+                </Button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {CATEGORIES.map(cat => {
+                  const catSops = filteredSops.filter(s => (s.category || s.department || 'Uncategorized') === cat);
+                  const catChecklists = filteredTemplates.filter(t => (t.category || t.department || 'Uncategorized') === cat);
+                  const total = catSops.length + catChecklists.length;
+                  if (total === 0 && search) return null;
                   return (
-                    <Card key={inst.id} className="border-primary/30">
-                      <CardHeader className="pb-2">
+                    <Card
+                      key={cat}
+                      className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      <CardContent className="pt-6 pb-5">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">{inst.title}</CardTitle>
-                          <Badge variant="secondary" className="text-xs">{doneItems}/{totalItems}</Badge>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2 mt-1">
-                          <div className="bg-primary rounded-full h-2 transition-all" style={{ width: `${progress}%` }} />
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                          {inst.items.map((item: any, idx: number) => (
-                            <button
-                              key={idx}
-                              className="flex items-center gap-2 text-sm w-full text-left hover:bg-accent/50 rounded p-1"
-                              onClick={() => {
-                                const updatedItems = inst.items.map((it: any, i: number) =>
-                                  i === idx ? { ...it, done: !it.done } : it
-                                );
-                                const allDone = updatedItems.every((it: any) => it.done);
-                                updateInstance.mutateAsync({
-                                  id: inst.id,
-                                  items: updatedItems,
-                                  status: allDone ? 'completed' : 'in_progress',
-                                  completed_at: allDone ? new Date().toISOString() : null,
-                                });
-                              }}
-                            >
-                              {item.done
-                                ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                                : <Circle className="h-4 w-4 text-muted-foreground shrink-0" />}
-                              <span className={item.done ? 'line-through text-muted-foreground' : ''}>{item.text}</span>
-                            </button>
-                          ))}
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                              <FolderOpen className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-semibold">{cat}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {catSops.length} SOP{catSops.length !== 1 ? 's' : ''} · {catChecklists.length} checklist{catChecklists.length !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                       </CardContent>
                     </Card>
@@ -1221,57 +1153,142 @@ export default function Knowledge() {
                 })}
               </div>
             </div>
-          )}
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <Button variant="ghost" className="gap-1.5" onClick={() => setSelectedCategory(null)}>
+                  <ChevronLeft className="h-4 w-4" /> All Categories
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setEditingChecklist(null); setChecklistEditorOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-1" /> New Checklist
+                  </Button>
+                  <Button onClick={() => { setEditingSop(null); setSopEditorOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-1" /> New SOP
+                  </Button>
+                </div>
+              </div>
 
-          {/* Completed Checklists count */}
-          {instances.filter(i => i.status === 'completed').length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              ✓ {instances.filter(i => i.status === 'completed').length} completed checklist(s)
-            </p>
-          )}
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <FolderOpen className="h-6 w-6 text-primary" />
+                {selectedCategory}
+              </h2>
 
-          {/* Templates */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Templates</h3>
-              <Button onClick={() => { setEditingChecklist(null); setChecklistEditorOpen(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> New Checklist
-              </Button>
-            </div>
-            {templatesLoading ? (
-              <p className="text-muted-foreground text-center py-8">Loading...</p>
-            ) : filteredTemplates.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CheckSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="font-medium">No checklists yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">Create daily task lists to keep the team on point.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {(() => {
-                  const grouped: Record<string, typeof filteredTemplates> = {};
-                  filteredTemplates.forEach(t => {
-                    const cat = t.category || t.department || 'Uncategorized';
-                    if (!grouped[cat]) grouped[cat] = [];
-                    grouped[cat].push(t);
-                  });
-                  const categoryOrder = CATEGORIES;
-                  const sortedKeys = Object.keys(grouped).sort((a, b) => {
-                    const ai = categoryOrder.indexOf(a);
-                    const bi = categoryOrder.indexOf(b);
-                    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-                  });
-                  return sortedKeys.map(cat => (
-                    <div key={cat}>
+              {/* Active Checklists for this category */}
+              {(() => {
+                const activeCategoryInstances = instances.filter(i => {
+                  if (i.status === 'completed') return false;
+                  const tmpl = templates.find(t => t.id === i.template_id);
+                  return tmpl && (tmpl.category || tmpl.department || 'Uncategorized') === selectedCategory;
+                });
+                if (activeCategoryInstances.length === 0) return null;
+                return (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Play className="h-5 w-5 text-primary" /> Active Checklists
+                    </h3>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {activeCategoryInstances.map(inst => {
+                        const totalItems = inst.items.length;
+                        const doneItems = inst.items.filter((item: any) => item.done).length;
+                        const progress = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+                        return (
+                          <Card key={inst.id} className="border-primary/30">
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-base">{inst.title}</CardTitle>
+                                <Badge variant="secondary" className="text-xs">{doneItems}/{totalItems}</Badge>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-2 mt-1">
+                                <div className="bg-primary rounded-full h-2 transition-all" style={{ width: `${progress}%` }} />
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                                {inst.items.map((item: any, idx: number) => (
+                                  <button
+                                    key={idx}
+                                    className="flex items-center gap-2 text-sm w-full text-left hover:bg-accent/50 rounded p-1"
+                                    onClick={() => {
+                                      const updatedItems = inst.items.map((it: any, i: number) =>
+                                        i === idx ? { ...it, done: !it.done } : it
+                                      );
+                                      const allDone = updatedItems.every((it: any) => it.done);
+                                      updateInstance.mutateAsync({
+                                        id: inst.id,
+                                        items: updatedItems,
+                                        status: allDone ? 'completed' : 'in_progress',
+                                        completed_at: allDone ? new Date().toISOString() : null,
+                                      });
+                                    }}
+                                  >
+                                    {item.done
+                                      ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                                      : <Circle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                    <span className={item.done ? 'line-through text-muted-foreground' : ''}>{item.text}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* SOPs */}
+              {(() => {
+                const catSops = filteredSops.filter(s => (s.category || s.department || 'Uncategorized') === selectedCategory);
+                const catChecklists = filteredTemplates.filter(t => (t.category || t.department || 'Uncategorized') === selectedCategory);
+                if (catSops.length === 0 && catChecklists.length === 0) {
+                  return (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                        <p className="font-medium">No content in {selectedCategory} yet</p>
+                        <p className="text-sm text-muted-foreground mt-1">Add SOPs or checklists to get started.</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                if (catSops.length > 0) {
+                  return (
+                    <div>
                       <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <CheckSquare className="h-5 w-5 text-primary" />
-                        {cat}
-                        <Badge variant="secondary" className="ml-1">{grouped[cat].length}</Badge>
+                        <BookOpen className="h-5 w-5 text-primary" /> SOPs
+                        <Badge variant="secondary">{catSops.length}</Badge>
                       </h3>
                       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {grouped[cat].map(t => (
+                        {catSops.map(sop => (
+                          <SOPCardWithPreview
+                            key={sop.id}
+                            sop={sop}
+                            onView={() => setViewingSop(sop)}
+                            onEdit={() => { setEditingSop(sop); setSopEditorOpen(true); }}
+                            onDelete={() => deleteSop.mutateAsync(sop.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Checklists */}
+              {(() => {
+                const catChecklists = filteredTemplates.filter(t => (t.category || t.department || 'Uncategorized') === selectedCategory);
+                if (catChecklists.length > 0) {
+                  return (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <CheckSquare className="h-5 w-5 text-primary" /> Checklists
+                        <Badge variant="secondary">{catChecklists.length}</Badge>
+                      </h3>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {catChecklists.map(t => (
                           <ChecklistCardWithPreview
                             key={t.id}
                             template={t}
@@ -1289,11 +1306,12 @@ export default function Knowledge() {
                         ))}
                       </div>
                     </div>
-                  ));
-                })()}
-              </div>
-            )}
-          </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
         </TabsContent>
 
         {/* Training Tab */}
