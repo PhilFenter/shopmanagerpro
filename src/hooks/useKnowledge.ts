@@ -85,8 +85,8 @@ export interface TrainingAssignment {
   updated_at: string;
 }
 
-const DEPARTMENTS = ['Embroidery', 'Screen Print', 'DTF', 'Leather', 'Art', 'Pressing', 'Shipping', 'General'];
-const CATEGORIES = ['Setup', 'Production', 'Quality Control', 'Safety', 'Maintenance', 'End of Day', 'Onboarding', 'General'];
+const DEPARTMENTS = ['Art Prep', 'Laser Engraving', 'UV Printing', 'DTF Printing', 'Embroidery', 'Screen Printing', 'Shop Procedures', 'Shipping & Receiving', 'Online Stores'];
+const CATEGORIES = ['Art Prep', 'Laser Engraving', 'UV Printing', 'DTF Printing', 'Embroidery', 'Screen Printing', 'Shop Procedures', 'Shipping & Receiving', 'Online Stores'];
 
 export { DEPARTMENTS, CATEGORIES };
 
