@@ -961,7 +961,17 @@ function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { tem
         className="hover:shadow-md transition-all cursor-pointer"
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
-        onClick={() => setSheetOpen(true)}
+        onClick={() => {
+          if (window.matchMedia('(hover: none)').matches) {
+            setSheetOpen(true);
+          } else {
+            setSheetOpen(true);
+          }
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          setSheetOpen(true);
+        }}
       >
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{template.title}</CardTitle>
