@@ -1283,6 +1283,23 @@ export default function Knowledge() {
                                   </button>
                                 ))}
                               </div>
+                              <div className="flex gap-1 mt-3 pt-2 border-t">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs"
+                                  onClick={() => {
+                                    updateInstance.mutateAsync({
+                                      id: inst.id,
+                                      items: inst.items.map((it: any) => ({ ...it, done: false })),
+                                      status: 'in_progress',
+                                      completed_at: null,
+                                    });
+                                  }}
+                                >
+                                  <ArrowDown className="h-3 w-3 mr-1 rotate-180" /> Reset All
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         );
