@@ -458,6 +458,36 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Duplicate / double-submit guard ────────────────────
+    // If the same email submitted a quote in the last 60 seconds, return it
+    // instead of creating a duplicate.
+    const dedupeEmail = (customer_email || "").trim().toLowerCase();
+    if (dedupeEmail) {
+      const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+      const { data: recentQuote } = await serviceClient
+        .from("quotes")
+        .select("id, quote_number")
+        .ilike("customer_email", dedupeEmail)
+        .gte("created_at", sixtySecondsAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentQuote) {
+        console.log(`Duplicate submission blocked for ${dedupeEmail} — existing quote ${recentQuote.quote_number}`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            duplicate: true,
+            quoteId: recentQuote.id,
+            quoteNumber: recentQuote.quote_number,
+            message: "Quote already received — thank you!",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // 1. Find or create customer
     let customerId: string | null = null;
     const email = customer_email?.trim().toLowerCase();
