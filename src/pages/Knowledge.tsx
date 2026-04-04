@@ -749,7 +749,7 @@ function TrainingPlanDetailSheet({
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
+      <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
         <SheetHeader className="p-6 pb-4">
           <div className="flex items-start justify-between">
             <div>
