@@ -707,6 +707,7 @@ export default function Knowledge() {
   const [editingChecklist, setEditingChecklist] = useState<ChecklistTemplate | null>(null);
   const [trainingEditorOpen, setTrainingEditorOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<TrainingPlan | null>(null);
+  const [viewingPlan, setViewingPlan] = useState<TrainingPlan | null>(null);
 
   const filteredSops = sops.filter(s => {
     const matchesSearch = !search || s.title.toLowerCase().includes(search.toLowerCase()) || s.description?.toLowerCase().includes(search.toLowerCase());
@@ -978,7 +979,7 @@ export default function Knowledge() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {filteredPlans.map(p => (
-                <Card key={p.id} className="hover:shadow-md transition-shadow">
+                <Card key={p.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setViewingPlan(p)}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-base">{p.title}</CardTitle>
@@ -995,9 +996,13 @@ export default function Knowledge() {
                     <div className="text-xs text-muted-foreground mb-2">
                       {assignments.filter(a => a.training_plan_id === p.id).length} assigned
                     </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingPlan(p); setTrainingEditorOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => deletePlan.mutateAsync(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingPlan(p); setTrainingEditorOpen(true); }}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => deletePlan.mutateAsync(p.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1012,6 +1017,19 @@ export default function Knowledge() {
       {viewingSop && <SOPViewer sop={viewingSop} onClose={() => setViewingSop(null)} />}
       {checklistEditorOpen && <ChecklistEditorDialog template={editingChecklist} open={checklistEditorOpen} onOpenChange={setChecklistEditorOpen} />}
       {trainingEditorOpen && <TrainingPlanDialog plan={editingPlan} open={trainingEditorOpen} onOpenChange={setTrainingEditorOpen} />}
+
+      {/* Training Plan Detail Sheet */}
+      {viewingPlan && (
+        <TrainingPlanDetailSheet
+          plan={viewingPlan}
+          sops={sops}
+          templates={templates}
+          assignments={assignments}
+          teamMembers={teamMembers}
+          onClose={() => setViewingPlan(null)}
+          onEdit={() => { setEditingPlan(viewingPlan); setTrainingEditorOpen(true); setViewingPlan(null); }}
+        />
+      )}
     </div>
   );
 }
