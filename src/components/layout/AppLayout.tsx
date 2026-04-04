@@ -31,6 +31,7 @@ import {
   FileText,
   BookOpen,
   Package,
+  GraduationCap,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -41,6 +42,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
   { name: 'Knowledge', href: '/knowledge', icon: BookOpen },
+  { name: 'My Training', href: '/training', icon: GraduationCap },
   { name: 'Artwork', href: '/artwork', icon: Palette },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
