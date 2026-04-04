@@ -1126,16 +1126,41 @@ export default function Knowledge() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {filteredSops.map(sop => (
-                <SOPCardWithPreview
-                  key={sop.id}
-                  sop={sop}
-                  onView={() => setViewingSop(sop)}
-                  onEdit={() => { setEditingSop(sop); setSopEditorOpen(true); }}
-                  onDelete={() => deleteSop.mutateAsync(sop.id)}
-                />
-              ))}
+            <div className="space-y-6">
+              {(() => {
+                const grouped: Record<string, typeof filteredSops> = {};
+                filteredSops.forEach(sop => {
+                  const cat = sop.category || sop.department || 'Uncategorized';
+                  if (!grouped[cat]) grouped[cat] = [];
+                  grouped[cat].push(sop);
+                });
+                const categoryOrder = CATEGORIES;
+                const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                  const ai = categoryOrder.indexOf(a);
+                  const bi = categoryOrder.indexOf(b);
+                  return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                });
+                return sortedKeys.map(cat => (
+                  <div key={cat}>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                      {cat}
+                      <Badge variant="secondary" className="ml-1">{grouped[cat].length}</Badge>
+                    </h3>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {grouped[cat].map(sop => (
+                        <SOPCardWithPreview
+                          key={sop.id}
+                          sop={sop}
+                          onView={() => setViewingSop(sop)}
+                          onEdit={() => { setEditingSop(sop); setSopEditorOpen(true); }}
+                          onDelete={() => deleteSop.mutateAsync(sop.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </TabsContent>
@@ -1224,23 +1249,48 @@ export default function Knowledge() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {filteredTemplates.map(t => (
-                  <ChecklistCardWithPreview
-                    key={t.id}
-                    template={t}
-                    onStart={() => {
-                      createInstance.mutateAsync({
-                        template_id: t.id,
-                        title: t.title,
-                        items: t.items.map(item => ({ ...item, done: false })),
-                        status: 'in_progress',
-                      });
-                    }}
-                    onEdit={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}
-                    onDelete={() => deleteTemplate.mutateAsync(t.id)}
-                  />
-                ))}
+              <div className="space-y-6">
+                {(() => {
+                  const grouped: Record<string, typeof filteredTemplates> = {};
+                  filteredTemplates.forEach(t => {
+                    const cat = t.category || t.department || 'Uncategorized';
+                    if (!grouped[cat]) grouped[cat] = [];
+                    grouped[cat].push(t);
+                  });
+                  const categoryOrder = CATEGORIES;
+                  const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                    const ai = categoryOrder.indexOf(a);
+                    const bi = categoryOrder.indexOf(b);
+                    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                  });
+                  return sortedKeys.map(cat => (
+                    <div key={cat}>
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <CheckSquare className="h-5 w-5 text-primary" />
+                        {cat}
+                        <Badge variant="secondary" className="ml-1">{grouped[cat].length}</Badge>
+                      </h3>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {grouped[cat].map(t => (
+                          <ChecklistCardWithPreview
+                            key={t.id}
+                            template={t}
+                            onStart={() => {
+                              createInstance.mutateAsync({
+                                template_id: t.id,
+                                title: t.title,
+                                items: t.items.map(item => ({ ...item, done: false })),
+                                status: 'in_progress',
+                              });
+                            }}
+                            onEdit={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}
+                            onDelete={() => deleteTemplate.mutateAsync(t.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
             )}
           </div>
