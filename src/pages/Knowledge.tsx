@@ -1116,32 +1116,20 @@ export default function Knowledge() {
             ) : (
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {filteredTemplates.map(t => (
-                  <Card key={t.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{t.title}</CardTitle>
-                      {t.description && <CardDescription className="line-clamp-2">{t.description}</CardDescription>}
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex gap-1 flex-wrap mb-2">
-                        {t.department && <Badge variant="outline" className="text-xs">{t.department}</Badge>}
-                        <Badge variant="outline" className="text-xs">{t.items.length} items</Badge>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="default" onClick={() => {
-                          createInstance.mutateAsync({
-                            template_id: t.id,
-                            title: t.title,
-                            items: t.items.map(item => ({ ...item, done: false })),
-                            status: 'in_progress',
-                          });
-                        }}>
-                          <Play className="h-4 w-4 mr-1" /> Start
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => deleteTemplate.mutateAsync(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <ChecklistCardWithPreview
+                    key={t.id}
+                    template={t}
+                    onStart={() => {
+                      createInstance.mutateAsync({
+                        template_id: t.id,
+                        title: t.title,
+                        items: t.items.map(item => ({ ...item, done: false })),
+                        status: 'in_progress',
+                      });
+                    }}
+                    onEdit={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}
+                    onDelete={() => deleteTemplate.mutateAsync(t.id)}
+                  />
                 ))}
               </div>
             )}
