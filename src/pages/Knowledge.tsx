@@ -16,6 +16,9 @@ import {
   Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
   ArrowUp, ArrowDown, PlusCircle,
 } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useSOPs, useSOPSteps, useChecklistTemplates, useChecklistInstances, useTrainingPlans,
@@ -690,6 +693,205 @@ function TrainingPlanDialog({
 }
 
 // ─── Main Page ───
+// ─── Training Plan Detail Sheet ───
+function TrainingPlanDetailSheet({
+  plan,
+  sops,
+  templates,
+  assignments: allAssignments,
+  teamMembers,
+  onClose,
+  onEdit,
+}: {
+  plan: TrainingPlan;
+  sops: Sop[];
+  templates: ChecklistTemplate[];
+  assignments: TrainingAssignment[];
+  teamMembers: { id: string; user_id: string; full_name: string | null }[];
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const { createAssignment } = useTrainingAssignments();
+  const { toast } = useToast();
+  const [assigning, setAssigning] = useState(false);
+  const [selectedMember, setSelectedMember] = useState('');
+
+  const linkedSops = sops.filter(s => plan.sop_ids.includes(s.id));
+  const linkedChecklists = templates.filter(t => plan.checklist_template_ids.includes(t.id));
+  const planAssignments = allAssignments.filter(a => a.training_plan_id === plan.id);
+
+  const getMemberName = (userId: string) => {
+    const m = teamMembers.find(t => t.user_id === userId);
+    return m?.full_name || userId.slice(0, 8);
+  };
+
+  const alreadyAssigned = planAssignments.map(a => a.assigned_to);
+  const availableMembers = teamMembers.filter(m => !alreadyAssigned.includes(m.user_id));
+
+  const handleAssign = async () => {
+    if (!selectedMember) return;
+    setAssigning(true);
+    try {
+      await createAssignment.mutateAsync({
+        training_plan_id: plan.id,
+        assigned_to: selectedMember,
+        status: 'not_started',
+        completed_sop_ids: [],
+        completed_checklist_ids: [],
+      });
+      toast({ title: 'Team member assigned' });
+      setSelectedMember('');
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    }
+    setAssigning(false);
+  };
+
+  return (
+    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="p-6 pb-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <SheetTitle className="text-xl">{plan.title}</SheetTitle>
+              {plan.description && (
+                <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={onEdit}>
+              <Edit className="h-4 w-4 mr-1" /> Edit
+            </Button>
+          </div>
+          <div className="flex gap-2 flex-wrap mt-2">
+            {plan.department && <Badge variant="outline">{plan.department}</Badge>}
+            {plan.role && <Badge variant="secondary">{plan.role}</Badge>}
+          </div>
+        </SheetHeader>
+
+        <ScrollArea className="flex-1 px-6">
+          {/* SOPs Section */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> SOPs ({linkedSops.length})
+            </h3>
+            {linkedSops.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No SOPs linked to this plan.</p>
+            ) : (
+              <div className="space-y-2">
+                {linkedSops.map(s => (
+                  <div key={s.id} className="flex items-center gap-3 p-2 rounded-lg border bg-card">
+                    <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{s.title}</p>
+                      {s.department && <p className="text-xs text-muted-foreground">{s.department}</p>}
+                    </div>
+                    <Badge variant={s.status === 'published' ? 'default' : 'secondary'} className="text-xs shrink-0">
+                      {s.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Separator className="mb-6" />
+
+          {/* Checklists Section */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-2">
+              <CheckSquare className="h-4 w-4" /> Checklists ({linkedChecklists.length})
+            </h3>
+            {linkedChecklists.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No checklists linked to this plan.</p>
+            ) : (
+              <div className="space-y-2">
+                {linkedChecklists.map(t => (
+                  <div key={t.id} className="flex items-center gap-3 p-2 rounded-lg border bg-card">
+                    <CheckSquare className="h-4 w-4 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{t.title}</p>
+                      <p className="text-xs text-muted-foreground">{t.items.length} items</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Separator className="mb-6" />
+
+          {/* Assignments Section */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" /> Assigned ({planAssignments.length})
+            </h3>
+
+            {planAssignments.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {planAssignments.map(a => {
+                  const completedSops = a.completed_sop_ids?.length ?? 0;
+                  const completedChecklists = a.completed_checklist_ids?.length ?? 0;
+                  const totalItems = plan.sop_ids.length + plan.checklist_template_ids.length;
+                  const doneItems = completedSops + completedChecklists;
+                  const progress = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+
+                  return (
+                    <div key={a.id} className="p-3 rounded-lg border bg-card">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium">{getMemberName(a.assigned_to)}</p>
+                        <Badge
+                          variant={a.status === 'completed' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {a.status === 'completed' ? 'Complete' : a.status === 'in_progress' ? 'In Progress' : 'Not Started'}
+                        </Badge>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1.5">
+                        <div
+                          className="bg-primary rounded-full h-1.5 transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {doneItems}/{totalItems} completed
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Assign new member */}
+            {availableMembers.length > 0 && (
+              <div className="flex gap-2">
+                <Select value={selectedMember} onValueChange={setSelectedMember}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select team member..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMembers.map(m => (
+                      <SelectItem key={m.user_id} value={m.user_id}>
+                        {m.full_name || m.user_id.slice(0, 8)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" onClick={handleAssign} disabled={!selectedMember || assigning}>
+                  {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Assign'}
+                </Button>
+              </div>
+            )}
+
+            {availableMembers.length === 0 && planAssignments.length > 0 && (
+              <p className="text-xs text-muted-foreground">All team members are assigned.</p>
+            )}
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export default function Knowledge() {
   const { sops, isLoading: sopsLoading, deleteSop } = useSOPs();
   const { templates, isLoading: templatesLoading, deleteTemplate } = useChecklistTemplates();
