@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useSkills } from '@/hooks/useSkills';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
