@@ -133,6 +133,59 @@ export type Database = {
         }
         Relationships: []
       }
+      check_rides: {
+        Row: {
+          candidate_id: string
+          conditions_notes: string | null
+          conducted_at: string
+          created_at: string
+          evaluator_id: string
+          evaluator_notes: string
+          id: string
+          level_awarded: number | null
+          recheck_by: string | null
+          recheck_required: boolean
+          result: string
+          skill_id: string
+        }
+        Insert: {
+          candidate_id: string
+          conditions_notes?: string | null
+          conducted_at?: string
+          created_at?: string
+          evaluator_id: string
+          evaluator_notes?: string
+          id?: string
+          level_awarded?: number | null
+          recheck_by?: string | null
+          recheck_required?: boolean
+          result: string
+          skill_id: string
+        }
+        Update: {
+          candidate_id?: string
+          conditions_notes?: string | null
+          conducted_at?: string
+          created_at?: string
+          evaluator_id?: string
+          evaluator_notes?: string
+          id?: string
+          level_awarded?: number | null
+          recheck_by?: string | null
+          recheck_required?: boolean
+          result?: string
+          skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_rides_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_instances: {
         Row: {
           assigned_to: string | null
@@ -1766,6 +1819,92 @@ export type Database = {
           },
         ]
       }
+      skill_records: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          notes: string | null
+          skill_id: string
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          notes?: string | null
+          skill_id: string
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          notes?: string | null
+          skill_id?: string
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_records_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skills: {
+        Row: {
+          conditions: string | null
+          created_at: string
+          created_by: string | null
+          department: string
+          description: string | null
+          id: string
+          is_active: boolean
+          minimum_acceptable_standard: string | null
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          conditions?: string | null
+          created_at?: string
+          created_by?: string | null
+          department: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          minimum_acceptable_standard?: string | null
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          conditions?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          minimum_acceptable_standard?: string | null
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sop_steps: {
         Row: {
           content: string | null
@@ -1987,7 +2126,9 @@ export type Database = {
           department: string | null
           description: string | null
           id: string
+          prepares_for_level: number | null
           role: string | null
+          skill_id: string | null
           sop_ids: string[] | null
           title: string
           updated_at: string
@@ -1999,7 +2140,9 @@ export type Database = {
           department?: string | null
           description?: string | null
           id?: string
+          prepares_for_level?: number | null
           role?: string | null
+          skill_id?: string | null
           sop_ids?: string[] | null
           title: string
           updated_at?: string
@@ -2011,12 +2154,22 @@ export type Database = {
           department?: string | null
           description?: string | null
           id?: string
+          prepares_for_level?: number | null
           role?: string | null
+          skill_id?: string | null
           sop_ids?: string[] | null
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "training_plans_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
