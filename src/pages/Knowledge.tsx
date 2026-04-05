@@ -606,14 +606,7 @@ function TrainingPlanDialog({
   const [preparesForLevel, setPreparesForLevel] = useState<number>(plan?.prepares_for_level ?? 2);
   const [saving, setSaving] = useState(false);
 
-  // Import skills hook lazily
-  let skills: any[] = [];
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const skillsHook = require('@/hooks/useSkills');
-    const result = skillsHook.useSkills();
-    skills = result.skills ?? [];
-  } catch { /* skills module not loaded yet */ }
+  const { skills } = useSkills();
 
   const toggleSop = (id: string) => setSelectedSops(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleChecklist = (id: string) => setSelectedChecklists(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
