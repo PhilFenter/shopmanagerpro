@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useSkills } from '@/hooks/useSkills';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -601,7 +602,11 @@ function TrainingPlanDialog({
   const [role, setRole] = useState(plan?.role ?? '');
   const [selectedSops, setSelectedSops] = useState<string[]>(plan?.sop_ids ?? []);
   const [selectedChecklists, setSelectedChecklists] = useState<string[]>(plan?.checklist_template_ids ?? []);
+  const [selectedSkillId, setSelectedSkillId] = useState<string>(plan?.skill_id ?? '');
+  const [preparesForLevel, setPreparesForLevel] = useState<number>(plan?.prepares_for_level ?? 2);
   const [saving, setSaving] = useState(false);
+
+  const { skills } = useSkills();
 
   const toggleSop = (id: string) => setSelectedSops(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleChecklist = (id: string) => setSelectedChecklists(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -610,7 +615,13 @@ function TrainingPlanDialog({
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const payload = { title, description, department, role, sop_ids: selectedSops, checklist_template_ids: selectedChecklists };
+      const payload: any = {
+        title, description, department, role,
+        sop_ids: selectedSops,
+        checklist_template_ids: selectedChecklists,
+        skill_id: selectedSkillId || null,
+        prepares_for_level: selectedSkillId ? preparesForLevel : null,
+      };
       if (plan) {
         await updatePlan.mutateAsync({ id: plan.id, ...payload });
       } else {
@@ -623,6 +634,13 @@ function TrainingPlanDialog({
     }
     setSaving(false);
   };
+
+  const SKILL_LEVELS = [
+    { level: 1, label: 'In Training' },
+    { level: 2, label: 'Qualified' },
+    { level: 3, label: 'Lead' },
+    { level: 4, label: 'Evaluator' },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -652,6 +670,40 @@ function TrainingPlanDialog({
               <Input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g., Operator" />
             </div>
           </div>
+
+          {/* Skill Link Section */}
+          {skills.length > 0 && (
+            <div className="border rounded-lg p-3 bg-muted/30 space-y-3">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                🎯 Prepares For Skill
+              </Label>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Optionally link this plan to a skill — when completed, it signals readiness for a check ride.
+              </p>
+              <Select value={selectedSkillId} onValueChange={setSelectedSkillId}>
+                <SelectTrigger><SelectValue placeholder="None (no skill linked)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {skills.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.department})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedSkillId && (
+                <div>
+                  <Label className="text-sm">Target Level</Label>
+                  <Select value={String(preparesForLevel)} onValueChange={v => setPreparesForLevel(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {SKILL_LEVELS.map(l => (
+                        <SelectItem key={l.level} value={String(l.level)}>{l.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <Label className="text-base font-semibold">SOPs to Complete</Label>

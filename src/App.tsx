@@ -29,6 +29,7 @@ const Inventory = lazy(() => import("./pages/Inventory"));
 const Quotes = lazy(() => import("./pages/Quotes"));
 const Knowledge = lazy(() => import("./pages/Knowledge"));
 const Training = lazy(() => import("./pages/Training"));
+const Skills = lazy(() => import("./pages/Skills"));
 const QuoteApproval = lazy(() => import("./pages/QuoteApproval"));
 const QuoteDetail = lazy(() => import("./pages/QuoteDetail"));
 const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
@@ -267,6 +268,16 @@ function App() {
                     <ProtectedRoute>
                       <AppLayout>
                         <Training />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/skills"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Skills />
                       </AppLayout>
                     </ProtectedRoute>
                   }
