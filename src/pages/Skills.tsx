@@ -15,10 +15,11 @@ import { useSkills, useSkillRecords, useCheckRides, SKILL_LEVELS, type Skill, ty
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { useAuth } from '@/hooks/useAuth';
 import { DEPARTMENTS } from '@/hooks/useKnowledge';
+import { DraftStandardDialog } from '@/components/skills/DraftStandardDialog';
 import {
   Plus, ClipboardCheck, LayoutGrid, BookOpen, ChevronRight,
   CheckCircle2, XCircle, Clock, AlertTriangle, Pencil, Trash2,
-  User, CalendarDays, FileText, Shield,
+  User, CalendarDays, FileText, Shield, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -47,6 +48,12 @@ function SkillEditorDialog({
   const [standard, setStandard] = useState(skill?.minimum_acceptable_standard ?? '');
   const [conditions, setConditions] = useState(skill?.conditions ?? '');
   const [saving, setSaving] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
+
+  const handleDraftApplied = ({ standard: s, conditions: c }: { standard: string; conditions: string }) => {
+    setStandard(s);
+    setConditions(c);
+  };
 
   const handleSave = async () => {
     if (!name.trim() || !standard.trim()) return;
@@ -93,10 +100,21 @@ function SkillEditorDialog({
           </div>
 
           <div>
-            <Label className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-primary" />
-              Minimum Acceptable Standard
-            </Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label className="flex items-center gap-1.5">
+                <Shield className="h-4 w-4 text-primary" />
+                Minimum Acceptable Standard
+              </Label>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                onClick={() => setDraftOpen(true)}
+                disabled={!name.trim()}
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1" /> Draft from SOP
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground mb-1">
               What does a passing check ride look like? Be specific — this is what you'll be evaluating against.
             </p>
@@ -126,6 +144,14 @@ function SkillEditorDialog({
             </Button>
           </div>
         </div>
+
+        <DraftStandardDialog
+          open={draftOpen}
+          onOpenChange={setDraftOpen}
+          skillName={name}
+          department={department}
+          onApply={handleDraftApplied}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -180,7 +206,6 @@ function CheckRideSheet({
       });
       toast({ title: result === 'pass' ? '✓ Check ride passed — credential recorded' : 'Check ride recorded — no credential awarded' });
       onOpenChange(false);
-      // Reset
       setSkillId(preselectedSkillId ?? '');
       setCandidateId(preselectedCandidateId ?? '');
       setResult('pass');
@@ -210,8 +235,6 @@ function CheckRideSheet({
 
         <ScrollArea className="flex-1 py-4">
           <div className="space-y-5 pr-2">
-
-            {/* Skill */}
             <div>
               <Label>Skill Being Evaluated</Label>
               <Select value={skillId} onValueChange={setSkillId}>
@@ -231,7 +254,6 @@ function CheckRideSheet({
               </Select>
             </div>
 
-            {/* Standard reminder */}
             {selectedSkill?.minimum_acceptable_standard && (
               <div className="rounded-lg border bg-muted/50 p-3 space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
@@ -247,7 +269,6 @@ function CheckRideSheet({
               </div>
             )}
 
-            {/* Candidate */}
             <div>
               <Label>Candidate</Label>
               <Select value={candidateId} onValueChange={setCandidateId}>
@@ -260,7 +281,6 @@ function CheckRideSheet({
               </Select>
             </div>
 
-            {/* Result */}
             <div>
               <Label>Result</Label>
               <div className="grid grid-cols-3 gap-2 mt-1">
@@ -286,7 +306,6 @@ function CheckRideSheet({
               </div>
             </div>
 
-            {/* Level awarded (pass only) */}
             {result === 'pass' && (
               <div>
                 <Label>Level Awarded</Label>
@@ -301,14 +320,12 @@ function CheckRideSheet({
               </div>
             )}
 
-            {/* Conditions on the day */}
             <div>
               <Label>Conditions on the Day</Label>
               <p className="text-xs text-muted-foreground mb-1">Any deviations from standard conditions? Normal production run?</p>
               <Textarea value={conditionsNotes} onChange={e => setConditionsNotes(e.target.value)} placeholder="e.g., Normal production run, 2xl gildan, standard frame" rows={2} />
             </div>
 
-            {/* Evaluator notes */}
             <div>
               <Label>
                 Evaluator Notes
@@ -322,7 +339,6 @@ function CheckRideSheet({
               <Textarea value={evaluatorNotes} onChange={e => setEvaluatorNotes(e.target.value)} placeholder={result === 'pass' ? "Solid performance, no issues." : "Describe what fell short of the minimum standard…"} rows={3} />
             </div>
 
-            {/* Recheck */}
             {result !== 'pass' && (
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -385,7 +401,6 @@ function SkillDetailSheet({
               <p className="text-sm text-muted-foreground">{skill.description}</p>
             )}
 
-            {/* Standard */}
             <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
                 <Shield className="h-3.5 w-3.5 text-primary" /> Minimum Acceptable Standard
@@ -399,7 +414,6 @@ function SkillDetailSheet({
               )}
             </div>
 
-            {/* Who's credentialed */}
             <div>
               <p className="text-sm font-semibold mb-2">Team Status</p>
               {teamMembers.length === 0 ? (
@@ -430,7 +444,6 @@ function SkillDetailSheet({
               )}
             </div>
 
-            {/* Check ride history */}
             {skillRides.length > 0 && (
               <div>
                 <p className="text-sm font-semibold mb-2">Check Ride History</p>
@@ -492,7 +505,6 @@ function SkillsMatrix() {
   const getLevel = (userId: string, skillId: string) =>
     records.find(r => r.user_id === userId && r.skill_id === skillId)?.level ?? 0;
 
-  // Cell color by level
   const cellClass = (level: number) => cn(
     'h-9 w-full rounded text-xs font-medium flex items-center justify-center transition-colors cursor-pointer',
     level === 0 ? 'bg-muted/50 text-muted-foreground hover:bg-muted' :
