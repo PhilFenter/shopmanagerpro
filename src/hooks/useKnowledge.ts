@@ -67,6 +67,8 @@ export interface TrainingPlan {
   department: string | null;
   sop_ids: string[];
   checklist_template_ids: string[];
+  skill_id: string | null;
+  prepares_for_level: number | null;
   created_at: string;
   updated_at: string;
 }
