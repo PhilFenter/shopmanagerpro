@@ -44,6 +44,7 @@ const navigation = [
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
   { name: 'Knowledge', href: '/knowledge', icon: BookOpen },
   { name: 'My Training', href: '/training', icon: GraduationCap },
+  { name: 'Skills & Credentials', href: '/skills', icon: ClipboardCheck },
   { name: 'Artwork', href: '/artwork', icon: Palette },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },

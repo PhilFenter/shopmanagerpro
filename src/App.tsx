@@ -272,6 +272,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/skills"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Skills />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </Suspense>
