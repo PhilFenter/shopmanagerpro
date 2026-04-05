@@ -31,6 +31,7 @@ import {
   FileText,
   BookOpen,
   Package,
+  ClipboardCheck,
   GraduationCap,
 } from 'lucide-react';
 
