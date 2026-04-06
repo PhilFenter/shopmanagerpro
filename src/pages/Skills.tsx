@@ -360,7 +360,7 @@ function ObservationSheet({
             onClick={handleSubmit}
             disabled={saving || !skillId || !candidateId}
           >
-            {saving ? 'Recording…' : 'Record Check Ride'}
+            {saving ? 'Recording…' : 'Record Observation'}
           </Button>
         </div>
       </SheetContent>
