@@ -641,7 +641,7 @@ function SkillsCheckLog() {
 
   return (
     <div className="space-y-3">
-      {checkRides.map(ride => (
+      {observations.map(ride => (
         <Card key={ride.id} className={cn(
           'border',
           ride.result === 'pass' ? 'border-green-200' :
