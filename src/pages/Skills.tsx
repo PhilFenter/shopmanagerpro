@@ -127,7 +127,7 @@ function SkillEditorDialog({
           </div>
 
           <div>
-            <Label>Check Ride Conditions</Label>
+            <Label>Observation Conditions</Label>
             <p className="text-xs text-muted-foreground mb-1">Equipment, setup, or constraints that must be in place.</p>
             <Textarea
               value={conditions}
