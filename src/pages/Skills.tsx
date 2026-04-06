@@ -482,7 +482,7 @@ function SkillDetailSheet({
 
         <div className="pt-4 border-t">
           <Button className="w-full" onClick={() => { onOpenChange(false); onObservation(skill.id); }}>
-            <ClipboardCheck className="h-4 w-4 mr-2" /> Conduct Observation
+            <ClipboardCheck className="h-4 w-4 mr-2" /> Conduct Skills Check
           </Button>
         </div>
       </SheetContent>
