@@ -98,8 +98,13 @@ function SOPEditorDialog({
     if (to < 0 || to >= steps.length) return;
     const a = steps[from];
     const b = steps[to];
-    await upsertStep.mutateAsync({ ...a, sort_order: b.sort_order, sop_id: sop!.id });
-    await upsertStep.mutateAsync({ ...b, sort_order: a.sort_order, sop_id: sop!.id });
+    // Use index-based sort_order in case existing values are identical
+    const orderA = a.sort_order ?? from;
+    const orderB = b.sort_order ?? to;
+    const newOrderA = orderA === orderB ? to : orderB;
+    const newOrderB = orderA === orderB ? from : orderA;
+    await upsertStep.mutateAsync({ id: a.id, sort_order: newOrderA, sop_id: sop!.id });
+    await upsertStep.mutateAsync({ id: b.id, sort_order: newOrderB, sop_id: sop!.id });
   };
 
   const allSteps = [...(isEditing ? steps : []), ...localSteps];
