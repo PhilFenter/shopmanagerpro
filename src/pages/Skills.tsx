@@ -382,7 +382,7 @@ function SkillDetailSheet({
   const { teamMembers } = useTeamMembers();
 
   const skillRecords = records.filter(r => r.skill_id === skill.id);
-  const skillRides = checkRides.filter(r => r.skill_id === skill.id);
+  const skillRides = observations.filter(r => r.skill_id === skill.id);
 
   const getMemberName = (userId: string) =>
     teamMembers.find(m => m.user_id === userId)?.full_name ?? userId.slice(0, 8);
