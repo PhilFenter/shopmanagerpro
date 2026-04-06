@@ -83,6 +83,25 @@ function SOPEditorDialog({
     setLocalSteps(prev => [...prev, { title: '', content: '', sort_order: (sop ? steps.length : 0) + prev.length, image_url: '', video_url: '', tip: '', warning: '' }]);
   };
 
+  const moveLocalStep = (from: number, dir: -1 | 1) => {
+    setLocalSteps(prev => {
+      const to = from + dir;
+      if (to < 0 || to >= prev.length) return prev;
+      const arr = [...prev];
+      [arr[from], arr[to]] = [arr[to], arr[from]];
+      return arr;
+    });
+  };
+
+  const moveExistingStep = async (from: number, dir: -1 | 1) => {
+    const to = from + dir;
+    if (to < 0 || to >= steps.length) return;
+    const a = steps[from];
+    const b = steps[to];
+    await upsertStep.mutateAsync({ ...a, sort_order: b.sort_order, sop_id: sop!.id });
+    await upsertStep.mutateAsync({ ...b, sort_order: a.sort_order, sop_id: sop!.id });
+  };
+
   const allSteps = [...(isEditing ? steps : []), ...localSteps];
 
   return (
@@ -172,7 +191,15 @@ function SOPEditorDialog({
             />
 
             {isEditing && steps.map((step, i) => (
-              <StepEditor key={step.id} step={step} index={i} onSave={(s) => upsertStep.mutateAsync({ ...s, sop_id: sop.id })} onDelete={() => deleteStep.mutateAsync(step.id)} />
+              <StepEditor
+                key={step.id}
+                step={step}
+                index={i}
+                onSave={(s) => upsertStep.mutateAsync({ ...s, sop_id: sop.id })}
+                onDelete={() => deleteStep.mutateAsync(step.id)}
+                onMoveUp={i > 0 ? () => moveExistingStep(i, -1) : undefined}
+                onMoveDown={i < steps.length - 1 ? () => moveExistingStep(i, 1) : undefined}
+              />
             ))}
 
             {localSteps.map((step, i) => (
@@ -182,6 +209,8 @@ function SOPEditorDialog({
                 index={(isEditing ? steps.length : 0) + i}
                 onSave={(s) => setLocalSteps(prev => prev.map((p, j) => j === i ? { ...p, ...s } : p))}
                 onDelete={() => setLocalSteps(prev => prev.filter((_, j) => j !== i))}
+                onMoveUp={i > 0 ? () => moveLocalStep(i, -1) : undefined}
+                onMoveDown={i < localSteps.length - 1 ? () => moveLocalStep(i, 1) : undefined}
               />
             ))}
 
@@ -212,12 +241,14 @@ async function uploadSopMedia(file: File, folder: 'images' | 'videos'): Promise<
 }
 
 function StepEditor({
-  step, index, onSave, onDelete,
+  step, index, onSave, onDelete, onMoveUp, onMoveDown,
 }: {
   step: Partial<SopStep>;
   index: number;
   onSave: (s: Partial<SopStep>) => void;
   onDelete: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const [expanded, setExpanded] = useState(!step.id);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -268,14 +299,24 @@ function StepEditor({
 
   return (
     <div className="border rounded-lg mb-2 bg-card">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 p-3 text-left text-sm font-medium"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">{index + 1}</span>
-        <span className="flex-1">{localTitle || 'Untitled Step'}</span>
-        <ChevronRight className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} />
-      </button>
+      <div className="flex items-center gap-1 p-2">
+        <div className="flex flex-col">
+          <Button size="icon" variant="ghost" className="h-5 w-5" disabled={!onMoveUp} onClick={onMoveUp}>
+            <ArrowUp className="h-3 w-3" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-5 w-5" disabled={!onMoveDown} onClick={onMoveDown}>
+            <ArrowDown className="h-3 w-3" />
+          </Button>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex-1 flex items-center gap-2 p-1 text-left text-sm font-medium"
+        >
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">{index + 1}</span>
+          <span className="flex-1">{localTitle || 'Untitled Step'}</span>
+          <ChevronRight className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} />
+        </button>
+      </div>
       {expanded && (
         <div className="px-3 pb-3 space-y-3">
           <Input
