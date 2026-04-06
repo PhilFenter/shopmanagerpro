@@ -192,7 +192,7 @@ function ObservationSheet({
     }
     setSaving(true);
     try {
-      await conductCheckRide.mutateAsync({
+      await conductObservation.mutateAsync({
         skill_id: skillId,
         candidate_id: candidateId,
         evaluator_id: user.id,
