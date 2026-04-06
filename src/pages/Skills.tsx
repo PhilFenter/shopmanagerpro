@@ -495,7 +495,7 @@ function SkillsMatrix() {
   const { skills } = useSkills();
   const { records } = useSkillRecords();
   const { teamMembers } = useTeamMembers();
-  const [checkRideSkillId, setCheckRideSkillId] = useState<string | null>(null);
+  const [observationSkillId, setObservationSkillId] = useState<string | null>(null);
   const [viewingSkill, setViewingSkill] = useState<Skill | null>(null);
   const [deptFilter, setDeptFilter] = useState('all');
 
