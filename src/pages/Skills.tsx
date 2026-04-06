@@ -581,7 +581,7 @@ function SkillsMatrix() {
                       return (
                         <td key={m.user_id} className="p-2">
                           <button
-                            onClick={() => { setCheckRideSkillId(skill.id); }}
+                            onClick={() => { setObservationSkillId(skill.id); }}
                             className={cellClass(level)}
                             title={`${m.full_name} — ${SKILL_LEVELS[level].label}`}
                           >
