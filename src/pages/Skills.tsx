@@ -763,14 +763,14 @@ function SkillsList() {
           skill={viewingSkill}
           open={!!viewingSkill}
           onOpenChange={open => { if (!open) setViewingSkill(null); }}
-          onCheckRide={id => { setCheckRideSkillId(id); setCheckRideOpen(true); setViewingSkill(null); }}
+          onObservation={id => { setSkillsCheckSkillId(id); setSkillsCheckOpen(true); setViewingSkill(null); }}
         />
       )}
 
-      <CheckRideSheet
-        open={checkRideOpen}
-        onOpenChange={setCheckRideOpen}
-        preselectedSkillId={checkRideSkillId}
+      <ObservationSheet
+        open={skillsCheckOpen}
+        onOpenChange={setSkillsCheckOpen}
+        preselectedSkillId={skillsCheckSkillId}
       />
     </div>
   );
