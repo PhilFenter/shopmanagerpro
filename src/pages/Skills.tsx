@@ -693,8 +693,8 @@ function SkillsList() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [viewingSkill, setViewingSkill] = useState<Skill | null>(null);
-  const [checkRideOpen, setCheckRideOpen] = useState(false);
-  const [checkRideSkillId, setCheckRideSkillId] = useState<string | undefined>();
+  const [skillsCheckOpen, setSkillsCheckOpen] = useState(false);
+  const [skillsCheckSkillId, setSkillsCheckSkillId] = useState<string | undefined>();
   const { toast } = useToast();
 
   const departments = [...new Set(skills.map(s => s.department))].sort();
