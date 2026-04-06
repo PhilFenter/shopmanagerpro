@@ -38,7 +38,7 @@ export interface SkillRecord {
   updated_at: string;
 }
 
-export interface CheckRide {
+export interface Observation {
   id: string;
   skill_id: string;
   candidate_id: string;
@@ -52,6 +52,9 @@ export interface CheckRide {
   recheck_by: string | null;
   created_at: string;
 }
+
+/** @deprecated Use Observation instead */
+export type CheckRide = Observation;
 
 // ─── Skills ──────────────────────────────────────────────────────────────────
 export function useSkills() {
@@ -138,27 +141,27 @@ export function useSkillRecords() {
   return { records, isLoading, upsertRecord };
 }
 
-// ─── Check Rides ──────────────────────────────────────────────────────────────
-export function useCheckRides() {
+// ─── Observations ─────────────────────────────────────────────────────────────
+export function useObservations() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const { data: checkRides = [], isLoading } = useQuery({
-    queryKey: ['check-rides'],
+  const { data: observations = [], isLoading } = useQuery({
+    queryKey: ['observations'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('check_rides')
         .select('*')
         .order('conducted_at', { ascending: false });
       if (error) throw error;
-      return data as CheckRide[];
+      return data as Observation[];
     },
     enabled: !!user,
   });
 
-  const conductCheckRide = useMutation({
-    mutationFn: async (ride: Omit<CheckRide, 'id' | 'created_at'>) => {
-      // 1. Record the check ride
+  const conductObservation = useMutation({
+    mutationFn: async (ride: Omit<Observation, 'id' | 'created_at'>) => {
+      // 1. Record the observation
       const { data, error } = await supabase
         .from('check_rides')
         .insert(ride)
@@ -184,10 +187,13 @@ export function useCheckRides() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['check-rides'] });
+      qc.invalidateQueries({ queryKey: ['observations'] });
       qc.invalidateQueries({ queryKey: ['skill-records'] });
     },
   });
 
-  return { checkRides, isLoading, conductCheckRide };
+  return { observations, isLoading, conductObservation };
 }
+
+/** @deprecated Use useObservations instead */
+export const useCheckRides = useObservations;

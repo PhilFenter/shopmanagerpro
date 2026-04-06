@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { useSkills, useSkillRecords, useCheckRides, SKILL_LEVELS, type Skill, type CheckRide } from '@/hooks/useSkills';
+import { useSkills, useSkillRecords, useObservations, SKILL_LEVELS, type Skill, type Observation } from '@/hooks/useSkills';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { useAuth } from '@/hooks/useAuth';
 import { DEPARTMENTS } from '@/hooks/useKnowledge';
@@ -116,7 +116,7 @@ function SkillEditorDialog({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mb-1">
-              What does a passing check ride look like? Be specific — this is what you'll be evaluating against.
+              What does a passing observation look like? Be specific — this is what you'll be evaluating against.
             </p>
             <Textarea
               value={standard}
@@ -127,7 +127,7 @@ function SkillEditorDialog({
           </div>
 
           <div>
-            <Label>Check Ride Conditions</Label>
+            <Label>Observation Conditions</Label>
             <p className="text-xs text-muted-foreground mb-1">Equipment, setup, or constraints that must be in place.</p>
             <Textarea
               value={conditions}
@@ -157,8 +157,8 @@ function SkillEditorDialog({
   );
 }
 
-// ─── Conduct Check Ride Sheet ─────────────────────────────────────────────────
-function CheckRideSheet({
+// ─── Conduct Observation Sheet ────────────────────────────────────────────────
+function ObservationSheet({
   open, onOpenChange, preselectedSkillId, preselectedCandidateId,
 }: {
   open: boolean;
@@ -168,7 +168,7 @@ function CheckRideSheet({
 }) {
   const { skills } = useSkills();
   const { teamMembers } = useTeamMembers();
-  const { conductCheckRide } = useCheckRides();
+  const { conductObservation } = useObservations();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -192,7 +192,7 @@ function CheckRideSheet({
     }
     setSaving(true);
     try {
-      await conductCheckRide.mutateAsync({
+      await conductObservation.mutateAsync({
         skill_id: skillId,
         candidate_id: candidateId,
         evaluator_id: user.id,
@@ -204,7 +204,7 @@ function CheckRideSheet({
         recheck_required: recheckRequired,
         recheck_by: recheckRequired && recheckBy ? new Date(recheckBy).toISOString() : null,
       });
-      toast({ title: result === 'pass' ? '✓ Check ride passed — credential recorded' : 'Check ride recorded — no credential awarded' });
+      toast({ title: result === 'pass' ? '✓ Observation passed — credential recorded' : 'Observation recorded — no credential awarded' });
       onOpenChange(false);
       setSkillId(preselectedSkillId ?? '');
       setCandidateId(preselectedCandidateId ?? '');
@@ -226,7 +226,7 @@ function CheckRideSheet({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5 text-primary" />
-            Conduct Check Ride
+            Conduct Observation
           </SheetTitle>
           <p className="text-sm text-muted-foreground">
             Record the result of a live performance evaluation.
@@ -360,7 +360,7 @@ function CheckRideSheet({
             onClick={handleSubmit}
             disabled={saving || !skillId || !candidateId}
           >
-            {saving ? 'Recording…' : 'Record Check Ride'}
+            {saving ? 'Recording…' : 'Record Observation'}
           </Button>
         </div>
       </SheetContent>
@@ -370,19 +370,19 @@ function CheckRideSheet({
 
 // ─── Skill Detail Sheet ───────────────────────────────────────────────────────
 function SkillDetailSheet({
-  skill, open, onOpenChange, onCheckRide,
+  skill, open, onOpenChange, onObservation,
 }: {
   skill: Skill;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onCheckRide: (skillId: string) => void;
+  onObservation: (skillId: string) => void;
 }) {
   const { records } = useSkillRecords();
-  const { checkRides } = useCheckRides();
+  const { observations } = useObservations();
   const { teamMembers } = useTeamMembers();
 
   const skillRecords = records.filter(r => r.skill_id === skill.id);
-  const skillRides = checkRides.filter(r => r.skill_id === skill.id);
+  const skillRides = observations.filter(r => r.skill_id === skill.id);
 
   const getMemberName = (userId: string) =>
     teamMembers.find(m => m.user_id === userId)?.full_name ?? userId.slice(0, 8);
@@ -446,7 +446,7 @@ function SkillDetailSheet({
 
             {skillRides.length > 0 && (
               <div>
-                <p className="text-sm font-semibold mb-2">Check Ride History</p>
+                <p className="text-sm font-semibold mb-2">Observation History</p>
                 <div className="space-y-2">
                   {skillRides.map(ride => (
                     <div key={ride.id} className={cn(
@@ -481,8 +481,8 @@ function SkillDetailSheet({
         </ScrollArea>
 
         <div className="pt-4 border-t">
-          <Button className="w-full" onClick={() => { onOpenChange(false); onCheckRide(skill.id); }}>
-            <ClipboardCheck className="h-4 w-4 mr-2" /> Conduct Check Ride
+          <Button className="w-full" onClick={() => { onOpenChange(false); onObservation(skill.id); }}>
+            <ClipboardCheck className="h-4 w-4 mr-2" /> Conduct Observation
           </Button>
         </div>
       </SheetContent>
@@ -495,7 +495,7 @@ function SkillsMatrix() {
   const { skills } = useSkills();
   const { records } = useSkillRecords();
   const { teamMembers } = useTeamMembers();
-  const [checkRideSkillId, setCheckRideSkillId] = useState<string | null>(null);
+  const [observationSkillId, setObservationSkillId] = useState<string | null>(null);
   const [viewingSkill, setViewingSkill] = useState<Skill | null>(null);
   const [deptFilter, setDeptFilter] = useState('all');
 
@@ -581,7 +581,7 @@ function SkillsMatrix() {
                       return (
                         <td key={m.user_id} className="p-2">
                           <button
-                            onClick={() => { setCheckRideSkillId(skill.id); }}
+                            onClick={() => { setObservationSkillId(skill.id); }}
                             className={cellClass(level)}
                             title={`${m.full_name} — ${SKILL_LEVELS[level].label}`}
                           >
@@ -603,15 +603,15 @@ function SkillsMatrix() {
           skill={viewingSkill}
           open={!!viewingSkill}
           onOpenChange={open => { if (!open) setViewingSkill(null); }}
-          onCheckRide={id => { setCheckRideSkillId(id); setViewingSkill(null); }}
+          onObservation={id => { setObservationSkillId(id); setViewingSkill(null); }}
         />
       )}
 
-      {checkRideSkillId && (
-        <CheckRideSheet
-          open={!!checkRideSkillId}
-          onOpenChange={open => { if (!open) setCheckRideSkillId(null); }}
-          preselectedSkillId={checkRideSkillId}
+      {observationSkillId && (
+        <ObservationSheet
+          open={!!observationSkillId}
+          onOpenChange={open => { if (!open) setObservationSkillId(null); }}
+          preselectedSkillId={observationSkillId}
         />
       )}
     </div>
