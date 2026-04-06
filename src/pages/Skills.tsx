@@ -618,9 +618,9 @@ function SkillsMatrix() {
   );
 }
 
-// ─── Check Ride Log ───────────────────────────────────────────────────────────
-function CheckRideLog() {
-  const { checkRides } = useCheckRides();
+// ─── Skills Check Log ─────────────────────────────────────────────────────────
+function SkillsCheckLog() {
+  const { observations } = useObservations();
   const { skills } = useSkills();
   const { teamMembers } = useTeamMembers();
 
@@ -629,12 +629,12 @@ function CheckRideLog() {
   const getSkillName = (skillId: string) =>
     skills.find(s => s.id === skillId)?.name ?? 'Unknown Skill';
 
-  if (!checkRides.length) {
+  if (!observations.length) {
     return (
       <div className="text-center py-16 text-muted-foreground">
         <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-        <p className="font-medium">No check rides recorded yet</p>
-        <p className="text-sm mt-1">Check ride records will appear here once you start evaluating.</p>
+        <p className="font-medium">No skills checks recorded yet</p>
+        <p className="text-sm mt-1">Skills check records will appear here once you start evaluating.</p>
       </div>
     );
   }
