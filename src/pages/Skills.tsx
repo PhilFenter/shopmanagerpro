@@ -607,11 +607,11 @@ function SkillsMatrix() {
         />
       )}
 
-      {checkRideSkillId && (
-        <CheckRideSheet
-          open={!!checkRideSkillId}
-          onOpenChange={open => { if (!open) setCheckRideSkillId(null); }}
-          preselectedSkillId={checkRideSkillId}
+      {observationSkillId && (
+        <ObservationSheet
+          open={!!observationSkillId}
+          onOpenChange={open => { if (!open) setObservationSkillId(null); }}
+          preselectedSkillId={observationSkillId}
         />
       )}
     </div>
