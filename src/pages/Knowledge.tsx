@@ -83,6 +83,25 @@ function SOPEditorDialog({
     setLocalSteps(prev => [...prev, { title: '', content: '', sort_order: (sop ? steps.length : 0) + prev.length, image_url: '', video_url: '', tip: '', warning: '' }]);
   };
 
+  const moveLocalStep = (from: number, dir: -1 | 1) => {
+    setLocalSteps(prev => {
+      const to = from + dir;
+      if (to < 0 || to >= prev.length) return prev;
+      const arr = [...prev];
+      [arr[from], arr[to]] = [arr[to], arr[from]];
+      return arr;
+    });
+  };
+
+  const moveExistingStep = async (from: number, dir: -1 | 1) => {
+    const to = from + dir;
+    if (to < 0 || to >= steps.length) return;
+    const a = steps[from];
+    const b = steps[to];
+    await upsertStep.mutateAsync({ ...a, sort_order: b.sort_order, sop_id: sop!.id });
+    await upsertStep.mutateAsync({ ...b, sort_order: a.sort_order, sop_id: sop!.id });
+  };
+
   const allSteps = [...(isEditing ? steps : []), ...localSteps];
 
   return (
