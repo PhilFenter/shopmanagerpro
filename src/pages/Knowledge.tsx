@@ -191,7 +191,15 @@ function SOPEditorDialog({
             />
 
             {isEditing && steps.map((step, i) => (
-              <StepEditor key={step.id} step={step} index={i} onSave={(s) => upsertStep.mutateAsync({ ...s, sop_id: sop.id })} onDelete={() => deleteStep.mutateAsync(step.id)} />
+              <StepEditor
+                key={step.id}
+                step={step}
+                index={i}
+                onSave={(s) => upsertStep.mutateAsync({ ...s, sop_id: sop.id })}
+                onDelete={() => deleteStep.mutateAsync(step.id)}
+                onMoveUp={i > 0 ? () => moveExistingStep(i, -1) : undefined}
+                onMoveDown={i < steps.length - 1 ? () => moveExistingStep(i, 1) : undefined}
+              />
             ))}
 
             {localSteps.map((step, i) => (
@@ -201,6 +209,8 @@ function SOPEditorDialog({
                 index={(isEditing ? steps.length : 0) + i}
                 onSave={(s) => setLocalSteps(prev => prev.map((p, j) => j === i ? { ...p, ...s } : p))}
                 onDelete={() => setLocalSteps(prev => prev.filter((_, j) => j !== i))}
+                onMoveUp={i > 0 ? () => moveLocalStep(i, -1) : undefined}
+                onMoveDown={i < localSteps.length - 1 ? () => moveLocalStep(i, 1) : undefined}
               />
             ))}
 
