@@ -116,7 +116,7 @@ function SkillEditorDialog({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mb-1">
-              What does a passing observation look like? Be specific — this is what you'll be evaluating against.
+              What does a passing skills check look like? Be specific — this is what you'll be evaluating against.
             </p>
             <Textarea
               value={standard}
