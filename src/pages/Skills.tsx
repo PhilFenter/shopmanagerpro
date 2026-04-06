@@ -157,8 +157,8 @@ function SkillEditorDialog({
   );
 }
 
-// ─── Conduct Check Ride Sheet ─────────────────────────────────────────────────
-function CheckRideSheet({
+// ─── Conduct Observation Sheet ────────────────────────────────────────────────
+function ObservationSheet({
   open, onOpenChange, preselectedSkillId, preselectedCandidateId,
 }: {
   open: boolean;
@@ -168,7 +168,7 @@ function CheckRideSheet({
 }) {
   const { skills } = useSkills();
   const { teamMembers } = useTeamMembers();
-  const { conductCheckRide } = useCheckRides();
+  const { conductObservation } = useObservations();
   const { user } = useAuth();
   const { toast } = useToast();
 
