@@ -204,7 +204,7 @@ function ObservationSheet({
         recheck_required: recheckRequired,
         recheck_by: recheckRequired && recheckBy ? new Date(recheckBy).toISOString() : null,
       });
-      toast({ title: result === 'pass' ? '✓ Check ride passed — credential recorded' : 'Check ride recorded — no credential awarded' });
+      toast({ title: result === 'pass' ? '✓ Observation passed — credential recorded' : 'Observation recorded — no credential awarded' });
       onOpenChange(false);
       setSkillId(preselectedSkillId ?? '');
       setCandidateId(preselectedCandidateId ?? '');
