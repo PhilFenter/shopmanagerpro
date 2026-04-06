@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { useSkills, useSkillRecords, useCheckRides, SKILL_LEVELS, type Skill, type CheckRide } from '@/hooks/useSkills';
+import { useSkills, useSkillRecords, useObservations, SKILL_LEVELS, type Skill, type Observation } from '@/hooks/useSkills';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { useAuth } from '@/hooks/useAuth';
 import { DEPARTMENTS } from '@/hooks/useKnowledge';
