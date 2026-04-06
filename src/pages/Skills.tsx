@@ -127,7 +127,7 @@ function SkillEditorDialog({
           </div>
 
           <div>
-            <Label>Observation Conditions</Label>
+            <Label>Skills Check Conditions</Label>
             <p className="text-xs text-muted-foreground mb-1">Equipment, setup, or constraints that must be in place.</p>
             <Textarea
               value={conditions}
