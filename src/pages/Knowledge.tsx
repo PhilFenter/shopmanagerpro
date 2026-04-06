@@ -345,20 +345,22 @@ function StepEditor({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Pro Tip</Label>
-              <Input
+              <Textarea
                 placeholder="Optional tip..."
                 value={localTip}
                 onChange={e => setLocalTip(e.target.value)}
                 onBlur={() => flushField('tip', localTip)}
+                rows={2}
               />
             </div>
             <div>
               <Label className="text-xs flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Warning</Label>
-              <Input
+              <Textarea
                 placeholder="Optional warning..."
                 value={localWarning}
                 onChange={e => setLocalWarning(e.target.value)}
                 onBlur={() => flushField('warning', localWarning)}
+                rows={2}
               />
             </div>
           </div>
