@@ -226,6 +226,16 @@ function StepEditor({
   const videoInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Local state for text fields — sync to parent on blur
+  const [localTitle, setLocalTitle] = useState(step.title ?? '');
+  const [localContent, setLocalContent] = useState(step.content ?? '');
+  const [localTip, setLocalTip] = useState(step.tip ?? '');
+  const [localWarning, setLocalWarning] = useState(step.warning ?? '');
+
+  const flushField = useCallback((field: string, value: string) => {
+    onSave({ ...step, [field]: value });
+  }, [step, onSave]);
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -263,13 +273,24 @@ function StepEditor({
         className="w-full flex items-center gap-2 p-3 text-left text-sm font-medium"
       >
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">{index + 1}</span>
-        <span className="flex-1">{step.title || 'Untitled Step'}</span>
+        <span className="flex-1">{localTitle || 'Untitled Step'}</span>
         <ChevronRight className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} />
       </button>
       {expanded && (
         <div className="px-3 pb-3 space-y-3">
-          <Input placeholder="Step title" value={step.title ?? ''} onChange={e => onSave({ ...step, title: e.target.value })} />
-          <Textarea placeholder="Step instructions..." value={step.content ?? ''} onChange={e => onSave({ ...step, content: e.target.value })} rows={3} />
+          <Input
+            placeholder="Step title"
+            value={localTitle}
+            onChange={e => setLocalTitle(e.target.value)}
+            onBlur={() => flushField('title', localTitle)}
+          />
+          <Textarea
+            placeholder="Step instructions..."
+            value={localContent}
+            onChange={e => setLocalContent(e.target.value)}
+            onBlur={() => flushField('content', localContent)}
+            rows={3}
+          />
 
           {/* Photo upload */}
           <div>
@@ -324,11 +345,21 @@ function StepEditor({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs flex items-center gap-1"><Lightbulb className="h-3 w-3" /> Pro Tip</Label>
-              <Input placeholder="Optional tip..." value={step.tip ?? ''} onChange={e => onSave({ ...step, tip: e.target.value })} />
+              <Input
+                placeholder="Optional tip..."
+                value={localTip}
+                onChange={e => setLocalTip(e.target.value)}
+                onBlur={() => flushField('tip', localTip)}
+              />
             </div>
             <div>
               <Label className="text-xs flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Warning</Label>
-              <Input placeholder="Optional warning..." value={step.warning ?? ''} onChange={e => onSave({ ...step, warning: e.target.value })} />
+              <Input
+                placeholder="Optional warning..."
+                value={localWarning}
+                onChange={e => setLocalWarning(e.target.value)}
+                onBlur={() => flushField('warning', localWarning)}
+              />
             </div>
           </div>
           <Button size="sm" variant="ghost" className="text-destructive" onClick={onDelete}>
