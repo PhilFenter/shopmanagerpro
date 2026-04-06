@@ -778,7 +778,7 @@ function SkillsList() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Skills() {
-  const [checkRideOpen, setCheckRideOpen] = useState(false);
+  const [skillsCheckOpen, setSkillsCheckOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -786,11 +786,11 @@ export default function Skills() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Skills & Credentials</h1>
           <p className="text-muted-foreground">
-            Define what good looks like. Run check rides. Know who can do what.
+            Define what good looks like. Run skills checks. Know who can do what.
           </p>
         </div>
-        <Button onClick={() => setCheckRideOpen(true)}>
-          <ClipboardCheck className="h-4 w-4 mr-1.5" /> Conduct Check Ride
+        <Button onClick={() => setSkillsCheckOpen(true)}>
+          <ClipboardCheck className="h-4 w-4 mr-1.5" /> Conduct Skills Check
         </Button>
       </div>
 
@@ -798,7 +798,7 @@ export default function Skills() {
         <TabsList>
           <TabsTrigger value="matrix" className="gap-1.5"><LayoutGrid className="h-4 w-4" /> Matrix</TabsTrigger>
           <TabsTrigger value="skills" className="gap-1.5"><BookOpen className="h-4 w-4" /> Skills</TabsTrigger>
-          <TabsTrigger value="log" className="gap-1.5"><FileText className="h-4 w-4" /> Check Ride Log</TabsTrigger>
+          <TabsTrigger value="log" className="gap-1.5"><FileText className="h-4 w-4" /> Skills Check Log</TabsTrigger>
         </TabsList>
 
         <TabsContent value="matrix" className="mt-4">
@@ -808,11 +808,11 @@ export default function Skills() {
           <SkillsList />
         </TabsContent>
         <TabsContent value="log" className="mt-4">
-          <CheckRideLog />
+          <SkillsCheckLog />
         </TabsContent>
       </Tabs>
 
-      <CheckRideSheet open={checkRideOpen} onOpenChange={setCheckRideOpen} />
+      <ObservationSheet open={skillsCheckOpen} onOpenChange={setSkillsCheckOpen} />
     </div>
   );
 }
