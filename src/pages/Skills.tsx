@@ -446,7 +446,7 @@ function SkillDetailSheet({
 
             {skillRides.length > 0 && (
               <div>
-                <p className="text-sm font-semibold mb-2">Observation History</p>
+                <p className="text-sm font-semibold mb-2">Skills Check History</p>
                 <div className="space-y-2">
                   {skillRides.map(ride => (
                     <div key={ride.id} className={cn(
