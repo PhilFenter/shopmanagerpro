@@ -370,15 +370,15 @@ function ObservationSheet({
 
 // ─── Skill Detail Sheet ───────────────────────────────────────────────────────
 function SkillDetailSheet({
-  skill, open, onOpenChange, onCheckRide,
+  skill, open, onOpenChange, onObservation,
 }: {
   skill: Skill;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onCheckRide: (skillId: string) => void;
+  onObservation: (skillId: string) => void;
 }) {
   const { records } = useSkillRecords();
-  const { checkRides } = useCheckRides();
+  const { observations } = useObservations();
   const { teamMembers } = useTeamMembers();
 
   const skillRecords = records.filter(r => r.skill_id === skill.id);
