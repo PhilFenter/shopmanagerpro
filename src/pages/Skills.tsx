@@ -226,7 +226,7 @@ function ObservationSheet({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5 text-primary" />
-            Conduct Check Ride
+            Conduct Observation
           </SheetTitle>
           <p className="text-sm text-muted-foreground">
             Record the result of a live performance evaluation.
