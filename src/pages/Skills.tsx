@@ -603,7 +603,7 @@ function SkillsMatrix() {
           skill={viewingSkill}
           open={!!viewingSkill}
           onOpenChange={open => { if (!open) setViewingSkill(null); }}
-          onCheckRide={id => { setCheckRideSkillId(id); setViewingSkill(null); }}
+          onObservation={id => { setObservationSkillId(id); setViewingSkill(null); }}
         />
       )}
 
