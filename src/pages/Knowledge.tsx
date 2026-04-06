@@ -212,12 +212,14 @@ async function uploadSopMedia(file: File, folder: 'images' | 'videos'): Promise<
 }
 
 function StepEditor({
-  step, index, onSave, onDelete,
+  step, index, onSave, onDelete, onMoveUp, onMoveDown,
 }: {
   step: Partial<SopStep>;
   index: number;
   onSave: (s: Partial<SopStep>) => void;
   onDelete: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const [expanded, setExpanded] = useState(!step.id);
   const [uploadingImage, setUploadingImage] = useState(false);
