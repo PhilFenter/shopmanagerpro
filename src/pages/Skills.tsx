@@ -481,8 +481,8 @@ function SkillDetailSheet({
         </ScrollArea>
 
         <div className="pt-4 border-t">
-          <Button className="w-full" onClick={() => { onOpenChange(false); onCheckRide(skill.id); }}>
-            <ClipboardCheck className="h-4 w-4 mr-2" /> Conduct Check Ride
+          <Button className="w-full" onClick={() => { onOpenChange(false); onObservation(skill.id); }}>
+            <ClipboardCheck className="h-4 w-4 mr-2" /> Conduct Observation
           </Button>
         </div>
       </SheetContent>
