@@ -38,7 +38,7 @@ export interface SkillRecord {
   updated_at: string;
 }
 
-export interface CheckRide {
+export interface Observation {
   id: string;
   skill_id: string;
   candidate_id: string;
@@ -52,6 +52,9 @@ export interface CheckRide {
   recheck_by: string | null;
   created_at: string;
 }
+
+/** @deprecated Use Observation instead */
+export type CheckRide = Observation;
 
 // ─── Skills ──────────────────────────────────────────────────────────────────
 export function useSkills() {
