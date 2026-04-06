@@ -270,14 +270,24 @@ function StepEditor({
 
   return (
     <div className="border rounded-lg mb-2 bg-card">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 p-3 text-left text-sm font-medium"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">{index + 1}</span>
-        <span className="flex-1">{localTitle || 'Untitled Step'}</span>
-        <ChevronRight className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} />
-      </button>
+      <div className="flex items-center gap-1 p-2">
+        <div className="flex flex-col">
+          <Button size="icon" variant="ghost" className="h-5 w-5" disabled={!onMoveUp} onClick={onMoveUp}>
+            <ArrowUp className="h-3 w-3" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-5 w-5" disabled={!onMoveDown} onClick={onMoveDown}>
+            <ArrowDown className="h-3 w-3" />
+          </Button>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex-1 flex items-center gap-2 p-1 text-left text-sm font-medium"
+        >
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">{index + 1}</span>
+          <span className="flex-1">{localTitle || 'Untitled Step'}</span>
+          <ChevronRight className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} />
+        </button>
+      </div>
       {expanded && (
         <div className="px-3 pb-3 space-y-3">
           <Input
