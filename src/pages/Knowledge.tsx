@@ -498,9 +498,15 @@ function ChecklistEditorDialog({
   const [category, setCategory] = useState(template?.category ?? 'General');
   const [department, setDepartment] = useState(template?.department ?? '');
   const [sopId, setSopId] = useState(template?.sop_id ?? 'none');
+  const { steps: linkedSopSteps } = useSOPSteps(sopId !== 'none' ? sopId : null);
   const [items, setItems] = useState<{ text: string; required: boolean }[]>(template?.items ?? []);
   const [saving, setSaving] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+
+  // Build SOP context string for AI generation
+  const sopContextText = linkedSopSteps.length > 0
+    ? linkedSopSteps.map((s, i) => `Step ${i + 1}: ${s.title}\n${s.content || ''}${s.tip ? `\nTip: ${s.tip}` : ''}${s.warning ? `\nWarning: ${s.warning}` : ''}`).join('\n\n')
+    : undefined;
 
   const addItem = () => setItems(prev => [...prev, { text: '', required: false }]);
   const insertItemAt = (idx: number) => setItems(prev => [...prev.slice(0, idx + 1), { text: '', required: false }, ...prev.slice(idx + 1)]);
