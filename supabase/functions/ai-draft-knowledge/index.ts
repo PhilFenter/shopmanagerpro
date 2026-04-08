@@ -96,6 +96,7 @@ Rules:
 - Be specific to the decoration/apparel industry
 ${department ? `\nDepartment context: ${department}` : ""}
 ${category ? `\nCategory context: ${category}` : ""}
+${sopContext ? `\nIMPORTANT — The user has linked the following SOP. Base the checklist items directly on these SOP steps:\n\n${sopContext}` : ""}
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no code fences.`;
 
