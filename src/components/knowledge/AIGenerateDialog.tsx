@@ -27,7 +27,7 @@ export function AIGenerateDialog({ open, onOpenChange, type, department, categor
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-draft-knowledge', {
-        body: { type, prompt: prompt.trim(), department, category },
+        body: { type, prompt: prompt.trim(), department, category, sopContext },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
