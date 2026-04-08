@@ -597,6 +597,7 @@ function ChecklistEditorDialog({
               type="checklist"
               department={department}
               category={category}
+              sopContext={sopContextText}
               onGenerated={(result) => {
                 if (result.title && !title) setTitle(result.title);
                 if (result.description && !description) setDescription(result.description);
