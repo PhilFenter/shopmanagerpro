@@ -13,10 +13,11 @@ interface AIGenerateDialogProps {
   type: 'sop' | 'checklist';
   department?: string;
   category?: string;
+  sopContext?: string;
   onGenerated: (result: any) => void;
 }
 
-export function AIGenerateDialog({ open, onOpenChange, type, department, category, onGenerated }: AIGenerateDialogProps) {
+export function AIGenerateDialog({ open, onOpenChange, type, department, category, sopContext, onGenerated }: AIGenerateDialogProps) {
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
@@ -26,7 +27,7 @@ export function AIGenerateDialog({ open, onOpenChange, type, department, categor
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-draft-knowledge', {
-        body: { type, prompt: prompt.trim(), department, category },
+        body: { type, prompt: prompt.trim(), department, category, sopContext },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
