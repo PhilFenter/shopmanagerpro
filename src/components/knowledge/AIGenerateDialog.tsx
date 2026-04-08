@@ -17,7 +17,7 @@ interface AIGenerateDialogProps {
   onGenerated: (result: any) => void;
 }
 
-export function AIGenerateDialog({ open, onOpenChange, type, department, category, onGenerated }: AIGenerateDialogProps) {
+export function AIGenerateDialog({ open, onOpenChange, type, department, category, sopContext, onGenerated }: AIGenerateDialogProps) {
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
