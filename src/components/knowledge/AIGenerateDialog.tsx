@@ -13,6 +13,7 @@ interface AIGenerateDialogProps {
   type: 'sop' | 'checklist';
   department?: string;
   category?: string;
+  sopContext?: string;
   onGenerated: (result: any) => void;
 }
 
