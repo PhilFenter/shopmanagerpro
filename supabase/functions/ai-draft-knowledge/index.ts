@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { type, prompt, department, category } = await req.json();
+    const { type, prompt, department, category, sopContext } = await req.json();
 
     const systemPrompt = type === "sop"
       ? `You are an expert SOP writer for Hell's Canyon Designs, a custom apparel shop doing embroidery, screen printing, DTF transfers, leather patches, and laser engraving.
