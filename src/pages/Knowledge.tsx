@@ -492,7 +492,6 @@ function ChecklistEditorDialog({
 }) {
   const { createTemplate, updateTemplate } = useChecklistTemplates();
   const { sops } = useSOPs();
-  const { steps: linkedSopSteps } = useSOPSteps(sopId !== 'none' ? sopId : null);
   const { toast } = useToast();
   const [title, setTitle] = useState(template?.title ?? '');
   const [description, setDescription] = useState(template?.description ?? '');
