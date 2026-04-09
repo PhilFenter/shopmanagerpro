@@ -8,6 +8,17 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface SendMockupRequest {
   jobId: string;
   photoIds: string[];
@@ -46,19 +57,44 @@ serve(async (req: Request): Promise<Response> => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const userId = claimsData.claims.sub;
     // --- END AUTH CHECK ---
 
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY is not configured");
-    }
-
+    // --- ROLE CHECK ---
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Supabase configuration missing");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: roleData, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    if (roleError || !roleData?.length) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Forbidden: insufficient permissions" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userRoles = roleData.map((r: { role: string }) => r.role);
+    if (!userRoles.includes("admin") && !userRoles.includes("manager")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Forbidden: insufficient permissions" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- END ROLE CHECK ---
+
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+
     const resend = new Resend(resendApiKey);
 
     const { jobId, photoIds, customerEmail, customerName, message, orderNumber }: SendMockupRequest = await req.json();
@@ -67,12 +103,23 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields: jobId, photoIds, customerEmail, customerName");
     }
 
+    // --- EMAIL VALIDATION ---
+    if (!EMAIL_REGEX.test(customerEmail)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid email address format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- END EMAIL VALIDATION ---
+
     console.log(`Sending mockup email for job ${jobId} to ${customerEmail}`);
 
+    // --- VERIFY PHOTOS BELONG TO JOB ---
     const { data: photos, error: photosError } = await supabase
       .from("job_photos")
-      .select("storage_path, filename")
-      .in("id", photoIds);
+      .select("id, storage_path, filename")
+      .in("id", photoIds)
+      .eq("job_id", jobId);
 
     if (photosError) {
       console.error("Error fetching photos:", photosError);
@@ -80,8 +127,16 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     if (!photos?.length) {
-      throw new Error("No photos found for the provided IDs");
+      throw new Error("No photos found for the provided IDs matching the given job");
     }
+
+    if (photos.length !== photoIds.length) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Some photo IDs do not belong to the specified job" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- END VERIFY ---
 
     const photoUrls = await Promise.all(photos.map(async (photo) => {
       const { data } = await supabase.storage
@@ -95,15 +150,18 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log(`Found ${photoUrls.length} photos to include in email`);
 
-    const orderRef = orderNumber ? ` (Order #${orderNumber})` : "";
-    const customMessage = message || "Please review the attached mockup(s) for your upcoming order.";
+    const safeCustomerName = escapeHtml(customerName);
+    const safeOrderNumber = orderNumber ? escapeHtml(orderNumber) : "";
+    const safeMessage = message ? escapeHtml(message) : "Please review the attached mockup(s) for your upcoming order.";
+
+    const orderRef = safeOrderNumber ? ` (Order #${safeOrderNumber})` : "";
     
     const photoHtml = photoUrls
       .map(
         (photo) => `
         <div style="margin-bottom: 20px;">
-          <img src="${photo.url}" alt="${photo.filename}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
-          <p style="color: #666; font-size: 12px; margin-top: 8px;">${photo.filename}</p>
+          <img src="${photo.url}" alt="${escapeHtml(photo.filename)}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+          <p style="color: #666; font-size: 12px; margin-top: 8px;">${escapeHtml(photo.filename)}</p>
         </div>
       `
       )
@@ -120,9 +178,9 @@ serve(async (req: Request): Promise<Response> => {
           <div style="background-color: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
             <h1 style="color: #333; margin-bottom: 20px; font-size: 24px;">Mockup Approval Request${orderRef}</h1>
             
-            <p style="color: #555; font-size: 16px; line-height: 1.6;">Hi ${customerName},</p>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">Hi ${safeCustomerName},</p>
             
-            <p style="color: #555; font-size: 16px; line-height: 1.6;">${customMessage}</p>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">${safeMessage}</p>
             
             <div style="margin: 30px 0;">
               ${photoHtml}
