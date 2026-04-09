@@ -9,7 +9,6 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   role: AppRole | null;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -72,9 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
 
       if (error) {
-        console.error('Failed to fetch user role', error);
-        setRole('team');
+        console.error('Failed to fetch user role — signing out for safety', error);
+        setRole(null);
         setRoleReady(true);
+        await supabase.auth.signOut();
         return;
       }
 
@@ -84,8 +84,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole('admin');
       } else if (roles.includes('manager')) {
         setRole('manager');
-      } else {
+      } else if (roles.length > 0) {
         setRole('team');
+      } else {
+        // No roles assigned — fail closed
+        console.error('No roles assigned to user — signing out');
+        setRole(null);
+        setRoleReady(true);
+        await supabase.auth.signOut();
+        return;
       }
 
       setRoleReady(true);
@@ -109,23 +116,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loading = !authReady || (!!user && !roleReady);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-    
-    return { error: error as Error | null };
-  };
-
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -142,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, role, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

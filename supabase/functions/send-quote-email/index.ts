@@ -5,6 +5,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -34,7 +43,34 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const userId = claimsData.claims.sub;
     // --- END AUTH CHECK ---
+
+    // --- ROLE CHECK ---
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    const { data: roleData, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    if (roleError || !roleData?.length) {
+      return new Response(JSON.stringify({ error: "Forbidden: insufficient permissions" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userRoles = roleData.map((r: { role: string }) => r.role);
+    if (!userRoles.includes("admin") && !userRoles.includes("manager")) {
+      return new Response(JSON.stringify({ error: "Forbidden: insufficient permissions" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // --- END ROLE CHECK ---
 
     const { quoteId } = await req.json();
     if (!quoteId) {
@@ -44,9 +80,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendKey = Deno.env.get("RESEND_API_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Fetch quote with line items
     const { data: quote, error: qErr } = await supabase
@@ -89,20 +123,30 @@ Deno.serve(async (req) => {
     const taxAmount = subtotal * (taxRate / 100);
     const grandTotal = subtotal + taxAmount;
 
+    // Sanitize all interpolated values
+    const safeCustomerName = escapeHtml(quote.customer_name || "");
+    const safeQuoteNumber = escapeHtml(quote.quote_number || "");
+    const safeNotes = quote.notes ? escapeHtml(quote.notes) : "";
+
     // Build line items HTML
     const lineItemsHtml = (quote.quote_line_items || [])
       .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
-      .map((item: any) => `
+      .map((item: any) => {
+        const desc = escapeHtml(item.description || item.service_type || "Item");
+        const styleNum = item.style_number ? escapeHtml(item.style_number) : "";
+        const color = item.color ? escapeHtml(item.color) : "";
+        return `
         <tr>
           <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">
-            ${item.description || item.service_type || "Item"}
-            ${item.style_number ? `<br><span style="color: #6b7280; font-size: 12px;">${item.style_number}</span>` : ""}
-            ${item.color ? `<br><span style="color: #6b7280; font-size: 12px;">Color: ${item.color}</span>` : ""}
+            ${desc}
+            ${styleNum ? `<br><span style="color: #6b7280; font-size: 12px;">${styleNum}</span>` : ""}
+            ${color ? `<br><span style="color: #6b7280; font-size: 12px;">Color: ${color}</span>` : ""}
           </td>
           <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 14px;">${item.quantity}</td>
           <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px;">$${(item.line_total || 0).toFixed(2)}</td>
         </tr>
-      `).join("");
+      `;
+      }).join("");
 
     const emailHtml = `
 <!DOCTYPE html>
@@ -117,16 +161,16 @@ Deno.serve(async (req) => {
         <tr>
           <td style="background: linear-gradient(135deg, #0284c7, #0369a1); padding: 32px 40px; text-align: center;">
             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Hell's Canyon Designs</h1>
-            <p style="margin: 8px 0 0; color: #bae6fd; font-size: 14px;">Quote ${quote.quote_number || ""}</p>
+            <p style="margin: 8px 0 0; color: #bae6fd; font-size: 14px;">Quote ${safeQuoteNumber}</p>
           </td>
         </tr>
 
         <!-- Greeting -->
         <tr>
           <td style="padding: 32px 40px 16px;">
-            <p style="margin: 0; font-size: 16px; color: #111827;">Hi ${quote.customer_name},</p>
+            <p style="margin: 0; font-size: 16px; color: #111827;">Hi ${safeCustomerName},</p>
             <p style="margin: 12px 0 0; font-size: 14px; color: #4b5563; line-height: 1.6;">
-              Thank you for your interest! Here's your quote for the items we discussed. Please review the details below and click the button to approve${quote.requested_date ? ` — requested by <strong>${new Date(quote.requested_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>` : ""}.
+              Thank you for your interest! Here's your quote for the items we discussed. Please review the details below and click the button to approve${quote.requested_date ? ` &mdash; requested by <strong>${escapeHtml(new Date(quote.requested_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))}</strong>` : ""}.
             </p>
           </td>
         </tr>
@@ -166,12 +210,12 @@ Deno.serve(async (req) => {
           </td>
         </tr>
 
-        ${quote.notes ? `
+        ${safeNotes ? `
         <tr>
           <td style="padding: 16px 40px 0;">
             <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px;">
               <p style="margin: 0 0 4px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.05em;">Notes</p>
-              <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.5;">${quote.notes}</p>
+              <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.5;">${safeNotes}</p>
             </div>
           </td>
         </tr>` : ""}
@@ -189,7 +233,7 @@ Deno.serve(async (req) => {
         <tr>
           <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
             <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.5;">
-              Hell's Canyon Designs · Custom Apparel &amp; Embroidery<br>
+              Hell's Canyon Designs &middot; Custom Apparel &amp; Embroidery<br>
               Questions? Reply to this email or call us.
             </p>
           </td>
@@ -211,7 +255,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
         to: [quote.customer_email],
-        subject: `Quote ${quote.quote_number || ""} — $${grandTotal.toFixed(2)} | Hell's Canyon Designs`,
+        subject: `Quote ${safeQuoteNumber} — $${grandTotal.toFixed(2)} | Hell's Canyon Designs`,
         html: emailHtml,
       }),
     });

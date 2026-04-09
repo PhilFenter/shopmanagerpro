@@ -133,7 +133,7 @@ function App() {
                 <Route
                   path="/settings"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireAdmin>
                       <AppLayout>
                         <Settings />
                       </AppLayout>
@@ -143,7 +143,7 @@ function App() {
                 <Route
                   path="/team"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireAdmin>
                       <AppLayout>
                         <Team />
                       </AppLayout>
@@ -153,7 +153,7 @@ function App() {
                 <Route
                   path="/financials"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireAdmin>
                       <AppLayout>
                         <Financials />
                       </AppLayout>
@@ -163,7 +163,7 @@ function App() {
                 <Route
                   path="/integrations"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireAdmin>
                       <AppLayout>
                         <Integrations />
                       </AppLayout>
@@ -243,7 +243,7 @@ function App() {
                 <Route
                   path="/purchase-orders"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireAdmin>
                       <AppLayout>
                         <PurchaseOrders />
                       </AppLayout>
