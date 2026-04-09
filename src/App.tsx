@@ -52,238 +52,238 @@ function App() {
           <AuthProvider>
             <RolePreviewProvider>
               <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* Root redirects to dashboard (auth guard will send to /auth if not logged in) */}
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Routes>
+                  {/* Root redirects to dashboard (auth guard will send to /auth if not logged in) */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-                {/* Auth */}
-                <Route path="/auth" element={<Auth />} />
+                  {/* Auth */}
+                  <Route path="/auth" element={<Auth />} />
 
-                {/* Protected app pages */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Dashboard />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/jobs"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Jobs />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/jobs/:id"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Jobs />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/embroidery"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Embroidery />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/screen-print"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <ScreenPrint />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dtf"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <DTF />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/leather"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Leather />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AppLayout>
-                        <Settings />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/team"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AppLayout>
-                        <Team />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/financials"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AppLayout>
-                        <Financials />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/integrations"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AppLayout>
-                        <Integrations />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/action-items"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <ActionItems />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/customers"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Customers />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/messages"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Messages />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/artwork"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <ArtworkLibrary />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Inventory />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/quotes"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Quotes />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/quotes/:id"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <QuoteDetail />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/purchase-orders"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AppLayout>
-                        <PurchaseOrders />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="/install" element={<Install />} />
-                <Route path="/quote/approve/:token" element={<QuoteApproval />} />
-                <Route
-                  path="/knowledge"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Knowledge />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/training"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Training />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/skills"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Skills />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* Protected app pages */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Dashboard />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/jobs"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Jobs />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/jobs/:id"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Jobs />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/embroidery"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Embroidery />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/screen-print"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ScreenPrint />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dtf"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <DTF />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/leather"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Leather />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Settings />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/team"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Team />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/financials"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Financials />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/integrations"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Integrations />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/action-items"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ActionItems />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/customers"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Customers />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/messages"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Messages />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/artwork"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ArtworkLibrary />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/inventory"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Inventory />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/quotes"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Quotes />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/quotes/:id"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <QuoteDetail />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/purchase-orders"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <PurchaseOrders />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/install" element={<Install />} />
+                  <Route path="/quote/approve/:token" element={<QuoteApproval />} />
+                  <Route
+                    path="/knowledge"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Knowledge />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/training"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Training />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/skills"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Skills />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
               </Suspense>
             </RolePreviewProvider>
           </AuthProvider>
