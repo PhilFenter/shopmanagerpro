@@ -75,7 +75,7 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
   const importOrder = async (orderId: number, orderName: string) => {
     setImporting(orderId);
     try {
-      const result = previewData && previewOrderId === orderId
+      const result = previewData && previewData.orderId === orderId
         ? { order: previewData }
         : await fetchOrderDetail(orderId, store);
       const order = result.order;
@@ -138,7 +138,7 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadOrders(); }}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
           <Import className="mr-2 h-4 w-4" /> Import from InkSoft
@@ -146,110 +146,98 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>InkSoft Orders</DialogTitle>
+          <DialogTitle>Import from InkSoft</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm text-muted-foreground">Store:</span>
-          <Select value={store} onValueChange={handleStoreChange}>
-            <SelectTrigger className="w-[240px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INKSOFT_STORES.map(s => (
-                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground w-16">Store:</span>
+            <Select value={store} onValueChange={handleStoreChange}>
+              <SelectTrigger className="w-[240px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INKSOFT_STORES.map(s => (
+                  <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground w-16">Order ID:</span>
+            <Input
+              type="number"
+              placeholder="e.g. 12345"
+              value={orderIdInput}
+              onChange={(e) => setOrderIdInput(e.target.value)}
+              className="w-[240px]"
+              onKeyDown={(e) => { if (e.key === 'Enter') previewOrder(); }}
+            />
+            <Button size="sm" onClick={previewOrder} disabled={previewLoading}>
+              {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Look up'}
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Find the Order ID in your InkSoft admin (Orders list, leftmost column).
+            InkSoft's API doesn't expose a list of all orders — enter the ID you want to import.
+          </p>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
+        {previewData && (
+          <div className="mt-4 border rounded-md p-3 bg-muted/30">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="font-medium">
+                  {previewData.orderName || `Order ${previewData.orderId}`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {previewData.customerName || '—'}
+                  {previewData.productionStatus ? ` · ${previewData.productionStatus}` : ''}
+                  {previewData.totalAmount != null ? ` · $${Number(previewData.totalAmount).toFixed(2)}` : ''}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => importOrder(previewData.orderId, previewData.orderName || String(previewData.orderId))}
+                disabled={importing === previewData.orderId}
+              >
+                {importing === previewData.orderId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Import to PO'}
+              </Button>
+            </div>
+
+            <div className="space-y-3 mt-3">
+              {(previewData.items || []).map((it: any, idx: number) => {
+                const sizeBreakdown = (it.sizes || [])
+                  .filter((s: any) => s.Quantity > 0)
+                  .map((s: any) => `${s.SizeName}×${s.Quantity}`)
+                  .join(', ');
+                return (
+                  <div key={idx} className="border-l-2 border-primary pl-3">
+                    <p className="font-medium text-sm">
+                      {it.styleName || it.productName} {it.colorName ? `— ${it.colorName}` : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {sizeBreakdown || `Qty ${it.quantity}`}
+                    </p>
+                    {it.decorations && it.decorations.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {it.decorations.map((d: any, di: number) => (
+                          <Badge key={di} variant="outline" className="text-xs">
+                            {d.name}{d.placement ? ` · ${d.placement}` : ''}{d.method ? ` · ${d.method}` : ''}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {(!previewData.items || previewData.items.length === 0) && (
+                <p className="text-sm text-muted-foreground">No line items found on this order.</p>
+              )}
+            </div>
           </div>
-        ) : orders.length === 0 ? (
-          <p className="text-muted-foreground py-4">No pending orders found in this store.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((o: any) => (
-                <>
-                  <TableRow key={o.OrderId}>
-                    <TableCell className="font-medium">{o.ProposalReferenceId || o.OrderId}</TableCell>
-                    <TableCell>{o.Name || '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{o.ProductionStatus || 'Pending'}</Badge>
-                    </TableCell>
-                    <TableCell>${(o.TotalAmount || 0).toFixed(2)}</TableCell>
-                    <TableCell className="flex gap-2 justify-end">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => previewOrderId === o.OrderId ? setPreviewOrderId(null) : previewOrder(o.OrderId)}
-                      >
-                        {previewOrderId === o.OrderId ? 'Hide' : 'Preview'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => importOrder(o.OrderId, o.ProposalReferenceId || String(o.OrderId))}
-                        disabled={importing === o.OrderId}
-                      >
-                        {importing === o.OrderId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Import to PO'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  {previewOrderId === o.OrderId && (
-                    <TableRow key={`${o.OrderId}-preview`}>
-                      <TableCell colSpan={5} className="bg-muted/30">
-                        {previewLoading ? (
-                          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
-                        ) : !previewData ? (
-                          <p className="text-sm text-muted-foreground py-2">No data.</p>
-                        ) : (
-                          <div className="space-y-3 py-2">
-                            {(previewData.items || []).map((it: any, idx: number) => {
-                              const sizeBreakdown = (it.sizes || [])
-                                .filter((s: any) => s.Quantity > 0)
-                                .map((s: any) => `${s.SizeName}×${s.Quantity}`)
-                                .join(', ');
-                              return (
-                                <div key={idx} className="border-l-2 border-primary pl-3">
-                                  <p className="font-medium text-sm">
-                                    {it.styleName || it.productName} {it.colorName ? `— ${it.colorName}` : ''}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {sizeBreakdown || `Qty ${it.quantity}`}
-                                  </p>
-                                  {it.decorations && it.decorations.length > 0 && (
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                      {it.decorations.map((d: any, di: number) => (
-                                        <Badge key={di} variant="outline" className="text-xs">
-                                          {d.name}{d.placement ? ` · ${d.placement}` : ''}{d.method ? ` · ${d.method}` : ''}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
-              ))}
-            </TableBody>
-          </Table>
         )}
       </DialogContent>
     </Dialog>
