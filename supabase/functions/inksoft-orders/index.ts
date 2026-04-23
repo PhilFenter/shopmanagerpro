@@ -12,6 +12,25 @@ const STORES: Record<string, { slug: string; label: string }> = {
 
 const baseUrl = (slug: string) => `https://stores.inksoft.com/${slug}/Api2`;
 
+// InkSoft Api2 uses GET with query params and returns { OK, Data, Messages, StatusCode }
+async function inksoftGet(slug: string, method: string, params: Record<string, string>) {
+  const qs = new URLSearchParams({ ...params, Format: "JSON" }).toString();
+  const url = `${baseUrl(slug)}/${method}?${qs}`;
+  const resp = await fetch(url, { method: "GET" });
+  const text = await resp.text();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`InkSoft ${method} returned non-JSON (HTTP ${resp.status})`);
+  }
+  if (!data.OK) {
+    const msg = data.Messages?.[0]?.Content || `InkSoft ${method} failed`;
+    throw new Error(msg);
+  }
+  return data.Data;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -38,7 +57,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, orderId } = body;
+    const { action, orderId, orderIds } = body;
     const storeKey = body.store || "hcd_kiosk";
     const store = STORES[storeKey];
     if (!store) {
@@ -54,76 +73,79 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    if (action === "list") {
-      const url = `${baseUrl(store.slug)}/GetOrderSummaries`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ApiKey: apiKey, Page: 1, ResultsPerPage: 50 }),
-      });
-      const text = await resp.text();
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.error(`InkSoft non-JSON response from ${url} [${resp.status}]:`, text.slice(0, 300));
-        throw new Error(`InkSoft API returned ${resp.status} (non-JSON). The /Api2/ endpoint may no longer exist for store "${storeKey}". URL tried: ${url}`);
+    // Fetch one or more orders by ID. InkSoft Api2 has no public "list all orders"
+    // endpoint, so the user must provide order ID(s) from the InkSoft admin.
+    if (action === "detail" || action === "list") {
+      const ids: number[] = orderIds && Array.isArray(orderIds) && orderIds.length
+        ? orderIds.map(Number).filter((n) => !isNaN(n))
+        : (orderId != null ? [Number(orderId)] : []);
+      if (ids.length === 0) {
+        return new Response(JSON.stringify({ error: "Provide an InkSoft Order ID" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      if (!data.Success) throw new Error(data.Message || "InkSoft API error");
 
-      const orders = (data.Data?.Orders || []).filter((o: any) =>
-        o.ProductionStatus !== "Complete" && o.ProductionStatus !== "Cancelled"
-      );
-
-      return new Response(JSON.stringify({ success: true, orders, store: storeKey }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const data = await inksoftGet(store.slug, "GetOrderPackage", {
+        ApiKey: apiKey,
+        OrderIds: JSON.stringify(ids),
       });
-    }
 
-    if (action === "detail" && orderId) {
-      const resp = await fetch(`${baseUrl(store.slug)}/GetOrderPackage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ApiKey: apiKey, OrderId: orderId }),
-      });
-      const data = await resp.json();
-      if (!data.Success) throw new Error(data.Message || "InkSoft API error");
+      // GetOrderPackage returns either a single order object or an array depending on input.
+      const rawOrders: any[] = Array.isArray(data) ? data : (data ? [data] : []);
 
-      const order = data.Data;
+      const mapOrder = (order: any) => {
+        const items = (order?.Items || order?.OrderItems || []).map((item: any) => {
+          const designs: any[] = item.Designs || item.Decorations || item.Imprints || [];
+          const decorations = designs.map((d: any) => ({
+            name: d.Name || d.DesignName || d.Title || "Design",
+            placement: d.Location || d.Placement || d.LocationName || null,
+            method: d.DecorationMethod || d.Method || d.Type || null,
+            colors: d.Colors || d.InkColors || null,
+            imageUrl: d.ImageUrl || d.PreviewUrl || d.ThumbnailUrl || null,
+          }));
 
-      // Extract decoration designs (per item -> placements -> design name)
-      const items = (order?.Items || []).map((item: any) => {
-        // Decorations may live on Designs, Decorations, or Imprints depending on store config
-        const designs: any[] = item.Designs || item.Decorations || item.Imprints || [];
-        const decorations = designs.map((d: any) => ({
-          name: d.Name || d.DesignName || d.Title || "Design",
-          placement: d.Location || d.Placement || d.LocationName || null,
-          method: d.DecorationMethod || d.Method || d.Type || null,
-          colors: d.Colors || d.InkColors || null,
-          imageUrl: d.ImageUrl || d.PreviewUrl || d.ThumbnailUrl || null,
-        }));
+          return {
+            productName: item.ProductName || item.Name,
+            styleName: item.StyleName || item.StyleNumber || item.SKU,
+            colorName: item.ColorName || item.Color,
+            sizes: item.Sizes || item.SizeBreakdown || [],
+            quantity: item.Quantity || item.TotalQuantity,
+            unitPrice: item.UnitPrice,
+            totalPrice: item.TotalPrice || item.LineTotal,
+            decorations,
+          };
+        });
 
         return {
-          productName: item.ProductName,
-          styleName: item.StyleName,
-          colorName: item.ColorName,
-          sizes: item.Sizes || [],
-          quantity: item.Quantity,
-          unitPrice: item.UnitPrice,
-          totalPrice: item.TotalPrice,
-          decorations,
-        };
-      });
-
-      return new Response(JSON.stringify({
-        success: true,
-        order: {
-          orderId: order?.OrderId,
-          orderName: order?.Name || order?.ProposalReferenceId,
-          customerName: order?.ShipToName || order?.BillToName,
+          orderId: order?.OrderId || order?.Id,
+          orderName: order?.Name || order?.ProposalReferenceId || `Order ${order?.OrderId}`,
+          customerName: order?.ShipToName || order?.BillToName || order?.CustomerName,
+          productionStatus: order?.ProductionStatus,
+          totalAmount: order?.TotalAmount,
           items,
-        },
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        };
+      };
+
+      const mapped = rawOrders.map(mapOrder);
+
+      // Backwards compat: callers using action=list expect { orders }, action=detail expects { order }
+      if (action === "list") {
+        // For the "list" action we return a list-shaped payload of the requested orders.
+        const orders = mapped.map((m) => ({
+          OrderId: m.orderId,
+          ProposalReferenceId: m.orderName,
+          Name: m.customerName,
+          ProductionStatus: m.productionStatus,
+          TotalAmount: m.totalAmount,
+        }));
+        return new Response(JSON.stringify({ success: true, orders, store: storeKey }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, order: mapped[0] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(JSON.stringify({ error: "Invalid action" }), {
