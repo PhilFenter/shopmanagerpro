@@ -55,12 +55,20 @@ Deno.serve(async (req) => {
     }
 
     if (action === "list") {
-      const resp = await fetch(`${baseUrl(store.slug)}/GetOrderSummaries`, {
+      const url = `${baseUrl(store.slug)}/GetOrderSummaries`;
+      const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ApiKey: apiKey, Page: 1, ResultsPerPage: 50 }),
       });
-      const data = await resp.json();
+      const text = await resp.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error(`InkSoft non-JSON response from ${url} [${resp.status}]:`, text.slice(0, 300));
+        throw new Error(`InkSoft API returned ${resp.status} (non-JSON). The /Api2/ endpoint may no longer exist for store "${storeKey}". URL tried: ${url}`);
+      }
       if (!data.Success) throw new Error(data.Message || "InkSoft API error");
 
       const orders = (data.Data?.Orders || []).filter((o: any) =>
