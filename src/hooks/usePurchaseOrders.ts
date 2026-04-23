@@ -157,20 +157,27 @@ export function usePOLineItems(poId: string | undefined) {
   };
 }
 
+export const INKSOFT_STORES = [
+  { key: 'hcd_kiosk', label: 'HCD Kiosk' },
+  { key: 'grangeville_helitack', label: 'Grangeville Helitack' },
+] as const;
+
+export type InkSoftStoreKey = typeof INKSOFT_STORES[number]['key'];
+
 export function useInkSoftOrders() {
-  const fetchOrders = async () => {
+  const fetchOrders = async (store: InkSoftStoreKey = 'hcd_kiosk') => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
     const resp = await supabase.functions.invoke('inksoft-orders', {
-      body: { action: 'list' },
+      body: { action: 'list', store },
     });
     if (resp.error) throw resp.error;
     return resp.data;
   };
 
-  const fetchOrderDetail = async (orderId: number) => {
+  const fetchOrderDetail = async (orderId: number, store: InkSoftStoreKey = 'hcd_kiosk') => {
     const resp = await supabase.functions.invoke('inksoft-orders', {
-      body: { action: 'detail', orderId },
+      body: { action: 'detail', orderId, store },
     });
     if (resp.error) throw resp.error;
     return resp.data;
