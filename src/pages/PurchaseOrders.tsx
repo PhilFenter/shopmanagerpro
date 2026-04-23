@@ -39,47 +39,34 @@ function ShippingTracker({ progress, remaining, threshold }: { progress: number;
 }
 
 function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: () => void }) {
-  const [loading, setLoading] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orderIdInput, setOrderIdInput] = useState('');
   const [importing, setImporting] = useState<number | null>(null);
   const [store, setStore] = useState<InkSoftStoreKey>('hcd_kiosk');
   const [open, setOpen] = useState(false);
-  const [previewOrderId, setPreviewOrderId] = useState<number | null>(null);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const { fetchOrders, fetchOrderDetail } = useInkSoftOrders();
+  const { fetchOrderDetail } = useInkSoftOrders();
   const { addItems } = usePOLineItems(poId);
   const { toast } = useToast();
 
-  const loadOrders = async (storeKey: InkSoftStoreKey = store) => {
-    setLoading(true);
-    setPreviewOrderId(null);
-    setPreviewData(null);
-    try {
-      const result = await fetchOrders(storeKey);
-      setOrders(result.orders || []);
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed to fetch InkSoft orders', description: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleStoreChange = (val: string) => {
-    const k = val as InkSoftStoreKey;
-    setStore(k);
-    loadOrders(k);
+    setStore(val as InkSoftStoreKey);
+    setPreviewData(null);
   };
 
-  const previewOrder = async (orderId: number) => {
-    setPreviewOrderId(orderId);
+  const previewOrder = async () => {
+    const id = parseInt(orderIdInput.trim(), 10);
+    if (!id || isNaN(id)) {
+      toast({ variant: 'destructive', title: 'Enter a valid InkSoft Order ID' });
+      return;
+    }
     setPreviewLoading(true);
     setPreviewData(null);
     try {
-      const result = await fetchOrderDetail(orderId, store);
+      const result = await fetchOrderDetail(id, store);
       setPreviewData(result.order);
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed to load order detail', description: err.message });
+      toast({ variant: 'destructive', title: 'Failed to load order', description: err.message });
     } finally {
       setPreviewLoading(false);
     }
