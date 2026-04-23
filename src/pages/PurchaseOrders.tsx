@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { hasFinancialAccess } from '@/hooks/useJobs';
-import { usePurchaseOrders, usePOLineItems, useInkSoftOrders } from '@/hooks/usePurchaseOrders';
+import { usePurchaseOrders, usePOLineItems, useInkSoftOrders, INKSOFT_STORES, type InkSoftStoreKey } from '@/hooks/usePurchaseOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -41,14 +41,21 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [importing, setImporting] = useState<number | null>(null);
+  const [store, setStore] = useState<InkSoftStoreKey>('hcd_kiosk');
+  const [open, setOpen] = useState(false);
+  const [previewOrderId, setPreviewOrderId] = useState<number | null>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const { fetchOrders, fetchOrderDetail } = useInkSoftOrders();
   const { addItems } = usePOLineItems(poId);
   const { toast } = useToast();
 
-  const loadOrders = async () => {
+  const loadOrders = async (storeKey: InkSoftStoreKey = store) => {
     setLoading(true);
+    setPreviewOrderId(null);
+    setPreviewData(null);
     try {
-      const result = await fetchOrders();
+      const result = await fetchOrders(storeKey);
       setOrders(result.orders || []);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Failed to fetch InkSoft orders', description: err.message });
@@ -57,13 +64,43 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
     }
   };
 
+  const handleStoreChange = (val: string) => {
+    const k = val as InkSoftStoreKey;
+    setStore(k);
+    loadOrders(k);
+  };
+
+  const previewOrder = async (orderId: number) => {
+    setPreviewOrderId(orderId);
+    setPreviewLoading(true);
+    setPreviewData(null);
+    try {
+      const result = await fetchOrderDetail(orderId, store);
+      setPreviewData(result.order);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Failed to load order detail', description: err.message });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const importOrder = async (orderId: number, orderName: string) => {
     setImporting(orderId);
     try {
-      const result = await fetchOrderDetail(orderId);
+      const result = previewData && previewOrderId === orderId
+        ? { order: previewData }
+        : await fetchOrderDetail(orderId, store);
       const order = result.order;
       const lineItems: any[] = [];
+      const decorationSummary = (item: any) => {
+        if (!item.decorations || item.decorations.length === 0) return null;
+        return item.decorations
+          .map((d: any) => `${d.name}${d.placement ? ` @ ${d.placement}` : ''}`)
+          .join(' | ');
+      };
       for (const item of order.items || []) {
+        const decoNote = decorationSummary(item);
+        const baseDescription = [item.productName, decoNote].filter(Boolean).join(' — ');
         if (item.sizes && item.sizes.length > 0) {
           for (const sz of item.sizes) {
             if (sz.Quantity > 0) {
@@ -78,6 +115,7 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
                 source: 'inksoft',
                 source_order_id: String(orderId),
                 source_order_name: orderName,
+                description: baseDescription || null,
               });
             }
           }
@@ -92,6 +130,7 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
             source: 'inksoft',
             source_order_id: String(orderId),
             source_order_name: orderName,
+            description: baseDescription || null,
           });
         }
       }
@@ -99,6 +138,7 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
         await addItems.mutateAsync(lineItems);
         toast({ title: `Imported ${lineItems.length} items from order ${orderName}` });
         onImported();
+        setOpen(false);
       } else {
         toast({ title: 'No garment items found in this order' });
       }
@@ -110,22 +150,37 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadOrders(); }}>
       <DialogTrigger asChild>
-        <Button variant="outline" onClick={loadOrders}>
+        <Button variant="outline">
           <Import className="mr-2 h-4 w-4" /> Import from InkSoft
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>InkSoft Orders</DialogTitle>
         </DialogHeader>
+
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-sm text-muted-foreground">Store:</span>
+          <Select value={store} onValueChange={handleStoreChange}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INKSOFT_STORES.map(s => (
+                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : orders.length === 0 ? (
-          <p className="text-muted-foreground py-4">No pending orders found.</p>
+          <p className="text-muted-foreground py-4">No pending orders found in this store.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -139,23 +194,71 @@ function InkSoftImportDialog({ poId, onImported }: { poId: string; onImported: (
             </TableHeader>
             <TableBody>
               {orders.map((o: any) => (
-                <TableRow key={o.OrderId}>
-                  <TableCell className="font-medium">{o.ProposalReferenceId || o.OrderId}</TableCell>
-                  <TableCell>{o.Name || '—'}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{o.ProductionStatus || 'Pending'}</Badge>
-                  </TableCell>
-                  <TableCell>${(o.TotalAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      onClick={() => importOrder(o.OrderId, o.ProposalReferenceId || String(o.OrderId))}
-                      disabled={importing === o.OrderId}
-                    >
-                      {importing === o.OrderId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Import'}
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow key={o.OrderId}>
+                    <TableCell className="font-medium">{o.ProposalReferenceId || o.OrderId}</TableCell>
+                    <TableCell>{o.Name || '—'}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{o.ProductionStatus || 'Pending'}</Badge>
+                    </TableCell>
+                    <TableCell>${(o.TotalAmount || 0).toFixed(2)}</TableCell>
+                    <TableCell className="flex gap-2 justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => previewOrderId === o.OrderId ? setPreviewOrderId(null) : previewOrder(o.OrderId)}
+                      >
+                        {previewOrderId === o.OrderId ? 'Hide' : 'Preview'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => importOrder(o.OrderId, o.ProposalReferenceId || String(o.OrderId))}
+                        disabled={importing === o.OrderId}
+                      >
+                        {importing === o.OrderId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Import to PO'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  {previewOrderId === o.OrderId && (
+                    <TableRow key={`${o.OrderId}-preview`}>
+                      <TableCell colSpan={5} className="bg-muted/30">
+                        {previewLoading ? (
+                          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                        ) : !previewData ? (
+                          <p className="text-sm text-muted-foreground py-2">No data.</p>
+                        ) : (
+                          <div className="space-y-3 py-2">
+                            {(previewData.items || []).map((it: any, idx: number) => {
+                              const sizeBreakdown = (it.sizes || [])
+                                .filter((s: any) => s.Quantity > 0)
+                                .map((s: any) => `${s.SizeName}×${s.Quantity}`)
+                                .join(', ');
+                              return (
+                                <div key={idx} className="border-l-2 border-primary pl-3">
+                                  <p className="font-medium text-sm">
+                                    {it.styleName || it.productName} {it.colorName ? `— ${it.colorName}` : ''}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {sizeBreakdown || `Qty ${it.quantity}`}
+                                  </p>
+                                  {it.decorations && it.decorations.length > 0 && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {it.decorations.map((d: any, di: number) => (
+                                        <Badge key={di} variant="outline" className="text-xs">
+                                          {d.name}{d.placement ? ` · ${d.placement}` : ''}{d.method ? ` · ${d.method}` : ''}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               ))}
             </TableBody>
           </Table>
