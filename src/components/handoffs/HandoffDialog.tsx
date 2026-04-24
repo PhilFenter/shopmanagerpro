@@ -37,7 +37,7 @@ export function HandoffDialog({ open, onOpenChange, jobId, jobLabel, defaultFrom
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>Hand off job{jobLabel ? ` · ${jobLabel}` : ''}</DialogTitle>
         </DialogHeader>
