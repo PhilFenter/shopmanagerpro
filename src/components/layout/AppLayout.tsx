@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useHandoffs } from '@/hooks/useHandoffs';
 import { Badge } from '@/components/ui/badge';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -258,16 +259,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <Menu className="h-6 w-6" />
           </Button>
           <span className="text-lg font-bold">Shop Manager</span>
-          <Link to="/handoffs" className="ml-auto relative">
-            <Button variant="ghost" size="icon">
-              <Inbox className="h-5 w-5" />
-            </Button>
-            {unreadHandoffs > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold">
-                {unreadHandoffs}
-              </span>
-            )}
-          </Link>
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
+            <Link to="/handoffs" className="relative">
+              <Button variant="ghost" size="icon">
+                <Inbox className="h-5 w-5" />
+              </Button>
+              {unreadHandoffs > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold">
+                  {unreadHandoffs}
+                </span>
+              )}
+            </Link>
+          </div>
         </header>
 
         {/* Page content */}
