@@ -169,6 +169,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div className="flex h-16 items-center gap-2 border-b px-4">
         <Printer className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold">Shop Manager</span>
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
       </div>
       
       <nav className="flex-1 space-y-1 p-4">
