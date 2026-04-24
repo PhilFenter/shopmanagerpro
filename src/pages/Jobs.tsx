@@ -43,6 +43,7 @@ export default function Jobs() {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [garmentSearchOpen, setGarmentSearchOpen] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
 
   const selectedJobId = jobIdParam ?? null;
   const setSelectedJobId = (id: string | null) => {
