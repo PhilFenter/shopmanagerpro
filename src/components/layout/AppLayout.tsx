@@ -88,6 +88,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { isPreviewingAsTeam, togglePreview } = useRolePreview();
   const location = useLocation();
   const navigate = useNavigate();
+  const { handoffs } = useHandoffs();
+  const unreadHandoffs = handoffs.filter(h => h.status !== 'completed').length;
 
   // When previewing as team, treat role as 'team' for UI purposes
   const effectiveRole = (role === 'admin' && isPreviewingAsTeam) ? 'team' : role;
@@ -153,7 +155,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
         )}
       >
         <item.icon className="h-5 w-5" />
-        {item.name}
+        <span className="flex-1">{item.name}</span>
+        {item.href === '/handoffs' && unreadHandoffs > 0 && (
+          <Badge variant="secondary" className="ml-auto">{unreadHandoffs}</Badge>
+        )}
       </Link>
     );
   };
