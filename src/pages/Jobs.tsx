@@ -255,6 +255,15 @@ export default function Jobs() {
                       Mark Paid
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setHandoffOpen(true)}
+                  >
+                    <Send className="mr-1 h-3 w-3" />
+                    Hand off
+                  </Button>
                 </div>
                 <h2 className="text-xl font-bold">{selectedJob.customer_name}</h2>
               </div>
