@@ -455,6 +455,14 @@ export default function Jobs() {
           )}
         </SheetContent>
       </Sheet>
+      {selectedJob && (
+        <HandoffDialog
+          open={handoffOpen}
+          onOpenChange={setHandoffOpen}
+          jobId={selectedJob.id}
+          jobLabel={selectedJob.order_number ? `#${selectedJob.order_number}` : selectedJob.customer_name}
+        />
+      )}
     </div>
   );
 }
