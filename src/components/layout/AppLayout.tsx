@@ -33,7 +33,10 @@ import {
   Package,
   ClipboardCheck,
   GraduationCap,
+  Inbox,
 } from 'lucide-react';
+import { useHandoffs } from '@/hooks/useHandoffs';
+import { Badge } from '@/components/ui/badge';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -48,6 +51,7 @@ const navigation = [
   { name: 'Artwork', href: '/artwork', icon: Palette },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
+  { name: 'Handoffs', href: '/handoffs', icon: Inbox },
   
   { 
     name: 'Production',
@@ -84,6 +88,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { isPreviewingAsTeam, togglePreview } = useRolePreview();
   const location = useLocation();
   const navigate = useNavigate();
+  const { handoffs } = useHandoffs();
+  const unreadHandoffs = handoffs.filter(h => h.status !== 'completed').length;
 
   // When previewing as team, treat role as 'team' for UI purposes
   const effectiveRole = (role === 'admin' && isPreviewingAsTeam) ? 'team' : role;
@@ -149,7 +155,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
         )}
       >
         <item.icon className="h-5 w-5" />
-        {item.name}
+        <span className="flex-1">{item.name}</span>
+        {item.href === '/handoffs' && unreadHandoffs > 0 && (
+          <Badge variant="secondary" className="ml-auto">{unreadHandoffs}</Badge>
+        )}
       </Link>
     );
   };
@@ -249,6 +258,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <Menu className="h-6 w-6" />
           </Button>
           <span className="text-lg font-bold">Shop Manager</span>
+          <Link to="/handoffs" className="ml-auto relative">
+            <Button variant="ghost" size="icon">
+              <Inbox className="h-5 w-5" />
+            </Button>
+            {unreadHandoffs > 0 && (
+              <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold">
+                {unreadHandoffs}
+              </span>
+            )}
+          </Link>
         </header>
 
         {/* Page content */}
