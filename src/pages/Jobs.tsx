@@ -27,8 +27,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2, CreditCard, AlertTriangle, Shirt } from 'lucide-react';
+import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2, CreditCard, AlertTriangle, Shirt, Send } from 'lucide-react';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
+import { HandoffDialog } from '@/components/handoffs/HandoffDialog';
 
 import { SERVICE_TYPE_LABELS } from '@/lib/constants';
 
@@ -42,6 +43,7 @@ export default function Jobs() {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [garmentSearchOpen, setGarmentSearchOpen] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
 
   const selectedJobId = jobIdParam ?? null;
   const setSelectedJobId = (id: string | null) => {
@@ -253,6 +255,15 @@ export default function Jobs() {
                       Mark Paid
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setHandoffOpen(true)}
+                  >
+                    <Send className="mr-1 h-3 w-3" />
+                    Hand off
+                  </Button>
                 </div>
                 <h2 className="text-xl font-bold">{selectedJob.customer_name}</h2>
               </div>
@@ -444,6 +455,14 @@ export default function Jobs() {
           )}
         </SheetContent>
       </Sheet>
+      {selectedJob && (
+        <HandoffDialog
+          open={handoffOpen}
+          onOpenChange={setHandoffOpen}
+          jobId={selectedJob.id}
+          jobLabel={selectedJob.order_number ? `#${selectedJob.order_number}` : selectedJob.customer_name}
+        />
+      )}
     </div>
   );
 }
