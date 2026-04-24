@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.quote-follow-up]
 verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false
