@@ -703,6 +703,92 @@ export type Database = {
           },
         ]
       }
+      job_handoff_comments: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          handoff_id: string
+          id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by: string
+          handoff_id: string
+          id?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          handoff_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_handoff_comments_handoff_id_fkey"
+            columns: ["handoff_id"]
+            isOneToOne: false
+            referencedRelation: "job_handoffs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_handoffs: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          due_date: string | null
+          from_dept: Database["public"]["Enums"]["handoff_dept"]
+          id: string
+          job_id: string
+          message: string
+          priority: string
+          status: Database["public"]["Enums"]["handoff_status"]
+          to_dept: Database["public"]["Enums"]["handoff_dept"]
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by: string
+          due_date?: string | null
+          from_dept: Database["public"]["Enums"]["handoff_dept"]
+          id?: string
+          job_id: string
+          message: string
+          priority?: string
+          status?: Database["public"]["Enums"]["handoff_status"]
+          to_dept: Database["public"]["Enums"]["handoff_dept"]
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          due_date?: string | null
+          from_dept?: Database["public"]["Enums"]["handoff_dept"]
+          id?: string
+          job_id?: string
+          message?: string
+          priority?: string
+          status?: Database["public"]["Enums"]["handoff_status"]
+          to_dept?: Database["public"]["Enums"]["handoff_dept"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       job_line_items: {
         Row: {
           created_at: string
@@ -2349,6 +2435,17 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "team" | "manager"
+      handoff_dept:
+        | "embroidery"
+        | "screen_print"
+        | "dtf"
+        | "leather"
+        | "patch"
+        | "art"
+        | "front_office"
+        | "production"
+        | "shipping"
+      handoff_status: "pending" | "acknowledged" | "completed"
       job_stage:
         | "received"
         | "art_approved"
@@ -2504,6 +2601,18 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "team", "manager"],
+      handoff_dept: [
+        "embroidery",
+        "screen_print",
+        "dtf",
+        "leather",
+        "patch",
+        "art",
+        "front_office",
+        "production",
+        "shipping",
+      ],
+      handoff_status: ["pending", "acknowledged", "completed"],
       job_stage: [
         "received",
         "art_approved",
