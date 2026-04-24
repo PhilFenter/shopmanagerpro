@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Job, ServiceType, useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useJobLineItems } from '@/hooks/useJobLineItems';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,12 +11,13 @@ import { JobStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
 import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
-import { Package, Clock, AlertTriangle, ClipboardList } from 'lucide-react';
+import { Package, Clock, AlertTriangle, ClipboardList, Send } from 'lucide-react';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
 import { JobGarmentsList } from './JobGarmentsList';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 import { cn as clsx } from '@/lib/utils';
 import { DueDatePicker } from './DueDatePicker';
+import { HandoffDialog } from '@/components/handoffs/HandoffDialog';
 
 import { SERVICE_TYPE_LABELS } from '@/lib/constants';
 export { SERVICE_TYPE_LABELS };
@@ -48,6 +51,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const urgency = getUrgencyLevel((job as any).due_date, job.status);
   const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status);
   const { activeCount, totalItems, doneItems } = useJobChecklists(job.id);
+  const [handoffOpen, setHandoffOpen] = useState(false);
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];
@@ -168,19 +172,35 @@ export function JobCard({ job, onClick }: JobCardProps) {
           </span>
         </div>
 
-        {/* Advance Button */}
-        <div onClick={(e) => e.stopPropagation()}>
-          <AdvanceStageButton 
-            jobId={job.id} 
-            currentStage={stage} 
+        {/* Advance Button + Hand off */}
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex-1">
+            <AdvanceStageButton 
+              jobId={job.id} 
+              currentStage={stage} 
+              size="sm"
+              source={job.source}
+              customerName={job.customer_name}
+              customerEmail={job.customer_email}
+              orderNumber={job.order_number}
+            />
+          </div>
+          <Button
+            variant="outline"
             size="sm"
-            source={job.source}
-            customerName={job.customer_name}
-            customerEmail={job.customer_email}
-            orderNumber={job.order_number}
-          />
+            onClick={() => setHandoffOpen(true)}
+            title="Hand off to another department"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </CardContent>
+      <HandoffDialog
+        open={handoffOpen}
+        onOpenChange={setHandoffOpen}
+        jobId={job.id}
+        jobLabel={job.order_number ? `#${job.order_number}` : job.customer_name}
+      />
     </Card>
   );
 }
