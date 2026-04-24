@@ -33,7 +33,10 @@ import {
   Package,
   ClipboardCheck,
   GraduationCap,
+  Inbox,
 } from 'lucide-react';
+import { useHandoffs } from '@/hooks/useHandoffs';
+import { Badge } from '@/components/ui/badge';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -48,6 +51,7 @@ const navigation = [
   { name: 'Artwork', href: '/artwork', icon: Palette },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
+  { name: 'Handoffs', href: '/handoffs', icon: Inbox },
   
   { 
     name: 'Production',

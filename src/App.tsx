@@ -33,6 +33,7 @@ const Skills = lazy(() => import("./pages/Skills"));
 const QuoteApproval = lazy(() => import("./pages/QuoteApproval"));
 const QuoteDetail = lazy(() => import("./pages/QuoteDetail"));
 const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
+const Handoffs = lazy(() => import("./pages/Handoffs"));
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
@@ -246,6 +247,16 @@ function App() {
                       <ProtectedRoute>
                         <AppLayout>
                           <PurchaseOrders />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/handoffs"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Handoffs />
                         </AppLayout>
                       </ProtectedRoute>
                     }
