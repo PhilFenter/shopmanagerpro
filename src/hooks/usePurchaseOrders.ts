@@ -160,6 +160,7 @@ export function usePOLineItems(poId: string | undefined) {
 export const INKSOFT_STORES = [
   { key: 'hcd_kiosk', label: 'HCD Kiosk' },
   { key: 'grangeville_helitack', label: 'Grangeville Helitack' },
+  { key: 'tri_state_employee_store', label: 'Tri-State Employee Store' },
 ] as const;
 
 export type InkSoftStoreKey = typeof INKSOFT_STORES[number]['key'];

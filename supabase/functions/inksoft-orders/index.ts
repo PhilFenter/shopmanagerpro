@@ -8,6 +8,7 @@ const corsHeaders = {
 const STORES: Record<string, { slug: string; label: string }> = {
   hcd_kiosk: { slug: "hcd_kiosk", label: "HCD Kiosk" },
   grangeville_helitack: { slug: "grangeville_helitack_", label: "Grangeville Helitack" },
+  tri_state_employee_store: { slug: "tri-state_employee_store", label: "Tri-State Employee Store" },
 };
 
 const baseUrl = (slug: string) => `https://stores.inksoft.com/${slug}/Api2`;
