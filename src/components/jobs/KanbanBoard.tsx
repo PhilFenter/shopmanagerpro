@@ -86,8 +86,6 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
     return acc;
   }, {} as Record<JobStage, Job[]>);
 
-  return (
-    <div className="flex flex-col h-full gap-4">
   // Clamp mobile index when stage list / filter changes
   const currentMobileStage = ALL_KANBAN_STAGES[Math.min(mobileStageIndex, ALL_KANBAN_STAGES.length - 1)];
 
