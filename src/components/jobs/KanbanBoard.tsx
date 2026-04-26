@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Job } from '@/hooks/useJobs';
 import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, useAdvanceStage, getNextStage, isAtFinalChoice, isFinalStage } from '@/hooks/useJobStages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 // ScrollArea removed - using native overflow for proper sticky headers
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, Loader2, ShoppingBag, Printer, FileText, AlertTriangle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowRight, Loader2, ShoppingBag, Printer, FileText, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 import { DueDatePicker } from './DueDatePicker';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface KanbanBoardProps {
   jobs: Job[];
@@ -37,7 +39,9 @@ const ALL_KANBAN_STAGES: JobStage[] = [...STAGE_ORDER, ...FINAL_STAGES];
 
 export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
   const advanceStage = useAdvanceStage();
+  const isMobile = useIsMobile();
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [mobileStageIndex, setMobileStageIndex] = useState(0);
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
   const isSyncing = useRef(false);
