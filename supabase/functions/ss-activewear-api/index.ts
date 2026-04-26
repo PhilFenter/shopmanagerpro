@@ -67,21 +67,23 @@ serve(async (req) => {
 
     // Helper to find style by part number - tries multiple approaches
     async function findStyle(styleNumber: string): Promise<any> {
+      const accountNum_ = accountNum!;
+      const apiKey_ = apiKey!;
       // Try direct path lookup first (handles styleID, partNumber, or brand+name)
       try {
-        const data = await ssGet(`/styles/${encodeURIComponent(styleNumber)}`, accountNum, apiKey);
+        const data = await ssGet(`/styles/${encodeURIComponent(styleNumber)}`, accountNum_, apiKey_);
         if (Array.isArray(data) && data.length > 0) return data[0];
       } catch { /* 404, try next */ }
 
       // Try partnumber filter
       try {
-        const data = await ssGet(`/styles/?partnumber=${encodeURIComponent(styleNumber)}`, accountNum, apiKey);
+        const data = await ssGet(`/styles/?partnumber=${encodeURIComponent(styleNumber)}`, accountNum_, apiKey_);
         if (Array.isArray(data) && data.length > 0) return data[0];
       } catch { /* 404, try next */ }
 
       // Try search
       try {
-        const data = await ssGet(`/styles/?search=${encodeURIComponent(styleNumber)}`, accountNum, apiKey);
+        const data = await ssGet(`/styles/?search=${encodeURIComponent(styleNumber)}`, accountNum_, apiKey_);
         if (Array.isArray(data) && data.length > 0) {
           // Find best match
           const exact = data.find((s: any) => 
@@ -223,7 +225,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("S&S Activewear API error:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

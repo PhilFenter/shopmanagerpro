@@ -531,7 +531,7 @@ Deno.serve(async (req) => {
             }
             // Throttle: 500ms between calls
             await new Promise(r => setTimeout(r, 500));
-          } catch (err) {
+          } catch (err: any) {
             console.error(`SanMar sync failed for ${style}:`, err);
             // If it's a rate limit error, stop immediately
             if (err?.name === "RateLimitError" || String(err).includes("Rate limit")) {
@@ -568,7 +568,7 @@ Deno.serve(async (req) => {
               }
               // Throttle: wait 1s between calls to avoid rate limits
               await new Promise(r => setTimeout(r, 1000));
-            } catch (err) {
+            } catch (err: any) {
               console.error(`S&S sync failed for ${style}:`, err);
               if (err?.name === "RateLimitError" || String(err).includes("Rate limit")) {
                 console.warn(`S&S rate limited (exception), stopping`);
