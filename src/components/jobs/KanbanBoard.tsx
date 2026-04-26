@@ -88,6 +88,11 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
 
   return (
     <div className="flex flex-col h-full gap-4">
+  // Clamp mobile index when stage list / filter changes
+  const currentMobileStage = ALL_KANBAN_STAGES[Math.min(mobileStageIndex, ALL_KANBAN_STAGES.length - 1)];
+
+  return (
+    <div className="flex flex-col h-full gap-4">
       {/* Source Filter Tabs */}
       <Tabs value={sourceFilter} onValueChange={(v) => setSourceFilter(v as SourceFilter)}>
         <TabsList className="bg-muted/50">
@@ -97,21 +102,21 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
           </TabsTrigger>
           <TabsTrigger value="printavo" className="gap-2">
             <Printer className="h-3.5 w-3.5" />
-            Printavo
+            <span className="hidden sm:inline">Printavo</span>
             {sourceCounts.printavo > 0 && (
               <Badge variant="secondary" className="h-5 px-1.5 text-xs">{sourceCounts.printavo}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="shopify" className="gap-2">
             <ShoppingBag className="h-3.5 w-3.5" />
-            Shopify
+            <span className="hidden sm:inline">Shopify</span>
             {sourceCounts.shopify > 0 && (
               <Badge variant="secondary" className="h-5 px-1.5 text-xs">{sourceCounts.shopify}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="manual" className="gap-2">
             <FileText className="h-3.5 w-3.5" />
-            Manual
+            <span className="hidden sm:inline">Manual</span>
             {sourceCounts.manual > 0 && (
               <Badge variant="secondary" className="h-5 px-1.5 text-xs">{sourceCounts.manual}</Badge>
             )}
@@ -119,88 +124,182 @@ export function KanbanBoard({ jobs, onSelectJob }: KanbanBoardProps) {
         </TabsList>
       </Tabs>
 
-      {/* Fixed header row - scrolls horizontally in sync with body */}
-      <div 
-        ref={headerScrollRef}
-        onScroll={() => syncScroll('header')}
-        className="overflow-x-auto overflow-y-hidden scrollbar-none"
-      >
-        <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
-          {ALL_KANBAN_STAGES.map((stage) => (
-            <div
-              key={stage}
-              className={cn(
-                "flex-shrink-0",
-                isFinalStage(stage) ? "w-64" : "w-80"
-              )}
+      {isMobile ? (
+        // ─── Mobile: single-stage view with prev/next + dropdown ───
+        <div className="flex flex-col flex-1 min-h-0 gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 h-10 w-10"
+              onClick={() => setMobileStageIndex((i) => Math.max(0, i - 1))}
+              disabled={mobileStageIndex === 0}
+              aria-label="Previous stage"
             >
-              <div className={cn(
-                "rounded-t-lg p-3 pb-2",
-                isFinalStage(stage) ? "bg-primary/10" : "bg-muted"
-              )}>
-                <div className="flex items-center gap-2 pb-2 border-b">
-                  <span className="text-lg">{STAGE_ICONS[stage]}</span>
-                  <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
-                  <Badge variant="secondary" className="ml-auto">
-                    {jobsByStage[stage].length}
-                  </Badge>
-                </div>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+
+            <Select
+              value={currentMobileStage}
+              onValueChange={(v) => setMobileStageIndex(ALL_KANBAN_STAGES.indexOf(v as JobStage))}
+            >
+              <SelectTrigger className="flex-1 h-10">
+                <SelectValue>
+                  <span className="flex items-center gap-2">
+                    <span>{STAGE_ICONS[currentMobileStage]}</span>
+                    <span className="font-semibold">{STAGE_LABELS[currentMobileStage]}</span>
+                    <Badge variant="secondary" className="ml-auto">
+                      {jobsByStage[currentMobileStage].length}
+                    </Badge>
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_KANBAN_STAGES.map((stage) => (
+                  <SelectItem key={stage} value={stage}>
+                    <span className="flex items-center gap-2">
+                      <span>{STAGE_ICONS[stage]}</span>
+                      <span>{STAGE_LABELS[stage]}</span>
+                      <span className="text-muted-foreground text-xs">
+                        ({jobsByStage[stage].length})
+                      </span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 h-10 w-10"
+              onClick={() => setMobileStageIndex((i) => Math.min(ALL_KANBAN_STAGES.length - 1, i + 1))}
+              disabled={mobileStageIndex >= ALL_KANBAN_STAGES.length - 1}
+              aria-label="Next stage"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <div className="text-center text-xs text-muted-foreground">
+            Stage {mobileStageIndex + 1} of {ALL_KANBAN_STAGES.length}
+          </div>
+
+          <div className={cn(
+            "rounded-lg flex-1 overflow-auto p-3 space-y-3",
+            isFinalStage(currentMobileStage) ? "bg-primary/10" : "bg-muted/50"
+          )}>
+            {jobsByStage[currentMobileStage].map((job) => (
+              <KanbanCard
+                key={job.id}
+                job={job}
+                stage={currentMobileStage}
+                onSelect={() => onSelectJob(job)}
+                onAdvance={(targetStage) => advanceStage.mutate({
+                  jobId: job.id,
+                  currentStage: currentMobileStage,
+                  targetStage,
+                  source: job.source,
+                  customerName: job.customer_name,
+                  customerEmail: job.customer_email,
+                  orderNumber: job.order_number,
+                })}
+                isAdvancing={advanceStage.isPending}
+              />
+            ))}
+            {jobsByStage[currentMobileStage].length === 0 && (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                No jobs in this stage
               </div>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Scrollable body - syncs horizontal scroll with header */}
-      <div 
-        ref={bodyScrollRef}
-        onScroll={() => syncScroll('body')}
-        className="overflow-auto flex-1 min-h-0"
-      >
-        <div className="flex gap-4 pb-4 items-stretch" style={{ minWidth: 'max-content', minHeight: '100%' }}>
-          {ALL_KANBAN_STAGES.map((stage) => (
-            <div 
-              key={stage} 
-              className={cn(
-                "flex-shrink-0 flex flex-col",
-                isFinalStage(stage) ? "w-64" : "w-80"
-              )}
-            >
-              <div className={cn(
-                "bg-muted/50 rounded-b-lg flex-1",
-                isFinalStage(stage) && "bg-primary/10"
-              )}>
-                <div className="p-3 pt-2 space-y-3">
-                  {jobsByStage[stage].map((job) => (
-                    <KanbanCard 
-                      key={job.id} 
-                      job={job} 
-                      stage={stage}
-                      onSelect={() => onSelectJob(job)}
-                      onAdvance={(targetStage) => advanceStage.mutate({ 
-                        jobId: job.id, 
-                        currentStage: stage,
-                        targetStage,
-                        source: job.source,
-                        customerName: job.customer_name,
-                        customerEmail: job.customer_email,
-                        orderNumber: job.order_number,
-                      })}
-                      isAdvancing={advanceStage.isPending}
-                    />
-                  ))}
-
-                  {jobsByStage[stage].length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      No jobs
-                    </div>
+      ) : (
+        <>
+          {/* Fixed header row - scrolls horizontally in sync with body */}
+          <div 
+            ref={headerScrollRef}
+            onScroll={() => syncScroll('header')}
+            className="overflow-x-auto overflow-y-hidden scrollbar-none"
+          >
+            <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
+              {ALL_KANBAN_STAGES.map((stage) => (
+                <div
+                  key={stage}
+                  className={cn(
+                    "flex-shrink-0",
+                    isFinalStage(stage) ? "w-64" : "w-80"
                   )}
+                >
+                  <div className={cn(
+                    "rounded-t-lg p-3 pb-2",
+                    isFinalStage(stage) ? "bg-primary/10" : "bg-muted"
+                  )}>
+                    <div className="flex items-center gap-2 pb-2 border-b">
+                      <span className="text-lg">{STAGE_ICONS[stage]}</span>
+                      <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
+                      <Badge variant="secondary" className="ml-auto">
+                        {jobsByStage[stage].length}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+
+          {/* Scrollable body - syncs horizontal scroll with header */}
+          <div 
+            ref={bodyScrollRef}
+            onScroll={() => syncScroll('body')}
+            className="overflow-auto flex-1 min-h-0"
+          >
+            <div className="flex gap-4 pb-4 items-stretch" style={{ minWidth: 'max-content', minHeight: '100%' }}>
+              {ALL_KANBAN_STAGES.map((stage) => (
+                <div 
+                  key={stage} 
+                  className={cn(
+                    "flex-shrink-0 flex flex-col",
+                    isFinalStage(stage) ? "w-64" : "w-80"
+                  )}
+                >
+                  <div className={cn(
+                    "bg-muted/50 rounded-b-lg flex-1",
+                    isFinalStage(stage) && "bg-primary/10"
+                  )}>
+                    <div className="p-3 pt-2 space-y-3">
+                      {jobsByStage[stage].map((job) => (
+                        <KanbanCard 
+                          key={job.id} 
+                          job={job} 
+                          stage={stage}
+                          onSelect={() => onSelectJob(job)}
+                          onAdvance={(targetStage) => advanceStage.mutate({ 
+                            jobId: job.id, 
+                            currentStage: stage,
+                            targetStage,
+                            source: job.source,
+                            customerName: job.customer_name,
+                            customerEmail: job.customer_email,
+                            orderNumber: job.order_number,
+                          })}
+                          isAdvancing={advanceStage.isPending}
+                        />
+                      ))}
+
+                      {jobsByStage[stage].length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                          No jobs
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
