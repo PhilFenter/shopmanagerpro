@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { QuoteLineItemsSummary } from '@/components/action-items/QuoteLineItemsSummary';
+import { QuoteDescriptionDetails } from '@/components/action-items/QuoteDescriptionDetails';
 
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -165,7 +166,11 @@ export default function ActionItems() {
               )}
             </p>
             {item.description && (
-              <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
+              item.quote_id || item.source === 'website-brand-builder' || /—\s*[^—\n]+?\s*—/.test(item.description) || /\b(Company|Email|Phone|Quantity|Event Type|Deadline|Artwork Status|Timeline)\s*:/.test(item.description) ? (
+                <QuoteDescriptionDetails description={item.description} />
+              ) : (
+                <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap">{item.description}</p>
+              )
             )}
             {/* Quote line items summary for website quotes */}
             {item.quote_id && (
