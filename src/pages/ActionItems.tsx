@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { QuoteLineItemsSummary } from '@/components/action-items/QuoteLineItemsSummary';
 import { QuoteDescriptionDetails } from '@/components/action-items/QuoteDescriptionDetails';
+import { QuoteEssentialsRow } from '@/components/action-items/QuoteEssentialsRow';
 
 import { useQueryClient } from '@tanstack/react-query';
 
