@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, consumeSignOutReason } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,32 @@ export default function Auth() {
       navigate('/dashboard');
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    const reason = consumeSignOutReason();
+    if (!reason) return;
+
+    if (reason === 'no_role') {
+      toast({
+        variant: 'destructive',
+        title: 'Signed out — no role assigned',
+        description:
+          'Your account does not have a role yet. Please ask an admin to assign you a role before signing in.',
+      });
+    } else if (reason === 'role_fetch_failed') {
+      toast({
+        variant: 'destructive',
+        title: 'Signed out — could not verify access',
+        description:
+          'We were unable to load your role. Please try again, or contact an admin if the problem persists.',
+      });
+    } else if (reason === 'manual') {
+      toast({
+        title: 'Signed out',
+        description: 'You have been signed out.',
+      });
+    }
+  }, [toast]);
 
   const validateForm = () => {
     try {

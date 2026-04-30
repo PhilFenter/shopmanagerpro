@@ -2,6 +2,28 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+type SignOutReason = 'no_role' | 'role_fetch_failed' | 'manual';
+
+const SIGNOUT_REASON_KEY = 'auth:signout_reason';
+
+export function consumeSignOutReason(): SignOutReason | null {
+  try {
+    const value = sessionStorage.getItem(SIGNOUT_REASON_KEY) as SignOutReason | null;
+    if (value) sessionStorage.removeItem(SIGNOUT_REASON_KEY);
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function setSignOutReason(reason: SignOutReason) {
+  try {
+    sessionStorage.setItem(SIGNOUT_REASON_KEY, reason);
+  } catch {
+    // ignore
+  }
+}
+
 type AppRole = 'admin' | 'manager' | 'team';
 
 interface AuthContextType {
@@ -74,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Failed to fetch user role — signing out for safety', error);
         setRole(null);
         setRoleReady(true);
+        setSignOutReason('role_fetch_failed');
         await supabase.auth.signOut();
         return;
       }
@@ -91,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('No roles assigned to user — signing out');
         setRole(null);
         setRoleReady(true);
+        setSignOutReason('no_role');
         await supabase.auth.signOut();
         return;
       }
@@ -126,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    setSignOutReason('manual');
     await supabase.auth.signOut();
     setRole(null);
     setRoleReady(true);
