@@ -20,6 +20,8 @@ import {
   DollarSign,
   Loader2,
   Package,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -27,6 +29,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { QuoteLineItemsSummary } from '@/components/action-items/QuoteLineItemsSummary';
 import { QuoteDescriptionDetails } from '@/components/action-items/QuoteDescriptionDetails';
+import { QuoteEssentialsRow } from '@/components/action-items/QuoteEssentialsRow';
 
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -112,6 +115,8 @@ export default function ActionItems() {
     const isMissingPrice = item.source === 'shopify-sync' && item.status === 'open' && extractStyle(item.title);
     const styleNumber = extractStyle(item.title);
     const [priceInput, setPriceInput] = useState('');
+    const isQuoteItem = !!item.quote_id || item.source === 'website-brand-builder' || (!!item.description && (/—\s*[^—\n]+?\s*—/.test(item.description) || /\b(Company|Email|Phone|Quantity|Event Type|Deadline|Artwork Status|Timeline)\s*:/.test(item.description)));
+    const [expanded, setExpanded] = useState(false);
 
     // Query affected orders for missing-price items
     const { data: affectedOrders } = useQuery({
@@ -159,21 +164,38 @@ export default function ActionItems() {
             </button>
           )}
           <div className="flex-1 min-w-0">
-            <p className={cn('font-medium flex items-center gap-1.5', item.status === 'completed' && 'line-through')}>
-              {item.title}
-              {item.source === 'website-brand-builder' && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-900 text-amber-400 border-amber-500/30 dark:bg-gray-800">Brand Builder</Badge>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className={cn('font-medium flex items-center gap-1.5', item.status === 'completed' && 'line-through')}>
+                {item.title}
+                {item.source === 'website-brand-builder' && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-900 text-amber-400 border-amber-500/30 dark:bg-gray-800">Brand Builder</Badge>
+                )}
+              </p>
+              {isQuoteItem && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+                  className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded px-1 py-0.5 hover:bg-accent"
+                  aria-label={expanded ? 'Collapse details' : 'Expand details'}
+                >
+                  {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {expanded ? 'Less' : 'More'}
+                </button>
               )}
-            </p>
-            {item.description && (
-              item.quote_id || item.source === 'website-brand-builder' || /—\s*[^—\n]+?\s*—/.test(item.description) || /\b(Company|Email|Phone|Quantity|Event Type|Deadline|Artwork Status|Timeline)\s*:/.test(item.description) ? (
-                <QuoteDescriptionDetails description={item.description} />
-              ) : (
-                <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap">{item.description}</p>
-              )
+            </div>
+            {/* Essentials shown when collapsed for quote items */}
+            {isQuoteItem && !expanded && item.description && (
+              <QuoteEssentialsRow description={item.description} />
             )}
-            {/* Quote line items summary for website quotes */}
-            {item.quote_id && (
+            {/* Full description: plain for non-quote items, structured + collapsible for quote items */}
+            {item.description && !isQuoteItem && (
+              <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap">{item.description}</p>
+            )}
+            {isQuoteItem && expanded && item.description && (
+              <QuoteDescriptionDetails description={item.description} />
+            )}
+            {/* Quote line items summary — only when expanded */}
+            {item.quote_id && expanded && (
               <QuoteLineItemsSummary quoteId={item.quote_id} compact />
             )}
             {/* Affected orders for missing-price items */}
