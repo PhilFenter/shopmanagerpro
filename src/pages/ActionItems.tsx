@@ -119,6 +119,16 @@ export default function ActionItems() {
     const isQuoteItem = !!item.quote_id || item.source === 'website-brand-builder' || (!!item.description && (/—\s*[^—\n]+?\s*—/.test(item.description) || /\b(Company|Email|Phone|Quantity|Event Type|Deadline|Artwork Status|Timeline)\s*:/.test(item.description)));
     const [expanded, setExpanded] = useState(false);
 
+    // Extract a customer email — prefer the structured field, fall back to parsing the description
+    const emailFromDescription = item.description?.match(/Email\s*:\s*([^\s,;<>]+@[^\s,;<>]+)/i)?.[1];
+    const customerEmail = item.customer_email || emailFromDescription || null;
+    const customerNameForEmail = item.customer_name || item.description?.match(/Name\s*:\s*([^\n]+)/i)?.[1]?.trim() || '';
+    const emailSubject = `Re: ${item.title}`;
+    const emailBody = `Hi${customerNameForEmail ? ' ' + customerNameForEmail.split(' ')[0] : ''},\n\n`;
+    const mailtoHref = customerEmail
+      ? `mailto:${customerEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`
+      : null;
+
     // Query affected orders for missing-price items
     const { data: affectedOrders } = useQuery({
       queryKey: ['affected-orders', styleNumber],
