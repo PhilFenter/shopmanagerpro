@@ -150,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    setSignOutReason('manual');
     await supabase.auth.signOut();
     setRole(null);
     setRoleReady(true);
