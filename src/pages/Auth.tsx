@@ -29,6 +29,32 @@ export default function Auth() {
     }
   }, [user, loading, navigate]);
 
+  useEffect(() => {
+    const reason = consumeSignOutReason();
+    if (!reason) return;
+
+    if (reason === 'no_role') {
+      toast({
+        variant: 'destructive',
+        title: 'Signed out — no role assigned',
+        description:
+          'Your account does not have a role yet. Please ask an admin to assign you a role before signing in.',
+      });
+    } else if (reason === 'role_fetch_failed') {
+      toast({
+        variant: 'destructive',
+        title: 'Signed out — could not verify access',
+        description:
+          'We were unable to load your role. Please try again, or contact an admin if the problem persists.',
+      });
+    } else if (reason === 'manual') {
+      toast({
+        title: 'Signed out',
+        description: 'You have been signed out.',
+      });
+    }
+  }, [toast]);
+
   const validateForm = () => {
     try {
       signInSchema.parse({ email, password });
