@@ -22,6 +22,7 @@ import {
   Package,
   ChevronDown,
   ChevronRight,
+  Mail,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -117,6 +118,16 @@ export default function ActionItems() {
     const [priceInput, setPriceInput] = useState('');
     const isQuoteItem = !!item.quote_id || item.source === 'website-brand-builder' || (!!item.description && (/—\s*[^—\n]+?\s*—/.test(item.description) || /\b(Company|Email|Phone|Quantity|Event Type|Deadline|Artwork Status|Timeline)\s*:/.test(item.description)));
     const [expanded, setExpanded] = useState(false);
+
+    // Extract a customer email — prefer the structured field, fall back to parsing the description
+    const emailFromDescription = item.description?.match(/Email\s*:\s*([^\s,;<>]+@[^\s,;<>]+)/i)?.[1];
+    const customerEmail = item.customer_email || emailFromDescription || null;
+    const customerNameForEmail = item.customer_name || item.description?.match(/Name\s*:\s*([^\n]+)/i)?.[1]?.trim() || '';
+    const emailSubject = `Re: ${item.title}`;
+    const emailBody = `Hi${customerNameForEmail ? ' ' + customerNameForEmail.split(' ')[0] : ''},\n\n`;
+    const mailtoHref = customerEmail
+      ? `mailto:${customerEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`
+      : null;
 
     // Query affected orders for missing-price items
     const { data: affectedOrders } = useQuery({
@@ -257,6 +268,35 @@ export default function ActionItems() {
             </div>
           </div>
           <div className="flex shrink-0 gap-1">
+            {isQuoteItem && (
+              mailtoHref ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                  title={`Email ${customerEmail}`}
+                >
+                  <a href={mailtoHref}>
+                    <Mail className="h-4 w-4" />
+                    <span className="hidden sm:inline">Email</span>
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  disabled
+                  onClick={(e) => e.stopPropagation()}
+                  title="No customer email on file"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span className="hidden sm:inline">Email</span>
+                </Button>
+              )
+            )}
             {item.status === 'completed' && (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleReopen(item.id); }}>
                 <RotateCcw className="h-4 w-4" />
