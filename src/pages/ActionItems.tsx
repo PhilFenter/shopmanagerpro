@@ -20,6 +20,8 @@ import {
   DollarSign,
   Loader2,
   Package,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -112,6 +114,8 @@ export default function ActionItems() {
     const isMissingPrice = item.source === 'shopify-sync' && item.status === 'open' && extractStyle(item.title);
     const styleNumber = extractStyle(item.title);
     const [priceInput, setPriceInput] = useState('');
+    const isQuoteItem = !!item.quote_id || item.source === 'website-brand-builder' || (!!item.description && (/—\s*[^—\n]+?\s*—/.test(item.description) || /\b(Company|Email|Phone|Quantity|Event Type|Deadline|Artwork Status|Timeline)\s*:/.test(item.description)));
+    const [expanded, setExpanded] = useState(false);
 
     // Query affected orders for missing-price items
     const { data: affectedOrders } = useQuery({
