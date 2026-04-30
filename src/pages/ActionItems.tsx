@@ -22,6 +22,7 @@ import {
   Package,
   ChevronDown,
   ChevronRight,
+  Mail,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
