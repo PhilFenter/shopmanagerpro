@@ -268,6 +268,35 @@ export default function ActionItems() {
             </div>
           </div>
           <div className="flex shrink-0 gap-1">
+            {isQuoteItem && (
+              mailtoHref ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                  title={`Email ${customerEmail}`}
+                >
+                  <a href={mailtoHref}>
+                    <Mail className="h-4 w-4" />
+                    <span className="hidden sm:inline">Email</span>
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  disabled
+                  onClick={(e) => e.stopPropagation()}
+                  title="No customer email on file"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span className="hidden sm:inline">Email</span>
+                </Button>
+              )
+            )}
             {item.status === 'completed' && (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleReopen(item.id); }}>
                 <RotateCcw className="h-4 w-4" />
