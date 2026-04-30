@@ -96,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Failed to fetch user role — signing out for safety', error);
         setRole(null);
         setRoleReady(true);
+        setSignOutReason('role_fetch_failed');
         await supabase.auth.signOut();
         return;
       }
@@ -113,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('No roles assigned to user — signing out');
         setRole(null);
         setRoleReady(true);
+        setSignOutReason('no_role');
         await supabase.auth.signOut();
         return;
       }
