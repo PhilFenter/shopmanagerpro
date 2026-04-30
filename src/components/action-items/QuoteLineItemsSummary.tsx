@@ -91,25 +91,77 @@ export function QuoteLineItemsSummary({ quoteId, compact = true }: QuoteLineItem
   const { quote, lineItems } = data;
 
   if (compact) {
+    const totalQty = lineItems.reduce((sum, li) => sum + (li.quantity || 0), 0);
+    const visibleItems = lineItems.slice(0, 4);
+    const hiddenCount = lineItems.length - visibleItems.length;
+
+    const Field = ({ label, value }: { label: string; value: React.ReactNode }) => (
+      <span className="inline-flex items-baseline gap-1">
+        <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">{label}</span>
+        <span className="text-xs text-foreground">{value}</span>
+      </span>
+    );
+
     return (
-      <div className="flex flex-wrap items-center gap-1 mt-1">
-        {lineItems.map((li) => (
-          <Badge key={li.id} variant="outline" className="text-xs font-normal gap-1">
-            {li.image_url ? (
-              <img src={li.image_url} alt="" className="h-4 w-4 rounded object-contain" />
-            ) : (
-              <Shirt className="h-3 w-3" />
+      <div className="mt-2 space-y-1.5">
+        {/* Quote-level summary row */}
+        {quote && (quote.quote_number || quote.delivery_method || quote.requested_date || quote.is_nonprofit) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-muted/40 px-2 py-1">
+            {quote.quote_number && (
+              <Field label="Quote" value={<span className="font-medium">{quote.quote_number}</span>} />
             )}
-            {li.description || li.style_number || SERVICE_LABELS[li.service_type] || li.service_type}
-            {li.color && ` — ${li.color}`}
-            <span className="text-muted-foreground">×{li.quantity}</span>
-          </Badge>
-        ))}
-        {lineItems.length > 3 && (
-          <Badge variant="outline" className="text-xs text-muted-foreground">
-            +{lineItems.length - 3} more
-          </Badge>
+            {quote.delivery_method && (
+              <Field label="Delivery" value={<span className="capitalize">{quote.delivery_method}</span>} />
+            )}
+            {quote.requested_date && (
+              <Field label="Needed" value={new Date(quote.requested_date).toLocaleDateString()} />
+            )}
+            <Field label="Items" value={`${lineItems.length} (${totalQty} pcs)`} />
+            {quote.is_nonprofit && (
+              <Badge variant="secondary" className="text-[10px] h-4 px-1.5">Nonprofit</Badge>
+            )}
+          </div>
         )}
+
+        {/* Line items — one row each, with labeled fields */}
+        <div className="space-y-1">
+          {visibleItems.map((li) => (
+            <div
+              key={li.id}
+              className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-2 py-1"
+            >
+              {li.image_url ? (
+                <img src={li.image_url} alt="" className="h-6 w-6 rounded object-contain bg-muted/30 shrink-0" />
+              ) : (
+                <Shirt className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              )}
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 flex-1 min-w-0">
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0">
+                  {SERVICE_LABELS[li.service_type] || li.service_type}
+                </Badge>
+                <span className="text-xs font-medium truncate">
+                  {li.description || li.style_number || 'Item'}
+                </span>
+                {li.style_number && li.description && (
+                  <Field label="Style" value={li.style_number} />
+                )}
+                {li.color && <Field label="Color" value={li.color} />}
+                {li.placement && <Field label="Placement" value={li.placement} />}
+                {li.sizes && Object.keys(li.sizes).length > 0 && (
+                  <Field label="Sizes" value={formatSizes(li.sizes)} />
+                )}
+              </div>
+              <span className="text-xs font-semibold tabular-nums shrink-0 text-muted-foreground">
+                ×{li.quantity}
+              </span>
+            </div>
+          ))}
+          {hiddenCount > 0 && (
+            <div className="text-[11px] text-muted-foreground pl-2">
+              +{hiddenCount} more {hiddenCount === 1 ? 'item' : 'items'}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
