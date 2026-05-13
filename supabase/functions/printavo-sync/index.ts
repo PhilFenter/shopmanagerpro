@@ -169,8 +169,10 @@ Deno.serve(async (req) => {
         .limit(1)
         .single();
       if (latestJob?.created_at) {
-        startDate = latestJob.created_at.split("T")[0];
-        console.log(`Incremental sync: fetching Printavo orders since ${startDate}`);
+        const latestDate = new Date(latestJob.created_at);
+        latestDate.setDate(latestDate.getDate() - 7);
+        startDate = latestDate.toISOString().split("T")[0];
+        console.log(`Incremental sync: fetching Printavo orders since ${startDate} (7-day overlap from latest order)`);
       } else {
         startDate = `${new Date().getFullYear()}-01-01`;
         console.log(`No existing Printavo orders, defaulting to YTD: ${startDate}`);

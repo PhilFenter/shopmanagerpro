@@ -8,6 +8,7 @@ interface SyncOptions {
   endDate?: string;
   minOrderNumber?: string;
   maxPages?: number;
+  fullScrape?: boolean;
 }
 
 interface SyncResult {
@@ -31,11 +32,12 @@ export function usePrintavoSync() {
 
     try {
       const { data, error } = await supabase.functions.invoke('printavo-sync', {
-        body: { 
+        body: {
           startDate: options.startDate || null,
           endDate: options.endDate || null,
           minOrderNumber: options.minOrderNumber || null,
-          maxPages: options.maxPages || 20, // Allow more pages for historical imports
+          maxPages: options.maxPages || 20,
+          fullScrape: options.fullScrape || false,
         },
       });
 

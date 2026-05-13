@@ -67,7 +67,7 @@ export function PrintavoSync() {
           <Button variant="outline" size="sm" onClick={handleYearToDate}>
             Year to date
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }}>
+          <Button variant="outline" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); syncOrders({ fullScrape: true }); }}>
             All time
           </Button>
         </div>
