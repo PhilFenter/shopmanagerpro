@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, ComponentType } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,32 +8,72 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { RolePreviewProvider } from "@/hooks/useRolePreview";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
-const Auth = lazy(() => import("./pages/Auth"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Jobs = lazy(() => import("./pages/Jobs"));
-const Embroidery = lazy(() => import("./pages/Embroidery"));
-const ScreenPrint = lazy(() => import("./pages/ScreenPrint"));
-const DTF = lazy(() => import("./pages/DTF"));
-const Leather = lazy(() => import("./pages/Leather"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Team = lazy(() => import("./pages/Team"));
-const Financials = lazy(() => import("./pages/Financials"));
-const Integrations = lazy(() => import("./pages/Integrations"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const ActionItems = lazy(() => import("./pages/ActionItems"));
-const Customers = lazy(() => import("./pages/Customers"));
-const Messages = lazy(() => import("./pages/Messages"));
-const Install = lazy(() => import("./pages/Install"));
-const ArtworkLibrary = lazy(() => import("./pages/ArtworkLibrary"));
-const Inventory = lazy(() => import("./pages/Inventory"));
-const Quotes = lazy(() => import("./pages/Quotes"));
-const Knowledge = lazy(() => import("./pages/Knowledge"));
-const Training = lazy(() => import("./pages/Training"));
-const Skills = lazy(() => import("./pages/Skills"));
-const QuoteApproval = lazy(() => import("./pages/QuoteApproval"));
-const QuoteDetail = lazy(() => import("./pages/QuoteDetail"));
-const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
-const Handoffs = lazy(() => import("./pages/Handoffs"));
+
+// Auto-reload once when a dynamic import fails (stale bundle after redeploy).
+const RELOAD_KEY = "lovable:chunk-reloaded";
+function lazyWithReload<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(() =>
+    factory().catch((err) => {
+      const msg = String(err?.message || err);
+      const isChunkError =
+        /Importing a module script failed|Failed to fetch dynamically imported module|Loading chunk|Load failed/i.test(
+          msg
+        );
+      if (isChunkError && typeof window !== "undefined") {
+        try {
+          if (!sessionStorage.getItem(RELOAD_KEY)) {
+            sessionStorage.setItem(RELOAD_KEY, "1");
+            window.location.reload();
+            return new Promise<{ default: T }>(() => {});
+          }
+        } catch {
+          window.location.reload();
+          return new Promise<{ default: T }>(() => {});
+        }
+      }
+      throw err;
+    })
+  );
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("load", () => {
+    try {
+      sessionStorage.removeItem(RELOAD_KEY);
+    } catch {
+      // ignore
+    }
+  });
+}
+
+const Auth = lazyWithReload(() => import("./pages/Auth"));
+const Dashboard = lazyWithReload(() => import("./pages/Dashboard"));
+const Jobs = lazyWithReload(() => import("./pages/Jobs"));
+const Embroidery = lazyWithReload(() => import("./pages/Embroidery"));
+const ScreenPrint = lazyWithReload(() => import("./pages/ScreenPrint"));
+const DTF = lazyWithReload(() => import("./pages/DTF"));
+const Leather = lazyWithReload(() => import("./pages/Leather"));
+const Settings = lazyWithReload(() => import("./pages/Settings"));
+const Team = lazyWithReload(() => import("./pages/Team"));
+const Financials = lazyWithReload(() => import("./pages/Financials"));
+const Integrations = lazyWithReload(() => import("./pages/Integrations"));
+const NotFound = lazyWithReload(() => import("./pages/NotFound"));
+const ActionItems = lazyWithReload(() => import("./pages/ActionItems"));
+const Customers = lazyWithReload(() => import("./pages/Customers"));
+const Messages = lazyWithReload(() => import("./pages/Messages"));
+const Install = lazyWithReload(() => import("./pages/Install"));
+const ArtworkLibrary = lazyWithReload(() => import("./pages/ArtworkLibrary"));
+const Inventory = lazyWithReload(() => import("./pages/Inventory"));
+const Quotes = lazyWithReload(() => import("./pages/Quotes"));
+const Knowledge = lazyWithReload(() => import("./pages/Knowledge"));
+const Training = lazyWithReload(() => import("./pages/Training"));
+const Skills = lazyWithReload(() => import("./pages/Skills"));
+const QuoteApproval = lazyWithReload(() => import("./pages/QuoteApproval"));
+const QuoteDetail = lazyWithReload(() => import("./pages/QuoteDetail"));
+const PurchaseOrders = lazyWithReload(() => import("./pages/PurchaseOrders"));
+const Handoffs = lazyWithReload(() => import("./pages/Handoffs"));
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
