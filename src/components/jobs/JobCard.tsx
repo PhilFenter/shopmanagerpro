@@ -41,7 +41,6 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onClick }: JobCardProps) {
-  const stage = (job as any).stage as JobStage || 'received';
   const { updateJob } = useJobs();
   const { lineItems } = useJobLineItems(job.id);
   const { role: actualRole } = useAuth();
