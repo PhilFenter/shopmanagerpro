@@ -46,16 +46,6 @@ export function JobPrintsManager({ jobId }: Props) {
       width_in: p.width_in ?? '',
       height_in: p.height_in ?? '',
       garment_color: p.garment_color || '',
-      ink_colors_text: (p.ink_colors || []).join(', '),
-      mesh_count: p.mesh_count ?? '',
-      squeegee_durometer: p.squeegee_durometer ?? '',
-      strokes: p.strokes ?? '',
-      flash: !!p.flash,
-      underbase: !!p.underbase,
-      flash_temp: p.flash_temp ?? '',
-      flash_time: p.flash_time ?? '',
-      cure_temp: p.cure_temp ?? '',
-      cure_time: p.cure_time ?? '',
       notes: p.notes || '',
     });
     setOpen(true);
