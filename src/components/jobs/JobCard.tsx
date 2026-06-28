@@ -7,18 +7,17 @@ import { Job, ServiceType, useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useJobLineItems } from '@/hooks/useJobLineItems';
 import { useAuth } from '@/hooks/useAuth';
 import { useRolePreview } from '@/hooks/useRolePreview';
-import { JobStage } from '@/hooks/useJobStages';
+import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, isFinalStage, useAdvanceStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
-import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
-import { Package, Clock, AlertTriangle, ClipboardList, Send } from 'lucide-react';
+import { Package, Clock, AlertTriangle, ClipboardList, Send, ChevronDown } from 'lucide-react';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
 import { JobGarmentsList } from './JobGarmentsList';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 import { cn as clsx } from '@/lib/utils';
 import { DueDatePicker } from './DueDatePicker';
 import { HandoffDialog } from '@/components/handoffs/HandoffDialog';
-
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SERVICE_TYPE_LABELS } from '@/lib/constants';
 export { SERVICE_TYPE_LABELS };
 
