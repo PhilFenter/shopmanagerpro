@@ -62,18 +62,6 @@ export function JobPrintsManager({ jobId }: Props) {
       width_in: num(form.width_in),
       height_in: num(form.height_in),
       garment_color: form.garment_color || null,
-      ink_colors: form.ink_colors_text
-        ? form.ink_colors_text.split(',').map((s: string) => s.trim()).filter(Boolean)
-        : [],
-      mesh_count: num(form.mesh_count),
-      squeegee_durometer: num(form.squeegee_durometer),
-      strokes: num(form.strokes),
-      flash: !!form.flash,
-      underbase: !!form.underbase,
-      flash_temp: num(form.flash_temp),
-      flash_time: num(form.flash_time),
-      cure_temp: num(form.cure_temp),
-      cure_time: num(form.cure_time),
       notes: form.notes || null,
     };
     if (editingId) {
