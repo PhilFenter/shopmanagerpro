@@ -24,6 +24,7 @@ type EquipmentType = 'printhead' | 'flash' | 'stampinator' | 'empty';
 
 interface PrintHeadSettings {
   pantone: string;
+  screenMesh: string;
   airPressure: number | null;
   printSpeed: number | null;
   floodSpeed: number | null;
@@ -33,6 +34,7 @@ interface PrintHeadSettings {
   floodHeight: number | null;
   active: boolean;
 }
+
 
 interface FlashSettings {
   flashTemp: number | null;
