@@ -199,13 +199,6 @@ export function JobPrintsManager({ jobId }: Props) {
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 rows={2} />
             </div>
-
-            <div>
-              <Label>Notes</Label>
-              <Textarea value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={2} />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
