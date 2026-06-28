@@ -51,6 +51,9 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status);
   const { activeCount, totalItems, doneItems } = useJobChecklists(job.id);
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const advanceStage = useAdvanceStage();
+  const currentStage = ((job as any).stage as JobStage) || 'received';
+  const allStages = [...STAGE_ORDER, ...FINAL_STAGES] as JobStage[];
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];
