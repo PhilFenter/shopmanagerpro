@@ -570,6 +570,26 @@ export default function ScreenPrint() {
                               className="mt-1 h-8 text-xs"
                             />
                           </div>
+                          <div>
+                            <Label className="text-xs">Screen Mesh:</Label>
+                            <Select
+                              value={position.printhead?.screenMesh || ''}
+                              onValueChange={(v) => updatePrintHead(pos, 'screenMesh', v)}
+                            >
+                              <SelectTrigger className="mt-1 h-8 text-xs">
+                                <SelectValue placeholder="Select mesh" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Newman 166">Newman 166</SelectItem>
+                                <SelectItem value="Newman 272">Newman 272</SelectItem>
+                                <SelectItem value="Newman 305">Newman 305</SelectItem>
+                                <SelectItem value="Eco 156">Eco 156</SelectItem>
+                                <SelectItem value="Eco 230">Eco 230</SelectItem>
+                                <SelectItem value="Eco 305">Eco 305</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label className="text-xs">Air Pressure (PSI):</Label>
