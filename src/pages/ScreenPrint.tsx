@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
+import { JobPrintsManager } from '@/components/jobs/JobPrintsManager';
 
 // Types for position settings
 type EquipmentType = 'printhead' | 'flash' | 'stampinator' | 'empty';
@@ -458,6 +459,9 @@ export default function ScreenPrint() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Prints on this Job (per design + location) */}
+          {linkedJobId && <JobPrintsManager jobId={linkedJobId} />}
 
           {/* Multi-Print Setup */}
           <Card>
