@@ -70,6 +70,8 @@ interface EnvironmentSettings {
 // Default settings
 const defaultPrintHead: PrintHeadSettings = {
   pantone: '',
+  screenMesh: '',
+
   airPressure: 40,
   printSpeed: 8,
   floodSpeed: 6,
