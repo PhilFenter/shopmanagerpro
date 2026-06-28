@@ -184,80 +184,20 @@ export function JobPrintsManager({ jobId }: Props) {
             </div>
 
             <div className="border-t pt-3">
-              <h4 className="text-sm font-semibold mb-2">Substrate & Inks</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Garment Color</Label>
-                  <Input value={form.garment_color}
-                    onChange={(e) => setForm({ ...form, garment_color: e.target.value })}
-                    placeholder="e.g. Black" />
-                </div>
-                <div>
-                  <Label>Ink Colors (comma-separated)</Label>
-                  <Input value={form.ink_colors_text}
-                    onChange={(e) => setForm({ ...form, ink_colors_text: e.target.value })}
-                    placeholder="White, Grey" />
-                </div>
+              <h4 className="text-sm font-semibold mb-2">Garment</h4>
+              <div>
+                <Label>Garment Color</Label>
+                <Input value={form.garment_color}
+                  onChange={(e) => setForm({ ...form, garment_color: e.target.value })}
+                  placeholder="e.g. Black" />
               </div>
             </div>
 
-            <div className="border-t pt-3">
-              <h4 className="text-sm font-semibold mb-2">Screen Setup</h4>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label>Mesh Count</Label>
-                  <Input type="number" value={form.mesh_count}
-                    onChange={(e) => setForm({ ...form, mesh_count: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Squeegee Duro</Label>
-                  <Input type="number" value={form.squeegee_durometer}
-                    onChange={(e) => setForm({ ...form, squeegee_durometer: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Strokes</Label>
-                  <Input type="number" value={form.strokes}
-                    onChange={(e) => setForm({ ...form, strokes: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                <div className="flex items-center justify-between rounded border p-2">
-                  <Label className="cursor-pointer">Underbase</Label>
-                  <Switch checked={form.underbase}
-                    onCheckedChange={(c) => setForm({ ...form, underbase: c })} />
-                </div>
-                <div className="flex items-center justify-between rounded border p-2">
-                  <Label className="cursor-pointer">Flash</Label>
-                  <Switch checked={form.flash}
-                    onCheckedChange={(c) => setForm({ ...form, flash: c })} />
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t pt-3">
-              <h4 className="text-sm font-semibold mb-2">Flash & Cure</h4>
-              <div className="grid grid-cols-4 gap-3">
-                <div>
-                  <Label>Flash °F</Label>
-                  <Input type="number" value={form.flash_temp}
-                    onChange={(e) => setForm({ ...form, flash_temp: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Flash sec</Label>
-                  <Input type="number" value={form.flash_time}
-                    onChange={(e) => setForm({ ...form, flash_time: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Cure °F</Label>
-                  <Input type="number" value={form.cure_temp}
-                    onChange={(e) => setForm({ ...form, cure_temp: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Belt sec</Label>
-                  <Input type="number" value={form.cure_time}
-                    onChange={(e) => setForm({ ...form, cure_time: e.target.value })} />
-                </div>
-              </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                rows={2} />
             </div>
 
             <div>
