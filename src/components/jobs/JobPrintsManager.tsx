@@ -108,20 +108,9 @@ export function JobPrintsManager({ jobId }: Props) {
                       {p.garment_color && (
                         <Badge variant="outline">on {p.garment_color}</Badge>
                       )}
-                      {(p.ink_colors || []).length > 0 && (
-                        <Badge variant="outline" className="gap-1">
-                          <Palette className="h-3 w-3" /> {(p.ink_colors || []).join(' / ')}
-                        </Badge>
-                      )}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       {p.width_in && p.height_in && <span>{p.width_in}" × {p.height_in}"</span>}
-                      {p.mesh_count != null && <span>Mesh {p.mesh_count}</span>}
-                      {p.strokes != null && <span>{p.strokes} stroke{p.strokes === 1 ? '' : 's'}</span>}
-                      {p.squeegee_durometer != null && <span>{p.squeegee_durometer} duro</span>}
-                      {p.underbase && <span>Underbase</span>}
-                      {p.flash && <span>Flash</span>}
-                      {p.cure_temp != null && <span>Cure {p.cure_temp}°</span>}
                     </div>
                     {p.notes && <p className="mt-1 text-xs italic">{p.notes}</p>}
                   </div>
