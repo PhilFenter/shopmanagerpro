@@ -119,7 +119,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
       
       <CardContent className="space-y-3">
         {/* Stage Progress */}
-        <StageProgress currentStage={stage} compact />
+        <StageProgress currentStage={currentStage} compact />
         
         {/* Garment summary for Printavo jobs */}
         <JobGarmentsList jobId={job.id} compact />
