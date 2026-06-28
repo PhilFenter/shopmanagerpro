@@ -9,7 +9,7 @@ import { JobForm } from '@/components/jobs/JobForm';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Plus, Clock, Activity, CheckCircle, DollarSign, Briefcase } from 'lucide-react';
 import { formatTime } from '@/components/jobs/TimeEntry';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { JobVolumeChart } from '@/components/dashboard/JobVolumeChart';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { ServiceBreakdownChart } from '@/components/dashboard/ServiceBreakdownChart';
@@ -19,6 +19,7 @@ import { QuickCaptureDialog } from '@/components/action-items/QuickCaptureDialog
 import { DueSoonWidget } from '@/components/dashboard/DueSoonWidget';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { role: actualRole } = useAuth();
   const { isPreviewingAsTeam } = useRolePreview();
   const role = isPreviewingAsTeam ? 'team' : actualRole;
@@ -153,7 +154,7 @@ export default function Dashboard() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pendingJobs.slice(0, 12).map((job) => (
-                <JobCard key={job.id} job={job} />
+                <JobCard key={job.id} job={job} onClick={() => navigate(`/jobs/${job.id}`)} />
               ))}
             </div>
           )}

@@ -7,18 +7,17 @@ import { Job, ServiceType, useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useJobLineItems } from '@/hooks/useJobLineItems';
 import { useAuth } from '@/hooks/useAuth';
 import { useRolePreview } from '@/hooks/useRolePreview';
-import { JobStage } from '@/hooks/useJobStages';
+import { JobStage, STAGE_ORDER, STAGE_LABELS, STAGE_ICONS, FINAL_STAGES, isFinalStage, useAdvanceStage } from '@/hooks/useJobStages';
 import { StageProgress } from './StageProgress';
-import { AdvanceStageButton } from './AdvanceStageButton';
 import { formatTime } from './TimeEntry';
-import { Package, Clock, AlertTriangle, ClipboardList, Send } from 'lucide-react';
+import { Package, Clock, AlertTriangle, ClipboardList, Send, ChevronDown } from 'lucide-react';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
 import { JobGarmentsList } from './JobGarmentsList';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_BORDER_COLORS, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 import { cn as clsx } from '@/lib/utils';
 import { DueDatePicker } from './DueDatePicker';
 import { HandoffDialog } from '@/components/handoffs/HandoffDialog';
-
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SERVICE_TYPE_LABELS } from '@/lib/constants';
 export { SERVICE_TYPE_LABELS };
 
@@ -42,7 +41,6 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onClick }: JobCardProps) {
-  const stage = (job as any).stage as JobStage || 'received';
   const { updateJob } = useJobs();
   const { lineItems } = useJobLineItems(job.id);
   const { role: actualRole } = useAuth();
@@ -52,6 +50,9 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status);
   const { activeCount, totalItems, doneItems } = useJobChecklists(job.id);
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const advanceStage = useAdvanceStage();
+  const currentStage = ((job as any).stage as JobStage) || 'received';
+  const allStages = [...STAGE_ORDER, ...FINAL_STAGES] as JobStage[];
 
   // Get unique service types from line items
   const lineItemServiceTypes = [...new Set(lineItems.map(li => li.service_type))];
@@ -118,7 +119,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
       
       <CardContent className="space-y-3">
         {/* Stage Progress */}
-        <StageProgress currentStage={stage} compact />
+        <StageProgress currentStage={currentStage} compact />
         
         {/* Garment summary for Printavo jobs */}
         <JobGarmentsList jobId={job.id} compact />
@@ -172,19 +173,58 @@ export function JobCard({ job, onClick }: JobCardProps) {
           </span>
         </div>
 
-        {/* Advance Button + Hand off */}
+        {/* Stage picker + Hand off */}
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <div className="flex-1">
-            <AdvanceStageButton 
-              jobId={job.id} 
-              currentStage={stage} 
-              size="sm"
-              source={job.source}
-              customerName={job.customer_name}
-              customerEmail={job.customer_email}
-              orderNumber={job.order_number}
-            />
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <div className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-between"
+                  disabled={advanceStage.isPending}
+                >
+                  <span className="flex items-center">
+                    <span className="mr-2">{STAGE_ICONS[currentStage]}</span>
+                    {isFinalStage(currentStage) ? 'Complete' : STAGE_LABELS[currentStage]}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                {allStages.map((stageOption) => (
+                  <Button
+                    key={stageOption}
+                    variant={stageOption === currentStage ? 'default' : 'ghost'}
+                    size="sm"
+                    className="w-full justify-start"
+                    disabled={advanceStage.isPending}
+                    onClick={() => {
+                      if (stageOption !== currentStage) {
+                        advanceStage.mutate({
+                          jobId: job.id,
+                          currentStage,
+                          targetStage: stageOption,
+                          source: job.source,
+                          customerName: job.customer_name,
+                          customerEmail: job.customer_email,
+                          orderNumber: job.order_number,
+                        });
+                      }
+                    }}
+                  >
+                    <span className="mr-2">{STAGE_ICONS[stageOption]}</span>
+                    {STAGE_LABELS[stageOption]}
+                    {stageOption === currentStage && (
+                      <span className="ml-auto text-xs opacity-80">Current</span>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button
             variant="outline"
             size="sm"
