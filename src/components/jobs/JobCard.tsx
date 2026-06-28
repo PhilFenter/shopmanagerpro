@@ -174,19 +174,58 @@ export function JobCard({ job, onClick }: JobCardProps) {
           </span>
         </div>
 
-        {/* Advance Button + Hand off */}
+        {/* Stage picker + Hand off */}
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <div className="flex-1">
-            <AdvanceStageButton 
-              jobId={job.id} 
-              currentStage={stage} 
-              size="sm"
-              source={job.source}
-              customerName={job.customer_name}
-              customerEmail={job.customer_email}
-              orderNumber={job.order_number}
-            />
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <div className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-between"
+                  disabled={advanceStage.isPending}
+                >
+                  <span className="flex items-center">
+                    <span className="mr-2">{STAGE_ICONS[currentStage]}</span>
+                    {isFinalStage(currentStage) ? 'Complete' : STAGE_LABELS[currentStage]}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                {allStages.map((stageOption) => (
+                  <Button
+                    key={stageOption}
+                    variant={stageOption === currentStage ? 'default' : 'ghost'}
+                    size="sm"
+                    className="w-full justify-start"
+                    disabled={advanceStage.isPending}
+                    onClick={() => {
+                      if (stageOption !== currentStage) {
+                        advanceStage.mutate({
+                          jobId: job.id,
+                          currentStage,
+                          targetStage: stageOption,
+                          source: job.source,
+                          customerName: job.customer_name,
+                          customerEmail: job.customer_email,
+                          orderNumber: job.order_number,
+                        });
+                      }
+                    }}
+                  >
+                    <span className="mr-2">{STAGE_ICONS[stageOption]}</span>
+                    {STAGE_LABELS[stageOption]}
+                    {stageOption === currentStage && (
+                      <span className="ml-auto text-xs opacity-80">Current</span>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button
             variant="outline"
             size="sm"
