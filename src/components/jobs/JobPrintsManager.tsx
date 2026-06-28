@@ -22,16 +22,6 @@ const EMPTY: any = {
   width_in: '',
   height_in: '',
   garment_color: '',
-  ink_colors_text: '',
-  mesh_count: '',
-  squeegee_durometer: '',
-  strokes: '',
-  flash: false,
-  underbase: false,
-  flash_temp: '',
-  flash_time: '',
-  cure_temp: '',
-  cure_time: '',
   notes: '',
 };
 
