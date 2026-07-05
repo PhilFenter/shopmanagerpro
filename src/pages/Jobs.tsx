@@ -468,7 +468,22 @@ export default function Jobs() {
                 {/* Production Recipes + Photos */}
                 <div ref={recipesPhotosRef} className="space-y-6 scroll-mt-16">
                   <div className="space-y-3">
-                    <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Plus className="h-4 w-4 mr-1" /> Create recipe
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate('/dtf')}>DTF</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/screen-print')}>Screen Print</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/embroidery')}>Embroidery</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/leather')}>Leather</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                     <JobRecipesList jobId={selectedJob.id} />
                   </div>
 
