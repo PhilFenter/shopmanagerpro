@@ -28,6 +28,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Loader2, Search, Plus, Phone, Mail, Package, DollarSign, Calendar, LayoutGrid, Columns, Trash2, CreditCard, AlertTriangle, Shirt, Send } from 'lucide-react';
 import { getUrgencyLevel, getUrgencyLabel, URGENCY_TEXT_COLORS } from '@/lib/job-urgency';
 import { HandoffDialog } from '@/components/handoffs/HandoffDialog';
@@ -468,7 +469,22 @@ export default function Jobs() {
                 {/* Production Recipes + Photos */}
                 <div ref={recipesPhotosRef} className="space-y-6 scroll-mt-16">
                   <div className="space-y-3">
-                    <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Plus className="h-4 w-4 mr-1" /> Create recipe
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate('/dtf')}>DTF</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/screen-print')}>Screen Print</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/embroidery')}>Embroidery</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/leather')}>Leather</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                     <JobRecipesList jobId={selectedJob.id} />
                   </div>
 
