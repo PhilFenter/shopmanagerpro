@@ -64,6 +64,42 @@ export default function Jobs() {
   // Always get fresh job data from the query
   const selectedJob = selectedJobId ? jobs.find(j => j.id === selectedJobId) ?? null : null;
 
+  // Track recently opened jobs
+  useEffect(() => {
+    if (selectedJob) {
+      pushRecentJob({
+        id: selectedJob.id,
+        order_number: selectedJob.order_number,
+        invoice_number: (selectedJob as any).invoice_number ?? null,
+        customer_name: selectedJob.customer_name,
+      });
+    }
+  }, [selectedJob?.id]);
+
+  // Handle ?section= deep-link — scroll to the requested section after sheet mounts
+  const scrollToSection = (section: 'overview' | 'recipes' | 'checklist') => {
+    const target =
+      section === 'overview' ? overviewRef.current :
+      section === 'recipes' ? recipesPhotosRef.current :
+      checklistRef.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  useEffect(() => {
+    if (!selectedJob) return;
+    const section = searchParams.get('section');
+    if (section === 'recipes' || section === 'checklist') {
+      // Give the sheet time to mount
+      const t = setTimeout(() => {
+        scrollToSection(section as 'recipes' | 'checklist');
+        // Clean up the param so it doesn't re-fire
+        searchParams.delete('section');
+        setSearchParams(searchParams, { replace: true });
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [selectedJob?.id, searchParams]);
+
   const filteredJobs = jobs.filter((job) => {
     const normalizedSearch = search.toLowerCase();
     const matchesSearch =
