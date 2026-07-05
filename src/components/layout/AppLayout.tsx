@@ -99,7 +99,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const effectiveRole = (role === 'admin' && isPreviewingAsTeam) ? 'team' : role;
 
   // Cmd/Ctrl+K opens global job search
-  useState(() => {
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -108,7 +108,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  });
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
