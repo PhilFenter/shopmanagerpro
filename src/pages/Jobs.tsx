@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { pushRecentJob } from '@/components/search/GlobalJobSearch';
 import { cn } from '@/lib/utils';
 import { useJobs, Job, ServiceType, hasFinancialAccess } from '@/hooks/useJobs';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,11 +40,17 @@ export default function Jobs() {
   const advanceStage = useAdvanceStage();
   const { id: jobIdParam } = useParams<{ id?: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [garmentSearchOpen, setGarmentSearchOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
+
+  // Refs for quick-nav scrolling inside job detail sheet
+  const overviewRef = useRef<HTMLDivElement>(null);
+  const recipesPhotosRef = useRef<HTMLDivElement>(null);
+  const checklistRef = useRef<HTMLDivElement>(null);
 
   const selectedJobId = jobIdParam ?? null;
   const setSelectedJobId = (id: string | null) => {
@@ -56,6 +63,42 @@ export default function Jobs() {
 
   // Always get fresh job data from the query
   const selectedJob = selectedJobId ? jobs.find(j => j.id === selectedJobId) ?? null : null;
+
+  // Track recently opened jobs
+  useEffect(() => {
+    if (selectedJob) {
+      pushRecentJob({
+        id: selectedJob.id,
+        order_number: selectedJob.order_number,
+        invoice_number: (selectedJob as any).invoice_number ?? null,
+        customer_name: selectedJob.customer_name,
+      });
+    }
+  }, [selectedJob?.id]);
+
+  // Handle ?section= deep-link — scroll to the requested section after sheet mounts
+  const scrollToSection = (section: 'overview' | 'recipes' | 'checklist') => {
+    const target =
+      section === 'overview' ? overviewRef.current :
+      section === 'recipes' ? recipesPhotosRef.current :
+      checklistRef.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  useEffect(() => {
+    if (!selectedJob) return;
+    const section = searchParams.get('section');
+    if (section === 'recipes' || section === 'checklist') {
+      // Give the sheet time to mount
+      const t = setTimeout(() => {
+        scrollToSection(section as 'recipes' | 'checklist');
+        // Clean up the param so it doesn't re-fire
+        searchParams.delete('section');
+        setSearchParams(searchParams, { replace: true });
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [selectedJob?.id, searchParams]);
 
   const filteredJobs = jobs.filter((job) => {
     const normalizedSearch = search.toLowerCase();
@@ -268,8 +311,36 @@ export default function Jobs() {
                 <h2 className="text-xl font-bold">{selectedJob.customer_name}</h2>
               </div>
 
+              {/* Quick nav */}
+              <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur px-3 py-2 flex gap-1 overflow-x-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => scrollToSection('overview')}
+                >
+                  Overview
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => scrollToSection('recipes')}
+                >
+                  Recipe & Photos
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => scrollToSection('checklist')}
+                >
+                  Checklist
+                </Button>
+              </div>
+
               {/* Two-column info grid — Printavo style */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-4 border-b">
+              <div ref={overviewRef} className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-4 border-b scroll-mt-16">
                 {/* Left: Contact & details */}
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -394,22 +465,26 @@ export default function Jobs() {
                   </div>
                 )}
 
-                {/* Production Recipes */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
-                  <JobRecipesList jobId={selectedJob.id} />
+                {/* Production Recipes + Photos */}
+                <div ref={recipesPhotosRef} className="space-y-6 scroll-mt-16">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
+                    <JobRecipesList jobId={selectedJob.id} />
+                  </div>
+
+                  {/* Photos */}
+                  <JobPhotoUpload
+                    jobId={selectedJob.id}
+                    customerEmail={selectedJob.customer_email}
+                    customerName={selectedJob.customer_name}
+                    orderNumber={selectedJob.order_number}
+                  />
                 </div>
 
-                {/* Photos */}
-                <JobPhotoUpload 
-                  jobId={selectedJob.id} 
-                  customerEmail={selectedJob.customer_email}
-                  customerName={selectedJob.customer_name}
-                  orderNumber={selectedJob.order_number}
-                />
-
                 {/* Checklists */}
-                <JobChecklistPanel jobId={selectedJob.id} serviceType={selectedJob.service_type} />
+                <div ref={checklistRef} className="scroll-mt-16">
+                  <JobChecklistPanel jobId={selectedJob.id} serviceType={selectedJob.service_type} />
+                </div>
 
                 {/* Mockup Builder */}
                 <MockupBuilder

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useRolePreview } from '@/hooks/useRolePreview';
@@ -34,10 +34,12 @@ import {
   ClipboardCheck,
   GraduationCap,
   Inbox,
+  Search,
 } from 'lucide-react';
 import { useHandoffs } from '@/hooks/useHandoffs';
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { GlobalJobSearch } from '@/components/search/GlobalJobSearch';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -84,6 +86,7 @@ const financialNavigation = [
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [productionExpanded, setProductionExpanded] = useState(false);
   const { user, signOut, role } = useAuth();
   const { isPreviewingAsTeam, togglePreview } = useRolePreview();
@@ -94,6 +97,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   // When previewing as team, treat role as 'team' for UI purposes
   const effectiveRole = (role === 'admin' && isPreviewingAsTeam) ? 'team' : role;
+
+  // Cmd/Ctrl+K opens global job search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -169,7 +184,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div className="flex h-16 items-center gap-2 border-b px-4">
         <Printer className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold">Shop Manager</span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search jobs"
+            title="Search jobs (⌘K)"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           <NotificationBell />
         </div>
       </div>
@@ -263,6 +287,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </Button>
           <span className="text-lg font-bold">Shop Manager</span>
           <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search jobs"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
             <NotificationBell />
             <Link to="/handoffs" className="relative">
               <Button variant="ghost" size="icon">
@@ -282,6 +314,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Global job search overlay */}
+      <GlobalJobSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }
