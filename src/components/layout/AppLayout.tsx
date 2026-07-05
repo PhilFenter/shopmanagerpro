@@ -86,6 +86,7 @@ const financialNavigation = [
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [productionExpanded, setProductionExpanded] = useState(false);
   const { user, signOut, role } = useAuth();
   const { isPreviewingAsTeam, togglePreview } = useRolePreview();
