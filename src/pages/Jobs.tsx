@@ -465,22 +465,26 @@ export default function Jobs() {
                   </div>
                 )}
 
-                {/* Production Recipes */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
-                  <JobRecipesList jobId={selectedJob.id} />
+                {/* Production Recipes + Photos */}
+                <div ref={recipesPhotosRef} className="space-y-6 scroll-mt-16">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Production Recipes</h4>
+                    <JobRecipesList jobId={selectedJob.id} />
+                  </div>
+
+                  {/* Photos */}
+                  <JobPhotoUpload
+                    jobId={selectedJob.id}
+                    customerEmail={selectedJob.customer_email}
+                    customerName={selectedJob.customer_name}
+                    orderNumber={selectedJob.order_number}
+                  />
                 </div>
 
-                {/* Photos */}
-                <JobPhotoUpload 
-                  jobId={selectedJob.id} 
-                  customerEmail={selectedJob.customer_email}
-                  customerName={selectedJob.customer_name}
-                  orderNumber={selectedJob.order_number}
-                />
-
                 {/* Checklists */}
-                <JobChecklistPanel jobId={selectedJob.id} serviceType={selectedJob.service_type} />
+                <div ref={checklistRef} className="scroll-mt-16">
+                  <JobChecklistPanel jobId={selectedJob.id} serviceType={selectedJob.service_type} />
+                </div>
 
                 {/* Mockup Builder */}
                 <MockupBuilder
