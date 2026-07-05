@@ -18,6 +18,7 @@ import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionP
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 import { JobPrintsManager } from '@/components/jobs/JobPrintsManager';
+import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Types for position settings
 type EquipmentType = 'printhead' | 'flash' | 'stampinator' | 'empty';
@@ -795,7 +796,32 @@ export default function ScreenPrint() {
           {/* Environment Settings */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Environment & Dryer Settings</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-lg">Environment & Dryer Settings</CardTitle>
+                <VoiceDictateButton
+                  type="screen_print"
+                  fields={[
+                    { name: 'shopTemp', kind: 'number', label: 'Shop temp °F', min: 40, max: 120, current: environment.shopTemp },
+                    { name: 'platenTemp', kind: 'number', label: 'Platen temp °F', min: 40, max: 200, current: environment.platenTemp },
+                    { name: 'dryerTemp1', kind: 'number', label: 'Dryer temp 1 °F', min: 100, max: 400, current: environment.dryerTemp1 },
+                    { name: 'dryerTemp2', kind: 'number', label: 'Dryer temp 2 °F', min: 100, max: 400, current: environment.dryerTemp2 },
+                    { name: 'beltSpeed', kind: 'number', label: 'Belt speed', min: 0, max: 20, current: environment.beltSpeed },
+                    { name: 'rating', kind: 'number', label: 'Quality rating stars', min: 0, max: 5, current: rating },
+                  ] as VoiceFieldSpec[]}
+                  onApply={(u, notes) => {
+                    setEnvironment((prev) => ({
+                      ...prev,
+                      shopTemp: typeof u.shopTemp === 'number' ? u.shopTemp : prev.shopTemp,
+                      platenTemp: typeof u.platenTemp === 'number' ? u.platenTemp : prev.platenTemp,
+                      dryerTemp1: typeof u.dryerTemp1 === 'number' ? u.dryerTemp1 : prev.dryerTemp1,
+                      dryerTemp2: typeof u.dryerTemp2 === 'number' ? u.dryerTemp2 : prev.dryerTemp2,
+                      beltSpeed: typeof u.beltSpeed === 'number' ? u.beltSpeed : prev.beltSpeed,
+                    }));
+                    if (typeof u.rating === 'number') setRating(u.rating);
+                    if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
+                  }}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
