@@ -287,6 +287,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </Button>
           <span className="text-lg font-bold">Shop Manager</span>
           <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search jobs"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
             <NotificationBell />
             <Link to="/handoffs" className="relative">
               <Button variant="ghost" size="icon">
@@ -306,6 +314,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Global job search overlay */}
+      <GlobalJobSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }
