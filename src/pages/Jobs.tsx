@@ -40,11 +40,17 @@ export default function Jobs() {
   const advanceStage = useAdvanceStage();
   const { id: jobIdParam } = useParams<{ id?: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [garmentSearchOpen, setGarmentSearchOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
+
+  // Refs for quick-nav scrolling inside job detail sheet
+  const overviewRef = useRef<HTMLDivElement>(null);
+  const recipesPhotosRef = useRef<HTMLDivElement>(null);
+  const checklistRef = useRef<HTMLDivElement>(null);
 
   const selectedJobId = jobIdParam ?? null;
   const setSelectedJobId = (id: string | null) => {
