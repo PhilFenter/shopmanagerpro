@@ -184,7 +184,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div className="flex h-16 items-center gap-2 border-b px-4">
         <Printer className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold">Shop Manager</span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search jobs"
+            title="Search jobs (⌘K)"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           <NotificationBell />
         </div>
       </div>
