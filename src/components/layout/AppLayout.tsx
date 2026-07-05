@@ -34,10 +34,12 @@ import {
   ClipboardCheck,
   GraduationCap,
   Inbox,
+  Search,
 } from 'lucide-react';
 import { useHandoffs } from '@/hooks/useHandoffs';
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { GlobalJobSearch } from '@/components/search/GlobalJobSearch';
 
 interface AppLayoutProps {
   children: React.ReactNode;
