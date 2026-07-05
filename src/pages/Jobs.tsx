@@ -247,7 +247,7 @@ export default function Jobs() {
 
       {/* Job Detail Sheet — Printavo-style */}
       <Sheet open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJobId(null)}>
-        <SheetContent className="sm:max-w-[66vw] overflow-y-auto p-0">
+        <SheetContent className="w-full max-w-full sm:max-w-[92vw] lg:max-w-[80vw] xl:max-w-[1200px] overflow-y-auto p-0">
           {selectedJob && (
             <div className="flex flex-col">
               {/* Header bar */}
