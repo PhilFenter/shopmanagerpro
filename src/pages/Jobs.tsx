@@ -384,13 +384,15 @@ export default function Jobs() {
                 {/* Cost Summary - Admin/Manager only */}
                 {hasFinancialAccess(role) && <JobCostSummary job={selectedJob} />}
 
-                {/* Time Tracking */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Time Tracking</h4>
-                  <JobTimer job={selectedJob} />
-                  <TimeEntryForm jobId={selectedJob.id} />
-                  <TimeEntriesList jobId={selectedJob.id} />
-                </div>
+                {/* Time Tracking - Admin/Manager only */}
+                {hasFinancialAccess(role) && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Time Tracking</h4>
+                    <JobTimer job={selectedJob} />
+                    <TimeEntryForm jobId={selectedJob.id} />
+                    <TimeEntriesList jobId={selectedJob.id} />
+                  </div>
+                )}
 
                 {/* Production Recipes */}
                 <div className="space-y-3">
