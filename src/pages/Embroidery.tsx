@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
+import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Item types and their placements
 const ITEM_TYPES = [
@@ -312,7 +313,33 @@ export default function Embroidery() {
           {/* Item & Placement */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Item & Placement</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-lg">Item & Placement</CardTitle>
+                <VoiceDictateButton
+                  type="embroidery"
+                  fields={[
+                    { name: 'itemType', kind: 'string', label: 'Item type (garment)', current: itemType },
+                    { name: 'placement', kind: 'string', label: 'Placement (left chest, back, sleeve, etc.)', current: placement },
+                    { name: 'quantity', kind: 'number', label: 'Quantity', min: 1, max: 10000, current: quantity },
+                    { name: 'stitchCount', kind: 'number', label: 'Stitch count', min: 0, max: 500000, current: stitchCount },
+                    { name: 'speed', kind: 'number', label: 'Machine speed (spm)', min: 200, max: 1500, current: speed },
+                    { name: 'hoopType', kind: 'string', label: 'Hoop size/type', current: hoopType },
+                    { name: 'backing', kind: 'string', label: 'Backing type (cutaway, tearaway, etc.)', current: backing },
+                    { name: 'designFile', kind: 'string', label: 'Design file name', current: designFile },
+                  ] as VoiceFieldSpec[]}
+                  onApply={(u, notes) => {
+                    if (typeof u.itemType === 'string') setItemType(u.itemType);
+                    if (typeof u.placement === 'string') setPlacement(u.placement);
+                    if (typeof u.quantity === 'number') setQuantity(u.quantity);
+                    if (typeof u.stitchCount === 'number') setStitchCount(u.stitchCount);
+                    if (typeof u.speed === 'number') setSpeed(u.speed);
+                    if (typeof u.hoopType === 'string') setHoopType(u.hoopType);
+                    if (typeof u.backing === 'string') setBacking(u.backing);
+                    if (typeof u.designFile === 'string') setDesignFile(u.designFile);
+                    if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
+                  }}
+                />
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
