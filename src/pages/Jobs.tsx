@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { pushRecentJob } from '@/components/search/GlobalJobSearch';
 import { cn } from '@/lib/utils';
 import { useJobs, Job, ServiceType, hasFinancialAccess } from '@/hooks/useJobs';
 import { useAuth } from '@/hooks/useAuth';
