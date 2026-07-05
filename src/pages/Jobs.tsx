@@ -311,8 +311,36 @@ export default function Jobs() {
                 <h2 className="text-xl font-bold">{selectedJob.customer_name}</h2>
               </div>
 
+              {/* Quick nav */}
+              <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur px-3 py-2 flex gap-1 overflow-x-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => scrollToSection('overview')}
+                >
+                  Overview
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => scrollToSection('recipes')}
+                >
+                  Recipe & Photos
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => scrollToSection('checklist')}
+                >
+                  Checklist
+                </Button>
+              </div>
+
               {/* Two-column info grid — Printavo style */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-4 border-b">
+              <div ref={overviewRef} className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-4 border-b scroll-mt-16">
                 {/* Left: Contact & details */}
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3 text-sm">
