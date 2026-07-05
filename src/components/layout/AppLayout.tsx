@@ -98,6 +98,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
   // When previewing as team, treat role as 'team' for UI purposes
   const effectiveRole = (role === 'admin' && isPreviewingAsTeam) ? 'team' : role;
 
+  // Cmd/Ctrl+K opens global job search
+  useState(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  });
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
