@@ -45,7 +45,7 @@ function pickMime(): string {
   return '';
 }
 
-export function VoiceDictateButton({ type, fields, onApply, label = 'Voice fill' }: Props) {
+export function VoiceDictateButton({ type, fields, onApply, label = 'Voice fill', iconOnly = false }: Props) {
   const [state, setState] = useState<'idle' | 'recording' | 'processing'>('idle');
   const [elapsed, setElapsed] = useState(0);
   const mediaRef = useRef<MediaRecorder | null>(null);
