@@ -761,21 +761,49 @@ export default function ScreenPrint() {
                       {/* Flash Settings */}
                       {position.equipmentType === 'flash' && (
                         <div className="space-y-2">
+                          <div>
+                            <Label className="text-xs">Flash Type:</Label>
+                            <Select
+                              value={position.flash?.flashType || 'smart'}
+                              onValueChange={(v) => updateFlash(pos, 'flashType', v as 'smart' | 'manual')}
+                            >
+                              <SelectTrigger className="mt-1 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="smart">Smart Flash (digital)</SelectItem>
+                                <SelectItem value="manual">Manual Flash (rotary dial)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {position.flash?.flashType === 'manual' && (
+                            <p className="text-[10px] text-muted-foreground italic">
+                              Record the dial positions below so the next operator can dial them in.
+                            </p>
+                          )}
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-xs">Flash Temperature (°C):</Label>
+                              <Label className="text-xs">
+                                {position.flash?.flashType === 'manual' ? 'Temp Dial Position:' : 'Flash Temperature (°F):'}
+                              </Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '350'}
                                 value={position.flash?.flashTemp ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
                               />
                             </div>
                             <div>
-                              <Label className="text-xs">Flash Time (seconds):</Label>
+                              <Label className="text-xs">
+                                {position.flash?.flashType === 'manual' ? 'Time Dial Position:' : 'Flash Time (seconds):'}
+                              </Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
                                 step="0.1"
+                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 3' : '3'}
                                 value={position.flash?.flashTime ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTime', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -787,7 +815,9 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flash Height:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
                                 step="0.1"
+                                placeholder="2"
                                 value={position.flash?.flashHeight ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashHeight', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -820,6 +850,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Stamp Pressure (PSI):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="80"
                                 value={position.stampinator?.stampPressure ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampPressure', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -829,7 +861,9 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Stamp Time (seconds):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
                                 step="0.1"
+                                placeholder="2"
                                 value={position.stampinator?.stampTime ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampTime', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -841,6 +875,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Stamp Temperature (°F):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="350"
                                 value={position.stampinator?.stampTemp ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
