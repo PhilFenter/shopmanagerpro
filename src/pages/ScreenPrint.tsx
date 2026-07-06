@@ -660,6 +660,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Air Pressure (PSI):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="40"
                                 value={position.printhead?.airPressure ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'airPressure', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -669,6 +671,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Print Speed:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="8"
                                 value={position.printhead?.printSpeed ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'printSpeed', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -680,6 +684,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flood Speed:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="6"
                                 value={position.printhead?.floodSpeed ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'floodSpeed', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -689,6 +695,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Squeegee Angle (°):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="15"
                                 value={position.printhead?.squeegeeAngle ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'squeegeeAngle', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -700,6 +708,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flood Bar Angle (°):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="10"
                                 value={position.printhead?.floodAngle ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'floodAngle', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -709,6 +719,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Squeegee Height:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="5"
                                 value={position.printhead?.squeegeeHeight ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'squeegeeHeight', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -720,6 +732,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flood Bar Height:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="3"
                                 value={position.printhead?.floodHeight ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'floodHeight', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
