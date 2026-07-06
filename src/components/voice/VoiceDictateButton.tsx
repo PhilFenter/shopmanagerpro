@@ -131,24 +131,45 @@ export function VoiceDictateButton({ type, fields, onApply, label = 'Voice fill'
 
   if (state === 'recording') {
     return (
-      <Button type="button" variant="destructive" size="sm" onClick={stop} className="gap-2">
+      <Button
+        type="button"
+        variant="destructive"
+        size={iconOnly ? 'icon' : 'sm'}
+        onClick={stop}
+        className="gap-2"
+        title="Stop recording"
+      >
         <Square className="h-4 w-4 fill-current" />
-        Stop ({elapsed}s)
+        {!iconOnly && `Stop (${elapsed}s)`}
       </Button>
     );
   }
   if (state === 'processing') {
     return (
-      <Button type="button" variant="secondary" size="sm" disabled className="gap-2">
+      <Button
+        type="button"
+        variant="secondary"
+        size={iconOnly ? 'icon' : 'sm'}
+        disabled
+        className="gap-2"
+        title="Transcribing…"
+      >
         <Loader2 className="h-4 w-4 animate-spin" />
-        Transcribing…
+        {!iconOnly && 'Transcribing…'}
       </Button>
     );
   }
   return (
-    <Button type="button" variant="outline" size="sm" onClick={start} className="gap-2">
+    <Button
+      type="button"
+      variant="outline"
+      size={iconOnly ? 'icon' : 'sm'}
+      onClick={start}
+      className="gap-2"
+      title={label}
+    >
       <Mic className="h-4 w-4" />
-      {label}
+      {!iconOnly && label}
     </Button>
   );
 }
