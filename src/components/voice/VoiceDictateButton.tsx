@@ -20,6 +20,7 @@ interface Props {
   fields: VoiceFieldSpec[];
   onApply: (updates: Record<string, unknown>, notes: string, transcript: string) => void;
   label?: string;
+  iconOnly?: boolean;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -44,7 +45,7 @@ function pickMime(): string {
   return '';
 }
 
-export function VoiceDictateButton({ type, fields, onApply, label = 'Voice fill' }: Props) {
+export function VoiceDictateButton({ type, fields, onApply, label = 'Voice fill', iconOnly = false }: Props) {
   const [state, setState] = useState<'idle' | 'recording' | 'processing'>('idle');
   const [elapsed, setElapsed] = useState(0);
   const mediaRef = useRef<MediaRecorder | null>(null);
@@ -130,24 +131,45 @@ export function VoiceDictateButton({ type, fields, onApply, label = 'Voice fill'
 
   if (state === 'recording') {
     return (
-      <Button type="button" variant="destructive" size="sm" onClick={stop} className="gap-2">
+      <Button
+        type="button"
+        variant="destructive"
+        size={iconOnly ? 'icon' : 'sm'}
+        onClick={stop}
+        className="gap-2"
+        title="Stop recording"
+      >
         <Square className="h-4 w-4 fill-current" />
-        Stop ({elapsed}s)
+        {!iconOnly && `Stop (${elapsed}s)`}
       </Button>
     );
   }
   if (state === 'processing') {
     return (
-      <Button type="button" variant="secondary" size="sm" disabled className="gap-2">
+      <Button
+        type="button"
+        variant="secondary"
+        size={iconOnly ? 'icon' : 'sm'}
+        disabled
+        className="gap-2"
+        title="Transcribing…"
+      >
         <Loader2 className="h-4 w-4 animate-spin" />
-        Transcribing…
+        {!iconOnly && 'Transcribing…'}
       </Button>
     );
   }
   return (
-    <Button type="button" variant="outline" size="sm" onClick={start} className="gap-2">
+    <Button
+      type="button"
+      variant="outline"
+      size={iconOnly ? 'icon' : 'sm'}
+      onClick={start}
+      className="gap-2"
+      title={label}
+    >
       <Mic className="h-4 w-4" />
-      {label}
+      {!iconOnly && label}
     </Button>
   );
 }
