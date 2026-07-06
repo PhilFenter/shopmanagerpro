@@ -20,6 +20,7 @@ interface Props {
   fields: VoiceFieldSpec[];
   onApply: (updates: Record<string, unknown>, notes: string, transcript: string) => void;
   label?: string;
+  iconOnly?: boolean;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
