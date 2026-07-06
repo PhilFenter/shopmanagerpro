@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.send-push]
 verify_jwt = false
+
+[functions.notify-new-action-item]
+verify_jwt = false
