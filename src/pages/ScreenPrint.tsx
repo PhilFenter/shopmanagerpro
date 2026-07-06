@@ -596,7 +596,10 @@ export default function ScreenPrint() {
                 return (
                   <Card key={pos} className={cn('transition-colors', getPositionBg(position.equipmentType))}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">{getPositionLabel(pos)}</CardTitle>
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-sm font-semibold">{getPositionLabel(pos)}</CardTitle>
+                        {positionVoiceButton(pos)}
+                      </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {/* Equipment Type */}
