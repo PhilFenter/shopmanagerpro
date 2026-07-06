@@ -377,14 +377,63 @@ export default function ScreenPrint() {
     await deleteRecipe.mutateAsync(id);
   };
 
-  // Get background color for position card using semantic tokens
-  const getPositionBg = (equipmentType: EquipmentType) => {
-    switch (equipmentType) {
-      case 'flash': return 'bg-accent/50 border-accent';
-      case 'stampinator': return 'bg-secondary border-secondary';
-      case 'empty': return 'bg-muted/30 border-muted';
-      default: return 'bg-primary/5 border-primary/20';
-    }
+  // Voice dictation for a single press position
+  const positionVoiceButton = (pos: number) => {
+    const position = positions[pos];
+    const screenMeshOptions = ['Newman 166', 'Newman 272', 'Newman 305', 'Eco 156', 'Eco 230', 'Eco 305'];
+    const equipmentOptions = ['printhead', 'flash', 'stampinator', 'empty'];
+    return (
+      <VoiceDictateButton
+        type="screen_print"
+        iconOnly
+        label={`Voice fill position ${pos}`}
+        fields={[
+          { name: 'equipmentType', kind: 'enum', label: 'Equipment type', options: equipmentOptions, current: position.equipmentType, hint: 'printhead, flash, stampinator, or empty' },
+          { name: 'pantone', kind: 'string', label: 'Pantone color', current: position.printhead?.pantone },
+          { name: 'screenMesh', kind: 'enum', label: 'Screen mesh', options: screenMeshOptions, current: position.printhead?.screenMesh },
+          { name: 'airPressure', kind: 'number', label: 'Air pressure PSI', min: 0, max: 100, current: position.printhead?.airPressure },
+          { name: 'printSpeed', kind: 'number', label: 'Print speed', min: 0, max: 20, current: position.printhead?.printSpeed },
+          { name: 'floodSpeed', kind: 'number', label: 'Flood speed', min: 0, max: 20, current: position.printhead?.floodSpeed },
+          { name: 'squeegeeAngle', kind: 'number', label: 'Squeegee angle degrees', min: 0, max: 45, current: position.printhead?.squeegeeAngle },
+          { name: 'floodAngle', kind: 'number', label: 'Flood bar angle degrees', min: 0, max: 45, current: position.printhead?.floodAngle },
+          { name: 'squeegeeHeight', kind: 'number', label: 'Squeegee height', min: 0, max: 20, current: position.printhead?.squeegeeHeight },
+          { name: 'floodHeight', kind: 'number', label: 'Flood bar height', min: 0, max: 20, current: position.printhead?.floodHeight },
+          { name: 'active', kind: 'boolean', label: 'Active yes/no', current: position.printhead?.active },
+          { name: 'flashTemp', kind: 'number', label: 'Flash temperature °C', min: 100, max: 500, current: position.flash?.flashTemp },
+          { name: 'flashTime', kind: 'number', label: 'Flash time seconds', min: 0, max: 30, current: position.flash?.flashTime },
+          { name: 'flashHeight', kind: 'number', label: 'Flash height', min: 0, max: 10, current: position.flash?.flashHeight },
+          { name: 'flashActive', kind: 'boolean', label: 'Flash active yes/no', current: position.flash?.flashActive },
+          { name: 'stampPressure', kind: 'number', label: 'Stamp pressure PSI', min: 0, max: 200, current: position.stampinator?.stampPressure },
+          { name: 'stampTime', kind: 'number', label: 'Stamp time seconds', min: 0, max: 30, current: position.stampinator?.stampTime },
+          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °F', min: 100, max: 500, current: position.stampinator?.stampTemp },
+          { name: 'stampActive', kind: 'boolean', label: 'Stamp active yes/no', current: position.stampinator?.stampActive },
+        ] as VoiceFieldSpec[]}
+        onApply={(u, notes) => {
+          if (typeof u.equipmentType === 'string' && equipmentOptions.includes(u.equipmentType)) {
+            updateEquipment(pos, u.equipmentType as EquipmentType);
+          }
+          if (typeof u.pantone === 'string') updatePrintHead(pos, 'pantone', u.pantone);
+          if (typeof u.screenMesh === 'string') updatePrintHead(pos, 'screenMesh', u.screenMesh);
+          if (typeof u.airPressure === 'number') updatePrintHead(pos, 'airPressure', u.airPressure);
+          if (typeof u.printSpeed === 'number') updatePrintHead(pos, 'printSpeed', u.printSpeed);
+          if (typeof u.floodSpeed === 'number') updatePrintHead(pos, 'floodSpeed', u.floodSpeed);
+          if (typeof u.squeegeeAngle === 'number') updatePrintHead(pos, 'squeegeeAngle', u.squeegeeAngle);
+          if (typeof u.floodAngle === 'number') updatePrintHead(pos, 'floodAngle', u.floodAngle);
+          if (typeof u.squeegeeHeight === 'number') updatePrintHead(pos, 'squeegeeHeight', u.squeegeeHeight);
+          if (typeof u.floodHeight === 'number') updatePrintHead(pos, 'floodHeight', u.floodHeight);
+          if (typeof u.active === 'boolean') updatePrintHead(pos, 'active', u.active);
+          if (typeof u.flashTemp === 'number') updateFlash(pos, 'flashTemp', u.flashTemp);
+          if (typeof u.flashTime === 'number') updateFlash(pos, 'flashTime', u.flashTime);
+          if (typeof u.flashHeight === 'number') updateFlash(pos, 'flashHeight', u.flashHeight);
+          if (typeof u.flashActive === 'boolean') updateFlash(pos, 'flashActive', u.flashActive);
+          if (typeof u.stampPressure === 'number') updateStamp(pos, 'stampPressure', u.stampPressure);
+          if (typeof u.stampTime === 'number') updateStamp(pos, 'stampTime', u.stampTime);
+          if (typeof u.stampTemp === 'number') updateStamp(pos, 'stampTemp', u.stampTemp);
+          if (typeof u.stampActive === 'boolean') updateStamp(pos, 'stampActive', u.stampActive);
+          if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
+        }}
+      />
+    );
   };
 
   return (
