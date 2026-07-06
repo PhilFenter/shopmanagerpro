@@ -436,7 +436,15 @@ export default function ScreenPrint() {
     );
   };
 
-  return (
+  // Get background color for position card using semantic tokens
+  const getPositionBg = (equipmentType: EquipmentType) => {
+    switch (equipmentType) {
+      case 'flash': return 'bg-accent/50 border-accent';
+      case 'stampinator': return 'bg-secondary border-secondary';
+      case 'empty': return 'bg-muted/30 border-muted';
+      default: return 'bg-primary/5 border-primary/20';
+    }
+  };
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
