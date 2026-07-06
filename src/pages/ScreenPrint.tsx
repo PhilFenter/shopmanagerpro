@@ -943,6 +943,8 @@ export default function ScreenPrint() {
                   <Label>Shop Temp (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="72"
                     value={environment.shopTemp ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, shopTemp: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -952,6 +954,8 @@ export default function ScreenPrint() {
                   <Label>Platen Temp (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="90"
                     value={environment.platenTemp ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, platenTemp: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -961,6 +965,8 @@ export default function ScreenPrint() {
                   <Label>Dryer Temp 1 (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="320"
                     value={environment.dryerTemp1 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp1: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -970,6 +976,8 @@ export default function ScreenPrint() {
                   <Label>Dryer Temp 2 (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="320"
                     value={environment.dryerTemp2 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp2: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -980,6 +988,8 @@ export default function ScreenPrint() {
                   <Input
                     type="number"
                     step="0.1"
+                    inputMode="decimal"
+                    placeholder="3"
                     value={environment.beltSpeed ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, beltSpeed: e.target.value ? parseFloat(e.target.value) : null }))}
                     className="mt-1"
