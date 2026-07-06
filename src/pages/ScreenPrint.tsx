@@ -38,6 +38,7 @@ interface PrintHeadSettings {
 
 
 interface FlashSettings {
+  flashType: 'smart' | 'manual';
   flashTemp: number | null;
   flashTime: number | null;
   flashHeight: number | null;
@@ -68,32 +69,33 @@ interface EnvironmentSettings {
 
 // PhotoSlot is now imported from ProductionPhotos
 
-// Default settings
+// Default settings — all numeric fields start empty so users can type
+// without backspacing. Typical values are shown as placeholder hints only.
 const defaultPrintHead: PrintHeadSettings = {
   pantone: '',
   screenMesh: '',
-
-  airPressure: 40,
-  printSpeed: 8,
-  floodSpeed: 6,
-  squeegeeAngle: 15,
-  floodAngle: 10,
-  squeegeeHeight: 5,
-  floodHeight: 3,
+  airPressure: null,
+  printSpeed: null,
+  floodSpeed: null,
+  squeegeeAngle: null,
+  floodAngle: null,
+  squeegeeHeight: null,
+  floodHeight: null,
   active: false,
 };
 
 const defaultFlash: FlashSettings = {
-  flashTemp: 200,
-  flashTime: 3,
-  flashHeight: 2,
+  flashType: 'smart',
+  flashTemp: null,
+  flashTime: null,
+  flashHeight: null,
   flashActive: false,
 };
 
 const defaultStamp: StampSettings = {
-  stampPressure: 80,
-  stampTime: 2,
-  stampTemp: 350,
+  stampPressure: null,
+  stampTime: null,
+  stampTemp: null,
   stampActive: false,
 };
 
