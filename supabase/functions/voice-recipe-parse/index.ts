@@ -105,18 +105,20 @@ Deno.serve(async (req) => {
       })
       .join('\n');
 
-    const systemPrompt = `You extract production recipe parameters from a shop operator's spoken notes.
+    const systemPrompt = `You extract screen-print / DTF / embroidery / leather production recipe parameters from a shop operator's spoken notes. Be GENEROUS in matching — operators speak in shorthand.
 Process type: ${body.type}.
 Available fields (only use these exact names):
 ${fieldDescriptors}
 
 Rules:
-- Return ONLY fields the operator clearly stated. Omit anything ambiguous.
-- Numbers: parse spoken numerals ("three twenty" -> 320). Respect min/max; clamp silently.
-- Enum: match to the closest option (case-insensitive). If no clear match, omit.
-- Booleans: on/off, yes/no, enable/disable.
-- Put anything descriptive that doesn't map to a field into "notes" verbatim-ish (cleaned up), otherwise "".
-- If the operator says nothing usable, return {"updates":{},"notes":""}.`;
+- Extract every field the operator plausibly stated, even if wording is loose. Only omit if truly ambiguous.
+- Numbers: parse spoken numerals ("three twenty" -> 320, "two seventy two" -> 272). Respect min/max; clamp silently. If a number is stated near a field keyword (e.g. "272 mesh", "60 psi", "12 seconds"), assign it to that field.
+- Enum: match by SUBSTRING or number match, case-insensitive. Example: "272 mesh" -> "Newman 272"; "eco 230" -> "Eco 230"; "print head" or "printhead" -> "printhead". Pick the closest option.
+- String fields (like pantone/color): accept ANY spoken value verbatim ("base white", "PMS 186 red", "safety orange"). Do not require a specific format.
+- Booleans: on/off, yes/no, enable/disable, active/inactive.
+- ALWAYS populate "notes" with a cleaned-up version of the full transcript so the operator has a record — even if you extracted fields. Trim filler ("um", "so", "we're gonna").
+- If truly nothing is parseable, still put the transcript in "notes".
+- Return strict JSON: {"updates": {...}, "notes": "..."}`;
 
     const chatRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -149,12 +151,13 @@ Rules:
       parsed = {};
     }
 
+    const updates = parsed.updates ?? {};
+    let notes = parsed.notes ?? '';
+    // Always ensure the operator has a written record of what they said
+    if (!notes.trim()) notes = transcript;
+
     return new Response(
-      JSON.stringify({
-        transcript,
-        updates: parsed.updates ?? {},
-        notes: parsed.notes ?? '',
-      }),
+      JSON.stringify({ transcript, updates, notes }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {
