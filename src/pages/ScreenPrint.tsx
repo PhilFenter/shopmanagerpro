@@ -425,6 +425,7 @@ export default function ScreenPrint() {
           if (typeof u.squeegeeHeight === 'number') updatePrintHead(pos, 'squeegeeHeight', u.squeegeeHeight);
           if (typeof u.floodHeight === 'number') updatePrintHead(pos, 'floodHeight', u.floodHeight);
           if (typeof u.active === 'boolean') updatePrintHead(pos, 'active', u.active);
+          if (typeof u.flashType === 'string' && (u.flashType === 'smart' || u.flashType === 'manual')) updateFlash(pos, 'flashType', u.flashType);
           if (typeof u.flashTemp === 'number') updateFlash(pos, 'flashTemp', u.flashTemp);
           if (typeof u.flashTime === 'number') updateFlash(pos, 'flashTime', u.flashTime);
           if (typeof u.flashHeight === 'number') updateFlash(pos, 'flashHeight', u.flashHeight);
