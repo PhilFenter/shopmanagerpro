@@ -391,6 +391,7 @@ export default function ScreenPrint() {
         label={`Voice fill position ${pos}`}
         fields={[
           { name: 'equipmentType', kind: 'enum', label: 'Equipment type', options: equipmentOptions, current: position.equipmentType, hint: 'printhead, flash, stampinator, or empty' },
+          { name: 'flashType', kind: 'enum', label: 'Flash type', options: ['smart', 'manual'], current: position.flash?.flashType, hint: 'smart flash = digital; manual/regular = rotary dial' },
           { name: 'pantone', kind: 'string', label: 'Pantone color', current: position.printhead?.pantone },
           { name: 'screenMesh', kind: 'enum', label: 'Screen mesh', options: screenMeshOptions, current: position.printhead?.screenMesh },
           { name: 'airPressure', kind: 'number', label: 'Air pressure PSI', min: 0, max: 100, current: position.printhead?.airPressure },
