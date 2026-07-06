@@ -151,12 +151,13 @@ Rules:
       parsed = {};
     }
 
+    const updates = parsed.updates ?? {};
+    let notes = parsed.notes ?? '';
+    // Always ensure the operator has a written record of what they said
+    if (!notes.trim()) notes = transcript;
+
     return new Response(
-      JSON.stringify({
-        transcript,
-        updates: parsed.updates ?? {},
-        notes: parsed.notes ?? '',
-      }),
+      JSON.stringify({ transcript, updates, notes }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {
