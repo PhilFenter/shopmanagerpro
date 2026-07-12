@@ -118,11 +118,11 @@ export default function Jobs() {
 
     // Urgency filters
     if (stageFilter === 'overdue') {
-      const urgency = getUrgencyLevel(job.due_date, job.status);
+      const urgency = getUrgencyLevel(job.due_date, job.status, (job as any).paid_at);
       if (urgency !== 'overdue' && urgency !== 'red') return false;
     }
     if (stageFilter === 'due_soon') {
-      const urgency = getUrgencyLevel(job.due_date, job.status);
+      const urgency = getUrgencyLevel(job.due_date, job.status, (job as any).paid_at);
       if (urgency === 'none' || urgency === 'green') return false;
     }
 
@@ -360,8 +360,8 @@ export default function Jobs() {
                       <p className="font-medium">{new Date(selectedJob.created_at).toLocaleDateString()}</p>
                     </div>
                     {(selectedJob as any).due_date && (() => {
-                      const urgency = getUrgencyLevel((selectedJob as any).due_date, selectedJob.status);
-                      const label = getUrgencyLabel((selectedJob as any).due_date, selectedJob.status);
+                      const urgency = getUrgencyLevel((selectedJob as any).due_date, selectedJob.status, (selectedJob as any).paid_at);
+                      const label = getUrgencyLabel((selectedJob as any).due_date, selectedJob.status, (selectedJob as any).paid_at);
                       return (
                         <div>
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">Due Date</p>
