@@ -93,9 +93,10 @@ export function useDashboardAnalytics() {
     const totalRevenue = periodJobs.reduce((sum, j) => sum + (j.sale_price || 0), 0);
     const totalMaterialCost = periodJobs.reduce((sum, j) => sum + (j.material_cost || 0), 0);
 
-    // Jobs in progress (for Job Volume chart)
-    const activeJobs = periodJobs.filter(j => j.status !== 'completed');
-    const completedJobs = periodJobs.filter(j => j.status === 'completed');
+    // Jobs in progress (for Job Volume chart) — exclude final stages so stale
+    // "pending" jobs that were actually shipped don't inflate history.
+    const activeJobs = periodJobs.filter(j => j.status !== 'completed' && !isFinalStage(j.stage));
+    const completedJobs = periodJobs.filter(j => j.status === 'completed' || isFinalStage(j.stage));
 
     // Daily job counts - show created + in-progress for last 14 days
     const chartStart = period === 'this_week' ? start : subDays(end, 14);
@@ -104,20 +105,23 @@ export function useDashboardAnalytics() {
       const dayStart = startOfDay(day);
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23, 59, 59, 999);
-      
+
       const created = jobs.filter(j => {
         const createdAt = new Date(j.created_at);
         return isWithinInterval(createdAt, { start: dayStart, end: dayEnd });
       }).length;
-      
-      // Count jobs that were active on this day (created before or on this day, not completed before)
+
+      // Jobs active on this day: created on/before, not completed before, and
+      // not currently sitting in a final stage (those are effectively closed
+      // even if their completed_at was backfilled).
       const inProgress = jobs.filter(j => {
         const createdAt = new Date(j.created_at);
         if (createdAt > dayEnd) return false;
         if (j.completed_at && new Date(j.completed_at) < dayStart) return false;
-        return j.status !== 'completed' || (j.completed_at && new Date(j.completed_at) >= dayStart);
+        if (isFinalStage(j.stage)) return false;
+        return j.status !== 'completed';
       }).length;
-      
+
       return {
         date: format(day, 'MMM d'),
         created,
