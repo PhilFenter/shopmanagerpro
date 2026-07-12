@@ -134,11 +134,14 @@ export function useDashboardAnalytics() {
     const weeks = eachWeekOfInterval({ start: weekStart, end });
     const weeklyRevenue: WeeklyRevenue[] = weeks.map(ws => {
       const we = endOfWeek(ws);
-      
-      // Revenue from jobs created in this week
+
+      // Revenue is booked when the invoice is paid (falls back to completed_at,
+      // then created_at) so a job invoiced this week lands in this week's bar
+      // regardless of when it was originally created.
       const weekJobs = jobs.filter(j => {
-        const createdAt = new Date(j.created_at);
-        return isWithinInterval(createdAt, { start: ws, end: we });
+        const anchor = (j as any).paid_at || j.completed_at || j.created_at;
+        if (!anchor) return false;
+        return isWithinInterval(new Date(anchor), { start: ws, end: we });
       });
 
       const revenue = weekJobs.reduce((sum, j) => sum + (j.sale_price || 0), 0);
@@ -152,6 +155,9 @@ export function useDashboardAnalytics() {
       };
     });
 
+    const humanize = (slug: string) =>
+      slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
     // Service type breakdown (all jobs in period)
     const serviceCounts: Record<string, number> = {};
     periodJobs.forEach(j => {
@@ -161,7 +167,7 @@ export function useDashboardAnalytics() {
       .map(([service, count]) => ({
         service,
         count,
-        label: SERVICE_LABELS[service] || service,
+        label: SERVICE_LABELS[service] || humanize(service),
       }))
       .sort((a, b) => b.count - a.count);
 
