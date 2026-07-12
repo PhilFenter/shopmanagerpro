@@ -91,7 +91,6 @@ export function useDashboardAnalytics() {
 
     // Revenue from ALL jobs in period (not just completed)
     const totalRevenue = periodJobs.reduce((sum, j) => sum + (j.sale_price || 0), 0);
-    const totalMaterialCost = periodJobs.reduce((sum, j) => sum + (j.material_cost || 0), 0);
 
     // Jobs in progress (for Job Volume chart) — exclude final stages so stale
     // "pending" jobs that were actually shipped don't inflate history.
