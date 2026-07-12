@@ -79,37 +79,14 @@ export function useDashboardAnalytics() {
   const [period, setPeriod] = useState<TimePeriod>('last_30_days');
   const { jobs, isLoading: jobsLoading } = useJobs();
 
-  // Fetch all time entries for accurate time tracking
-  const timeEntriesQuery = useQuery({
-    queryKey: ['all-time-entries'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('time_entries')
-        .select('id, job_id, duration, created_at, worker_id');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const analytics = useMemo(() => {
     const { start, end } = getPeriodRange(period);
-    const timeEntries = timeEntriesQuery.data ?? [];
 
     // Filter jobs by period based on created_at
     const periodJobs = jobs.filter(j => {
       const createdAt = new Date(j.created_at);
       return isWithinInterval(createdAt, { start, end });
     });
-
-    // Filter time entries by period
-    const periodTimeEntries = timeEntries.filter(te => {
-      const createdAt = new Date(te.created_at);
-      return isWithinInterval(createdAt, { start, end });
-    });
-
-    // Total time from time_entries table (not job.time_tracked)
-    const totalMinutes = periodTimeEntries.reduce((sum, te) => sum + (te.duration || 0), 0);
 
     // Revenue from ALL jobs in period (not just completed)
     const totalRevenue = periodJobs.reduce((sum, j) => sum + (j.sale_price || 0), 0);
@@ -208,12 +185,11 @@ export function useDashboardAnalytics() {
       totalMaterialCost,
       totalProfit: totalRevenue - totalMaterialCost,
       avgJobValue,
-      totalMinutes,
       activeJobCount: activeJobs.length,
       completedJobCount: completedJobs.length,
       totalJobCount: periodJobs.length,
     };
-  }, [jobs, timeEntriesQuery.data, period]);
+  }, [jobs, period]);
 
   return {
     ...analytics,
@@ -221,6 +197,6 @@ export function useDashboardAnalytics() {
     setPeriod,
     periodLabel: PERIOD_LABELS[period],
     periodOptions: Object.entries(PERIOD_LABELS).map(([value, label]) => ({ value: value as TimePeriod, label })),
-    isLoading: jobsLoading || timeEntriesQuery.isLoading,
+    isLoading: jobsLoading,
   };
 }

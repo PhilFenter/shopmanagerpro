@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { JobForm } from '@/components/jobs/JobForm';
 import { JobCard } from '@/components/jobs/JobCard';
-import { Plus, Clock, Activity, CheckCircle, DollarSign, Briefcase } from 'lucide-react';
-import { formatTime } from '@/components/jobs/TimeEntry';
+import { Plus, Activity, DollarSign, Briefcase } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { JobVolumeChart } from '@/components/dashboard/JobVolumeChart';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
@@ -62,17 +61,6 @@ export default function Dashboard() {
             <p className="text-xs text-muted-foreground">
               {analytics.activeJobCount} active, {analytics.completedJobCount} completed
             </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Time Logged</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatTime(analytics.totalMinutes)}</div>
-            <p className="text-xs text-muted-foreground">{analytics.periodLabel}</p>
           </CardContent>
         </Card>
         
