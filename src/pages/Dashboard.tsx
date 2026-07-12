@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useJobs, hasFinancialAccess } from '@/hooks/useJobs';
 import { useDashboardAnalytics, TimePeriod } from '@/hooks/useDashboardAnalytics';
+import { FINAL_STAGES, JobStage } from '@/hooks/useJobStages';
 import { useRolePreview } from '@/hooks/useRolePreview';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,10 @@ export default function Dashboard() {
   const { jobs, isLoading } = useJobs();
   const analytics = useDashboardAnalytics();
 
-  const pendingJobs = jobs.filter(j => j.status === 'pending' || j.status === 'in_progress');
+  const pendingJobs = jobs.filter(j =>
+    (j.status === 'pending' || j.status === 'in_progress') &&
+    !FINAL_STAGES.includes(j.stage as JobStage)
+  );
 
   return (
     <div className="space-y-6">
