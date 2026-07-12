@@ -118,11 +118,11 @@ export default function Jobs() {
 
     // Urgency filters
     if (stageFilter === 'overdue') {
-      const urgency = getUrgencyLevel(job.due_date, job.status);
+      const urgency = getUrgencyLevel(job.due_date, job.status, (job as any).paid_at);
       if (urgency !== 'overdue' && urgency !== 'red') return false;
     }
     if (stageFilter === 'due_soon') {
-      const urgency = getUrgencyLevel(job.due_date, job.status);
+      const urgency = getUrgencyLevel(job.due_date, job.status, (job as any).paid_at);
       if (urgency === 'none' || urgency === 'green') return false;
     }
 
