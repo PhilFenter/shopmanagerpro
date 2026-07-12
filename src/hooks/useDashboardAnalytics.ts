@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import { useJobs } from './useJobs';
 import { startOfDay, startOfMonth, subDays, subWeeks, subMonths, isWithinInterval, format, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
+import { FINAL_STAGES, JobStage } from './useJobStages';
+
+const isFinalStage = (stage: string) => FINAL_STAGES.includes(stage as JobStage);
 
 export type TimePeriod = 'this_week' | 'this_month' | 'last_30_days' | 'last_90_days' | 'all_time';
 
