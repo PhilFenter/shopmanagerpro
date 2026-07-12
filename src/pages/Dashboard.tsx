@@ -31,6 +31,56 @@ export default function Dashboard() {
     !FINAL_STAGES.includes(j.stage as JobStage)
   );
 
+  const isTeamView = !hasFinancialAccess(role);
+
+  // Shared: the big list of jobs that need attention
+  const jobsList = (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className={isTeamView ? 'text-2xl' : undefined}>Jobs</CardTitle>
+          <CardDescription>Needs attention · pending or in progress</CardDescription>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/jobs">View All</Link>
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        ) : pendingJobs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Activity className="h-12 w-12 text-muted-foreground/50" />
+            <h3 className="mt-4 text-lg font-medium">No open jobs</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              All caught up! Create a job when new work comes in.
+            </p>
+            <JobForm
+              trigger={
+                <Button className="mt-4">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Job
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div
+            className={
+              isTeamView
+                ? 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3 [&_.job-card-title]:text-lg'
+                : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3'
+            }
+          >
+            {pendingJobs.slice(0, isTeamView ? 24 : 12).map((job) => (
+              <JobCard key={job.id} job={job} onClick={() => navigate(`/jobs/${job.id}`)} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -39,19 +89,25 @@ export default function Dashboard() {
           <p className="text-muted-foreground">Welcome back! Here's what's happening.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={analytics.period} onValueChange={(v) => analytics.setPeriod(v as TimePeriod)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {analytics.periodOptions.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col items-end">
+            <Select value={analytics.period} onValueChange={(v) => analytics.setPeriod(v as TimePeriod)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {analytics.periodOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="mt-1 text-[11px] text-muted-foreground">Affects stats & charts only</span>
+          </div>
           <JobForm />
         </div>
       </div>
+
+      {/* Team view: Jobs at the very top, larger */}
+      {isTeamView && jobsList}
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -67,7 +123,7 @@ export default function Dashboard() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Open Jobs</CardTitle>
@@ -113,45 +169,8 @@ export default function Dashboard() {
       {/* Action Items */}
       <ActionItemsDashboardCard />
 
-      {/* Open Jobs */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Open Jobs</CardTitle>
-            <CardDescription>Jobs that need attention</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/jobs">View All</Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
-          ) : pendingJobs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Activity className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-medium">No open jobs</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                All caught up! Create a job when new work comes in.
-              </p>
-              <JobForm 
-                trigger={
-                  <Button className="mt-4">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Job
-                  </Button>
-                }
-              />
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {pendingJobs.slice(0, 12).map((job) => (
-                <JobCard key={job.id} job={job} onClick={() => navigate(`/jobs/${job.id}`)} />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Admin/manager view: Jobs list at the bottom (team already saw it up top) */}
+      {!isTeamView && jobsList}
 
       {/* Floating quick capture */}
       <QuickCaptureDialog />
