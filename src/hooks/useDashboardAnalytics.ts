@@ -193,8 +193,6 @@ export function useDashboardAnalytics() {
       serviceBreakdown,
       stageBreakdown,
       totalRevenue,
-      totalMaterialCost,
-      totalProfit: totalRevenue - totalMaterialCost,
       avgJobValue,
       activeJobCount: activeJobs.length,
       completedJobCount: completedJobs.length,
