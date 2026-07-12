@@ -1,6 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useJobs } from './useJobs';
 import { startOfDay, startOfMonth, subDays, subWeeks, subMonths, isWithinInterval, format, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
