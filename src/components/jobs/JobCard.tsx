@@ -46,8 +46,8 @@ export function JobCard({ job, onClick }: JobCardProps) {
   const { role: actualRole } = useAuth();
   const { isPreviewingAsTeam } = useRolePreview();
   const role = isPreviewingAsTeam ? 'team' : actualRole;
-  const urgency = getUrgencyLevel((job as any).due_date, job.status);
-  const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status);
+  const urgency = getUrgencyLevel((job as any).due_date, job.status, (job as any).paid_at);
+  const urgencyLabel = getUrgencyLabel((job as any).due_date, job.status, (job as any).paid_at);
   const { activeCount, totalItems, doneItems } = useJobChecklists(job.id);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const advanceStage = useAdvanceStage();
