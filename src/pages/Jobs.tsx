@@ -360,8 +360,8 @@ export default function Jobs() {
                       <p className="font-medium">{new Date(selectedJob.created_at).toLocaleDateString()}</p>
                     </div>
                     {(selectedJob as any).due_date && (() => {
-                      const urgency = getUrgencyLevel((selectedJob as any).due_date, selectedJob.status);
-                      const label = getUrgencyLabel((selectedJob as any).due_date, selectedJob.status);
+                      const urgency = getUrgencyLevel((selectedJob as any).due_date, selectedJob.status, (selectedJob as any).paid_at);
+                      const label = getUrgencyLabel((selectedJob as any).due_date, selectedJob.status, (selectedJob as any).paid_at);
                       return (
                         <div>
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">Due Date</p>
