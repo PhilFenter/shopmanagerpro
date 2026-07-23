@@ -161,6 +161,7 @@ export default function Financials() {
     const now = new Date();
     const daysInCurrentMonth = endOfMonth(now).getDate();
     const currentMonthProgress = Math.min(1, Math.max(0, now.getDate() / daysInCurrentMonth));
+    const MS_PER_MONTH = 30.44 * 24 * 60 * 60 * 1000;
 
     if (period === 'this_month') {
       return metrics.totalMonthlyCost * currentMonthProgress;
@@ -172,17 +173,22 @@ export default function Financials() {
       const completedMonths = now.getMonth(); // 0-indexed (Jan = 0)
       return metrics.totalMonthlyCost * (completedMonths + currentMonthProgress);
     }
+    if (period === 'custom') {
+      // Prorate by number of months (fractional) in the selected range
+      const months = Math.max(0, (end.getTime() - start.getTime()) / MS_PER_MONTH);
+      return metrics.totalMonthlyCost * months;
+    }
     // all_time: approximate using months between first job and now
     if (periodJobs.length > 0) {
       const earliest = periodJobs.reduce((min, j) => {
         const d = j.created_at;
         return d < min ? d : min;
       }, periodJobs[0].created_at);
-      const monthsSpan = Math.max(1, Math.ceil((Date.now() - new Date(earliest).getTime()) / (30.44 * 24 * 60 * 60 * 1000)));
+      const monthsSpan = Math.max(1, Math.ceil((Date.now() - new Date(earliest).getTime()) / MS_PER_MONTH));
       return metrics.totalMonthlyCost * monthsSpan;
     }
     return metrics.totalMonthlyCost;
-  }, [period, metrics.totalMonthlyCost, periodJobs]);
+  }, [period, metrics.totalMonthlyCost, periodJobs, start, end]);
 
   const stats = useMemo(() => {
     const totalRevenue = periodJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
