@@ -316,7 +316,9 @@ Deno.serve(async (req) => {
           .update({ 
             created_at: order.created_at,
             tax_collected: parseFloat(order.total_tax) || 0,
+            payment_method: mapShopifyPayment((order as any).payment_gateway_names),
           })
+
           .eq("id", jobId);
         if (!error) updatedDates++;
       }
