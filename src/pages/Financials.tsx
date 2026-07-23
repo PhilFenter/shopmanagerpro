@@ -119,6 +119,8 @@ export default function Financials() {
 
   const PAYROLL_TAX_BURDEN = 0.165;
   const MONTHLY_HOURS = 176;
+  const PRINTAVO_FEE_RATE = 0.035;
+  const PRINTAVO_FLAT_FEE = 0.3;
 
   // Build worker rate map
   const workerRates = useMemo(() => {
