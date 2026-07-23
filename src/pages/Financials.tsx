@@ -11,7 +11,7 @@ import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceC
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { ProfitabilityInsights } from '@/components/financials/ProfitabilityInsights';
 import { BulkReclassifyTool } from '@/components/financials/BulkReclassifyTool';
-import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Target, Clock, CreditCard } from 'lucide-react';
 import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
 
@@ -119,6 +119,8 @@ export default function Financials() {
 
   const PAYROLL_TAX_BURDEN = 0.165;
   const MONTHLY_HOURS = 176;
+  const PRINTAVO_FEE_RATE = 0.035;
+  const PRINTAVO_FLAT_FEE = 0.3;
 
   // Build worker rate map
   const workerRates = useMemo(() => {
@@ -176,6 +178,8 @@ export default function Financials() {
     const totalCost = totalMaterialCost + overheadForPeriod;
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
+    const estimatedPaymentFees = totalRevenue * PRINTAVO_FEE_RATE + (periodJobs.length * PRINTAVO_FLAT_FEE);
+    const netRevenue = totalRevenue - estimatedPaymentFees;
 
     // Build line-item lookup for Mixed jobs
     const mixedJobLineItems = new Map<string, typeof mixedLineItems>();
@@ -237,7 +241,7 @@ export default function Financials() {
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod };
+    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod, estimatedPaymentFees, netRevenue };
   }, [periodJobs, overheadForPeriod, mixedLineItems]);
 
   if (loading) {
@@ -286,7 +290,7 @@ export default function Financials() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Revenue</CardTitle>
@@ -295,6 +299,17 @@ export default function Financials() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">{stats.jobCount} jobs · {periodLabel}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Est. Payment Fees</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.estimatedPaymentFees)}</div>
+            <p className="text-xs text-muted-foreground">3.5% + $0.30 per job · Net {formatCurrency(stats.netRevenue)}</p>
           </CardContent>
         </Card>
 
