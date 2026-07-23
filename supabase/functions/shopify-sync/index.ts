@@ -259,6 +259,18 @@ Deno.serve(async (req) => {
     const existingOrders = allOrders.filter((o) => existingExternalIds.has(o.id.toString()));
     const syncedExternalIds = new Set(allOrders.map((order) => order.id.toString()));
 
+    // Map Shopify payment gateway names to canonical payment_method values.
+    const mapShopifyPayment = (gateways?: string[] | null): string | null => {
+      if (!gateways || gateways.length === 0) return null;
+      const g = gateways.join(",").toLowerCase();
+      if (g.includes("cash")) return "cash";
+      if (g.includes("check") || g.includes("cheque")) return "check";
+      if (g.includes("bank") || g.includes("wire") || g.includes("ach")) return "bank_transfer";
+      if (g.includes("manual") || g.includes("other") || g.includes("gift")) return "other";
+      // shopify_payments, stripe, paypal, authorize, braintree, square, etc.
+      return "card";
+    };
+
     const newJobs = newOrders.map((order) => {
       const customerName = order.customer
         ? `${order.customer.first_name || ""} ${order.customer.last_name || ""}`.trim() || "Unknown"
@@ -285,12 +297,14 @@ Deno.serve(async (req) => {
         quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
         sale_price: parseFloat(order.total_price) || 0,
         tax_collected: parseFloat(order.total_tax) || 0,
+        payment_method: mapShopifyPayment((order as any).payment_gateway_names),
         stage: stage,
         created_by: userId,
         created_at: order.created_at,
         paid_at: order.created_at,
       };
     });
+
 
     // Update existing jobs' created_at and tax_collected
     let updatedDates = 0;
