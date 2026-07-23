@@ -196,8 +196,12 @@ export default function Financials() {
     const totalCost = totalMaterialCost + overheadForPeriod;
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
-    const estimatedPaymentFees = totalRevenue * PRINTAVO_FEE_RATE + (periodJobs.length * PRINTAVO_FLAT_FEE);
+    // Only apply card fees to jobs paid by card (null = unknown, treated as card).
+    const cardJobs = periodJobs.filter(j => !j.payment_method || j.payment_method === 'card');
+    const cardRevenue = cardJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
+    const estimatedPaymentFees = cardRevenue * PRINTAVO_FEE_RATE + (cardJobs.length * PRINTAVO_FLAT_FEE);
     const netRevenue = totalRevenue - estimatedPaymentFees;
+
 
     // Build line-item lookup for Mixed jobs
     const mixedJobLineItems = new Map<string, typeof mixedLineItems>();
