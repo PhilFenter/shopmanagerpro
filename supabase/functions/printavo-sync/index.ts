@@ -54,10 +54,16 @@ interface PrintavoInvoice {
   total?: number | null;
   salesTax?: number | null;
   salesTaxAmount?: number | null;
+  transactionDetails?: {
+    transactions?: {
+      nodes?: Array<{ __typename?: string; category?: string | null; amount?: number | null }> | null;
+    } | null;
+  } | null;
   lineItemGroups?: {
     nodes?: PrintavoLineItemGroup[];
   } | null;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
