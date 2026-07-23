@@ -67,7 +67,7 @@ export default function Financials() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, sale_price, material_cost, service_type, status, completed_at, created_at')
+        .select('id, sale_price, material_cost, service_type, status, completed_at, created_at, payment_method')
         .gte(dateBasis, start.toISOString())
         .lte(dateBasis, end.toISOString());
       if (error) throw error;
