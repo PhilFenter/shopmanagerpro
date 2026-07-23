@@ -54,10 +54,16 @@ interface PrintavoInvoice {
   total?: number | null;
   salesTax?: number | null;
   salesTaxAmount?: number | null;
+  transactionDetails?: {
+    transactions?: {
+      nodes?: Array<{ __typename?: string; category?: string | null; amount?: number | null }> | null;
+    } | null;
+  } | null;
   lineItemGroups?: {
     nodes?: PrintavoLineItemGroup[];
   } | null;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -197,8 +203,17 @@ Deno.serve(async (req) => {
               total
               salesTax
               salesTaxAmount
+              transactionDetails {
+                transactions(first: 20) {
+                  nodes {
+                    __typename
+                    ... on TransactionPayment { category amount }
+                  }
+                }
+              }
             }
           }
+
           pageInfo {
             hasNextPage
             endCursor
@@ -347,6 +362,29 @@ Deno.serve(async (req) => {
       existingJobs?.map((j) => [j.external_id, j.id]) || []
     );
 
+    // Derive payment method from Printavo transactions.
+    // Picks the category with the largest paid amount, mapped to our canonical values.
+    const derivePaymentMethod = (inv: PrintavoInvoice): string | null => {
+      const txns = inv.transactionDetails?.transactions?.nodes || [];
+      const totals: Record<string, number> = {};
+      for (const t of txns) {
+        if (!t || t.__typename !== "TransactionPayment") continue;
+        const cat = (t.category || "").toUpperCase();
+        if (!cat) continue;
+        totals[cat] = (totals[cat] || 0) + (t.amount || 0);
+      }
+      const top = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+      if (!top) return null;
+      switch (top[0]) {
+        case "CREDIT_CARD": return "card";
+        case "CASH": return "cash";
+        case "CHECK": return "check";
+        case "ECHECK": return "echeck";
+        case "BANK_TRANSFER": return "bank_transfer";
+        default: return "other";
+      }
+    };
+
     // Separate new vs existing invoices
     const newInvoices = allInvoices.filter((inv) => !existingMap.has(inv.id));
     const existingInvoices = allInvoices.filter((inv) => existingMap.has(inv.id));
@@ -364,13 +402,14 @@ Deno.serve(async (req) => {
       quantity: 1,
       sale_price: invoice.total || 0,
       tax_collected: invoice.salesTaxAmount || 0,
+      payment_method: derivePaymentMethod(invoice),
       printavo_status: invoice.status?.name || null,
       created_by: userId,
       created_at: invoice.createdAt || new Date().toISOString(),
       paid_at: invoice.createdAt || new Date().toISOString(),
     }));
 
-    // Update existing jobs' created_at and tax_collected
+    // Update existing jobs' created_at, tax_collected, and payment_method
     let updatedDates = 0;
     for (const invoice of existingInvoices) {
       if (invoice.createdAt) {
@@ -378,9 +417,10 @@ Deno.serve(async (req) => {
         if (jobId) {
           const { error } = await supabase
             .from("jobs")
-            .update({ 
+            .update({
               created_at: invoice.createdAt,
               tax_collected: invoice.salesTaxAmount || 0,
+              payment_method: derivePaymentMethod(invoice),
             })
             .eq("id", jobId);
           if (!error) updatedDates++;
@@ -388,6 +428,7 @@ Deno.serve(async (req) => {
       }
     }
     console.log(`Updated ${updatedDates} existing job dates`);
+
 
     console.log(`Creating ${newJobs.length} new jobs (${existingInvoices.length} already exist)`);
 

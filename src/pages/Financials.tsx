@@ -67,7 +67,7 @@ export default function Financials() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, sale_price, material_cost, service_type, status, completed_at, created_at')
+        .select('id, sale_price, material_cost, service_type, status, completed_at, created_at, payment_method')
         .gte(dateBasis, start.toISOString())
         .lte(dateBasis, end.toISOString());
       if (error) throw error;
@@ -196,8 +196,12 @@ export default function Financials() {
     const totalCost = totalMaterialCost + overheadForPeriod;
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
-    const estimatedPaymentFees = totalRevenue * PRINTAVO_FEE_RATE + (periodJobs.length * PRINTAVO_FLAT_FEE);
+    // Only apply card fees to jobs paid by card (null = unknown, treated as card).
+    const cardJobs = periodJobs.filter(j => !j.payment_method || j.payment_method === 'card');
+    const cardRevenue = cardJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
+    const estimatedPaymentFees = cardRevenue * PRINTAVO_FEE_RATE + (cardJobs.length * PRINTAVO_FLAT_FEE);
     const netRevenue = totalRevenue - estimatedPaymentFees;
+
 
     // Build line-item lookup for Mixed jobs
     const mixedJobLineItems = new Map<string, typeof mixedLineItems>();
@@ -353,7 +357,7 @@ export default function Financials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.estimatedPaymentFees)}</div>
-            <p className="text-xs text-muted-foreground">3.5% + $0.30 per job · Net {formatCurrency(stats.netRevenue)}</p>
+            <p className="text-xs text-muted-foreground">3.5% + $0.30 on card payments only · Net {formatCurrency(stats.netRevenue)}</p>
           </CardContent>
         </Card>
 
