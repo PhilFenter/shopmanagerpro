@@ -11,11 +11,15 @@ import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceC
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { ProfitabilityInsights } from '@/components/financials/ProfitabilityInsights';
 import { BulkReclassifyTool } from '@/components/financials/BulkReclassifyTool';
-import { DollarSign, TrendingUp, TrendingDown, Target, Clock, CreditCard } from 'lucide-react';
-import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
+import { DollarSign, TrendingUp, TrendingDown, Target, Clock, CreditCard, CalendarIcon } from 'lucide-react';
+import { startOfMonth, endOfMonth, startOfYear, subMonths, format, parseISO, isValid } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time';
+type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time' | 'custom';
 type DateBasis = 'created_at' | 'completed_at';
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
@@ -23,9 +27,10 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'last_month', label: 'Last Month' },
   { value: 'ytd', label: 'Year to Date' },
   { value: 'all_time', label: 'All Time' },
+  { value: 'custom', label: 'Custom Range' },
 ];
 
-function getPeriodRange(period: Period) {
+function getPeriodRange(period: Period, customStart?: Date, customEnd?: Date) {
   const now = new Date();
   switch (period) {
     case 'this_month':
@@ -38,6 +43,11 @@ function getPeriodRange(period: Period) {
       return { start: startOfYear(now), end: now, label: `${now.getFullYear()} YTD` };
     case 'all_time':
       return { start: new Date('2000-01-01'), end: now, label: 'All Time' };
+    case 'custom': {
+      const s = customStart && isValid(customStart) ? customStart : startOfMonth(now);
+      const e = customEnd && isValid(customEnd) ? customEnd : endOfMonth(now);
+      return { start: s, end: e, label: `${format(s, 'MMM d, yyyy')} – ${format(e, 'MMM d, yyyy')}` };
+    }
   }
 }
 
@@ -47,11 +57,13 @@ export default function Financials() {
   const metrics = useBusinessMetrics();
   const [period, setPeriod] = useState<Period>('this_month');
   const [dateBasis, setDateBasis] = useState<DateBasis>('created_at');
+  const [customStart, setCustomStart] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(endOfMonth(new Date()));
 
-  const { start, end, label: periodLabel } = getPeriodRange(period);
+  const { start, end, label: periodLabel } = getPeriodRange(period, customStart, customEnd);
 
   const { data: periodJobs = [] } = useQuery({
-    queryKey: ['financials-period-jobs', period, dateBasis],
+    queryKey: ['financials-period-jobs', period, dateBasis, start.toISOString(), end.toISOString()],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
@@ -286,6 +298,32 @@ export default function Financials() {
               ))}
             </SelectContent>
           </Select>
+          {period === 'custom' && (
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('w-36 justify-start text-left font-normal', !customStart && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStart ? format(customStart, 'MMM d, yyyy') : 'Start'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customStart} onSelect={setCustomStart} defaultMonth={customStart} captionLayout="dropdown-buttons" fromYear={2025} toYear={new Date().getFullYear()} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('w-36 justify-start text-left font-normal', !customEnd && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEnd ? format(customEnd, 'MMM d, yyyy') : 'End'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} defaultMonth={customEnd} captionLayout="dropdown-buttons" fromYear={2025} toYear={new Date().getFullYear()} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
         </div>
       </div>
 
