@@ -203,8 +203,17 @@ Deno.serve(async (req) => {
               total
               salesTax
               salesTaxAmount
+              transactionDetails {
+                transactions(first: 20) {
+                  nodes {
+                    __typename
+                    ... on TransactionPayment { category amount }
+                  }
+                }
+              }
             }
           }
+
           pageInfo {
             hasNextPage
             endCursor
