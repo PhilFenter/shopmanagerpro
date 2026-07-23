@@ -357,7 +357,7 @@ export default function Financials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.estimatedPaymentFees)}</div>
-            <p className="text-xs text-muted-foreground">3.5% + $0.30 per job · Net {formatCurrency(stats.netRevenue)}</p>
+            <p className="text-xs text-muted-foreground">3.5% + $0.30 on card payments only · Net {formatCurrency(stats.netRevenue)}</p>
           </CardContent>
         </Card>
 
