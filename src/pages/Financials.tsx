@@ -298,6 +298,32 @@ export default function Financials() {
               ))}
             </SelectContent>
           </Select>
+          {period === 'custom' && (
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('w-36 justify-start text-left font-normal', !customStart && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStart ? format(customStart, 'MMM d, yyyy') : 'Start'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customStart} onSelect={setCustomStart} defaultMonth={customStart} captionLayout="dropdown-buttons" fromYear={2025} toYear={new Date().getFullYear()} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('w-36 justify-start text-left font-normal', !customEnd && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEnd ? format(customEnd, 'MMM d, yyyy') : 'End'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} defaultMonth={customEnd} captionLayout="dropdown-buttons" fromYear={2025} toYear={new Date().getFullYear()} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
         </div>
       </div>
 
