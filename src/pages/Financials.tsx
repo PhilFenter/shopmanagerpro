@@ -57,11 +57,13 @@ export default function Financials() {
   const metrics = useBusinessMetrics();
   const [period, setPeriod] = useState<Period>('this_month');
   const [dateBasis, setDateBasis] = useState<DateBasis>('created_at');
+  const [customStart, setCustomStart] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(endOfMonth(new Date()));
 
-  const { start, end, label: periodLabel } = getPeriodRange(period);
+  const { start, end, label: periodLabel } = getPeriodRange(period, customStart, customEnd);
 
   const { data: periodJobs = [] } = useQuery({
-    queryKey: ['financials-period-jobs', period, dateBasis],
+    queryKey: ['financials-period-jobs', period, dateBasis, start.toISOString(), end.toISOString()],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
