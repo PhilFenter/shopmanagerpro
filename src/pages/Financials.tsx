@@ -178,6 +178,8 @@ export default function Financials() {
     const totalCost = totalMaterialCost + overheadForPeriod;
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
+    const estimatedPaymentFees = totalRevenue * PRINTAVO_FEE_RATE + (periodJobs.length * PRINTAVO_FLAT_FEE);
+    const netRevenue = totalRevenue - estimatedPaymentFees;
 
     // Build line-item lookup for Mixed jobs
     const mixedJobLineItems = new Map<string, typeof mixedLineItems>();
@@ -239,7 +241,7 @@ export default function Financials() {
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod };
+    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod, estimatedPaymentFees, netRevenue };
   }, [periodJobs, overheadForPeriod, mixedLineItems]);
 
   if (loading) {
