@@ -11,11 +11,15 @@ import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceC
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { ProfitabilityInsights } from '@/components/financials/ProfitabilityInsights';
 import { BulkReclassifyTool } from '@/components/financials/BulkReclassifyTool';
-import { DollarSign, TrendingUp, TrendingDown, Target, Clock, CreditCard } from 'lucide-react';
-import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
+import { DollarSign, TrendingUp, TrendingDown, Target, Clock, CreditCard, CalendarIcon } from 'lucide-react';
+import { startOfMonth, endOfMonth, startOfYear, subMonths, format, parseISO, isValid } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time';
+type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time' | 'custom';
 type DateBasis = 'created_at' | 'completed_at';
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
@@ -23,9 +27,10 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'last_month', label: 'Last Month' },
   { value: 'ytd', label: 'Year to Date' },
   { value: 'all_time', label: 'All Time' },
+  { value: 'custom', label: 'Custom Range' },
 ];
 
-function getPeriodRange(period: Period) {
+function getPeriodRange(period: Period, customStart?: Date, customEnd?: Date) {
   const now = new Date();
   switch (period) {
     case 'this_month':
@@ -38,6 +43,11 @@ function getPeriodRange(period: Period) {
       return { start: startOfYear(now), end: now, label: `${now.getFullYear()} YTD` };
     case 'all_time':
       return { start: new Date('2000-01-01'), end: now, label: 'All Time' };
+    case 'custom': {
+      const s = customStart && isValid(customStart) ? customStart : startOfMonth(now);
+      const e = customEnd && isValid(customEnd) ? customEnd : endOfMonth(now);
+      return { start: s, end: e, label: `${format(s, 'MMM d, yyyy')} – ${format(e, 'MMM d, yyyy')}` };
+    }
   }
 }
 
