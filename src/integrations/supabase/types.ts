@@ -1162,6 +1162,7 @@ export type Database = {
           material_cost: number | null
           order_number: string | null
           paid_at: string | null
+          payment_method: string | null
           printavo_status: string | null
           quantity: number
           sale_price: number | null
@@ -1191,6 +1192,7 @@ export type Database = {
           material_cost?: number | null
           order_number?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
@@ -1220,6 +1222,7 @@ export type Database = {
           material_cost?: number | null
           order_number?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
