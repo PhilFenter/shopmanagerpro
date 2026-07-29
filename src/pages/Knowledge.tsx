@@ -1319,7 +1319,11 @@ export default function Knowledge() {
                 </Button>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {CATEGORIES.map(cat => {
+                {Array.from(new Set([
+                  ...CATEGORIES,
+                  ...sops.map(s => s.category || s.department || 'Uncategorized'),
+                  ...templates.map(t => t.category || t.department || 'Uncategorized'),
+                ])).map(cat => {
                   const catSops = filteredSops.filter(s => (s.category || s.department || 'Uncategorized') === cat);
                   const catChecklists = filteredTemplates.filter(t => (t.category || t.department || 'Uncategorized') === cat);
                   const total = catSops.length + catChecklists.length;
