@@ -1215,14 +1215,20 @@ export default function Knowledge() {
   const [viewingPlan, setViewingPlan] = useState<TrainingPlan | null>(null);
 
   const filteredSops = sops.filter(s => {
-    const matchesSearch = !search || s.title.toLowerCase().includes(search.toLowerCase()) || s.description?.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = deptFilter === 'all' || s.department === deptFilter;
+    const q = search.toLowerCase();
+    const matchesSearch = !search
+      || s.title.toLowerCase().includes(q)
+      || s.description?.toLowerCase().includes(q)
+      || s.category?.toLowerCase().includes(q)
+      || s.department?.toLowerCase().includes(q);
+    const matchesDept = deptFilter === 'all' || (s.department ?? s.category) === deptFilter;
     return matchesSearch && matchesDept;
   });
 
   const filteredTemplates = templates.filter(t => {
-    const matchesSearch = !search || t.title.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = deptFilter === 'all' || t.department === deptFilter;
+    const q = search.toLowerCase();
+    const matchesSearch = !search || t.title.toLowerCase().includes(q) || t.category?.toLowerCase().includes(q);
+    const matchesDept = deptFilter === 'all' || (t.department ?? t.category) === deptFilter;
     return matchesSearch && matchesDept;
   });
 
