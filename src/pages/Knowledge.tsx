@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useSkills } from '@/hooks/useSkills';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -1214,6 +1214,12 @@ export default function Knowledge() {
   const [editingPlan, setEditingPlan] = useState<TrainingPlan | null>(null);
   const [viewingPlan, setViewingPlan] = useState<TrainingPlan | null>(null);
 
+  const knowledgeCategories = useMemo(() => Array.from(new Set([
+    ...CATEGORIES,
+    ...sops.map(s => s.category || s.department || 'Uncategorized'),
+    ...templates.map(t => t.category || t.department || 'Uncategorized'),
+  ])), [sops, templates]);
+
   const filteredSops = sops.filter(s => {
     const q = search.toLowerCase();
     const matchesSearch = !search
@@ -1318,12 +1324,13 @@ export default function Knowledge() {
                   <Plus className="h-4 w-4 mr-1" /> New SOP
                 </Button>
               </div>
+              {(sopsLoading || templatesLoading) && sops.length === 0 && templates.length === 0 && (
+                <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading education library…
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from(new Set([
-                  ...CATEGORIES,
-                  ...sops.map(s => s.category || s.department || 'Uncategorized'),
-                  ...templates.map(t => t.category || t.department || 'Uncategorized'),
-                ])).map(cat => {
+                {knowledgeCategories.map(cat => {
                   const catSops = filteredSops.filter(s => (s.category || s.department || 'Uncategorized') === cat);
                   const catChecklists = filteredTemplates.filter(t => (t.category || t.department || 'Uncategorized') === cat);
                   const total = catSops.length + catChecklists.length;
