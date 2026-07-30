@@ -85,15 +85,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchUserRole = async (userId: string) => {
       setRoleReady(false);
 
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
+      let data: { role: AppRole }[] | null = null;
+      let lastError: Error | null = null;
+
+      // Fresh sessions can briefly race the role lookup or encounter a transient
+      // network failure. Retry before failing closed and ending the session.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const result = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId);
+
+        data = result.data as { role: AppRole }[] | null;
+        lastError = result.error;
+
+        if (!lastError && (data?.length ?? 0) > 0) break;
+        if (attempt < 2) {
+          await new Promise(resolve => window.setTimeout(resolve, 400 * (attempt + 1)));
+        }
+      }
 
       if (!isMounted) return;
 
-      if (error) {
-        console.error('Failed to fetch user role — signing out for safety', error);
+      if (lastError) {
+        console.error('Failed to fetch user role after retries — signing out for safety', lastError);
         setRole(null);
         setRoleReady(true);
         setSignOutReason('role_fetch_failed');
