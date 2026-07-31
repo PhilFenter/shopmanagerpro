@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
+import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Extended material options from old code
 const LEATHER_COLORS = ['OG Chestnut', 'Fancy Chestnut', 'Hand Stained Brown', 'Black'];
@@ -514,10 +515,36 @@ export default function Leather() {
           {/* Laser Settings */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                Trotec Laser Settings
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Trotec Laser Settings
+                </CardTitle>
+                <VoiceDictateButton
+                  type="leather"
+                  fields={[
+                    { name: 'power', kind: 'number', label: 'Laser power %', min: 0, max: 100, current: power },
+                    { name: 'speed', kind: 'number', label: 'Laser speed %', min: 0, max: 100, current: speed },
+                    { name: 'frequency', kind: 'number', label: 'Frequency (Hz)', min: 100, max: 60000, current: frequency },
+                    { name: 'passes', kind: 'number', label: 'Passes', min: 1, max: 10, current: passes },
+                    { name: 'zOffset', kind: 'number', label: 'Z offset (mm)', min: -20, max: 20, current: zOffset },
+                    { name: 'airAssist', kind: 'boolean', label: 'Air assist on/off', current: airAssist },
+                    { name: 'sampleApproved', kind: 'boolean', label: 'Sample approved', current: sampleApproved },
+                    { name: 'costPerPiece', kind: 'number', label: 'Material cost per piece', min: 0, max: 1000, current: costPerPiece },
+                  ] as VoiceFieldSpec[]}
+                  onApply={(u, notes) => {
+                    if (typeof u.power === 'number') setPower(u.power);
+                    if (typeof u.speed === 'number') setSpeed(u.speed);
+                    if (typeof u.frequency === 'number') setFrequency(u.frequency);
+                    if (typeof u.passes === 'number') setPasses(u.passes);
+                    if (typeof u.zOffset === 'number') setZOffset(u.zOffset);
+                    if (typeof u.airAssist === 'boolean') setAirAssist(u.airAssist);
+                    if (typeof u.sampleApproved === 'boolean') setSampleApproved(u.sampleApproved);
+                    if (typeof u.costPerPiece === 'number') setCostPerPiece(u.costPerPiece);
+                    if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
+                  }}
+                />
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Preset selector */}

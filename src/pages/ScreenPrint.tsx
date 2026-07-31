@@ -17,12 +17,15 @@ import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
+import { JobPrintsManager } from '@/components/jobs/JobPrintsManager';
+import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Types for position settings
 type EquipmentType = 'printhead' | 'flash' | 'stampinator' | 'empty';
 
 interface PrintHeadSettings {
   pantone: string;
+  screenMesh: string;
   airPressure: number | null;
   printSpeed: number | null;
   floodSpeed: number | null;
@@ -33,7 +36,9 @@ interface PrintHeadSettings {
   active: boolean;
 }
 
+
 interface FlashSettings {
+  flashType: 'smart' | 'manual';
   flashTemp: number | null;
   flashTime: number | null;
   flashHeight: number | null;
@@ -64,30 +69,33 @@ interface EnvironmentSettings {
 
 // PhotoSlot is now imported from ProductionPhotos
 
-// Default settings
+// Default settings — all numeric fields start empty so users can type
+// without backspacing. Typical values are shown as placeholder hints only.
 const defaultPrintHead: PrintHeadSettings = {
   pantone: '',
-  airPressure: 40,
-  printSpeed: 8,
-  floodSpeed: 6,
-  squeegeeAngle: 15,
-  floodAngle: 10,
-  squeegeeHeight: 5,
-  floodHeight: 3,
+  screenMesh: '',
+  airPressure: null,
+  printSpeed: null,
+  floodSpeed: null,
+  squeegeeAngle: null,
+  floodAngle: null,
+  squeegeeHeight: null,
+  floodHeight: null,
   active: false,
 };
 
 const defaultFlash: FlashSettings = {
-  flashTemp: 200,
-  flashTime: 3,
-  flashHeight: 2,
+  flashType: 'smart',
+  flashTemp: null,
+  flashTime: null,
+  flashHeight: null,
   flashActive: false,
 };
 
 const defaultStamp: StampSettings = {
-  stampPressure: 80,
-  stampTime: 2,
-  stampTemp: 350,
+  stampPressure: null,
+  stampTime: null,
+  stampTemp: null,
   stampActive: false,
 };
 
@@ -371,6 +379,67 @@ export default function ScreenPrint() {
     await deleteRecipe.mutateAsync(id);
   };
 
+  // Voice dictation for a single press position
+  const positionVoiceButton = (pos: number) => {
+    const position = positions[pos];
+    const screenMeshOptions = ['Newman 166', 'Newman 272', 'Newman 305', 'Eco 156', 'Eco 230', 'Eco 305'];
+    const equipmentOptions = ['printhead', 'flash', 'stampinator', 'empty'];
+    return (
+      <VoiceDictateButton
+        type="screen_print"
+        iconOnly
+        label={`Voice fill position ${pos}`}
+        fields={[
+          { name: 'equipmentType', kind: 'enum', label: 'Equipment type', options: equipmentOptions, current: position.equipmentType, hint: 'printhead, flash, stampinator, or empty' },
+          { name: 'flashType', kind: 'enum', label: 'Flash type', options: ['smart', 'manual'], current: position.flash?.flashType, hint: 'smart flash = digital; manual/regular = rotary dial' },
+          { name: 'pantone', kind: 'string', label: 'Pantone color', current: position.printhead?.pantone },
+          { name: 'screenMesh', kind: 'enum', label: 'Screen mesh', options: screenMeshOptions, current: position.printhead?.screenMesh },
+          { name: 'airPressure', kind: 'number', label: 'Air pressure PSI', min: 0, max: 100, current: position.printhead?.airPressure },
+          { name: 'printSpeed', kind: 'number', label: 'Print speed', min: 0, max: 20, current: position.printhead?.printSpeed },
+          { name: 'floodSpeed', kind: 'number', label: 'Flood speed', min: 0, max: 20, current: position.printhead?.floodSpeed },
+          { name: 'squeegeeAngle', kind: 'number', label: 'Squeegee angle degrees', min: 0, max: 45, current: position.printhead?.squeegeeAngle },
+          { name: 'floodAngle', kind: 'number', label: 'Flood bar angle degrees', min: 0, max: 45, current: position.printhead?.floodAngle },
+          { name: 'squeegeeHeight', kind: 'number', label: 'Squeegee height', min: 0, max: 20, current: position.printhead?.squeegeeHeight },
+          { name: 'floodHeight', kind: 'number', label: 'Flood bar height', min: 0, max: 20, current: position.printhead?.floodHeight },
+          { name: 'active', kind: 'boolean', label: 'Active yes/no', current: position.printhead?.active },
+          { name: 'flashTemp', kind: 'number', label: 'Flash temperature °C', min: 100, max: 500, current: position.flash?.flashTemp },
+          { name: 'flashTime', kind: 'number', label: 'Flash time seconds', min: 0, max: 30, current: position.flash?.flashTime },
+          { name: 'flashHeight', kind: 'number', label: 'Flash height', min: 0, max: 10, current: position.flash?.flashHeight },
+          { name: 'flashActive', kind: 'boolean', label: 'Flash active yes/no', current: position.flash?.flashActive },
+          { name: 'stampPressure', kind: 'number', label: 'Stamp pressure PSI', min: 0, max: 200, current: position.stampinator?.stampPressure },
+          { name: 'stampTime', kind: 'number', label: 'Stamp time seconds', min: 0, max: 30, current: position.stampinator?.stampTime },
+          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °F', min: 100, max: 500, current: position.stampinator?.stampTemp },
+          { name: 'stampActive', kind: 'boolean', label: 'Stamp active yes/no', current: position.stampinator?.stampActive },
+        ] as VoiceFieldSpec[]}
+        onApply={(u, notes) => {
+          if (typeof u.equipmentType === 'string' && equipmentOptions.includes(u.equipmentType)) {
+            updateEquipment(pos, u.equipmentType as EquipmentType);
+          }
+          if (typeof u.pantone === 'string') updatePrintHead(pos, 'pantone', u.pantone);
+          if (typeof u.screenMesh === 'string') updatePrintHead(pos, 'screenMesh', u.screenMesh);
+          if (typeof u.airPressure === 'number') updatePrintHead(pos, 'airPressure', u.airPressure);
+          if (typeof u.printSpeed === 'number') updatePrintHead(pos, 'printSpeed', u.printSpeed);
+          if (typeof u.floodSpeed === 'number') updatePrintHead(pos, 'floodSpeed', u.floodSpeed);
+          if (typeof u.squeegeeAngle === 'number') updatePrintHead(pos, 'squeegeeAngle', u.squeegeeAngle);
+          if (typeof u.floodAngle === 'number') updatePrintHead(pos, 'floodAngle', u.floodAngle);
+          if (typeof u.squeegeeHeight === 'number') updatePrintHead(pos, 'squeegeeHeight', u.squeegeeHeight);
+          if (typeof u.floodHeight === 'number') updatePrintHead(pos, 'floodHeight', u.floodHeight);
+          if (typeof u.active === 'boolean') updatePrintHead(pos, 'active', u.active);
+          if (typeof u.flashType === 'string' && (u.flashType === 'smart' || u.flashType === 'manual')) updateFlash(pos, 'flashType', u.flashType);
+          if (typeof u.flashTemp === 'number') updateFlash(pos, 'flashTemp', u.flashTemp);
+          if (typeof u.flashTime === 'number') updateFlash(pos, 'flashTime', u.flashTime);
+          if (typeof u.flashHeight === 'number') updateFlash(pos, 'flashHeight', u.flashHeight);
+          if (typeof u.flashActive === 'boolean') updateFlash(pos, 'flashActive', u.flashActive);
+          if (typeof u.stampPressure === 'number') updateStamp(pos, 'stampPressure', u.stampPressure);
+          if (typeof u.stampTime === 'number') updateStamp(pos, 'stampTime', u.stampTime);
+          if (typeof u.stampTemp === 'number') updateStamp(pos, 'stampTemp', u.stampTemp);
+          if (typeof u.stampActive === 'boolean') updateStamp(pos, 'stampActive', u.stampActive);
+          if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
+        }}
+      />
+    );
+  };
+
   // Get background color for position card using semantic tokens
   const getPositionBg = (equipmentType: EquipmentType) => {
     switch (equipmentType) {
@@ -459,6 +528,9 @@ export default function ScreenPrint() {
             </CardContent>
           </Card>
 
+          {/* Prints on this Job (per design + location) */}
+          {linkedJobId && <JobPrintsManager jobId={linkedJobId} />}
+
           {/* Multi-Print Setup */}
           <Card>
             <CardHeader className="pb-4">
@@ -528,7 +600,10 @@ export default function ScreenPrint() {
                 return (
                   <Card key={pos} className={cn('transition-colors', getPositionBg(position.equipmentType))}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">{getPositionLabel(pos)}</CardTitle>
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-sm font-semibold">{getPositionLabel(pos)}</CardTitle>
+                        {positionVoiceButton(pos)}
+                      </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {/* Equipment Type */}
@@ -562,11 +637,33 @@ export default function ScreenPrint() {
                               className="mt-1 h-8 text-xs"
                             />
                           </div>
+                          <div>
+                            <Label className="text-xs">Screen Mesh:</Label>
+                            <Select
+                              value={position.printhead?.screenMesh || ''}
+                              onValueChange={(v) => updatePrintHead(pos, 'screenMesh', v)}
+                            >
+                              <SelectTrigger className="mt-1 h-8 text-xs">
+                                <SelectValue placeholder="Select mesh" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Newman 166">Newman 166</SelectItem>
+                                <SelectItem value="Newman 272">Newman 272</SelectItem>
+                                <SelectItem value="Newman 305">Newman 305</SelectItem>
+                                <SelectItem value="Eco 156">Eco 156</SelectItem>
+                                <SelectItem value="Eco 230">Eco 230</SelectItem>
+                                <SelectItem value="Eco 305">Eco 305</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label className="text-xs">Air Pressure (PSI):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="40"
                                 value={position.printhead?.airPressure ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'airPressure', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -576,6 +673,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Print Speed:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="8"
                                 value={position.printhead?.printSpeed ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'printSpeed', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -587,6 +686,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flood Speed:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="6"
                                 value={position.printhead?.floodSpeed ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'floodSpeed', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -596,6 +697,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Squeegee Angle (°):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="15"
                                 value={position.printhead?.squeegeeAngle ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'squeegeeAngle', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -607,6 +710,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flood Bar Angle (°):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="10"
                                 value={position.printhead?.floodAngle ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'floodAngle', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -616,6 +721,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Squeegee Height:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="5"
                                 value={position.printhead?.squeegeeHeight ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'squeegeeHeight', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -627,6 +734,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flood Bar Height:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="3"
                                 value={position.printhead?.floodHeight ?? ''}
                                 onChange={(e) => updatePrintHead(pos, 'floodHeight', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -654,21 +763,49 @@ export default function ScreenPrint() {
                       {/* Flash Settings */}
                       {position.equipmentType === 'flash' && (
                         <div className="space-y-2">
+                          <div>
+                            <Label className="text-xs">Flash Type:</Label>
+                            <Select
+                              value={position.flash?.flashType || 'smart'}
+                              onValueChange={(v) => updateFlash(pos, 'flashType', v as 'smart' | 'manual')}
+                            >
+                              <SelectTrigger className="mt-1 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="smart">Smart Flash (digital)</SelectItem>
+                                <SelectItem value="manual">Manual Flash (rotary dial)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {position.flash?.flashType === 'manual' && (
+                            <p className="text-[10px] text-muted-foreground italic">
+                              Record the dial positions below so the next operator can dial them in.
+                            </p>
+                          )}
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-xs">Flash Temperature (°C):</Label>
+                              <Label className="text-xs">
+                                {position.flash?.flashType === 'manual' ? 'Temp Dial Position:' : 'Flash Temperature (°F):'}
+                              </Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '350'}
                                 value={position.flash?.flashTemp ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
                               />
                             </div>
                             <div>
-                              <Label className="text-xs">Flash Time (seconds):</Label>
+                              <Label className="text-xs">
+                                {position.flash?.flashType === 'manual' ? 'Time Dial Position:' : 'Flash Time (seconds):'}
+                              </Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
                                 step="0.1"
+                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 3' : '3'}
                                 value={position.flash?.flashTime ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTime', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -680,7 +817,9 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Flash Height:</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
                                 step="0.1"
+                                placeholder="2"
                                 value={position.flash?.flashHeight ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashHeight', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -713,6 +852,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Stamp Pressure (PSI):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="80"
                                 value={position.stampinator?.stampPressure ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampPressure', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -722,7 +863,9 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Stamp Time (seconds):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
                                 step="0.1"
+                                placeholder="2"
                                 value={position.stampinator?.stampTime ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampTime', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -734,6 +877,8 @@ export default function ScreenPrint() {
                               <Label className="text-xs">Stamp Temperature (°F):</Label>
                               <Input
                                 type="number"
+                                inputMode="decimal"
+                                placeholder="350"
                                 value={position.stampinator?.stampTemp ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -767,7 +912,32 @@ export default function ScreenPrint() {
           {/* Environment Settings */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Environment & Dryer Settings</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-lg">Environment & Dryer Settings</CardTitle>
+                <VoiceDictateButton
+                  type="screen_print"
+                  fields={[
+                    { name: 'shopTemp', kind: 'number', label: 'Shop temp °F', min: 40, max: 120, current: environment.shopTemp },
+                    { name: 'platenTemp', kind: 'number', label: 'Platen temp °F', min: 40, max: 200, current: environment.platenTemp },
+                    { name: 'dryerTemp1', kind: 'number', label: 'Dryer temp 1 °F', min: 100, max: 400, current: environment.dryerTemp1 },
+                    { name: 'dryerTemp2', kind: 'number', label: 'Dryer temp 2 °F', min: 100, max: 400, current: environment.dryerTemp2 },
+                    { name: 'beltSpeed', kind: 'number', label: 'Belt speed', min: 0, max: 20, current: environment.beltSpeed },
+                    { name: 'rating', kind: 'number', label: 'Quality rating stars', min: 0, max: 5, current: rating },
+                  ] as VoiceFieldSpec[]}
+                  onApply={(u, notes) => {
+                    setEnvironment((prev) => ({
+                      ...prev,
+                      shopTemp: typeof u.shopTemp === 'number' ? u.shopTemp : prev.shopTemp,
+                      platenTemp: typeof u.platenTemp === 'number' ? u.platenTemp : prev.platenTemp,
+                      dryerTemp1: typeof u.dryerTemp1 === 'number' ? u.dryerTemp1 : prev.dryerTemp1,
+                      dryerTemp2: typeof u.dryerTemp2 === 'number' ? u.dryerTemp2 : prev.dryerTemp2,
+                      beltSpeed: typeof u.beltSpeed === 'number' ? u.beltSpeed : prev.beltSpeed,
+                    }));
+                    if (typeof u.rating === 'number') setRating(u.rating);
+                    if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
+                  }}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -775,6 +945,8 @@ export default function ScreenPrint() {
                   <Label>Shop Temp (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="72"
                     value={environment.shopTemp ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, shopTemp: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -784,6 +956,8 @@ export default function ScreenPrint() {
                   <Label>Platen Temp (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="90"
                     value={environment.platenTemp ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, platenTemp: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -793,6 +967,8 @@ export default function ScreenPrint() {
                   <Label>Dryer Temp 1 (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="320"
                     value={environment.dryerTemp1 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp1: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -802,6 +978,8 @@ export default function ScreenPrint() {
                   <Label>Dryer Temp 2 (°F):</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    placeholder="320"
                     value={environment.dryerTemp2 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp2: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
@@ -812,6 +990,8 @@ export default function ScreenPrint() {
                   <Input
                     type="number"
                     step="0.1"
+                    inputMode="decimal"
+                    placeholder="3"
                     value={environment.beltSpeed ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, beltSpeed: e.target.value ? parseFloat(e.target.value) : null }))}
                     className="mt-1"

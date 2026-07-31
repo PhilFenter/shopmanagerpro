@@ -23,8 +23,8 @@ export function DueSoonWidget({ jobs }: DueSoonWidgetProps) {
     })
     .map(j => ({
       ...j,
-      urgency: getUrgencyLevel(j.due_date, j.status),
-      urgencyLabel: getUrgencyLabel(j.due_date, j.status),
+      urgency: getUrgencyLevel(j.due_date, j.status, (j as any).paid_at),
+      urgencyLabel: getUrgencyLabel(j.due_date, j.status, (j as any).paid_at),
     }))
     .filter(j => j.urgency !== 'none' && j.urgency !== 'green')
     .sort((a, b) => {

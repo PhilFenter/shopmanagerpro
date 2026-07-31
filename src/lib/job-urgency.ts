@@ -21,30 +21,41 @@ function getBusinessDaysRemaining(dueDate: Date): number {
   return count;
 }
 
-export function getUrgencyLevel(dueDate: string | null | undefined, status?: string): UrgencyLevel {
+export function getUrgencyLevel(
+  dueDate: string | null | undefined,
+  status?: string,
+  paidAt?: string | null | undefined,
+): UrgencyLevel {
   if (!dueDate) return 'none';
   if (status === 'completed') return 'none';
-  
+  // Clock doesn't start until the invoice is paid
+  if (!paidAt) return 'none';
+
   const due = new Date(dueDate);
   if (isNaN(due.getTime())) return 'none';
-  
+
   const bdays = getBusinessDaysRemaining(due);
-  
+
   if (bdays <= 0) return 'overdue';
   if (bdays <= 2) return 'red';
   if (bdays <= 5) return 'yellow';
   return 'green';
 }
 
-export function getUrgencyLabel(dueDate: string | null | undefined, status?: string): string {
+export function getUrgencyLabel(
+  dueDate: string | null | undefined,
+  status?: string,
+  paidAt?: string | null | undefined,
+): string {
   if (!dueDate) return '';
   if (status === 'completed') return '';
-  
+  if (!paidAt) return 'Awaiting payment';
+
   const due = new Date(dueDate);
   if (isNaN(due.getTime())) return '';
-  
+
   const bdays = getBusinessDaysRemaining(due);
-  
+
   if (bdays <= 0) return `${Math.abs(bdays)} day${Math.abs(bdays) !== 1 ? 's' : ''} overdue`;
   return `${bdays} business day${bdays !== 1 ? 's' : ''} left`;
 }

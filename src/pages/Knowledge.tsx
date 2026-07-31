@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useSkills } from '@/hooks/useSkills';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -1214,15 +1214,27 @@ export default function Knowledge() {
   const [editingPlan, setEditingPlan] = useState<TrainingPlan | null>(null);
   const [viewingPlan, setViewingPlan] = useState<TrainingPlan | null>(null);
 
+  const knowledgeCategories = useMemo(() => Array.from(new Set([
+    ...CATEGORIES,
+    ...sops.map(s => s.category || s.department || 'Uncategorized'),
+    ...templates.map(t => t.category || t.department || 'Uncategorized'),
+  ])), [sops, templates]);
+
   const filteredSops = sops.filter(s => {
-    const matchesSearch = !search || s.title.toLowerCase().includes(search.toLowerCase()) || s.description?.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = deptFilter === 'all' || s.department === deptFilter;
+    const q = search.toLowerCase();
+    const matchesSearch = !search
+      || s.title.toLowerCase().includes(q)
+      || s.description?.toLowerCase().includes(q)
+      || s.category?.toLowerCase().includes(q)
+      || s.department?.toLowerCase().includes(q);
+    const matchesDept = deptFilter === 'all' || (s.department ?? s.category) === deptFilter;
     return matchesSearch && matchesDept;
   });
 
   const filteredTemplates = templates.filter(t => {
-    const matchesSearch = !search || t.title.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = deptFilter === 'all' || t.department === deptFilter;
+    const q = search.toLowerCase();
+    const matchesSearch = !search || t.title.toLowerCase().includes(q) || t.category?.toLowerCase().includes(q);
+    const matchesDept = deptFilter === 'all' || (t.department ?? t.category) === deptFilter;
     return matchesSearch && matchesDept;
   });
 
@@ -1312,8 +1324,13 @@ export default function Knowledge() {
                   <Plus className="h-4 w-4 mr-1" /> New SOP
                 </Button>
               </div>
+              {(sopsLoading || templatesLoading) && sops.length === 0 && templates.length === 0 && (
+                <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading education library…
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {CATEGORIES.map(cat => {
+                {knowledgeCategories.map(cat => {
                   const catSops = filteredSops.filter(s => (s.category || s.department || 'Uncategorized') === cat);
                   const catChecklists = filteredTemplates.filter(t => (t.category || t.department || 'Uncategorized') === cat);
                   const total = catSops.length + catChecklists.length;

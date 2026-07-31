@@ -94,6 +94,47 @@ Deno.serve(async (req) => {
       // GetOrderPackage returns either a single order object or an array depending on input.
       const rawOrders: any[] = Array.isArray(data) ? data : (data ? [data] : []);
 
+      // Recursively walk an object and collect every key whose name contains "tax"
+      // (case-insensitive) along with its value and JSON path. Used to auto-detect
+      // which InkSoft field carries sales tax — field names vary between stores.
+      const findTaxFields = (obj: any, path = "", out: Array<{ path: string; key: string; value: any }> = []) => {
+        if (!obj || typeof obj !== "object") return out;
+        if (Array.isArray(obj)) {
+          obj.forEach((v, i) => findTaxFields(v, `${path}[${i}]`, out));
+          return out;
+        }
+        for (const [k, v] of Object.entries(obj)) {
+          const p = path ? `${path}.${k}` : k;
+          if (/tax/i.test(k) && (typeof v === "number" || typeof v === "string")) {
+            out.push({ path: p, key: k, value: v });
+          }
+          if (v && typeof v === "object") findTaxFields(v, p, out);
+        }
+        return out;
+      };
+
+      // Score candidates and pick the most likely "sales tax amount" field on the order root.
+      const pickBestTax = (candidates: Array<{ path: string; key: string; value: any }>) => {
+        const scored = candidates
+          .map((c) => {
+            const num = typeof c.value === "string" ? parseFloat(c.value) : c.value;
+            if (typeof num !== "number" || isNaN(num)) return null;
+            let score = 0;
+            const k = c.key.toLowerCase();
+            if (/^(sales?tax|taxamount|taxtotal|totaltax)$/i.test(c.key)) score += 100;
+            if (k.includes("amount") || k.includes("total")) score += 20;
+            if (k.includes("rate") || k.includes("exempt") || k.includes("percent")) score -= 50;
+            // Prefer root-level (shallower path = fewer dots)
+            score -= (c.path.match(/\./g)?.length || 0) * 5;
+            // Prefer non-zero
+            if (num > 0) score += 10;
+            return { ...c, num, score };
+          })
+          .filter((x): x is NonNullable<typeof x> => !!x)
+          .sort((a, b) => b.score - a.score);
+        return scored[0] || null;
+      };
+
       const mapOrder = (order: any) => {
         const items = (order?.Items || order?.OrderItems || []).map((item: any) => {
           const designs: any[] = item.Designs || item.Decorations || item.Imprints || [];
@@ -117,15 +158,28 @@ Deno.serve(async (req) => {
           };
         });
 
+        // Auto-detect sales tax field on this order.
+        const taxCandidates = findTaxFields(order);
+        const best = pickBestTax(taxCandidates);
+
+        // Log raw payload + tax detection so we can iterate on the mapping.
+        console.log("[inksoft-orders] raw order payload:", JSON.stringify(order));
+        console.log("[inksoft-orders] tax field candidates:", JSON.stringify(taxCandidates));
+        console.log("[inksoft-orders] selected tax field:", best ? `${best.path} = ${best.value} (score ${best.score})` : "none");
+
         return {
           orderId: order?.OrderId || order?.Id,
           orderName: order?.Name || order?.ProposalReferenceId || `Order ${order?.OrderId}`,
           customerName: order?.ShipToName || order?.BillToName || order?.CustomerName,
           productionStatus: order?.ProductionStatus,
           totalAmount: order?.TotalAmount,
+          taxAmount: best ? Number(best.num) : 0,
+          taxFieldPath: best?.path || null,
+          taxCandidates,
           items,
         };
       };
+
 
       const mapped = rawOrders.map(mapOrder);
 

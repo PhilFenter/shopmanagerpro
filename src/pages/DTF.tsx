@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
+import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Garment types for DTF
 const GARMENT_TYPES = [
@@ -351,10 +352,42 @@ export default function DTF() {
           {/* Fabric Type & Press Settings */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Thermometer className="h-5 w-5" />
-                Press Settings
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Thermometer className="h-5 w-5" />
+                  Press Settings
+                </CardTitle>
+                <VoiceDictateButton
+                  type="dtf"
+                  fields={[
+                    { name: 'fabricType', kind: 'enum', label: 'Fabric type', options: FABRIC_TYPES.map(f => f.value), current: fabricType, hint: 'e.g. cotton, polyester, poly_blend, tri_blend, nylon, specialty' },
+                    { name: 'pressTemp', kind: 'number', label: 'Press temperature (°F)', min: 250, max: 400, current: pressTemp },
+                    { name: 'pressTime', kind: 'number', label: 'Press time (seconds)', min: 5, max: 30, current: pressTime },
+                    { name: 'pressure', kind: 'enum', label: 'Pressure', options: PRESSURE_OPTIONS, current: pressure },
+                    { name: 'peelType', kind: 'enum', label: 'Peel type', options: PEEL_OPTIONS, current: peelType },
+                    { name: 'prePress', kind: 'boolean', label: 'Pre-press on/off', current: prePress },
+                    { name: 'prePressTime', kind: 'number', label: 'Pre-press seconds', min: 1, max: 10, current: prePressTime },
+                    { name: 'coverSheet', kind: 'boolean', label: 'Cover sheet on/off', current: coverSheet },
+                    { name: 'secondPress', kind: 'boolean', label: '2nd press on/off', current: secondPress },
+                    { name: 'secondPressTime', kind: 'number', label: '2nd press seconds', min: 1, max: 15, current: secondPressTime },
+                    { name: 'qualityRating', kind: 'number', label: 'Quality rating stars', min: 0, max: 5, current: qualityRating },
+                  ] as VoiceFieldSpec[]}
+                  onApply={(u, notes) => {
+                    if (typeof u.fabricType === 'string') loadFabricDefaults(u.fabricType);
+                    if (typeof u.pressTemp === 'number') setPressTemp(u.pressTemp);
+                    if (typeof u.pressTime === 'number') setPressTime(u.pressTime);
+                    if (typeof u.pressure === 'string') setPressure(u.pressure);
+                    if (typeof u.peelType === 'string') setPeelType(u.peelType);
+                    if (typeof u.prePress === 'boolean') setPrePress(u.prePress);
+                    if (typeof u.prePressTime === 'number') setPrePressTime(u.prePressTime);
+                    if (typeof u.coverSheet === 'boolean') setCoverSheet(u.coverSheet);
+                    if (typeof u.secondPress === 'boolean') setSecondPress(u.secondPress);
+                    if (typeof u.secondPressTime === 'number') setSecondPressTime(u.secondPressTime);
+                    if (typeof u.qualityRating === 'number') setQualityRating(u.qualityRating);
+                    if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
+                  }}
+                />
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Fabric Type Quick Select */}

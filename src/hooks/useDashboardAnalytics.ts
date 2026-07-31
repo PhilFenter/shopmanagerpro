@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useJobs } from './useJobs';
 import { startOfDay, startOfMonth, subDays, subWeeks, subMonths, isWithinInterval, format, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
+import { FINAL_STAGES, JobStage } from './useJobStages';
+
+const isFinalStage = (stage: string) => FINAL_STAGES.includes(stage as JobStage);
 
 export type TimePeriod = 'this_week' | 'this_month' | 'last_30_days' | 'last_90_days' | 'all_time';
 
@@ -79,22 +80,8 @@ export function useDashboardAnalytics() {
   const [period, setPeriod] = useState<TimePeriod>('last_30_days');
   const { jobs, isLoading: jobsLoading } = useJobs();
 
-  // Fetch all time entries for accurate time tracking
-  const timeEntriesQuery = useQuery({
-    queryKey: ['all-time-entries'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('time_entries')
-        .select('id, job_id, duration, created_at, worker_id');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const analytics = useMemo(() => {
     const { start, end } = getPeriodRange(period);
-    const timeEntries = timeEntriesQuery.data ?? [];
 
     // Filter jobs by period based on created_at
     const periodJobs = jobs.filter(j => {
@@ -102,22 +89,13 @@ export function useDashboardAnalytics() {
       return isWithinInterval(createdAt, { start, end });
     });
 
-    // Filter time entries by period
-    const periodTimeEntries = timeEntries.filter(te => {
-      const createdAt = new Date(te.created_at);
-      return isWithinInterval(createdAt, { start, end });
-    });
-
-    // Total time from time_entries table (not job.time_tracked)
-    const totalMinutes = periodTimeEntries.reduce((sum, te) => sum + (te.duration || 0), 0);
-
     // Revenue from ALL jobs in period (not just completed)
     const totalRevenue = periodJobs.reduce((sum, j) => sum + (j.sale_price || 0), 0);
-    const totalMaterialCost = periodJobs.reduce((sum, j) => sum + (j.material_cost || 0), 0);
 
-    // Jobs in progress (for Job Volume chart)
-    const activeJobs = periodJobs.filter(j => j.status !== 'completed');
-    const completedJobs = periodJobs.filter(j => j.status === 'completed');
+    // Jobs in progress (for Job Volume chart) — exclude final stages so stale
+    // "pending" jobs that were actually shipped don't inflate history.
+    const activeJobs = periodJobs.filter(j => j.status !== 'completed' && !isFinalStage(j.stage));
+    const completedJobs = periodJobs.filter(j => j.status === 'completed' || isFinalStage(j.stage));
 
     // Daily job counts - show created + in-progress for last 14 days
     const chartStart = period === 'this_week' ? start : subDays(end, 14);
@@ -126,20 +104,23 @@ export function useDashboardAnalytics() {
       const dayStart = startOfDay(day);
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23, 59, 59, 999);
-      
+
       const created = jobs.filter(j => {
         const createdAt = new Date(j.created_at);
         return isWithinInterval(createdAt, { start: dayStart, end: dayEnd });
       }).length;
-      
-      // Count jobs that were active on this day (created before or on this day, not completed before)
+
+      // Jobs active on this day: created on/before, not completed before, and
+      // not currently sitting in a final stage (those are effectively closed
+      // even if their completed_at was backfilled).
       const inProgress = jobs.filter(j => {
         const createdAt = new Date(j.created_at);
         if (createdAt > dayEnd) return false;
         if (j.completed_at && new Date(j.completed_at) < dayStart) return false;
-        return j.status !== 'completed' || (j.completed_at && new Date(j.completed_at) >= dayStart);
+        if (isFinalStage(j.stage)) return false;
+        return j.status !== 'completed';
       }).length;
-      
+
       return {
         date: format(day, 'MMM d'),
         created,
@@ -152,11 +133,14 @@ export function useDashboardAnalytics() {
     const weeks = eachWeekOfInterval({ start: weekStart, end });
     const weeklyRevenue: WeeklyRevenue[] = weeks.map(ws => {
       const we = endOfWeek(ws);
-      
-      // Revenue from jobs created in this week
+
+      // Revenue is booked when the invoice is paid (falls back to completed_at,
+      // then created_at) so a job invoiced this week lands in this week's bar
+      // regardless of when it was originally created.
       const weekJobs = jobs.filter(j => {
-        const createdAt = new Date(j.created_at);
-        return isWithinInterval(createdAt, { start: ws, end: we });
+        const anchor = (j as any).paid_at || j.completed_at || j.created_at;
+        if (!anchor) return false;
+        return isWithinInterval(new Date(anchor), { start: ws, end: we });
       });
 
       const revenue = weekJobs.reduce((sum, j) => sum + (j.sale_price || 0), 0);
@@ -170,6 +154,9 @@ export function useDashboardAnalytics() {
       };
     });
 
+    const humanize = (slug: string) =>
+      slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
     // Service type breakdown (all jobs in period)
     const serviceCounts: Record<string, number> = {};
     periodJobs.forEach(j => {
@@ -179,7 +166,7 @@ export function useDashboardAnalytics() {
       .map(([service, count]) => ({
         service,
         count,
-        label: SERVICE_LABELS[service] || service,
+        label: SERVICE_LABELS[service] || humanize(service),
       }))
       .sort((a, b) => b.count - a.count);
 
@@ -205,15 +192,12 @@ export function useDashboardAnalytics() {
       serviceBreakdown,
       stageBreakdown,
       totalRevenue,
-      totalMaterialCost,
-      totalProfit: totalRevenue - totalMaterialCost,
       avgJobValue,
-      totalMinutes,
       activeJobCount: activeJobs.length,
       completedJobCount: completedJobs.length,
       totalJobCount: periodJobs.length,
     };
-  }, [jobs, timeEntriesQuery.data, period]);
+  }, [jobs, period]);
 
   return {
     ...analytics,
@@ -221,6 +205,6 @@ export function useDashboardAnalytics() {
     setPeriod,
     periodLabel: PERIOD_LABELS[period],
     periodOptions: Object.entries(PERIOD_LABELS).map(([value, label]) => ({ value: value as TimePeriod, label })),
-    isLoading: jobsLoading || timeEntriesQuery.isLoading,
+    isLoading: jobsLoading,
   };
 }

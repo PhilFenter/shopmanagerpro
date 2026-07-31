@@ -11,11 +11,15 @@ import { RevenueByServiceChart } from '@/components/financials/RevenueByServiceC
 import { SalesTaxReport } from '@/components/financials/SalesTaxReport';
 import { ProfitabilityInsights } from '@/components/financials/ProfitabilityInsights';
 import { BulkReclassifyTool } from '@/components/financials/BulkReclassifyTool';
-import { DollarSign, TrendingUp, TrendingDown, Target, Clock } from 'lucide-react';
-import { startOfMonth, endOfMonth, startOfYear, subMonths, format } from 'date-fns';
+import { DollarSign, TrendingUp, TrendingDown, Target, Clock, CreditCard, CalendarIcon } from 'lucide-react';
+import { startOfMonth, endOfMonth, startOfYear, subMonths, format, parseISO, isValid } from 'date-fns';
 import { SERVICE_LABELS } from '@/lib/constants';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time';
+type Period = 'this_month' | 'last_month' | 'ytd' | 'all_time' | 'custom';
 type DateBasis = 'created_at' | 'completed_at';
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
@@ -23,9 +27,10 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'last_month', label: 'Last Month' },
   { value: 'ytd', label: 'Year to Date' },
   { value: 'all_time', label: 'All Time' },
+  { value: 'custom', label: 'Custom Range' },
 ];
 
-function getPeriodRange(period: Period) {
+function getPeriodRange(period: Period, customStart?: Date, customEnd?: Date) {
   const now = new Date();
   switch (period) {
     case 'this_month':
@@ -38,6 +43,11 @@ function getPeriodRange(period: Period) {
       return { start: startOfYear(now), end: now, label: `${now.getFullYear()} YTD` };
     case 'all_time':
       return { start: new Date('2000-01-01'), end: now, label: 'All Time' };
+    case 'custom': {
+      const s = customStart && isValid(customStart) ? customStart : startOfMonth(now);
+      const e = customEnd && isValid(customEnd) ? customEnd : endOfMonth(now);
+      return { start: s, end: e, label: `${format(s, 'MMM d, yyyy')} – ${format(e, 'MMM d, yyyy')}` };
+    }
   }
 }
 
@@ -47,15 +57,17 @@ export default function Financials() {
   const metrics = useBusinessMetrics();
   const [period, setPeriod] = useState<Period>('this_month');
   const [dateBasis, setDateBasis] = useState<DateBasis>('created_at');
+  const [customStart, setCustomStart] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(endOfMonth(new Date()));
 
-  const { start, end, label: periodLabel } = getPeriodRange(period);
+  const { start, end, label: periodLabel } = getPeriodRange(period, customStart, customEnd);
 
   const { data: periodJobs = [] } = useQuery({
-    queryKey: ['financials-period-jobs', period, dateBasis],
+    queryKey: ['financials-period-jobs', period, dateBasis, start.toISOString(), end.toISOString()],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, sale_price, material_cost, service_type, status, completed_at, created_at')
+        .select('id, sale_price, material_cost, service_type, status, completed_at, created_at, payment_method, source')
         .gte(dateBasis, start.toISOString())
         .lte(dateBasis, end.toISOString());
       if (error) throw error;
@@ -119,6 +131,10 @@ export default function Financials() {
 
   const PAYROLL_TAX_BURDEN = 0.165;
   const MONTHLY_HOURS = 176;
+  const PRINTAVO_FEE_RATE = 0.035;
+  const PRINTAVO_FLAT_FEE = 0.3;
+  const SHOPIFY_FEE_RATE = 0.029;
+  const SHOPIFY_FLAT_FEE = 0.3;
 
   // Build worker rate map
   const workerRates = useMemo(() => {
@@ -147,6 +163,7 @@ export default function Financials() {
     const now = new Date();
     const daysInCurrentMonth = endOfMonth(now).getDate();
     const currentMonthProgress = Math.min(1, Math.max(0, now.getDate() / daysInCurrentMonth));
+    const MS_PER_MONTH = 30.44 * 24 * 60 * 60 * 1000;
 
     if (period === 'this_month') {
       return metrics.totalMonthlyCost * currentMonthProgress;
@@ -158,17 +175,22 @@ export default function Financials() {
       const completedMonths = now.getMonth(); // 0-indexed (Jan = 0)
       return metrics.totalMonthlyCost * (completedMonths + currentMonthProgress);
     }
+    if (period === 'custom') {
+      // Prorate by number of months (fractional) in the selected range
+      const months = Math.max(0, (end.getTime() - start.getTime()) / MS_PER_MONTH);
+      return metrics.totalMonthlyCost * months;
+    }
     // all_time: approximate using months between first job and now
     if (periodJobs.length > 0) {
       const earliest = periodJobs.reduce((min, j) => {
         const d = j.created_at;
         return d < min ? d : min;
       }, periodJobs[0].created_at);
-      const monthsSpan = Math.max(1, Math.ceil((Date.now() - new Date(earliest).getTime()) / (30.44 * 24 * 60 * 60 * 1000)));
+      const monthsSpan = Math.max(1, Math.ceil((Date.now() - new Date(earliest).getTime()) / MS_PER_MONTH));
       return metrics.totalMonthlyCost * monthsSpan;
     }
     return metrics.totalMonthlyCost;
-  }, [period, metrics.totalMonthlyCost, periodJobs]);
+  }, [period, metrics.totalMonthlyCost, periodJobs, start, end]);
 
   const stats = useMemo(() => {
     const totalRevenue = periodJobs.reduce((s, j) => s + (j.sale_price || 0), 0);
@@ -176,6 +198,17 @@ export default function Financials() {
     const totalCost = totalMaterialCost + overheadForPeriod;
     const totalProfit = totalRevenue - totalCost;
     const avgJobValue = periodJobs.length ? totalRevenue / periodJobs.length : 0;
+    // Only apply card fees to jobs paid by card (null = unknown, treated as card).
+    const cardJobs = periodJobs.filter(j => !j.payment_method || j.payment_method === 'card');
+    const estimatedPaymentFees = cardJobs.reduce((sum, j) => {
+      const revenue = j.sale_price || 0;
+      const isShopify = j.source === 'shopify' || j.source === 'shopify-sync';
+      const rate = isShopify ? SHOPIFY_FEE_RATE : PRINTAVO_FEE_RATE;
+      const flat = isShopify ? SHOPIFY_FLAT_FEE : PRINTAVO_FLAT_FEE;
+      return sum + (revenue * rate) + flat;
+    }, 0);
+    const netRevenue = totalRevenue - estimatedPaymentFees;
+
 
     // Build line-item lookup for Mixed jobs
     const mixedJobLineItems = new Map<string, typeof mixedLineItems>();
@@ -237,7 +270,7 @@ export default function Financials() {
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod };
+    return { totalRevenue, totalMaterialCost, totalCost, totalProfit, avgJobValue, jobCount: periodJobs.length, serviceRevenue, overheadForPeriod, estimatedPaymentFees, netRevenue };
   }, [periodJobs, overheadForPeriod, mixedLineItems]);
 
   if (loading) {
@@ -282,11 +315,37 @@ export default function Financials() {
               ))}
             </SelectContent>
           </Select>
+          {period === 'custom' && (
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('w-36 justify-start text-left font-normal', !customStart && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStart ? format(customStart, 'MMM d, yyyy') : 'Start'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customStart} onSelect={setCustomStart} defaultMonth={customStart} captionLayout="dropdown-buttons" fromYear={2025} toYear={new Date().getFullYear()} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('w-36 justify-start text-left font-normal', !customEnd && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEnd ? format(customEnd, 'MMM d, yyyy') : 'End'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} defaultMonth={customEnd} captionLayout="dropdown-buttons" fromYear={2025} toYear={new Date().getFullYear()} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Revenue</CardTitle>
@@ -295,6 +354,17 @@ export default function Financials() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">{stats.jobCount} jobs · {periodLabel}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Est. Payment Fees</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.estimatedPaymentFees)}</div>
+            <p className="text-xs text-muted-foreground">Printavo 3.5% + $0.30 · Shopify 2.9% + $0.30 · Net {formatCurrency(stats.netRevenue)}</p>
           </CardContent>
         </Card>
 

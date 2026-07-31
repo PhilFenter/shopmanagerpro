@@ -619,6 +619,42 @@ export type Database = {
         }
         Relationships: []
       }
+      job_garment_prints: {
+        Row: {
+          created_at: string
+          garment_id: string
+          id: string
+          print_id: string
+        }
+        Insert: {
+          created_at?: string
+          garment_id: string
+          id?: string
+          print_id: string
+        }
+        Update: {
+          created_at?: string
+          garment_id?: string
+          id?: string
+          print_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_garment_prints_garment_id_fkey"
+            columns: ["garment_id"]
+            isOneToOne: false
+            referencedRelation: "job_garments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_garment_prints_print_id_fkey"
+            columns: ["print_id"]
+            isOneToOne: false
+            referencedRelation: "job_prints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_garments: {
         Row: {
           color: string | null
@@ -971,6 +1007,99 @@ export type Database = {
           },
         ]
       }
+      job_prints: {
+        Row: {
+          artwork_url: string | null
+          created_at: string
+          created_by: string | null
+          cure_temp: number | null
+          cure_time: number | null
+          design_name: string
+          flash: boolean | null
+          flash_temp: number | null
+          flash_time: number | null
+          garment_color: string | null
+          height_in: number | null
+          id: string
+          ink_colors: Json | null
+          job_id: string
+          location: string
+          mesh_count: number | null
+          notes: string | null
+          sort_order: number
+          squeegee_durometer: number | null
+          strokes: number | null
+          underbase: boolean | null
+          updated_at: string
+          width_in: number | null
+        }
+        Insert: {
+          artwork_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          cure_temp?: number | null
+          cure_time?: number | null
+          design_name: string
+          flash?: boolean | null
+          flash_temp?: number | null
+          flash_time?: number | null
+          garment_color?: string | null
+          height_in?: number | null
+          id?: string
+          ink_colors?: Json | null
+          job_id: string
+          location: string
+          mesh_count?: number | null
+          notes?: string | null
+          sort_order?: number
+          squeegee_durometer?: number | null
+          strokes?: number | null
+          underbase?: boolean | null
+          updated_at?: string
+          width_in?: number | null
+        }
+        Update: {
+          artwork_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          cure_temp?: number | null
+          cure_time?: number | null
+          design_name?: string
+          flash?: boolean | null
+          flash_temp?: number | null
+          flash_time?: number | null
+          garment_color?: string | null
+          height_in?: number | null
+          id?: string
+          ink_colors?: Json | null
+          job_id?: string
+          location?: string
+          mesh_count?: number | null
+          notes?: string | null
+          sort_order?: number
+          squeegee_durometer?: number | null
+          strokes?: number | null
+          underbase?: boolean | null
+          updated_at?: string
+          width_in?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_prints_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_prints_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_stage_history: {
         Row: {
           changed_by: string | null
@@ -1033,6 +1162,7 @@ export type Database = {
           material_cost: number | null
           order_number: string | null
           paid_at: string | null
+          payment_method: string | null
           printavo_status: string | null
           quantity: number
           sale_price: number | null
@@ -1062,6 +1192,7 @@ export type Database = {
           material_cost?: number | null
           order_number?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
@@ -1091,6 +1222,7 @@ export type Database = {
           material_cost?: number | null
           order_number?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           printavo_status?: string | null
           quantity?: number
           sale_price?: number | null
