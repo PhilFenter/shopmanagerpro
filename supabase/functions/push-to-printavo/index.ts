@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, getUserId, unauthorized } from "../_shared/auth.ts";
 
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
@@ -15,28 +10,8 @@ Deno.serve(async (req) => {
 
   try {
     // Auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !data?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const userId = await getUserId(req);
+    if (!userId) return unauthorized();
 
     const printavoEmail = Deno.env.get("PRINTAVO_API_EMAIL");
     const printavoToken = Deno.env.get("PRINTAVO_API_TOKEN");
@@ -56,7 +31,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch quote + line items
+    // Fetch quote + line items as the calling user, so RLS still applies
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    );
+
     const [quoteRes, lineItemsRes] = await Promise.all([
       supabase.from("quotes").select("*").eq("id", quoteId).single(),
       supabase.from("quote_line_items").select("*").eq("quote_id", quoteId).order("sort_order"),

@@ -56,31 +56,12 @@ Deno.serve(async (req) => {
 
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const isServiceRole = token === serviceRoleKey;
 
-    let tokenRole: string | undefined;
-    let hasSubClaim = false;
-    try {
-      const payloadPart = token.split(".")[1];
-      if (payloadPart) {
-        const payload = JSON.parse(atob(payloadPart));
-        tokenRole = payload?.role;
-        hasSubClaim = !!payload?.sub;
-      }
-    } catch {
-      // Ignore decode errors, JWT validation happens below for user calls
-    }
-
-    const isAnonProjectKeyCall = token === anonKey || (tokenRole === "anon" && !hasSubClaim);
-    const userAgent = (req.headers.get("user-agent") || "").toLowerCase();
-    const hasClientInfoHeader = !!req.headers.get("x-client-info");
-    const hasManualFilters = ["startDate", "endDate", "minOrderNumber", "maxPages", "fullScrape"].some((key) =>
-      Object.prototype.hasOwnProperty.call(body, key)
-    );
-
-    const isAutomatedCronCall =
-      isServiceRole ||
-      (isAnonProjectKeyCall && (userAgent.includes("pg_net") || (!hasClientInfoHeader && !hasManualFilters)));
+    // Only the service-role key escalates to an automated run. The previous
+    // check also accepted the anon key when the caller omitted an x-client-info
+    // header and sent no filters — but the anon key is public and headers are
+    // caller-controlled, so that was an open door to a service-role client.
+    const isAutomatedCronCall = token === serviceRoleKey;
 
     let supabase;
     let userId: string | undefined;

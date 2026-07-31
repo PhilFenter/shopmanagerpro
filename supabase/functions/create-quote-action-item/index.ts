@@ -458,6 +458,38 @@ Deno.serve(async (req) => {
       );
     }
 
+    // This endpoint is intentionally public — it backs the quote request form on
+    // the marketing site, so anonymous visitors must be able to reach it. It
+    // writes with a service-role client though, so everything below is bounded
+    // before it touches the database.
+    const bad = (error: string) =>
+      new Response(JSON.stringify({ error }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    const oversized = Object.entries({
+      customer_name, customer_email, customer_phone, company: resolvedCompany,
+      address_line1, address_line2, city, state, zip, notes, details,
+      timeline, artworkNotes, artworkUrl, shipping_address,
+    }).find(([, value]) => typeof value === "string" && value.length > 2000);
+    if (oversized) return bad(`${oversized[0]} exceeds the maximum length`);
+
+    if (customer_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(customer_email).trim())) {
+      return bad("Invalid customer_email");
+    }
+
+    if (line_items !== undefined && (!Array.isArray(line_items) || line_items.length > 200)) {
+      return bad("line_items must be an array of at most 200 entries");
+    }
+
+    if (quantity !== undefined && quantity !== null) {
+      const parsedQuantity = Number(quantity);
+      if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0 || parsedQuantity > 1_000_000) {
+        return bad("Invalid quantity");
+      }
+    }
+
     // ── Duplicate / double-submit guard ────────────────────
     // If the same email submitted a quote in the last 60 seconds, return it
     // instead of creating a duplicate.

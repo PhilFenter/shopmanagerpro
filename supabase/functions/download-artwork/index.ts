@@ -57,14 +57,33 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    if (!url.includes("/storage/v1/object/public/quote-artwork/")) {
+    // Parse and compare against our own storage origin. A substring test here
+    // is an SSRF: this runs server-side, so any host that merely contains the
+    // expected path (e.g. http://169.254.169.254/storage/v1/object/public/
+    // quote-artwork/x) would be fetched and its body returned to the caller.
+    let artworkUrl: URL;
+    try {
+      artworkUrl = new URL(url);
+    } catch {
       return new Response(JSON.stringify({ error: "Invalid artwork URL" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const fileResponse = await fetch(url);
+    const storageOrigin = new URL(supabaseUrl).origin;
+    const isOwnArtwork =
+      artworkUrl.origin === storageOrigin &&
+      artworkUrl.pathname.startsWith("/storage/v1/object/public/quote-artwork/");
+
+    if (!isOwnArtwork) {
+      return new Response(JSON.stringify({ error: "Invalid artwork URL" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const fileResponse = await fetch(artworkUrl.toString());
     if (!fileResponse.ok) {
       const body = await fileResponse.text();
       throw new Error(`Failed to fetch artwork [${fileResponse.status}]: ${body}`);
@@ -72,7 +91,10 @@ serve(async (req: Request): Promise<Response> => {
 
     const fileBuffer = await fileResponse.arrayBuffer();
     const contentType = fileResponse.headers.get("content-type") || "application/octet-stream";
-    const safeFilename = typeof filename === "string" && filename.trim().length > 0 ? filename : "artwork";
+    // Strip quotes, control characters and path separators — this value is
+    // interpolated into a response header.
+    const requestedFilename = typeof filename === "string" ? filename.replace(/[^\w.\- ]+/g, "").trim() : "";
+    const safeFilename = requestedFilename.length > 0 ? requestedFilename.slice(0, 128) : "artwork";
 
     return new Response(fileBuffer, {
       status: 200,

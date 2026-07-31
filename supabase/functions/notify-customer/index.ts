@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, escapeHtml, getUserId, unauthorized } from "../_shared/auth.ts";
 
 const STAGE_LABELS: Record<string, string> = {
   received: "Received",
@@ -28,14 +23,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // This function sends mail from a domain we hold the DKIM keys for. It must
+    // never be reachable without a real user session — the anon key is public.
+    const userId = await getUserId(req);
+    if (!userId) return unauthorized();
 
+    const authHeader = req.headers.get("Authorization")!;
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -44,6 +37,13 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { jobId, customerName, customerEmail, orderNumber, stage, source, customSubject, customBody } = body;
+
+    if (typeof customerEmail === "string" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+      return new Response(JSON.stringify({ error: "Invalid customer email" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     console.log(`Notification request: job=${jobId}, stage=${stage}, source=${source}, email=${customerEmail}`);
 
@@ -71,8 +71,9 @@ Deno.serve(async (req) => {
     let subject: string;
 
     if (isManualSend) {
-      // Direct manual send — use provided content
-      emailBody = customBody;
+      // Direct manual send — caller-supplied text, so it is escaped before it
+      // reaches the HTML body below. Only the newline conversion is markup.
+      emailBody = escapeHtml(String(customBody)).replace(/\n/g, "<br>");
       subject = customSubject || `Message from Hell's Canyon Designs`;
     } else {
       // Check notification settings for this stage
@@ -98,12 +99,14 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Replace template variables
+      // Replace template variables. The template itself is admin-authored and
+      // may contain markup; the substituted values come from the request, so
+      // they are escaped individually.
       const stageLabel = settings.custom_label || STAGE_LABELS[stage] || stage;
       emailBody = settings.email_template
-        .replace(/\{\{customer_name\}\}/g, customerName || "Customer")
-        .replace(/\{\{order_number\}\}/g, orderNumber || "N/A")
-        .replace(/\{\{stage\}\}/g, stageLabel);
+        .replace(/\{\{customer_name\}\}/g, escapeHtml(customerName || "Customer"))
+        .replace(/\{\{order_number\}\}/g, escapeHtml(orderNumber || "N/A"))
+        .replace(/\{\{stage\}\}/g, escapeHtml(stageLabel));
 
       subject = settings.email_subject
         ? settings.email_subject
@@ -133,7 +136,7 @@ Deno.serve(async (req) => {
         from: "Hell's Canyon Designs <info@mail.hellscanyondesigns.com>",
         reply_to: "info@hellscanyondesigns.com",
         to: [customerEmail],
-        subject,
+        subject: String(subject).replace(/[\r\n]+/g, " ").slice(0, 200),
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #333;">Order Status Update</h2>
