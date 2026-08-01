@@ -52,7 +52,7 @@ serve(async (req: Request): Promise<Response> => {
       ? `+${cleanedNumber}` 
       : `+1${cleanedNumber}`;
 
-    console.log(`Sending SMS to ${formattedNumber} for job ${jobId || 'unknown'} by user ${claims.claims.sub}`);
+    console.log(`Sending SMS to ${formattedNumber} for job ${jobId || 'unknown'} by user ${userId}`);
 
     // Send SMS via Twilio API
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;

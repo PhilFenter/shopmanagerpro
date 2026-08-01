@@ -54,10 +54,8 @@ interface PrintavoInvoice {
   total?: number | null;
   salesTax?: number | null;
   salesTaxAmount?: number | null;
-  transactionDetails?: {
-    transactions?: {
-      nodes?: Array<{ __typename?: string; category?: string | null; amount?: number | null }> | null;
-    } | null;
+  transactions?: {
+    nodes?: Array<{ __typename?: string; category?: string | null; amount?: number | null }> | null;
   } | null;
   lineItemGroups?: {
     nodes?: PrintavoLineItemGroup[];
@@ -184,12 +182,9 @@ Deno.serve(async (req) => {
               total
               salesTax
               salesTaxAmount
-              transactionDetails {
-                transactions(first: 20) {
-                  nodes {
-                    __typename
-                    ... on TransactionPayment { category amount }
-                  }
+              transactions(first: 20) {
+                nodes {
+                  __typename
                 }
               }
             }
@@ -343,13 +338,36 @@ Deno.serve(async (req) => {
       existingJobs?.map((j) => [j.external_id, j.id]) || []
     );
 
+    // TEMPORARY — discovery for the TransactionUnion member types.
+    // Invoice.transactions.nodes is a union (TransactionUnion) with four member
+    // types that Printavo does not document publicly. Selecting only __typename
+    // is always valid on a union, so this parses while we learn the real names
+    // from live data. Once the log below reports them, the payment fragment can
+    // be restored and this block removed.
+    const seenTxnTypes = new Set<string>();
+    for (const inv of allInvoices) {
+      for (const t of inv.transactions?.nodes || []) {
+        if (t?.__typename) seenTxnTypes.add(t.__typename);
+      }
+    }
+    console.log(
+      `TransactionUnion member types seen: ${
+        seenTxnTypes.size ? [...seenTxnTypes].join(", ") : "(none — no transactions in this window)"
+      }`,
+    );
+
     // Derive payment method from Printavo transactions.
     // Picks the category with the largest paid amount, mapped to our canonical values.
     const derivePaymentMethod = (inv: PrintavoInvoice): string | null => {
-      const txns = inv.transactionDetails?.transactions?.nodes || [];
+      const txns = inv.transactions?.nodes || [];
       const totals: Record<string, number> = {};
       for (const t of txns) {
-        if (!t || t.__typename !== "TransactionPayment") continue;
+        // Deliberately keyed off the presence of a category rather than an exact
+        // __typename match. Printavo's type name for these nodes has already
+        // been wrong twice, and the failure mode is silent — a mismatch leaves
+        // payment_method null for every job with no error anywhere. Nodes that
+        // aren't payments don't carry a category, so they still fall out here.
+        if (!t) continue;
         const cat = (t.category || "").toUpperCase();
         if (!cat) continue;
         totals[cat] = (totals[cat] || 0) + (t.amount || 0);

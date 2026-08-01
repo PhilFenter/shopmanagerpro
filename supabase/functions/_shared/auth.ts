@@ -34,6 +34,26 @@ export async function getUserId(req: Request): Promise<string | null> {
   return sub;
 }
 
+/**
+ * For endpoints called both by pg_cron and by a signed-in user.
+ *
+ * Accepts the service-role key (how the scheduled jobs authenticate) or a real
+ * user session. Rejects the anon key, which is public — that distinction is the
+ * whole point, since the previous cron jobs presented the anon key and several
+ * functions were written to trust it.
+ */
+export async function isServiceRoleOrUser(req: Request): Promise<boolean> {
+  const authHeader = req.headers.get("Authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (token && serviceRoleKey && token === serviceRoleKey) return true;
+
+  return (await getUserId(req)) !== null;
+}
+
 export function unauthorized(body: Record<string, unknown> = { error: "Unauthorized" }): Response {
   return new Response(JSON.stringify(body), {
     status: 401,

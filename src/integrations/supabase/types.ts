@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.15"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -380,6 +405,7 @@ export type Database = {
           phone: string | null
           preferred_contact: string | null
           referral_source: string | null
+          search_text: string | null
           source: string | null
           state: string | null
           tags: string[] | null
@@ -405,6 +431,7 @@ export type Database = {
           phone?: string | null
           preferred_contact?: string | null
           referral_source?: string | null
+          search_text?: string | null
           source?: string | null
           state?: string | null
           tags?: string[] | null
@@ -430,6 +457,7 @@ export type Database = {
           phone?: string | null
           preferred_contact?: string | null
           referral_source?: string | null
+          search_text?: string | null
           source?: string | null
           state?: string | null
           tags?: string[] | null
@@ -2612,6 +2640,7 @@ export type Database = {
         Args: { num_days: number; start_date: string }
         Returns: string
       }
+      customer_analytics: { Args: never; Returns: Json }
       get_team_members_safe: {
         Args: never
         Returns: {
@@ -2799,6 +2828,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "team", "manager"],

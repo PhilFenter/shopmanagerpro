@@ -17,8 +17,11 @@ class HttpError extends Error {
 
 /** Get a fresh Dropbox access token using the refresh token. */
 async function getAccessToken(): Promise<string> {
-  const appKey = Deno.env.get("DROPBOX_APP_KEY");
-  const appSecret = Deno.env.get("DROPBOX_APP_SECRET");
+  // Trimmed: a trailing newline or space picked up when pasting these into the
+  // secrets UI gets percent-encoded into the form body, and Dropbox rejects it
+  // as invalid_client — which reads exactly like a wrong key.
+  const appKey = Deno.env.get("DROPBOX_APP_KEY")?.trim();
+  const appSecret = Deno.env.get("DROPBOX_APP_SECRET")?.trim();
 
   if (!appKey || !appSecret) {
     throw new HttpError(500, "Dropbox app credentials not configured.");
@@ -66,6 +69,16 @@ async function getAccessToken(): Promise<string> {
   if (!res.ok) {
     const errorText = await res.text();
     console.error("Token refresh failed:", res.status, errorText);
+
+    // These two failures need opposite fixes, so don't give the same advice for
+    // both. invalid_client means the app key/secret are wrong — reconnecting
+    // cannot help, because the connect flow uses the same credentials.
+    if (errorText.includes("invalid_client")) {
+      throw new HttpError(
+        401,
+        "Dropbox rejected the app credentials. Check DROPBOX_APP_KEY and DROPBOX_APP_SECRET against the Dropbox App Console.",
+      );
+    }
     throw new HttpError(401, "Dropbox token refresh failed. Try reconnecting Dropbox in Integrations.");
   }
 

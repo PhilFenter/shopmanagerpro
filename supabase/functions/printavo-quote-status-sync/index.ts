@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, isServiceRoleOrUser, unauthorized } from "../_shared/auth.ts";
 
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
@@ -41,6 +36,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Called by the printavo-quote-status-sync cron jobs and from the UI. Had no
+    // auth check at all: verify_jwt defaults to true, but the anon key is a
+    // valid project JWT, so anyone could drive these service-role writes.
+    if (!(await isServiceRoleOrUser(req))) return unauthorized();
+
     const printavoEmail = Deno.env.get("PRINTAVO_API_EMAIL");
     const printavoToken = Deno.env.get("PRINTAVO_API_TOKEN");
     if (!printavoEmail || !printavoToken) {

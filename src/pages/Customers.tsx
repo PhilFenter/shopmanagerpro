@@ -1,4 +1,9 @@
-import { useCustomers } from '@/hooks/useCustomers';
+import {
+  useCustomers,
+  useCustomerAnalytics,
+  fetchAllMatchingCustomers,
+  CUSTOMERS_PAGE_SIZE,
+} from '@/hooks/useCustomers';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { hasFinancialAccess } from '@/hooks/useJobs';
@@ -7,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -34,8 +39,9 @@ const COLORS = [
 
 export default function Customers() {
   const { role, loading } = useAuth();
-  const { customers, isLoading, totalRevenue, totalCustomers, paretoCustomerCount, paretoPercent, categories, paretoCurve, topCustomers } = useCustomers();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isSyncingContacts, setIsSyncingContacts] = useState(false);
   const [lastOrderFrom, setLastOrderFrom] = useState<Date | undefined>();
@@ -44,48 +50,42 @@ export default function Customers() {
   const [revenueMin, setRevenueMin] = useState('');
   const [revenueMax, setRevenueMax] = useState('');
   const [csvExport, setCsvExport] = useState<{ url: string; filename: string } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-  const filteredCustomers = useMemo(() => {
-    let result = customers;
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      result = result.filter(c =>
-        c.name.toLowerCase().includes(s) ||
-        c.email?.toLowerCase().includes(s) ||
-        c.company?.toLowerCase().includes(s) ||
-        c.tags?.some(t => t.toLowerCase().includes(s))
-      );
-    }
-    if (sourceFilters.length > 0) {
-      result = result.filter(c => sourceFilters.includes(c.source || 'manual'));
-    }
-    if (lastOrderFrom) {
-      result = result.filter(c => c.last_order_date && new Date(c.last_order_date) >= lastOrderFrom);
-    }
-    if (lastOrderTo) {
-      result = result.filter(c => c.last_order_date && new Date(c.last_order_date) <= lastOrderTo);
-    }
-    const minVal = parseFloat(revenueMin);
-    const maxVal = parseFloat(revenueMax);
-    if (!isNaN(minVal)) {
-      result = result.filter(c => (c.total_revenue || 0) >= minVal);
-    }
-    if (!isNaN(maxVal)) {
-      result = result.filter(c => (c.total_revenue || 0) <= maxVal);
-    }
-    return result;
-  }, [customers, search, sourceFilters, lastOrderFrom, lastOrderTo, revenueMin, revenueMax]);
+  // Debounced so a filtered query isn't issued on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const uniqueSources = useMemo(() => {
-    const sources = new Set(customers.map(c => c.source || 'manual'));
-    return Array.from(sources).sort();
-  }, [customers]);
+  const filters = useMemo(() => ({
+    search: debouncedSearch,
+    sources: sourceFilters,
+    lastOrderFrom,
+    lastOrderTo,
+    revenueMin: revenueMin === '' ? undefined : parseFloat(revenueMin),
+    revenueMax: revenueMax === '' ? undefined : parseFloat(revenueMax),
+  }), [debouncedSearch, sourceFilters, lastOrderFrom, lastOrderTo, revenueMin, revenueMax]);
 
-  const avgLTV = totalCustomers > 0 ? totalRevenue / totalCustomers : 0;
+  // Any filter change invalidates the current page number.
+  useEffect(() => { setPage(0); }, [filters]);
+
+  const { customers, total, pageCount, isLoading, isFetching } = useCustomers(filters, page);
+  const { analytics } = useCustomerAnalytics();
+
+  const totalCustomers = analytics?.total_customers ?? 0;
+  const totalRevenue = analytics?.total_revenue ?? 0;
+  const avgLTV = analytics?.avg_ltv ?? 0;
+  const paretoCustomerCount = analytics?.pareto_customer_count ?? 0;
+  const paretoPercent = analytics?.pareto_percent ?? 0;
+  const categories = analytics?.categories ?? [];
+  const paretoCurve = analytics?.pareto_curve ?? [];
+  const topCustomers = analytics?.top_customers ?? [];
+  const uniqueSources = analytics?.sources ?? [];
   const topCategories = categories.slice(0, 10);
 
   if (loading) return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -112,8 +112,26 @@ export default function Customers() {
     }
   };
 
-  const handleExportCSV = () => {
-    const emailCustomers = filteredCustomers.filter(c => c.email);
+  const handleExportCSV = async () => {
+    // Exports every customer matching the current filters, not just the page on
+    // screen. Fetched in 1000-row pages, so the export is complete regardless of
+    // how many customers match.
+    setIsExporting(true);
+    let matching: Customer[];
+    try {
+      matching = await fetchAllMatchingCustomers(filters);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Export failed',
+        description: err instanceof Error ? err.message : 'Could not load customers',
+      });
+      return;
+    } finally {
+      setIsExporting(false);
+    }
+
+    const emailCustomers = matching.filter(c => c.email);
     if (emailCustomers.length === 0) {
       toast({ variant: 'destructive', title: 'No emails to export', description: 'No customers with email addresses found.' });
       return;
@@ -150,7 +168,7 @@ export default function Customers() {
 
     toast({
       title: 'CSV ready',
-      description: 'Click “Download ready CSV” to save the file.',
+      description: `${emailCustomers.length} customers exported. Click “Download ready CSV” to save the file.`,
     });
   };
 
@@ -264,7 +282,7 @@ export default function Customers() {
               </Button>
             )}
             <div className="ml-auto text-sm text-muted-foreground">
-              {filteredCustomers.filter(c => c.email).length} exportable (with email)
+              {total.toLocaleString()} match{total === 1 ? '' : 'es'} current filters
             </div>
           </div>
         </CardContent>
@@ -390,7 +408,11 @@ export default function Customers() {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div>
               <CardTitle>All Customers</CardTitle>
-              <CardDescription>{filteredCustomers.length} customers</CardDescription>
+              <CardDescription>
+                {total.toLocaleString()} customer{total === 1 ? '' : 's'}
+                {pageCount > 1 && ` · page ${page + 1} of ${pageCount}`}
+                {isFetching && ' · updating…'}
+              </CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -416,7 +438,7 @@ export default function Customers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.slice(0, 100).map(c => (
+                {customers.map(c => (
                   <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedCustomer(c)}>
                     <TableCell>
                       <div>
@@ -438,10 +460,39 @@ export default function Customers() {
                 ))}
               </TableBody>
             </Table>
-            {filteredCustomers.length > 100 && (
-              <p className="text-center text-sm text-muted-foreground py-4">
-                Showing 100 of {filteredCustomers.length} customers. Use search to filter.
+            {total === 0 && !isFetching && (
+              <p className="text-center text-sm text-muted-foreground py-8">
+                No customers match these filters.
               </p>
+            )}
+            {pageCount > 1 && (
+              <div className="flex items-center justify-between gap-4 py-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(page * CUSTOMERS_PAGE_SIZE + 1).toLocaleString()}–
+                  {Math.min((page + 1) * CUSTOMERS_PAGE_SIZE, total).toLocaleString()} of {total.toLocaleString()}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0 || isFetching}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {page + 1} / {pageCount}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+                    disabled={page >= pageCount - 1 || isFetching}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         </CardContent>
