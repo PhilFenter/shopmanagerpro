@@ -100,17 +100,24 @@ export function ScheduleWeek({
           ))}
         </div>
 
-        {/* Hour grid */}
+        {/* Hour grid.
+            Both the label column and the day columns are single full-height
+            boxes with their contents positioned absolutely from the same
+            origin, rather than two parallel stacks of 12 divs. Stacked cells
+            can drift apart by a pixel per row — the day cells carry a border
+            and the labels don't — which compounds into a visible offset by
+            6pm. Anchoring everything to one origin makes misalignment
+            impossible at any width. */}
         <div className="grid grid-cols-[56px_repeat(7,1fr)]">
           {/* Hour labels */}
-          <div>
+          <div className="relative" style={{ height: HOUR_COUNT * HOUR_HEIGHT }}>
             {Array.from({ length: HOUR_COUNT }, (_, i) => (
               <div
                 key={i}
-                className="pr-2 text-right text-xs text-muted-foreground"
-                style={{ height: HOUR_HEIGHT }}
+                className="absolute right-0 pr-2 text-right text-xs leading-none text-muted-foreground"
+                style={{ top: i * HOUR_HEIGHT + 4 }}
               >
-                <span className="relative -top-1.5">{formatMinutes((START_HOUR + i) * 60)}</span>
+                {formatMinutes((START_HOUR + i) * 60)}
               </div>
             ))}
           </div>
@@ -126,21 +133,25 @@ export function ScheduleWeek({
                 key={day.toISOString()}
                 ref={(el) => (columnRefs.current[dayIndex] = el)}
                 className={cn(
-                  'relative border-l',
+                  'relative border-b border-l',
                   canDrag ? 'cursor-crosshair' : 'cursor-not-allowed',
                   isToday(day) && 'bg-primary/5',
                 )}
-                // touch-none stops the browser scrolling the page mid-drag on a
-                // tablet, which is the primary device on the shop floor.
-                style={{ touchAction: 'none' }}
+                style={{
+                  height: HOUR_COUNT * HOUR_HEIGHT,
+                  // Hour lines painted as a background rather than 12 bordered
+                  // divs, so the rows cannot round differently from the labels.
+                  backgroundImage:
+                    `repeating-linear-gradient(to bottom, hsl(var(--border)) 0px, hsl(var(--border)) 1px, transparent 1px, transparent ${HOUR_HEIGHT}px)`,
+                  // touch-none stops the browser scrolling the page mid-drag on
+                  // a tablet, which is the primary device on the shop floor.
+                  touchAction: 'none',
+                }}
                 onPointerDown={handlePointerDown(dayIndex)}
                 onPointerMove={handlePointerMove(dayIndex)}
                 onPointerUp={handlePointerUp(dayIndex)}
                 onPointerCancel={() => setDrag(null)}
               >
-                {Array.from({ length: HOUR_COUNT }, (_, i) => (
-                  <div key={i} className="border-b border-dashed" style={{ height: HOUR_HEIGHT }} />
-                ))}
 
                 {/* Live drag preview */}
                 {dragging && (
