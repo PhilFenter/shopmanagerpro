@@ -74,6 +74,7 @@ const QuoteApproval = lazyWithReload(() => import("./pages/QuoteApproval"));
 const QuoteDetail = lazyWithReload(() => import("./pages/QuoteDetail"));
 const PurchaseOrders = lazyWithReload(() => import("./pages/PurchaseOrders"));
 const Handoffs = lazyWithReload(() => import("./pages/Handoffs"));
+const Schedule = lazyWithReload(() => import("./pages/Schedule"));
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
@@ -297,6 +298,16 @@ function App() {
                       <ProtectedRoute>
                         <AppLayout>
                           <Handoffs />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/schedule"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Schedule />
                         </AppLayout>
                       </ProtectedRoute>
                     }

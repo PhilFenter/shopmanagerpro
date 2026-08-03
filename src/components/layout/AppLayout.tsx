@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import {
   LayoutDashboard,
   Briefcase,
+  CalendarDays,
   Shirt,
   Printer,
   Flame,
@@ -55,6 +56,7 @@ const navigation = [
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Handoffs', href: '/handoffs', icon: Inbox },
+  { name: 'Schedule', href: '/schedule', icon: CalendarDays },
   
   { 
     name: 'Production',

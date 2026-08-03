@@ -4,7 +4,12 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
+import { useTeamMembers } from '@/hooks/useTeamMembers';
+
+/** Sentinel, because Radix Select throws on an empty-string item value. */
+const NO_LOGIN = 'none';
 
 interface WorkerCardProps {
   worker: Worker;
@@ -14,6 +19,7 @@ interface WorkerCardProps {
 }
 
 export function WorkerCard({ worker, onUpdate, onDelete, formatCurrency }: WorkerCardProps) {
+  const { teamMembers } = useTeamMembers();
   return (
     <div className={`p-4 border rounded-lg space-y-4 ${!worker.is_active ? 'opacity-50' : ''}`}>
       {/* Header Row */}
@@ -100,12 +106,42 @@ export function WorkerCard({ worker, onUpdate, onDelete, formatCurrency }: Worke
           <Label className="text-xs text-muted-foreground">Monthly Cost</Label>
           <div className="h-8 flex items-center text-sm font-medium">
             {formatCurrency(
-              worker.is_salary 
+              worker.is_salary
                 ? (worker.monthly_salary || 0)
                 : (worker.hourly_rate || 0) * (worker.weekly_hours || 40) * 4.33
             )}
           </div>
         </div>
+      </div>
+
+      {/* Login link. Without this the person cannot add their own shifts on the
+          Schedule page — that page resolves the signed-in user to a roster entry
+          through workers.profile_id. */}
+      <div className="space-y-1">
+        <Label htmlFor={`login-${worker.id}`} className="text-xs">Linked login</Label>
+        <Select
+          value={worker.profile_id ?? NO_LOGIN}
+          onValueChange={(value) =>
+            onUpdate(worker, { profile_id: value === NO_LOGIN ? null : value })
+          }
+        >
+          <SelectTrigger id={`login-${worker.id}`} className="h-8 w-full sm:w-72">
+            <SelectValue placeholder="Not linked" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_LOGIN}>Not linked</SelectItem>
+            {teamMembers.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.full_name || 'Unnamed account'}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {!worker.profile_id && (
+          <p className="text-xs text-muted-foreground">
+            Not linked — this person can’t schedule their own shifts.
+          </p>
+        )}
       </div>
     </div>
   );
