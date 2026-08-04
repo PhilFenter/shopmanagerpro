@@ -76,6 +76,72 @@ export function formatMinutes(minutes: number): string {
   return `${h12}:${m.toString().padStart(2, '0')} ${suffix}`;
 }
 
+export interface LaidOut<T> {
+  item: T;
+  /** Column index within the overlapping group. */
+  lane: number;
+  /** How many columns that group needs, so widths match across it. */
+  laneCount: number;
+}
+
+/**
+ * Assigns side-by-side lanes to overlapping items, the way a calendar does.
+ *
+ * Several people working the same hours is the normal case in the shop, not an
+ * edge case, so blocks have to sit beside each other rather than on top. Items
+ * are grouped into clusters of transitively-overlapping shifts; every member of
+ * a cluster gets the same laneCount so their widths line up, and separate
+ * clusters in the same day are free to use the full width again.
+ */
+export function layoutOverlaps<T>(
+  items: T[],
+  getStart: (item: T) => number,
+  getEnd: (item: T) => number,
+): LaidOut<T>[] {
+  const sorted = [...items].sort(
+    (a, b) => getStart(a) - getStart(b) || getEnd(b) - getEnd(a),
+  );
+
+  const placed: LaidOut<T>[] = [];
+  let cluster: LaidOut<T>[] = [];
+  let laneEnds: number[] = [];
+  let clusterEnd = -Infinity;
+
+  const closeCluster = () => {
+    const laneCount = Math.max(laneEnds.length, 1);
+    for (const entry of cluster) {
+      entry.laneCount = laneCount;
+      placed.push(entry);
+    }
+    cluster = [];
+    laneEnds = [];
+    clusterEnd = -Infinity;
+  };
+
+  for (const item of sorted) {
+    const start = getStart(item);
+    const end = getEnd(item);
+
+    // A gap with nothing spanning it ends the cluster.
+    if (cluster.length > 0 && start >= clusterEnd) closeCluster();
+
+    // Reuse the first lane that has already finished, else open a new one.
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(end);
+    } else {
+      laneEnds[lane] = end;
+    }
+
+    cluster.push({ item, lane, laneCount: 1 });
+    clusterEnd = Math.max(clusterEnd, end);
+  }
+
+  if (cluster.length > 0) closeCluster();
+  return placed;
+}
+
 /** Every selectable time in the editor, 6:00 AM through 6:00 PM. */
 export function editorTimeOptions(): { value: number; label: string }[] {
   const options: { value: number; label: string }[] = [];

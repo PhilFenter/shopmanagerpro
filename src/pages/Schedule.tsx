@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { addDays, addWeeks, format, startOfWeek } from 'date-fns';
+import { addDays, addWeeks, format, isToday, startOfWeek } from 'date-fns';
 import { Loader2, ChevronLeft, ChevronRight, Plus, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useRoster, useMyWorkerId } from '@/hooks/useRoster';
 import { useShifts, type Shift } from '@/hooks/useShifts';
 import { ScheduleWeek } from '@/components/schedule/ScheduleWeek';
@@ -22,6 +23,20 @@ export default function Schedule() {
     startOfWeek(new Date(), { weekStartsOn: 0 }),
   );
   const windowEnd = useMemo(() => addDays(windowStart, 14), [windowStart]);
+  const windowDays = useMemo(
+    () => Array.from({ length: 14 }, (_, i) => addDays(windowStart, i)),
+    [windowStart],
+  );
+
+  // Phone shows one day at a time. Stored as an index into the window and
+  // clamped on read rather than reset by an effect, so moving the fortnight
+  // keeps roughly the same weekday instead of jumping back to the start.
+  const isMobile = useIsMobile();
+  const [dayIndex, setDayIndex] = useState(() => {
+    const today = windowDays.findIndex((d) => isToday(d));
+    return today >= 0 ? today : 0;
+  });
+  const selectedDay = windowDays[Math.min(dayIndex, windowDays.length - 1)];
 
   const { roster, activeRoster, isLoading: rosterLoading } = useRoster();
   const { myWorkerId, isLoading: myWorkerLoading } = useMyWorkerId();
@@ -190,18 +205,57 @@ export default function Schedule() {
         </div>
       )}
 
-      {[0, 1].map((weekOffset) => {
-        const weekStart = addWeeks(windowStart, weekOffset);
-        return (
-          <Card key={weekStart.toISOString()}>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Week of {format(weekStart, 'MMMM d')}
-              </CardTitle>
-            </CardHeader>
+      {isMobile ? (
+        /* One day at a time. Seven columns in 358px of usable width is a
+           peephole, so the phone gets a full-width single day plus the same
+           prev/next-and-Select control pattern the Kanban board uses. */
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              aria-label="Previous day"
+              onClick={() => setDayIndex((i) => Math.max(0, i - 1))}
+              disabled={dayIndex === 0}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+
+            <Select value={String(dayIndex)} onValueChange={(v) => setDayIndex(Number(v))}>
+              <SelectTrigger className="h-10 flex-1" aria-label="Choose a day">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {windowDays.map((day, i) => (
+                  <SelectItem key={day.toISOString()} value={String(i)}>
+                    {format(day, 'EEE, MMM d')}
+                    {isToday(day) ? ' · Today' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              aria-label="Next day"
+              onClick={() => setDayIndex((i) => Math.min(windowDays.length - 1, i + 1))}
+              disabled={dayIndex >= windowDays.length - 1}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Day {dayIndex + 1} of {windowDays.length} · hold on an hour to add a shift
+          </p>
+
+          <Card>
             <CardContent className="p-0 pb-2">
               <ScheduleWeek
-                weekStart={weekStart}
+                days={[selectedDay]}
                 shifts={shifts}
                 roster={roster}
                 myWorkerId={myWorkerId}
@@ -212,8 +266,33 @@ export default function Schedule() {
               />
             </CardContent>
           </Card>
-        );
-      })}
+        </div>
+      ) : (
+        [0, 1].map((weekOffset) => {
+          const weekStart = addWeeks(windowStart, weekOffset);
+          return (
+            <Card key={weekStart.toISOString()}>
+              <CardHeader className="py-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Week of {format(weekStart, 'MMMM d')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 pb-2">
+                <ScheduleWeek
+                  days={windowDays.slice(weekOffset * 7, weekOffset * 7 + 7)}
+                  shifts={shifts}
+                  roster={roster}
+                  myWorkerId={myWorkerId}
+                  canManageOthers={canManageOthers}
+                  targetWorkerId={targetWorkerId}
+                  onCreate={handleCreate}
+                  onSelectShift={openExistingShift}
+                />
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
 
       <ShiftEditor
         open={editorOpen}
