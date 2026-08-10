@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { addDays, addWeeks, format, isToday, startOfWeek } from 'date-fns';
+import { addDays, addWeeks, differenceInCalendarDays, format, isToday, startOfWeek } from 'date-fns';
 import { Loader2, ChevronLeft, ChevronRight, Plus, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,18 +71,34 @@ export default function Schedule() {
       ends_at: values.endsAt.toISOString(),
       note: values.note,
     };
+    // Now that the date is editable, someone can save a shift outside the
+    // fortnight on screen. Follow it rather than letting it appear to vanish.
+    const revealDay = () => {
+      setEditorOpen(false);
+      if (values.startsAt < windowStart || values.startsAt >= windowEnd) {
+        const newStart = startOfWeek(values.startsAt, { weekStartsOn: 0 });
+        setWindowStart(newStart);
+        const offset = differenceInCalendarDays(values.startsAt, newStart);
+        setDayIndex(Math.max(0, Math.min(13, offset)));
+      }
+    };
+
     if (editingShift) {
-      updateShift.mutate({ id: editingShift.id, ...payload }, {
-        onSuccess: () => setEditorOpen(false),
-      });
+      updateShift.mutate({ id: editingShift.id, ...payload }, { onSuccess: revealDay });
     } else {
-      createShift.mutate(payload, { onSuccess: () => setEditorOpen(false) });
+      createShift.mutate(payload, { onSuccess: revealDay });
     }
   };
 
   const openNewShift = () => {
     setEditingShift(null);
-    setEditorDay(new Date());
+    // Default to the day being looked at, not today. On mobile that's the
+    // selected day; on desktop, today if it falls inside the fortnight on
+    // screen, otherwise the start of that fortnight. The dialog's date can be
+    // changed either way — it previously could not, which is why the button
+    // could only ever produce one shift before colliding with itself.
+    const todayInWindow = windowDays.find((d) => isToday(d));
+    setEditorDay(isMobile ? selectedDay : (todayInWindow ?? windowStart));
     setEditorOpen(true);
   };
 

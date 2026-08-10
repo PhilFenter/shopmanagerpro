@@ -33,6 +33,8 @@ interface DragState {
   dayIndex: number;
   anchorHour: number;
   currentHour: number;
+  /** Set when the gesture began on top of an existing block. */
+  originShiftId: string | null;
 }
 
 interface PendingPress {
@@ -42,6 +44,7 @@ interface PendingPress {
   x: number;
   y: number;
   pointerId: number;
+  originShiftId: string | null;
 }
 
 export function ScheduleWeek({
@@ -104,6 +107,7 @@ export function ScheduleWeek({
 
   const beginDrag = (
     el: HTMLElement, pointerId: number, dayIndex: number, hour: number,
+    originShiftId: string | null,
   ) => {
     dragArmed.current = true;
     try {
@@ -111,13 +115,18 @@ export function ScheduleWeek({
     } catch {
       // The pointer may already be gone; the drag still works without capture.
     }
-    setDrag({ dayIndex, anchorHour: hour, currentHour: hour });
+    setDrag({ dayIndex, anchorHour: hour, currentHour: hour, originShiftId });
   };
 
   const handlePointerDown = (dayIndex: number) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (!canDrag) return;
-    // Ignore anything starting on an existing block — that's a click to edit.
-    if ((e.target as HTMLElement).closest('[data-shift-block]')) return;
+
+    // A press that starts on a block is remembered but no longer refused. If it
+    // turns out to be a stationary click it opens that shift; if it turns into
+    // a drag it paints hours like anywhere else. Refusing outright made every
+    // hour someone else had claimed into a dead zone you couldn't schedule over.
+    const blockEl = (e.target as HTMLElement).closest<HTMLElement>('[data-shift-block]');
+    const originShiftId = blockEl?.dataset.shiftId ?? null;
 
     const hour = hourFromPointer(dayIndex, e.clientY);
 
@@ -128,13 +137,15 @@ export function ScheduleWeek({
       const timer = window.setTimeout(() => {
         pendingPress.current = null;
         navigator.vibrate?.(10);
-        beginDrag(el, pointerId, dayIndex, hour);
+        beginDrag(el, pointerId, dayIndex, hour, originShiftId);
       }, LONG_PRESS_MS);
-      pendingPress.current = { timer, dayIndex, hour, x: e.clientX, y: e.clientY, pointerId };
+      pendingPress.current = {
+        timer, dayIndex, hour, x: e.clientX, y: e.clientY, pointerId, originShiftId,
+      };
       return;
     }
 
-    beginDrag(e.currentTarget, e.pointerId, dayIndex, hour);
+    beginDrag(e.currentTarget, e.pointerId, dayIndex, hour, originShiftId);
   };
 
   const handlePointerMove = (dayIndex: number) => (e: React.PointerEvent<HTMLDivElement>) => {
@@ -168,6 +179,19 @@ export function ScheduleWeek({
 
     const first = Math.min(drag!.anchorHour, drag!.currentHour);
     const last = Math.max(drag!.anchorHour, drag!.currentHour);
+    const stationary = first === last;
+
+    setDrag(null);
+
+    // A press that neither moved nor left the block it started on is a click on
+    // that shift, so open it. Anything else is a paint.
+    if (stationary && drag!.originShiftId) {
+      const target = shifts.find((s) => s.id === drag!.originShiftId);
+      if (target && (target.worker_id === myWorkerId || canManageOthers)) {
+        onSelectShift(target);
+      }
+      return;
+    }
 
     // A drag ending on the row it started is still a one-hour shift, so a
     // click (or a hold-and-release) is a valid way to add a single hour.
@@ -175,7 +199,6 @@ export function ScheduleWeek({
       atMinutes(days[dayIndex], (START_HOUR + first) * 60),
       atMinutes(days[dayIndex], (START_HOUR + last + 1) * 60),
     );
-    setDrag(null);
   };
 
   const handlePointerCancel = () => {
@@ -295,9 +318,25 @@ export function ScheduleWeek({
                     <button
                       key={shift.id}
                       data-shift-block
+                      data-shift-id={shift.id}
                       type="button"
-                      disabled={!editable}
-                      onClick={() => editable && onSelectShift(shift)}
+                      // Deliberately not `disabled`. Browsers don't dispatch
+                      // pointer events on disabled controls and they don't
+                      // bubble, so every coworker's block became a region a
+                      // team member physically could not start a drag in —
+                      // which admins never saw, because nothing is disabled for
+                      // them. Selection is handled by the column's pointerup;
+                      // this handler exists so the block is still reachable by
+                      // keyboard.
+                      aria-disabled={!editable}
+                      tabIndex={editable ? 0 : -1}
+                      onKeyDown={(e) => {
+                        if (!editable) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelectShift(shift);
+                        }
+                      }}
                       title={`${name} · ${format(start, 'h:mm a')}–${format(end, 'h:mm a')}${shift.note ? ` · ${shift.note}` : ''}`}
                       aria-label={`${name}, ${format(start, 'h:mm a')} to ${format(end, 'h:mm a')} on ${format(start, 'EEEE MMMM d')}${editable ? '. Edit' : ''}`}
                       className={cn(

@@ -7,7 +7,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Trash2, CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { RosterMember } from '@/hooks/useRoster';
 import type { Shift } from '@/hooks/useShifts';
 import { atMinutes, editorTimeOptions, minutesFromMidnight } from '@/lib/schedule';
@@ -42,27 +45,29 @@ export function ShiftEditor({
 }: ShiftEditorProps) {
   const timeOptions = editorTimeOptions();
   const [workerId, setWorkerId] = useState<string>('');
+  const [targetDay, setTargetDay] = useState<Date>(day);
   const [start, setStart] = useState<number>(8 * 60);
   const [end, setEnd] = useState<number>(16 * 60);
   const [note, setNote] = useState('');
+  const [dateOpen, setDateOpen] = useState(false);
 
   // Re-seed whenever the dialog opens, since it stays mounted between uses.
   useEffect(() => {
     if (!open) return;
     if (shift) {
       setWorkerId(shift.worker_id);
+      setTargetDay(new Date(shift.starts_at));
       setStart(minutesFromMidnight(new Date(shift.starts_at)));
       setEnd(minutesFromMidnight(new Date(shift.ends_at)));
       setNote(shift.note ?? '');
     } else {
       setWorkerId(defaultWorkerId ?? '');
+      setTargetDay(day);
       setStart(8 * 60);
       setEnd(16 * 60);
       setNote('');
     }
-  }, [open, shift, defaultWorkerId]);
-
-  const targetDay = shift ? new Date(shift.starts_at) : day;
+  }, [open, shift, day, defaultWorkerId]);
   const invalidRange = end <= start;
   const canSave = !!workerId && !invalidRange && !isSaving;
 
@@ -100,6 +105,37 @@ export function ShiftEditor({
               </Select>
             </div>
           )}
+
+          {/* The date is editable. It used to be fixed to whatever day the
+              dialog was opened on — always today — which meant the button could
+              only ever create one shift, and every attempt after that collided
+              with it. */}
+          <div className="space-y-2">
+            <Label htmlFor="shift-date">Date</Label>
+            <Popover open={dateOpen} onOpenChange={setDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="shift-date"
+                  variant="outline"
+                  className={cn('w-full justify-start text-left font-normal')}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(targetDay, 'EEEE, MMMM d, yyyy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={targetDay}
+                  onSelect={(d) => {
+                    if (d) setTargetDay(d);
+                    setDateOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">

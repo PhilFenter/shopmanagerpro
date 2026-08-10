@@ -2713,6 +2713,30 @@ export type Database = {
         }
         Returns: boolean
       }
+      upsert_shift: {
+        Args: {
+          p_ends_at: string
+          p_note?: string
+          p_starts_at: string
+          p_worker_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          ends_at: string
+          id: string
+          note: string | null
+          starts_at: string
+          updated_at: string
+          worker_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shifts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "team" | "manager"

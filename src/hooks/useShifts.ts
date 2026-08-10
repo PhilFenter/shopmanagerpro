@@ -25,7 +25,7 @@ export interface NewShift {
 /** Turns the database's constraint names into something a person can act on. */
 function describeShiftError(message: string): string {
   if (message.includes('shifts_no_overlap')) {
-    return 'That overlaps a shift this person already has.';
+    return 'Those hours run into another shift for the same person. Adjust the times, or drag on the calendar to extend the existing one.';
   }
   if (message.includes('shifts_end_after_start')) {
     return 'The end time has to be after the start time.';
@@ -83,13 +83,19 @@ export function useShifts(rangeStart: Date, rangeEnd: Date) {
 
   const createShift = useMutation({
     mutationFn: async (shift: NewShift) => {
-      const { data, error } = await supabase
-        .from('shifts')
-        .insert({ ...shift, created_by: user!.id })
-        .select()
-        .single();
+      // Goes through upsert_shift rather than a plain insert: if the new hours
+      // touch or overlap one of this worker's existing shifts, the function
+      // merges them into a single block instead of tripping the no-overlap
+      // constraint. Dragging across your own shift to extend it is a normal
+      // thing to do and shouldn't produce an error.
+      const { data, error } = await supabase.rpc('upsert_shift', {
+        p_worker_id: shift.worker_id,
+        p_starts_at: shift.starts_at,
+        p_ends_at: shift.ends_at,
+        p_note: shift.note ?? null,
+      });
       if (error) throw error;
-      return data as Shift;
+      return data as unknown as Shift;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
