@@ -75,6 +75,7 @@ const QuoteDetail = lazyWithReload(() => import("./pages/QuoteDetail"));
 const PurchaseOrders = lazyWithReload(() => import("./pages/PurchaseOrders"));
 const Handoffs = lazyWithReload(() => import("./pages/Handoffs"));
 const Schedule = lazyWithReload(() => import("./pages/Schedule"));
+const ResetPassword = lazyWithReload(() => import("./pages/ResetPassword"));
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
@@ -312,6 +313,10 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  {/* Public on purpose: someone resetting a password is not
+                      signed in yet, and the recovery link must open without a
+                      ProtectedRoute bouncing them to /auth. */}
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/install" element={<Install />} />
                   <Route path="/quote/approve/:token" element={<QuoteApproval />} />
                   <Route
