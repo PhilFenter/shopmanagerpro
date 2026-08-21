@@ -380,6 +380,7 @@ export type Database = {
           phone: string | null
           preferred_contact: string | null
           referral_source: string | null
+          search_text: string | null
           source: string | null
           state: string | null
           tags: string[] | null
@@ -405,6 +406,7 @@ export type Database = {
           phone?: string | null
           preferred_contact?: string | null
           referral_source?: string | null
+          search_text?: string | null
           source?: string | null
           state?: string | null
           tags?: string[] | null
@@ -430,6 +432,7 @@ export type Database = {
           phone?: string | null
           preferred_contact?: string | null
           referral_source?: string | null
+          search_text?: string | null
           source?: string | null
           state?: string | null
           tags?: string[] | null
@@ -2106,6 +2109,47 @@ export type Database = {
           },
         ]
       }
+      shifts: {
+        Row: {
+          created_at: string
+          created_by: string
+          ends_at: string
+          id: string
+          note: string | null
+          starts_at: string
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          ends_at: string
+          id?: string
+          note?: string | null
+          starts_at: string
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          ends_at?: string
+          id?: string
+          note?: string | null
+          starts_at?: string
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skill_records: {
         Row: {
           created_at: string
@@ -2612,6 +2656,8 @@ export type Database = {
         Args: { num_days: number; start_date: string }
         Returns: string
       }
+      current_worker_id: { Args: never; Returns: string }
+      customer_analytics: { Args: never; Returns: Json }
       get_team_members_safe: {
         Args: never
         Returns: {
@@ -2625,6 +2671,15 @@ export type Database = {
           weekly_hours: number
         }[]
       }
+      get_workers_safe: {
+        Args: never
+        Returns: {
+          id: string
+          is_active: boolean
+          name: string
+          profile_id: string
+        }[]
+      }
       has_financial_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -2632,6 +2687,30 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      upsert_shift: {
+        Args: {
+          p_ends_at: string
+          p_note?: string
+          p_starts_at: string
+          p_worker_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          ends_at: string
+          id: string
+          note: string | null
+          starts_at: string
+          updated_at: string
+          worker_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shifts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
