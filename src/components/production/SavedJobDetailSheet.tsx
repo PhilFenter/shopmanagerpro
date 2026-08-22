@@ -212,15 +212,41 @@ export function SavedJobDetailSheet({
 
           <Separator />
 
-          <div className="flex gap-3">
-            <Button className="flex-1" onClick={() => { onLoadForReorder(); onOpenChange(false); }}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Load for Reorder
+          <div className="space-y-3">
+            <Button
+              className="w-full"
+              onClick={handlePushToPrintavo}
+              disabled={!jobId || pushing}
+              title={jobId ? undefined : 'Link this recipe to a job first'}
+            >
+              {pushing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              Send to Printavo production files
             </Button>
-            <Button variant="destructive" size="icon" onClick={() => { onDelete(); onOpenChange(false); }}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {!jobId && (
+              <p className="text-xs text-muted-foreground">
+                Link this recipe to a job to send it to Printavo.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={handleDownload}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Download PDF
+              </Button>
+              <Button variant="secondary" className="flex-1" onClick={() => { onLoadForReorder(); onOpenChange(false); }}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Load for Reorder
+              </Button>
+              <Button variant="destructive" size="icon" onClick={() => { onDelete(); onOpenChange(false); }}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
+
         </div>
       </SheetContent>
     </Sheet>
