@@ -1146,6 +1146,7 @@ export default function ScreenPrint() {
                 subtitle={viewingRecipe?.customer_name}
                 jobId={viewingRecipe?.job_id}
                 rating={viewingRecipe?.quality_rating}
+                processLabel="Screen Print"
                 badges={viewingRecipe ? [{ label: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' }] : []}
                 sections={viewingRecipe ? [
                   {
@@ -1159,6 +1160,40 @@ export default function ScreenPrint() {
                       { label: 'Cure Time', value: viewingRecipe.cure_time ? `${viewingRecipe.cure_time}s` : null, mono: true },
                     ],
                   },
+                  ...(Array.isArray(viewingRecipe.platen_setup) && viewingRecipe.platen_setup.some((p: any) => p?.settings) ? [{
+                    title: 'Press Setup',
+                    fields: viewingRecipe.platen_setup
+                      .filter((p: any) => p?.settings && Object.values(p.settings).some((v) => v !== null && v !== '' && v !== false))
+                      .map((p: any) => {
+                        const s = p.settings || {};
+                        const bits: string[] = [];
+                        if (p.equipment_type === 'flash') {
+                          if (s.flashType) bits.push(`${s.flashType} flash`);
+                          if (s.flashTemp) bits.push(`${s.flashTemp}°F`);
+                          if (s.flashTime) bits.push(`${s.flashTime}s`);
+                          if (s.flashHeight) bits.push(`height ${s.flashHeight}`);
+                        } else if (p.equipment_type === 'stampinator') {
+                          if (s.stampTemp) bits.push(`${s.stampTemp}°F`);
+                          if (s.stampTime) bits.push(`${s.stampTime}s`);
+                          if (s.stampPressure) bits.push(`${s.stampPressure} psi`);
+                        } else {
+                          if (s.pantone) bits.push(s.pantone);
+                          if (s.screenMesh) bits.push(`${s.screenMesh} mesh`);
+                          if (s.airPressure) bits.push(`${s.airPressure} psi`);
+                          if (s.printSpeed) bits.push(`print ${s.printSpeed}`);
+                          if (s.floodSpeed) bits.push(`flood ${s.floodSpeed}`);
+                          if (s.squeegeeAngle) bits.push(`sq angle ${s.squeegeeAngle}`);
+                          if (s.floodAngle) bits.push(`flood angle ${s.floodAngle}`);
+                          if (s.squeegeeHeight) bits.push(`sq ht ${s.squeegeeHeight}`);
+                          if (s.floodHeight) bits.push(`flood ht ${s.floodHeight}`);
+                        }
+                        return {
+                          label: `Position ${p.position}${p.equipment_type && p.equipment_type !== 'printhead' ? ` (${p.equipment_type})` : ''}`,
+                          value: bits.join(' • ') || null,
+                        };
+                      })
+                      .filter((f: any) => f.value),
+                  }] : []),
                   ...(viewingRecipe.ink_colors && viewingRecipe.ink_colors.length > 0 ? [{
                     title: 'Ink Colors',
                     fields: viewingRecipe.ink_colors.map((ink, i) => ({
@@ -1167,6 +1202,7 @@ export default function ScreenPrint() {
                     })),
                   }] : []),
                 ] : []}
+
                 notes={viewingRecipe?.notes}
                 updatedAt={viewingRecipe?.updated_at}
                 onLoadForReorder={() => viewingRecipe && loadRecipe(viewingRecipe)}
