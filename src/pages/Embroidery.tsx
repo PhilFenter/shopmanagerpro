@@ -651,6 +651,7 @@ export default function Embroidery() {
               <SavedJobDetailSheet
                 open={!!viewingRecipe}
                 onOpenChange={(open) => !open && setViewingRecipe(null)}
+                processLabel="Embroidery"
                 title={viewingRecipe?.name || ''}
                 subtitle={viewingRecipe?.customer_name}
                 jobId={viewingRecipe?.job_id}

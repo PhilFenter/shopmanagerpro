@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { RotateCcw, Trash2, Calendar, Camera, Loader2 } from 'lucide-react';
+import { RotateCcw, Trash2, Calendar, Camera, Loader2, FileDown, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { useJobPhotos } from '@/hooks/useJobPhotos';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { downloadRecipePdf, recipePdfBlob, recipePdfFilename } from '@/lib/recipePdf';
+
 
 interface DetailField {
   label: string;
@@ -30,6 +35,8 @@ interface SavedJobDetailSheetProps {
   rating?: number | null;
   /** Job ID to fetch and display associated photos */
   jobId?: string | null;
+  /** Human label for the process, e.g. "Screen Print" — used on the exported PDF */
+  processLabel?: string;
   onLoadForReorder: () => void;
   onDelete: () => void;
 }
@@ -46,10 +53,76 @@ export function SavedJobDetailSheet({
   updatedAt,
   rating,
   jobId,
+  processLabel,
   onLoadForReorder,
   onDelete,
 }: SavedJobDetailSheetProps) {
   const { photos, isLoading: photosLoading } = useJobPhotos(open && jobId ? jobId : undefined);
+  const [pushing, setPushing] = useState(false);
+
+  const pdfInput = {
+    title,
+    subtitle,
+    badges: badges?.map((b) => b.label),
+    sections: sections.map((s) => ({
+      title: s.title,
+      fields: s.fields.map((f) => ({ label: f.label, value: f.value })),
+    })),
+    notes,
+    updatedAt,
+    processLabel,
+  };
+
+  const handleDownload = () => {
+    try {
+      downloadRecipePdf(pdfInput);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not create the PDF');
+    }
+  };
+
+  const handlePushToPrintavo = async () => {
+    if (!jobId) return;
+    setPushing(true);
+    try {
+      const blob = recipePdfBlob(pdfInput);
+      const path = `${jobId}/${Date.now()}-${recipePdfFilename(pdfInput)}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('production-files')
+        .upload(path, blob, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) throw uploadError;
+
+      // Printavo fetches the file from this URL, so it needs to be reachable
+      // without a session for a short window.
+      const { data: signed, error: signError } = await supabase.storage
+        .from('production-files')
+        .createSignedUrl(path, 60 * 60 * 24 * 30);
+      if (signError || !signed?.signedUrl) throw signError || new Error('Could not create file link');
+
+      const { data, error } = await supabase.functions.invoke('push-production-file', {
+        body: { jobId, fileUrl: signed.signedUrl },
+      });
+
+      if (error) {
+        const details = (error as any)?.context
+          ? await (error as any).context.text()
+          : error.message;
+        let msg = details;
+        try {
+          msg = JSON.parse(details)?.error || details;
+        } catch { /* keep raw */ }
+        throw new Error(msg);
+      }
+
+      toast.success(`Added to Printavo order ${data?.printavoOrder ?? ''}`.trim());
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to send to Printavo');
+    } finally {
+      setPushing(false);
+    }
+  };
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -139,15 +212,41 @@ export function SavedJobDetailSheet({
 
           <Separator />
 
-          <div className="flex gap-3">
-            <Button className="flex-1" onClick={() => { onLoadForReorder(); onOpenChange(false); }}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Load for Reorder
+          <div className="space-y-3">
+            <Button
+              className="w-full"
+              onClick={handlePushToPrintavo}
+              disabled={!jobId || pushing}
+              title={jobId ? undefined : 'Link this recipe to a job first'}
+            >
+              {pushing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              Send to Printavo production files
             </Button>
-            <Button variant="destructive" size="icon" onClick={() => { onDelete(); onOpenChange(false); }}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {!jobId && (
+              <p className="text-xs text-muted-foreground">
+                Link this recipe to a job to send it to Printavo.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={handleDownload}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Download PDF
+              </Button>
+              <Button variant="secondary" className="flex-1" onClick={() => { onLoadForReorder(); onOpenChange(false); }}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Load for Reorder
+              </Button>
+              <Button variant="destructive" size="icon" onClick={() => { onDelete(); onOpenChange(false); }}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
+
         </div>
       </SheetContent>
     </Sheet>
