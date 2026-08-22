@@ -35,6 +35,8 @@ interface SavedJobDetailSheetProps {
   rating?: number | null;
   /** Job ID to fetch and display associated photos */
   jobId?: string | null;
+  /** Human label for the process, e.g. "Screen Print" — used on the exported PDF */
+  processLabel?: string;
   onLoadForReorder: () => void;
   onDelete: () => void;
 }
@@ -51,10 +53,76 @@ export function SavedJobDetailSheet({
   updatedAt,
   rating,
   jobId,
+  processLabel,
   onLoadForReorder,
   onDelete,
 }: SavedJobDetailSheetProps) {
   const { photos, isLoading: photosLoading } = useJobPhotos(open && jobId ? jobId : undefined);
+  const [pushing, setPushing] = useState(false);
+
+  const pdfInput = {
+    title,
+    subtitle,
+    badges: badges?.map((b) => b.label),
+    sections: sections.map((s) => ({
+      title: s.title,
+      fields: s.fields.map((f) => ({ label: f.label, value: f.value })),
+    })),
+    notes,
+    updatedAt,
+    processLabel,
+  };
+
+  const handleDownload = () => {
+    try {
+      downloadRecipePdf(pdfInput);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not create the PDF');
+    }
+  };
+
+  const handlePushToPrintavo = async () => {
+    if (!jobId) return;
+    setPushing(true);
+    try {
+      const blob = recipePdfBlob(pdfInput);
+      const path = `${jobId}/${Date.now()}-${recipePdfFilename(pdfInput)}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('production-files')
+        .upload(path, blob, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) throw uploadError;
+
+      // Printavo fetches the file from this URL, so it needs to be reachable
+      // without a session for a short window.
+      const { data: signed, error: signError } = await supabase.storage
+        .from('production-files')
+        .createSignedUrl(path, 60 * 60 * 24 * 30);
+      if (signError || !signed?.signedUrl) throw signError || new Error('Could not create file link');
+
+      const { data, error } = await supabase.functions.invoke('push-production-file', {
+        body: { jobId, fileUrl: signed.signedUrl },
+      });
+
+      if (error) {
+        const details = (error as any)?.context
+          ? await (error as any).context.text()
+          : error.message;
+        let msg = details;
+        try {
+          msg = JSON.parse(details)?.error || details;
+        } catch { /* keep raw */ }
+        throw new Error(msg);
+      }
+
+      toast.success(`Added to Printavo order ${data?.printavoOrder ?? ''}`.trim());
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to send to Printavo');
+    } finally {
+      setPushing(false);
+    }
+  };
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
