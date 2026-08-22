@@ -774,6 +774,7 @@ export default function Leather() {
               <SavedJobDetailSheet
                 open={!!viewingRecipe}
                 onOpenChange={(open) => !open && setViewingRecipe(null)}
+                processLabel="Leather"
                 title={viewingRecipe?.name || ''}
                 subtitle={viewingRecipe?.customer_name}
                 jobId={viewingRecipe?.job_id}
