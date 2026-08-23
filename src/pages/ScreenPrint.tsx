@@ -785,12 +785,12 @@ export default function ScreenPrint() {
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label className="text-xs">
-                                {position.flash?.flashType === 'manual' ? 'Temp Dial Position:' : 'Flash Temperature (°F):'}
+                                {position.flash?.flashType === 'manual' ? 'Temp Dial Position:' : 'Flash Temperature (°C):'}
                               </Label>
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '350'}
+                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '180'}
                                 value={position.flash?.flashTemp ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
