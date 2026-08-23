@@ -269,7 +269,7 @@ export default function ScreenPrint() {
     }
     setPositions(initial);
     
-    setEnvironment({ shopTemp: null, platenTemp: null, dryerTemp1: null, dryerTemp2: null, beltSpeed: null });
+    setEnvironment({ shopTemp: null, platenTemp: null, dryerTemp1: 700, dryerTemp2: 550, beltSpeed: null });
     setRating(0);
     setNotes('');
     setPhotos([
