@@ -21,6 +21,8 @@ export interface ScreenPrintRecipe {
   id: string;
   job_id: string | null;
   print_id: string | null;
+  name: string;
+
 
   customer_name: string | null;
   print_type: 'single' | 'multi_rotation';
