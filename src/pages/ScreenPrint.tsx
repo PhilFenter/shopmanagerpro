@@ -1360,10 +1360,12 @@ export default function ScreenPrint() {
                         const s = p.settings || {};
                         const bits: string[] = [];
                         if (p.equipment_type === 'flash') {
-                          if (s.flashType) bits.push(`${s.flashType} flash`);
-                          if (s.flashTemp) bits.push(`${s.flashTemp}°F`);
-                          if (s.flashTime) bits.push(`${s.flashTime}s`);
+                          const isManual = s.flashType === 'manual';
+                          if (s.flashType) bits.push(isManual ? 'Manual flash (dial)' : 'Smart flash');
+                          if (s.flashTemp) bits.push(isManual ? `temp dial ${s.flashTemp}` : `${s.flashTemp}°C`);
+                          if (s.flashTime) bits.push(isManual ? `time dial ${s.flashTime}` : `${s.flashTime}s`);
                           if (s.flashHeight) bits.push(`height ${s.flashHeight}`);
+
                         } else if (p.equipment_type === 'stampinator') {
                           if (s.stampTemp) bits.push(`${s.stampTemp}°C`);
                         } else {
