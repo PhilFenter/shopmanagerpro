@@ -85,8 +85,8 @@ const defaultPrintHead: PrintHeadSettings = {
 
 const defaultFlash: FlashSettings = {
   flashType: 'smart',
-  flashTemp: null,
-  flashTime: null,
+  flashTemp: 102,
+  flashTime: 3,
   flashHeight: null,
   flashActive: false,
 };
