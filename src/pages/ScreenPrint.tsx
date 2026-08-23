@@ -186,6 +186,20 @@ export default function ScreenPrint() {
     return matchesSearch && matchesRating;
   });
 
+  // Group saved recipes by job so multiple prints on one job stay together
+  const groupedRecipes = (() => {
+    const map = new Map<string, { key: string; title: string; subtitle: string | null; recipes: typeof filteredRecipes }>();
+    for (const r of filteredRecipes) {
+      const baseName = r.name.includes(' — ') ? r.name.split(' — ')[0] : r.name;
+      const key = r.job_id || `name:${baseName}`;
+      if (!map.has(key)) {
+        map.set(key, { key, title: baseName, subtitle: r.customer_name || null, recipes: [] });
+      }
+      map.get(key)!.recipes.push(r);
+    }
+    return Array.from(map.values());
+  })();
+
   // Update position equipment type
   const updateEquipment = (pos: number, type: EquipmentType) => {
     setPositions(prev => ({
@@ -348,7 +362,7 @@ export default function ScreenPrint() {
   };
 
   // Save job
-  const handleSave = async () => {
+  const handleSave = async (keepGoing = false) => {
     if (!jobNumber.trim() && !jobDescription.trim()) {
       alert('Please enter a job number or description');
       return;
@@ -367,8 +381,14 @@ export default function ScreenPrint() {
                  data.equipmentType === 'stampinator' ? data.stampinator : null,
       }));
 
+      const selectedPrint = prints.find((p) => p.id === selectedPrintId);
+      const baseName = jobNumber || jobDescription;
+      const printLabel = selectedPrint
+        ? `${selectedPrint.design_name} • ${selectedPrint.location}`
+        : null;
+
       const recipeData: any = {
-        name: jobNumber || jobDescription,
+        name: printLabel ? `${baseName} — ${printLabel}` : baseName,
         customer_name: jobDescription || null,
         job_id: linkedJobId,
         print_id: selectedPrintId,
@@ -389,7 +409,16 @@ export default function ScreenPrint() {
       } else {
         await createRecipe.mutateAsync(recipeData);
       }
-      
+
+      if (keepGoing) {
+        // Stay on this job, start a fresh recipe for the next print
+        setEditingRecipeId(null);
+        setSelectedPrintId(null);
+        setRating(0);
+        setNotes('');
+        return;
+      }
+
       clearAll();
       setActiveTab('saved');
     } finally {
@@ -1143,18 +1172,24 @@ export default function ScreenPrint() {
           />
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Button variant="outline" onClick={clearAll}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Clear All
             </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
+            {linkedJobId && (
+              <Button variant="secondary" onClick={() => handleSave(true)} disabled={isSaving}>
+                <Plus className="mr-2 h-4 w-4" />
+                Save &amp; Next Print
+              </Button>
+            )}
+            <Button className="flex-1" onClick={() => handleSave(false)} disabled={isSaving}>
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              {editingRecipeId ? 'Update Job' : 'Save Job'}
+              {editingRecipeId ? 'Update Recipe' : 'Save Recipe'}
             </Button>
           </div>
 
@@ -1223,23 +1258,43 @@ export default function ScreenPrint() {
             </Card>
           ) : (
             <>
-              <div className="space-y-2">
-                {filteredRecipes.map((recipe) => (
-                  <Card 
-                    key={recipe.id} 
-                    className="cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => setViewingRecipe(recipe)}
-                  >
-                    <CardContent className="flex items-center justify-between py-4">
-                      <div>
-                        <div className="font-semibold">{recipe.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {recipe.customer_name || 'No description'} | {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
-                        </div>
-                      </div>
-                      <div className="text-primary">
-                        {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
-                      </div>
+              <div className="space-y-3">
+                {groupedRecipes.map((group) => (
+                  <Card key={group.key}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center justify-between gap-3">
+                        <span className="truncate">{group.title}</span>
+                        <span className="shrink-0 text-xs font-normal text-muted-foreground">
+                          {group.recipes.length} {group.recipes.length === 1 ? 'print' : 'prints'}
+                        </span>
+                      </CardTitle>
+                      {group.subtitle && (
+                        <p className="text-sm text-muted-foreground">{group.subtitle}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-2 pb-4">
+                      {group.recipes.map((recipe) => (
+                        <button
+                          key={recipe.id}
+                          type="button"
+                          onClick={() => setViewingRecipe(recipe)}
+                          className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {recipe.name.includes(' — ')
+                                ? recipe.name.split(' — ').slice(1).join(' — ')
+                                : 'Whole job (no specific print)'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-primary">
+                            {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
+                          </div>
+                        </button>
+                      ))}
                     </CardContent>
                   </Card>
                 ))}
