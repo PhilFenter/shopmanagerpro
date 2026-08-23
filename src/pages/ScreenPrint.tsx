@@ -997,9 +997,6 @@ export default function ScreenPrint() {
                           </div>
                         </div>
                       )}
-                          </div>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 );
