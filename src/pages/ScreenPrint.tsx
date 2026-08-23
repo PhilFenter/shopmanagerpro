@@ -1158,18 +1158,24 @@ export default function ScreenPrint() {
           />
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Button variant="outline" onClick={clearAll}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Clear All
             </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
+            {linkedJobId && (
+              <Button variant="secondary" onClick={() => handleSave(true)} disabled={isSaving}>
+                <Plus className="mr-2 h-4 w-4" />
+                Save &amp; Next Print
+              </Button>
+            )}
+            <Button className="flex-1" onClick={() => handleSave(false)} disabled={isSaving}>
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              {editingRecipeId ? 'Update Job' : 'Save Job'}
+              {editingRecipeId ? 'Update Recipe' : 'Save Recipe'}
             </Button>
           </div>
 
