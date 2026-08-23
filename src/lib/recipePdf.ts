@@ -124,10 +124,51 @@ export function recipePdfFilename(input: RecipePdfInput): string {
   return `${proc}-${safe || 'recipe'}.pdf`;
 }
 
-export function downloadRecipePdf(input: RecipePdfInput) {
-  buildRecipePdf(input).save(recipePdfFilename(input));
-}
-
 export function recipePdfBlob(input: RecipePdfInput): Blob {
   return buildRecipePdf(input).output('blob');
+}
+
+/**
+ * Saves the recipe PDF. Inside the preview iframe (and some in-app browsers)
+ * a plain anchor download is blocked, so fall back to opening the PDF in a
+ * new tab where the user can save it manually.
+ */
+export function downloadRecipePdf(input: RecipePdfInput): 'downloaded' | 'opened' {
+  const blob = recipePdfBlob(input);
+  const filename = recipePdfFilename(input);
+  const url = URL.createObjectURL(blob);
+
+  const sandboxed = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+
+  if (!sandboxed) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return 'downloaded';
+  }
+
+  const win = window.open(url, '_blank', 'noopener');
+  if (!win) {
+    // Popup blocked — try the anchor route anyway as a last resort.
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return 'opened';
 }
