@@ -805,13 +805,15 @@ export default function ScreenPrint() {
                             </div>
                             <div>
                               <Label className="text-xs">
-                                {position.flash?.flashType === 'manual' ? 'Time Dial Position:' : 'Flash Time (seconds):'}
+                                {position.flash?.flashType === 'manual' ? 'Time Dial (1-10):' : 'Flash Time (seconds):'}
                               </Label>
                               <Input
                                 type="number"
                                 inputMode="decimal"
                                 step="0.1"
-                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 3' : '3'}
+                                min={position.flash?.flashType === 'manual' ? 1 : undefined}
+                                max={position.flash?.flashType === 'manual' ? 10 : undefined}
+                                placeholder={position.flash?.flashType === 'manual' ? '5' : '3'}
                                 value={position.flash?.flashTime ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTime', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
