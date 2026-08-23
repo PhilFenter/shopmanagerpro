@@ -75,7 +75,12 @@ export function SavedJobDetailSheet({
 
   const handleDownload = () => {
     try {
-      downloadRecipePdf(pdfInput);
+      const result = downloadRecipePdf(pdfInput);
+      if (result === 'opened') {
+        toast.success('Recipe PDF opened in a new tab — use your browser to save it');
+      } else {
+        toast.success('Recipe PDF downloaded');
+      }
     } catch (e: any) {
       toast.error(e?.message || 'Could not create the PDF');
     }
