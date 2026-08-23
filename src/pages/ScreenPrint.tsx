@@ -126,6 +126,10 @@ export default function ScreenPrint() {
 
   // Job setup state
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
+  const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const { prints } = useJobPrints(linkedJobId);
   const [jobNumber, setJobNumber] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [operator, setOperator] = useState('');
