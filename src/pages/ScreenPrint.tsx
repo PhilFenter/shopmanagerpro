@@ -1272,8 +1272,19 @@ export default function ScreenPrint() {
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base flex items-center justify-between gap-3">
                         <span className="truncate">{group.title}</span>
-                        <span className="shrink-0 text-xs font-normal text-muted-foreground">
-                          {group.recipes.length} {group.recipes.length === 1 ? 'print' : 'prints'}
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {group.recipes.length} {group.recipes.length === 1 ? 'print' : 'prints'}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            title="Delete all recipes for this job"
+                            onClick={() => handleDeleteGroup(group.recipes.map((r) => r.id), group.title)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </span>
                       </CardTitle>
                       {group.subtitle && (
@@ -1282,11 +1293,13 @@ export default function ScreenPrint() {
                     </CardHeader>
                     <CardContent className="space-y-2 pb-4">
                       {group.recipes.map((recipe) => (
-                        <button
+                        <div
                           key={recipe.id}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setViewingRecipe(recipe)}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
+                          onKeyDown={(e) => e.key === 'Enter' && setViewingRecipe(recipe)}
+                          className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
                         >
                           <div className="min-w-0">
                             <div className="truncate font-medium">
@@ -1298,10 +1311,21 @@ export default function ScreenPrint() {
                               {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
                             </div>
                           </div>
-                          <div className="shrink-0 text-primary">
-                            {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
+                          <div className="flex shrink-0 items-center gap-1">
+                            <span className="text-primary">
+                              {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              title="Delete this recipe"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(recipe.id); }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </CardContent>
                   </Card>
