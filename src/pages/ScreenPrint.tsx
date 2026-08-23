@@ -186,6 +186,20 @@ export default function ScreenPrint() {
     return matchesSearch && matchesRating;
   });
 
+  // Group saved recipes by job so multiple prints on one job stay together
+  const groupedRecipes = (() => {
+    const map = new Map<string, { key: string; title: string; subtitle: string | null; recipes: typeof filteredRecipes }>();
+    for (const r of filteredRecipes) {
+      const baseName = r.name.includes(' — ') ? r.name.split(' — ')[0] : r.name;
+      const key = r.job_id || `name:${baseName}`;
+      if (!map.has(key)) {
+        map.set(key, { key, title: baseName, subtitle: r.customer_name || null, recipes: [] });
+      }
+      map.get(key)!.recipes.push(r);
+    }
+    return Array.from(map.values());
+  })();
+
   // Update position equipment type
   const updateEquipment = (pos: number, type: EquipmentType) => {
     setPositions(prev => ({
