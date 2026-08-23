@@ -70,6 +70,17 @@ interface EnvironmentSettings {
   beltSpeed: number | null;
 }
 
+const readSavedEnvironment = (value: string | null): Partial<EnvironmentSettings> => {
+  if (!value) return {};
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed as Partial<EnvironmentSettings> : {};
+  } catch {
+    return {};
+  }
+};
+
 // PhotoSlot is now imported from ProductionPhotos
 
 // Default starting settings for all print heads — shop standard baselines.
@@ -1341,17 +1352,24 @@ export default function ScreenPrint() {
                 rating={viewingRecipe?.quality_rating}
                 processLabel="Screen Print"
                 badges={viewingRecipe ? [{ label: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' }] : []}
-                sections={viewingRecipe ? [
-                  {
-                    title: 'Print Settings',
-                    fields: [
-                      { label: 'Print Type', value: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' },
-                      { label: 'Squeegee', value: viewingRecipe.squeegee_settings },
-                      { label: 'Chamber 1 Temp', value: viewingRecipe.flash_temp ? `${viewingRecipe.flash_temp}°F` : null, mono: true },
-                      { label: 'Chamber 2 Temp', value: viewingRecipe.cure_temp ? `${viewingRecipe.cure_temp}°F` : null, mono: true },
-                      { label: 'Dwell Time', value: viewingRecipe.cure_time ? `${viewingRecipe.cure_time}s` : null, mono: true },
-                    ],
-                  },
+                sections={viewingRecipe ? (() => {
+                  const savedEnvironment = readSavedEnvironment(viewingRecipe.squeegee_settings);
+                  const chamber1 = savedEnvironment.dryerTemp1 ?? viewingRecipe.flash_temp;
+                  const chamber2 = savedEnvironment.dryerTemp2 ?? viewingRecipe.cure_temp;
+                  const dwellTime = savedEnvironment.beltSpeed ?? viewingRecipe.cure_time;
+
+                  return [
+                    {
+                      title: 'Print Settings',
+                      fields: [
+                        { label: 'Print Type', value: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' },
+                        { label: 'Shop Temp', value: savedEnvironment.shopTemp != null ? `${savedEnvironment.shopTemp}°F` : null, mono: true },
+                        { label: 'Platen Temp', value: savedEnvironment.platenTemp != null ? `${savedEnvironment.platenTemp}°F` : null, mono: true },
+                        { label: 'Chamber 1 Temp', value: chamber1 != null ? `${chamber1}°F` : null, mono: true },
+                        { label: 'Chamber 2 Temp', value: chamber2 != null ? `${chamber2}°F` : null, mono: true },
+                        { label: 'Dwell Time', value: dwellTime != null ? `${dwellTime} seconds` : null, mono: true },
+                      ],
+                    },
                   ...(Array.isArray(viewingRecipe.platen_setup) && viewingRecipe.platen_setup.some((p: any) => p?.settings) ? [{
                     title: 'Press Setup',
                     fields: viewingRecipe.platen_setup
@@ -1393,7 +1411,8 @@ export default function ScreenPrint() {
                       value: `${ink.color} (${ink.type}, ${ink.mesh} mesh)`,
                     })),
                   }] : []),
-                ] : []}
+                  ];
+                })() : []}
 
                 notes={viewingRecipe?.notes}
                 updatedAt={viewingRecipe?.updated_at}
