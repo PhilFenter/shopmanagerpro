@@ -1244,23 +1244,43 @@ export default function ScreenPrint() {
             </Card>
           ) : (
             <>
-              <div className="space-y-2">
-                {filteredRecipes.map((recipe) => (
-                  <Card 
-                    key={recipe.id} 
-                    className="cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => setViewingRecipe(recipe)}
-                  >
-                    <CardContent className="flex items-center justify-between py-4">
-                      <div>
-                        <div className="font-semibold">{recipe.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {recipe.customer_name || 'No description'} | {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
-                        </div>
-                      </div>
-                      <div className="text-primary">
-                        {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
-                      </div>
+              <div className="space-y-3">
+                {groupedRecipes.map((group) => (
+                  <Card key={group.key}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center justify-between gap-3">
+                        <span className="truncate">{group.title}</span>
+                        <span className="shrink-0 text-xs font-normal text-muted-foreground">
+                          {group.recipes.length} {group.recipes.length === 1 ? 'print' : 'prints'}
+                        </span>
+                      </CardTitle>
+                      {group.subtitle && (
+                        <p className="text-sm text-muted-foreground">{group.subtitle}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-2 pb-4">
+                      {group.recipes.map((recipe) => (
+                        <button
+                          key={recipe.id}
+                          type="button"
+                          onClick={() => setViewingRecipe(recipe)}
+                          className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {recipe.name.includes(' — ')
+                                ? recipe.name.split(' — ').slice(1).join(' — ')
+                                : 'Whole job (no specific print)'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-primary">
+                            {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
+                          </div>
+                        </button>
+                      ))}
                     </CardContent>
                   </Card>
                 ))}
