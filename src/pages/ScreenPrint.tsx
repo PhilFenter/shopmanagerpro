@@ -281,6 +281,72 @@ export default function ScreenPrint() {
     setEditingRecipeId(null);
   };
 
+  // Snapshot of current press setup for the standard-recipe library
+  const buildTemplatePayload = () => {
+    const platenData = Object.entries(positions).map(([pos, data]) => ({
+      position: parseInt(pos),
+      equipment_type: data.equipmentType,
+      settings:
+        data.equipmentType === 'printhead' ? data.printhead :
+        data.equipmentType === 'flash' ? data.flash :
+        data.equipmentType === 'stampinator' ? data.stampinator : null,
+      active:
+        data.equipmentType === 'printhead' ? data.printhead?.active :
+        data.equipmentType === 'flash' ? data.flash?.flashActive :
+        data.equipmentType === 'stampinator' ? data.stampinator?.stampActive : false,
+    }));
+    return {
+      rotations,
+      platen_setup: platenData,
+      use_flash: Object.values(positions).some((p) => p.equipmentType === 'flash' && p.flash?.flashActive),
+      use_stampinator: Object.values(positions).some(
+        (p) => p.equipmentType === 'stampinator' && p.stampinator?.stampActive
+      ),
+      dryer_temp_1: environment.dryerTemp1,
+      dryer_temp_2: environment.dryerTemp2,
+      belt_speed: environment.beltSpeed,
+      notes: notes || null,
+    };
+  };
+
+  // Apply a standard recipe from the library onto the current setup
+  const applyTemplate = (t: RecipeTemplate) => {
+    setRotations(t.rotations || 1);
+    setPrintType((t.rotations || 1) > 1 ? 'multi' : 'single');
+    setEnvironment((prev) => ({
+      ...prev,
+      dryerTemp1: t.dryer_temp_1 ?? prev.dryerTemp1,
+      dryerTemp2: t.dryer_temp_2 ?? prev.dryerTemp2,
+      beltSpeed: t.belt_speed ?? prev.beltSpeed,
+    }));
+
+    if (Array.isArray(t.platen_setup) && t.platen_setup.length > 0) {
+      const newPositions: Record<number, PositionData> = {};
+      for (let i = 1; i <= 12; i++) {
+        const saved = t.platen_setup.find((p: any) => p.position === i);
+        if (saved && saved.equipment_type) {
+          newPositions[i] = {
+            equipmentType: saved.equipment_type as EquipmentType,
+            printhead: saved.equipment_type === 'printhead' ? { ...defaultPrintHead, ...saved.settings } : { ...defaultPrintHead },
+            flash: saved.equipment_type === 'flash' ? { ...defaultFlash, ...saved.settings } : { ...defaultFlash },
+            stampinator: saved.equipment_type === 'stampinator' ? { ...defaultStamp, ...saved.settings } : { ...defaultStamp },
+          };
+        } else {
+          newPositions[i] = {
+            equipmentType: getDefaultEquipment(i),
+            printhead: { ...defaultPrintHead },
+            flash: { ...defaultFlash },
+            stampinator: { ...defaultStamp },
+          };
+        }
+      }
+      setPositions(newPositions);
+    }
+
+    const summary = [t.name, t.description].filter(Boolean).join(' — ');
+    setNotes((prev) => (prev ? `${prev}\n\nFrom library: ${summary}` : `From library: ${summary}`));
+  };
+
   // Save job
   const handleSave = async () => {
     if (!jobNumber.trim() && !jobDescription.trim()) {
