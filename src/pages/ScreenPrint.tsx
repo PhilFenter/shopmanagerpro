@@ -18,6 +18,9 @@ import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionP
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 import { JobPrintsManager } from '@/components/jobs/JobPrintsManager';
+import { useJobPrints } from '@/hooks/useJobPrints';
+import { RecipeTemplateLibraryDialog, SaveRecipeTemplateDialog } from '@/components/production/RecipeTemplateLibrary';
+import type { RecipeTemplate } from '@/hooks/useRecipeTemplates';
 import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Types for position settings
