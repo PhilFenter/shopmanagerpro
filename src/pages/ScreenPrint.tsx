@@ -248,6 +248,7 @@ export default function ScreenPrint() {
     if (!confirm('Clear all settings? This will reset all fields.')) return;
     
     setLinkedJobId(null);
+    setSelectedPrintId(null);
     setJobNumber('');
     setJobDescription('');
     setOperator('');
