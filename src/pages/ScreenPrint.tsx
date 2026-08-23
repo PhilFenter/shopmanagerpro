@@ -157,8 +157,8 @@ export default function ScreenPrint() {
   const [environment, setEnvironment] = useState<EnvironmentSettings>({
     shopTemp: null,
     platenTemp: null,
-    dryerTemp1: null,
-    dryerTemp2: null,
+    dryerTemp1: 700,
+    dryerTemp2: 550,
     beltSpeed: null,
   });
 
