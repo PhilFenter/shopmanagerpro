@@ -348,7 +348,7 @@ export default function ScreenPrint() {
   };
 
   // Save job
-  const handleSave = async () => {
+  const handleSave = async (keepGoing = false) => {
     if (!jobNumber.trim() && !jobDescription.trim()) {
       alert('Please enter a job number or description');
       return;
