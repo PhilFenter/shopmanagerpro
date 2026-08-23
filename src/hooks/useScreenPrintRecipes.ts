@@ -20,7 +20,8 @@ export interface InkColor {
 export interface ScreenPrintRecipe {
   id: string;
   job_id: string | null;
-  name: string;
+  print_id: string | null;
+
   customer_name: string | null;
   print_type: 'single' | 'multi_rotation';
   platen_setup: PlatenSetup[];
