@@ -784,18 +784,20 @@ export default function ScreenPrint() {
                           </div>
                           {position.flash?.flashType === 'manual' && (
                             <p className="text-[10px] text-muted-foreground italic">
-                              Record the dial positions below so the next operator can dial them in.
+                              Rotary dial: 1-10 on each side, time on one side and temp on the other. Nominal is 5.
                             </p>
                           )}
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label className="text-xs">
-                                {position.flash?.flashType === 'manual' ? 'Temp Dial Position:' : 'Flash Temperature (°C):'}
+                                {position.flash?.flashType === 'manual' ? 'Temp Dial (1-10):' : 'Flash Temperature (°C):'}
                               </Label>
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '102'}
+                                min={position.flash?.flashType === 'manual' ? 1 : undefined}
+                                max={position.flash?.flashType === 'manual' ? 10 : undefined}
+                                placeholder={position.flash?.flashType === 'manual' ? '5' : '102'}
                                 value={position.flash?.flashTemp ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
