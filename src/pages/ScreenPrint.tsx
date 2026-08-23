@@ -519,7 +519,7 @@ export default function ScreenPrint() {
   const getPositionBg = (equipmentType: EquipmentType) => {
     switch (equipmentType) {
       case 'flash': return 'bg-accent/50 border-accent';
-      case 'stampinator': return 'bg-secondary border-secondary';
+      case 'stampinator': return 'bg-secondary/20 border-secondary/40';
       case 'empty': return 'bg-muted/30 border-muted';
       default: return 'bg-primary/5 border-primary/20';
     }
