@@ -766,7 +766,12 @@ export default function ScreenPrint() {
                             <Label className="text-xs">Flash Type:</Label>
                             <Select
                               value={position.flash?.flashType || 'smart'}
-                              onValueChange={(v) => updateFlash(pos, 'flashType', v as 'smart' | 'manual')}
+                              onValueChange={(v) => {
+                                const isManual = v === 'manual';
+                                updateFlash(pos, 'flashType', v as 'smart' | 'manual');
+                                updateFlash(pos, 'flashTemp', isManual ? 5 : 102);
+                                updateFlash(pos, 'flashTime', isManual ? 5 : 3);
+                              }}
                             >
                               <SelectTrigger className="mt-1 h-8 text-xs">
                                 <SelectValue />
