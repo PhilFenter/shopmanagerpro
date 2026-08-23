@@ -1185,6 +1185,21 @@ export default function ScreenPrint() {
               {editingRecipeId ? 'Update Job' : 'Save Job'}
             </Button>
           </div>
+
+          <RecipeTemplateLibraryDialog
+            open={libraryOpen}
+            onOpenChange={setLibraryOpen}
+            serviceType="screen_print"
+            quantity={linkedJobId ? jobs.find((j) => j.id === linkedJobId)?.quantity ?? null : null}
+            onApply={applyTemplate}
+          />
+          <SaveRecipeTemplateDialog
+            open={saveTemplateOpen}
+            onOpenChange={setSaveTemplateOpen}
+            serviceType="screen_print"
+            buildPayload={buildTemplatePayload}
+            defaultName={jobNumber || jobDescription}
+          />
         </TabsContent>
 
         {/* SAVED JOBS TAB */}
