@@ -11,13 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X } from 'lucide-react';
+import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 import { JobPrintsManager } from '@/components/jobs/JobPrintsManager';
+import { useJobPrints } from '@/hooks/useJobPrints';
+import { RecipeTemplateLibraryDialog, SaveRecipeTemplateDialog } from '@/components/production/RecipeTemplateLibrary';
+import type { RecipeTemplate } from '@/hooks/useRecipeTemplates';
 import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Types for position settings
@@ -123,6 +126,10 @@ export default function ScreenPrint() {
 
   // Job setup state
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
+  const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const { prints } = useJobPrints(linkedJobId);
   const [jobNumber, setJobNumber] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [operator, setOperator] = useState('');
@@ -241,6 +248,7 @@ export default function ScreenPrint() {
     if (!confirm('Clear all settings? This will reset all fields.')) return;
     
     setLinkedJobId(null);
+    setSelectedPrintId(null);
     setJobNumber('');
     setJobDescription('');
     setOperator('');
@@ -273,6 +281,72 @@ export default function ScreenPrint() {
     setEditingRecipeId(null);
   };
 
+  // Snapshot of current press setup for the standard-recipe library
+  const buildTemplatePayload = () => {
+    const platenData = Object.entries(positions).map(([pos, data]) => ({
+      position: parseInt(pos),
+      equipment_type: data.equipmentType,
+      settings:
+        data.equipmentType === 'printhead' ? data.printhead :
+        data.equipmentType === 'flash' ? data.flash :
+        data.equipmentType === 'stampinator' ? data.stampinator : null,
+      active:
+        data.equipmentType === 'printhead' ? data.printhead?.active :
+        data.equipmentType === 'flash' ? data.flash?.flashActive :
+        data.equipmentType === 'stampinator' ? data.stampinator?.stampActive : false,
+    }));
+    return {
+      rotations,
+      platen_setup: platenData,
+      use_flash: Object.values(positions).some((p) => p.equipmentType === 'flash' && p.flash?.flashActive),
+      use_stampinator: Object.values(positions).some(
+        (p) => p.equipmentType === 'stampinator' && p.stampinator?.stampActive
+      ),
+      dryer_temp_1: environment.dryerTemp1,
+      dryer_temp_2: environment.dryerTemp2,
+      belt_speed: environment.beltSpeed,
+      notes: notes || null,
+    };
+  };
+
+  // Apply a standard recipe from the library onto the current setup
+  const applyTemplate = (t: RecipeTemplate) => {
+    setRotations(t.rotations || 1);
+    setPrintType((t.rotations || 1) > 1 ? 'multi' : 'single');
+    setEnvironment((prev) => ({
+      ...prev,
+      dryerTemp1: t.dryer_temp_1 ?? prev.dryerTemp1,
+      dryerTemp2: t.dryer_temp_2 ?? prev.dryerTemp2,
+      beltSpeed: t.belt_speed ?? prev.beltSpeed,
+    }));
+
+    if (Array.isArray(t.platen_setup) && t.platen_setup.length > 0) {
+      const newPositions: Record<number, PositionData> = {};
+      for (let i = 1; i <= 12; i++) {
+        const saved = t.platen_setup.find((p: any) => p.position === i);
+        if (saved && saved.equipment_type) {
+          newPositions[i] = {
+            equipmentType: saved.equipment_type as EquipmentType,
+            printhead: saved.equipment_type === 'printhead' ? { ...defaultPrintHead, ...saved.settings } : { ...defaultPrintHead },
+            flash: saved.equipment_type === 'flash' ? { ...defaultFlash, ...saved.settings } : { ...defaultFlash },
+            stampinator: saved.equipment_type === 'stampinator' ? { ...defaultStamp, ...saved.settings } : { ...defaultStamp },
+          };
+        } else {
+          newPositions[i] = {
+            equipmentType: getDefaultEquipment(i),
+            printhead: { ...defaultPrintHead },
+            flash: { ...defaultFlash },
+            stampinator: { ...defaultStamp },
+          };
+        }
+      }
+      setPositions(newPositions);
+    }
+
+    const summary = [t.name, t.description].filter(Boolean).join(' — ');
+    setNotes((prev) => (prev ? `${prev}\n\nFrom library: ${summary}` : `From library: ${summary}`));
+  };
+
   // Save job
   const handleSave = async () => {
     if (!jobNumber.trim() && !jobDescription.trim()) {
@@ -297,6 +371,7 @@ export default function ScreenPrint() {
         name: jobNumber || jobDescription,
         customer_name: jobDescription || null,
         job_id: linkedJobId,
+        print_id: selectedPrintId,
         print_type: printType === 'multi' ? 'multi_rotation' as const : 'single' as const,
         platen_setup: platenData,
         rotation_sequence: printType === 'multi' ? rotationData : null,
@@ -325,6 +400,7 @@ export default function ScreenPrint() {
   // Load saved job
   const loadRecipe = (recipe: ScreenPrintRecipe) => {
     setLinkedJobId(recipe.job_id);
+    setSelectedPrintId((recipe as any).print_id ?? null);
     setJobNumber(recipe.name);
     setJobDescription(recipe.customer_name || '');
     setPrintType(recipe.print_type === 'multi_rotation' ? 'multi' : 'single');
@@ -522,6 +598,41 @@ export default function ScreenPrint() {
                     <Clock className="h-4 w-4" />
                     {format(new Date(dateTime), 'MM/dd/yyyy, hh:mm a')}
                   </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="w-full sm:max-w-sm">
+                  <Label>This recipe is for:</Label>
+                  <Select
+                    value={selectedPrintId ?? 'none'}
+                    onValueChange={(v) => setSelectedPrintId(v === 'none' ? null : v)}
+                    disabled={!linkedJobId}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={linkedJobId ? 'Whole job (no specific print)' : 'Link a job first'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Whole job (no specific print)</SelectItem>
+                      {prints.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.design_name} • {p.location}
+                          {p.garment_color ? ` • ${p.garment_color}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Each print (design + location) can have its own recipe.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setLibraryOpen(true)}>
+                    <BookOpen className="mr-2 h-4 w-4" /> Standard Recipes
+                  </Button>
+                  <Button variant="outline" onClick={() => setSaveTemplateOpen(true)}>
+                    <Save className="mr-2 h-4 w-4" /> Save to Library
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -1074,6 +1185,21 @@ export default function ScreenPrint() {
               {editingRecipeId ? 'Update Job' : 'Save Job'}
             </Button>
           </div>
+
+          <RecipeTemplateLibraryDialog
+            open={libraryOpen}
+            onOpenChange={setLibraryOpen}
+            serviceType="screen_print"
+            quantity={linkedJobId ? jobs.find((j) => j.id === linkedJobId)?.quantity ?? null : null}
+            onApply={applyTemplate}
+          />
+          <SaveRecipeTemplateDialog
+            open={saveTemplateOpen}
+            onOpenChange={setSaveTemplateOpen}
+            serviceType="screen_print"
+            buildPayload={buildTemplatePayload}
+            defaultName={jobNumber || jobDescription}
+          />
         </TabsContent>
 
         {/* SAVED JOBS TAB */}
