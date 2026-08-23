@@ -371,6 +371,7 @@ export default function ScreenPrint() {
         name: jobNumber || jobDescription,
         customer_name: jobDescription || null,
         job_id: linkedJobId,
+        print_id: selectedPrintId,
         print_type: printType === 'multi' ? 'multi_rotation' as const : 'single' as const,
         platen_setup: platenData,
         rotation_sequence: printType === 'multi' ? rotationData : null,
