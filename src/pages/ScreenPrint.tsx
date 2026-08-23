@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X } from 'lucide-react';
+import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
