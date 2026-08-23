@@ -69,18 +69,17 @@ interface EnvironmentSettings {
 
 // PhotoSlot is now imported from ProductionPhotos
 
-// Default settings — all numeric fields start empty so users can type
-// without backspacing. Typical values are shown as placeholder hints only.
+// Default starting settings for all print heads — shop standard baselines.
 const defaultPrintHead: PrintHeadSettings = {
   pantone: '',
   screenMesh: '',
-  airPressure: null,
-  printSpeed: null,
-  floodSpeed: null,
-  squeegeeAngle: null,
-  floodAngle: null,
-  squeegeeHeight: null,
-  floodHeight: null,
+  airPressure: 40,
+  printSpeed: 4,
+  floodSpeed: 4,
+  squeegeeAngle: 10,
+  floodAngle: 20,
+  squeegeeHeight: 8,
+  floodHeight: 10,
   active: false,
 };
 
