@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { useJobPhotos } from '@/hooks/useJobPhotos';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { downloadRecipePdf, recipePdfBlob, recipePdfFilename } from '@/lib/recipePdf';
+import { downloadRecipePdf, recipePdfBlob, recipePdfFilename, isSandboxedPreview } from '@/lib/recipePdf';
 
 
 interface DetailField {
@@ -73,15 +73,38 @@ export function SavedJobDetailSheet({
     processLabel,
   };
 
-  const handleDownload = () => {
-    try {
-      const result = downloadRecipePdf(pdfInput);
-      if (result === 'opened') {
-        toast.success('Recipe PDF opened in a new tab — use your browser to save it');
-      } else {
+  const handleDownload = async () => {
+    // Blob downloads/tabs are blocked inside the preview iframe, so there we
+    // upload the PDF and open a real link instead.
+    if (!isSandboxedPreview()) {
+      try {
+        downloadRecipePdf(pdfInput);
         toast.success('Recipe PDF downloaded');
+      } catch (e: any) {
+        toast.error(e?.message || 'Could not create the PDF');
       }
+      return;
+    }
+
+    const tab = window.open('', '_blank');
+    try {
+      const blob = recipePdfBlob(pdfInput);
+      const path = `recipes/${Date.now()}-${recipePdfFilename(pdfInput)}`;
+      const { error: uploadError } = await supabase.storage
+        .from('production-files')
+        .upload(path, blob, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: signed, error: signError } = await supabase.storage
+        .from('production-files')
+        .createSignedUrl(path, 60 * 60);
+      if (signError || !signed?.signedUrl) throw signError || new Error('Could not create file link');
+
+      if (tab) tab.location.href = signed.signedUrl;
+      else window.open(signed.signedUrl, '_blank', 'noopener');
+      toast.success('Recipe PDF opened in a new tab');
     } catch (e: any) {
+      tab?.close();
       toast.error(e?.message || 'Could not create the PDF');
     }
   };
