@@ -72,6 +72,8 @@ export function useScreenPrintRecipes() {
         .insert({
           name: input.name!,
           job_id: input.job_id,
+          print_id: input.print_id ?? null,
+
           customer_name: input.customer_name,
           print_type: input.print_type ?? 'single',
           platen_setup: input.platen_setup as unknown as any,
