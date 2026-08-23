@@ -85,8 +85,8 @@ const defaultPrintHead: PrintHeadSettings = {
 
 const defaultFlash: FlashSettings = {
   flashType: 'smart',
-  flashTemp: null,
-  flashTime: null,
+  flashTemp: 102,
+  flashTime: 3,
   flashHeight: null,
   flashActive: false,
 };
@@ -790,7 +790,7 @@ export default function ScreenPrint() {
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '180'}
+                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '102'}
                                 value={position.flash?.flashTemp ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
