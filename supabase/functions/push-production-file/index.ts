@@ -76,30 +76,36 @@ Deno.serve(async (req) => {
       return { ok: res.ok, status: res.status, parsed, text };
     };
 
-    // The stored external_id is not always the GraphQL node id Printavo expects
-    // for productionFileCreate, so resolve the real order id first.
+    // The stored external_id is not always the node id Printavo expects for
+    // productionFileCreate, so resolve the real order id first.
     const searchTerm = String(job.order_number || job.invoice_number || printavoId);
     let parentId: string | null = null;
 
-    const direct = await gql(`query O($id: ID!) { order(id: $id) { id } }`, {
+    const direct = await gql(`query O($id: ID!) { invoice(id: $id) { id visualId } }`, {
       id: String(printavoId),
     });
-    if (direct.parsed?.data?.order?.id) {
-      parentId = String(direct.parsed.data.order.id);
+    if (direct.parsed?.errors?.length) {
+      console.error("invoice(id) lookup errors:", JSON.stringify(direct.parsed.errors).slice(0, 500));
+    }
+    if (direct.parsed?.data?.invoice?.id) {
+      parentId = String(direct.parsed.data.invoice.id);
     } else {
       const search = await gql(
         `query S($q: String!) {
-          invoices(first: 5, searchTerm: $q) { nodes { id visualId } }
-          quotes(first: 5, searchTerm: $q) { nodes { id visualId } }
+          orders(first: 10, searchTerm: $q) {
+            nodes {
+              ... on Invoice { id visualId }
+              ... on Quote { id visualId }
+            }
+          }
         }`,
         { q: searchTerm },
       );
-      const nodes = [
-        ...(search.parsed?.data?.invoices?.nodes ?? []),
-        ...(search.parsed?.data?.quotes?.nodes ?? []),
-      ];
-      const match =
-        nodes.find((n: any) => String(n?.visualId) === searchTerm) ?? nodes[0] ?? null;
+      if (search.parsed?.errors?.length) {
+        console.error("orders search errors:", JSON.stringify(search.parsed.errors).slice(0, 500));
+      }
+      const nodes: any[] = search.parsed?.data?.orders?.nodes ?? [];
+      const match = nodes.find((n) => String(n?.visualId) === searchTerm) ?? null;
       if (match?.id) parentId = String(match.id);
     }
 
@@ -111,6 +117,8 @@ Deno.serve(async (req) => {
         404,
       );
     }
+    console.log(`Attaching production file to Printavo order ${searchTerm} (id ${parentId})`);
+
 
     const mutation = `
       mutation ProductionFileCreate($parentId: ID!, $publicFileUrl: String!) {
