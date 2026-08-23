@@ -479,8 +479,16 @@ export default function ScreenPrint() {
 
   // Delete recipe
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this saved job?')) return;
+    if (!confirm('Delete this saved recipe?')) return;
     await deleteRecipe.mutateAsync(id);
+  };
+
+  // Delete every recipe saved under one job group
+  const handleDeleteGroup = async (ids: string[], title: string) => {
+    if (!confirm(`Delete all ${ids.length} saved recipes for "${title}"?`)) return;
+    for (const id of ids) {
+      await deleteRecipe.mutateAsync(id);
+    }
   };
 
   // Voice dictation for a single press position
