@@ -23,6 +23,10 @@ export interface RecipePdfInput {
 const MARGIN = 48;
 const PAGE_W = 612; // letter, portrait, pt
 const PAGE_H = 792;
+const CONTENT_W = PAGE_W - MARGIN * 2;
+const LABEL_W = 150;
+const VALUE_W = CONTENT_W - LABEL_W - 20;
+const LINE_H = 13;
 
 export function buildRecipePdf(input: RecipePdfInput): jsPDF {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
@@ -35,88 +39,120 @@ export function buildRecipePdf(input: RecipePdfInput): jsPDF {
     }
   };
 
-  // Header
+  // ---- Header band -------------------------------------------------------
+  doc.setFillColor(24, 24, 27);
+  doc.rect(0, 0, PAGE_W, 84, 'F');
+
+  doc.setTextColor(255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text(input.title || 'Production Recipe', MARGIN, y);
-  y += 20;
+  doc.setFontSize(17);
+  const titleLines = doc.splitTextToSize(input.title || 'Production Recipe', CONTENT_W);
+  doc.text(titleLines[0], MARGIN, 38);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
+  doc.setFontSize(10);
+  doc.setTextColor(200);
   const headerBits = [input.processLabel, input.subtitle, ...(input.badges || [])].filter(
     Boolean,
   ) as string[];
   if (headerBits.length) {
-    doc.setTextColor(90);
-    doc.text(headerBits.join('  •  '), MARGIN, y);
-    doc.setTextColor(0);
-    y += 16;
+    doc.text(doc.splitTextToSize(headerBits.join('   •   '), CONTENT_W)[0], MARGIN, 56);
   }
 
-  doc.setFontSize(9);
-  doc.setTextColor(120);
+  doc.setFontSize(8);
+  doc.setTextColor(160);
   const stamp = input.updatedAt ? new Date(input.updatedAt) : new Date();
-  doc.text(`Generated ${new Date().toLocaleString()}  |  Recipe updated ${stamp.toLocaleString()}`, MARGIN, y);
+  doc.text(
+    `Generated ${new Date().toLocaleString()}      Recipe updated ${stamp.toLocaleString()}`,
+    MARGIN,
+    72,
+  );
+
   doc.setTextColor(0);
-  y += 12;
+  y = 84 + 26;
 
-  doc.setDrawColor(200);
-  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-  y += 20;
-
-  // Sections
+  // ---- Sections ----------------------------------------------------------
   for (const section of input.sections) {
     const fields = section.fields.filter(
       (f) => f.value !== null && f.value !== undefined && String(f.value).trim() !== '',
     );
     if (!fields.length) continue;
 
-    newPageIfNeeded(40);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(section.title, MARGIN, y);
-    y += 6;
-    doc.setDrawColor(220);
-    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-    y += 14;
+    newPageIfNeeded(56);
 
-    doc.setFontSize(10);
+    // Section header bar
+    doc.setFillColor(241, 241, 245);
+    doc.rect(MARGIN, y, CONTENT_W, 20, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(30);
+    doc.text(section.title.toUpperCase(), MARGIN + 8, y + 14);
+    y += 20;
+
+    doc.setFontSize(9.5);
+    let striped = false;
     for (const field of fields) {
-      const valueLines = doc.splitTextToSize(String(field.value), PAGE_W - MARGIN * 2 - 150);
-      newPageIfNeeded(valueLines.length * 13 + 4);
+      const valueLines: string[] = doc.splitTextToSize(String(field.value), VALUE_W);
+      const rowH = Math.max(valueLines.length * LINE_H, 18) + 4;
+      newPageIfNeeded(rowH);
+
+      if (striped) {
+        doc.setFillColor(250, 250, 251);
+        doc.rect(MARGIN, y, CONTENT_W, rowH, 'F');
+      }
+      striped = !striped;
+
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(70);
-      doc.text(`${field.label}`, MARGIN, y);
+      doc.setTextColor(100);
+      doc.text(doc.splitTextToSize(field.label, LABEL_W - 8)[0], MARGIN + 8, y + 13);
+
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0);
-      doc.text(valueLines, MARGIN + 150, y);
-      y += valueLines.length * 13 + 3;
+      doc.setTextColor(20);
+      doc.text(valueLines, MARGIN + LABEL_W + 8, y + 13);
+
+      y += rowH;
+      doc.setDrawColor(232);
+      doc.line(MARGIN, y, PAGE_W - MARGIN, y);
     }
-    y += 12;
+    y += 20;
   }
 
-  // Notes
+  // ---- Notes -------------------------------------------------------------
   if (input.notes && input.notes.trim()) {
     newPageIfNeeded(60);
+    doc.setFillColor(241, 241, 245);
+    doc.rect(MARGIN, y, CONTENT_W, 20, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('Notes', MARGIN, y);
-    y += 6;
-    doc.setDrawColor(220);
-    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-    y += 14;
+    doc.setFontSize(10.5);
+    doc.setTextColor(30);
+    doc.text('NOTES', MARGIN + 8, y + 14);
+    y += 30;
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(input.notes, PAGE_W - MARGIN * 2);
+    doc.setFontSize(9.5);
+    doc.setTextColor(20);
+    const lines: string[] = doc.splitTextToSize(input.notes, CONTENT_W - 16);
     for (const line of lines) {
-      newPageIfNeeded(13);
-      doc.text(line, MARGIN, y);
-      y += 13;
+      newPageIfNeeded(LINE_H);
+      doc.text(line, MARGIN + 8, y);
+      y += LINE_H;
     }
+  }
+
+  // ---- Page footers ------------------------------------------------------
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(input.title || 'Production Recipe', MARGIN, PAGE_H - 26);
+    doc.text(`Page ${p} of ${pages}`, PAGE_W - MARGIN, PAGE_H - 26, { align: 'right' });
   }
 
   return doc;
 }
+
 
 export function recipePdfFilename(input: RecipePdfInput): string {
   const safe = (input.title || 'recipe').replace(/[^a-z0-9\-_ ]/gi, '').trim().replace(/\s+/g, '-');
