@@ -159,7 +159,7 @@ export default function ScreenPrint() {
     platenTemp: null,
     dryerTemp1: 700,
     dryerTemp2: 550,
-    beltSpeed: null,
+    beltSpeed: 45,
   });
 
   // Rating & notes
@@ -269,7 +269,7 @@ export default function ScreenPrint() {
     }
     setPositions(initial);
     
-    setEnvironment({ shopTemp: null, platenTemp: null, dryerTemp1: 700, dryerTemp2: 550, beltSpeed: null });
+    setEnvironment({ shopTemp: null, platenTemp: null, dryerTemp1: 700, dryerTemp2: 550, beltSpeed: 45 });
     setRating(0);
     setNotes('');
     setPhotos([
@@ -1082,7 +1082,7 @@ export default function ScreenPrint() {
                     type="number"
                     step="0.1"
                     inputMode="decimal"
-                    placeholder="90"
+                    placeholder="45"
                     value={environment.beltSpeed ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, beltSpeed: e.target.value ? parseFloat(e.target.value) : null }))}
                     className="mt-1"
