@@ -481,9 +481,7 @@ export default function ScreenPrint() {
           { name: 'flashTime', kind: 'number', label: 'Flash time seconds', min: 0, max: 30, current: position.flash?.flashTime },
           { name: 'flashHeight', kind: 'number', label: 'Flash height', min: 0, max: 10, current: position.flash?.flashHeight },
           { name: 'flashActive', kind: 'boolean', label: 'Flash active yes/no', current: position.flash?.flashActive },
-          { name: 'stampPressure', kind: 'number', label: 'Stamp pressure PSI', min: 0, max: 200, current: position.stampinator?.stampPressure },
-          { name: 'stampTime', kind: 'number', label: 'Stamp time seconds', min: 0, max: 30, current: position.stampinator?.stampTime },
-          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °F', min: 100, max: 500, current: position.stampinator?.stampTemp },
+          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °C', min: 100, max: 500, current: position.stampinator?.stampTemp },
           { name: 'stampActive', kind: 'boolean', label: 'Stamp active yes/no', current: position.stampinator?.stampActive },
         ] as VoiceFieldSpec[]}
         onApply={(u, notes) => {
@@ -505,8 +503,6 @@ export default function ScreenPrint() {
           if (typeof u.flashTime === 'number') updateFlash(pos, 'flashTime', u.flashTime);
           if (typeof u.flashHeight === 'number') updateFlash(pos, 'flashHeight', u.flashHeight);
           if (typeof u.flashActive === 'boolean') updateFlash(pos, 'flashActive', u.flashActive);
-          if (typeof u.stampPressure === 'number') updateStamp(pos, 'stampPressure', u.stampPressure);
-          if (typeof u.stampTime === 'number') updateStamp(pos, 'stampTime', u.stampTime);
           if (typeof u.stampTemp === 'number') updateStamp(pos, 'stampTemp', u.stampTemp);
           if (typeof u.stampActive === 'boolean') updateStamp(pos, 'stampActive', u.stampActive);
           if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
