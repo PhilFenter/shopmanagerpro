@@ -97,7 +97,7 @@ const defaultFlash: FlashSettings = {
 const defaultStamp: StampSettings = {
   stampPressure: null,
   stampTime: null,
-  stampTemp: null,
+  stampTemp: 300,
   stampActive: false,
 };
 
@@ -481,9 +481,7 @@ export default function ScreenPrint() {
           { name: 'flashTime', kind: 'number', label: 'Flash time seconds', min: 0, max: 30, current: position.flash?.flashTime },
           { name: 'flashHeight', kind: 'number', label: 'Flash height', min: 0, max: 10, current: position.flash?.flashHeight },
           { name: 'flashActive', kind: 'boolean', label: 'Flash active yes/no', current: position.flash?.flashActive },
-          { name: 'stampPressure', kind: 'number', label: 'Stamp pressure PSI', min: 0, max: 200, current: position.stampinator?.stampPressure },
-          { name: 'stampTime', kind: 'number', label: 'Stamp time seconds', min: 0, max: 30, current: position.stampinator?.stampTime },
-          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °F', min: 100, max: 500, current: position.stampinator?.stampTemp },
+          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °C', min: 100, max: 500, current: position.stampinator?.stampTemp },
           { name: 'stampActive', kind: 'boolean', label: 'Stamp active yes/no', current: position.stampinator?.stampActive },
         ] as VoiceFieldSpec[]}
         onApply={(u, notes) => {
@@ -505,8 +503,6 @@ export default function ScreenPrint() {
           if (typeof u.flashTime === 'number') updateFlash(pos, 'flashTime', u.flashTime);
           if (typeof u.flashHeight === 'number') updateFlash(pos, 'flashHeight', u.flashHeight);
           if (typeof u.flashActive === 'boolean') updateFlash(pos, 'flashActive', u.flashActive);
-          if (typeof u.stampPressure === 'number') updateStamp(pos, 'stampPressure', u.stampPressure);
-          if (typeof u.stampTime === 'number') updateStamp(pos, 'stampTime', u.stampTime);
           if (typeof u.stampTemp === 'number') updateStamp(pos, 'stampTemp', u.stampTemp);
           if (typeof u.stampActive === 'boolean') updateStamp(pos, 'stampActive', u.stampActive);
           if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
@@ -966,38 +962,14 @@ export default function ScreenPrint() {
                       {/* Stampinator Settings */}
                       {position.equipmentType === 'stampinator' && (
                         <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground">No pressure or time control — fixed by the stampinator.</div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-xs">Stamp Pressure (PSI):</Label>
+                              <Label className="text-xs">Stamp Temperature (°C):</Label>
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder="80"
-                                value={position.stampinator?.stampPressure ?? ''}
-                                onChange={(e) => updateStamp(pos, 'stampPressure', e.target.value ? parseInt(e.target.value) : null)}
-                                className="mt-1 h-8 text-xs"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Stamp Time (seconds):</Label>
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                step="0.1"
-                                placeholder="2"
-                                value={position.stampinator?.stampTime ?? ''}
-                                onChange={(e) => updateStamp(pos, 'stampTime', e.target.value ? parseFloat(e.target.value) : null)}
-                                className="mt-1 h-8 text-xs"
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs">Stamp Temperature (°F):</Label>
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                placeholder="350"
+                                placeholder="300"
                                 value={position.stampinator?.stampTemp ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -1307,9 +1279,7 @@ export default function ScreenPrint() {
                           if (s.flashTime) bits.push(`${s.flashTime}s`);
                           if (s.flashHeight) bits.push(`height ${s.flashHeight}`);
                         } else if (p.equipment_type === 'stampinator') {
-                          if (s.stampTemp) bits.push(`${s.stampTemp}°F`);
-                          if (s.stampTime) bits.push(`${s.stampTime}s`);
-                          if (s.stampPressure) bits.push(`${s.stampPressure} psi`);
+                          if (s.stampTemp) bits.push(`${s.stampTemp}°C`);
                         } else {
                           if (s.pantone) bits.push(s.pantone);
                           if (s.screenMesh) bits.push(`${s.screenMesh} mesh`);
