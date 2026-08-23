@@ -60,6 +60,58 @@ Deno.serve(async (req) => {
       );
     }
 
+    const gql = async (query: string, variables: Record<string, unknown>) => {
+      const res = await fetch(PRINTAVO_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", email, token },
+        body: JSON.stringify({ query, variables }),
+      });
+      const text = await res.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        console.error(`Printavo returned non-JSON [${res.status}]: ${text.slice(0, 500)}`);
+      }
+      return { ok: res.ok, status: res.status, parsed, text };
+    };
+
+    // The stored external_id is not always the GraphQL node id Printavo expects
+    // for productionFileCreate, so resolve the real order id first.
+    const searchTerm = String(job.order_number || job.invoice_number || printavoId);
+    let parentId: string | null = null;
+
+    const direct = await gql(`query O($id: ID!) { order(id: $id) { id } }`, {
+      id: String(printavoId),
+    });
+    if (direct.parsed?.data?.order?.id) {
+      parentId = String(direct.parsed.data.order.id);
+    } else {
+      const search = await gql(
+        `query S($q: String!) {
+          invoices(first: 5, searchTerm: $q) { nodes { id visualId } }
+          quotes(first: 5, searchTerm: $q) { nodes { id visualId } }
+        }`,
+        { q: searchTerm },
+      );
+      const nodes = [
+        ...(search.parsed?.data?.invoices?.nodes ?? []),
+        ...(search.parsed?.data?.quotes?.nodes ?? []),
+      ];
+      const match =
+        nodes.find((n: any) => String(n?.visualId) === searchTerm) ?? nodes[0] ?? null;
+      if (match?.id) parentId = String(match.id);
+    }
+
+    if (!parentId) {
+      return json(
+        {
+          error: `Couldn't find Printavo order ${searchTerm}. Re-sync the job from Printavo and try again.`,
+        },
+        404,
+      );
+    }
+
     const mutation = `
       mutation ProductionFileCreate($parentId: ID!, $publicFileUrl: String!) {
         productionFileCreate(parentId: $parentId, publicFileUrl: $publicFileUrl) {
@@ -69,26 +121,16 @@ Deno.serve(async (req) => {
       }
     `;
 
-    const res = await fetch(PRINTAVO_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", email, token },
-      body: JSON.stringify({
-        query: mutation,
-        variables: { parentId: String(printavoId), publicFileUrl: fileUrl },
-      }),
+    const { ok, status, parsed, text } = await gql(mutation, {
+      parentId,
+      publicFileUrl: fileUrl,
     });
 
-    const text = await res.text();
-    if (!res.ok) {
-      console.error(`Printavo request failed [${res.status}]: ${text.slice(0, 800)}`);
-      return json({ error: "Printavo rejected the upload", status: res.status, details: text.slice(0, 800) }, res.status);
+    if (!ok) {
+      console.error(`Printavo request failed [${status}]: ${text.slice(0, 800)}`);
+      return json({ error: "Printavo rejected the upload", status, details: text.slice(0, 800) }, status);
     }
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      console.error(`Printavo returned non-JSON: ${text.slice(0, 500)}`);
+    if (!parsed) {
       return json({ error: "Printavo returned an unexpected response" }, 502);
     }
 
@@ -96,6 +138,7 @@ Deno.serve(async (req) => {
       console.error("Printavo GraphQL errors:", JSON.stringify(parsed.errors));
       return json({ error: parsed.errors[0]?.message || "Printavo error", details: parsed.errors }, 400);
     }
+
 
     return json({
       success: true,
