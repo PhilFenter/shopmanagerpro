@@ -400,6 +400,7 @@ export default function ScreenPrint() {
   // Load saved job
   const loadRecipe = (recipe: ScreenPrintRecipe) => {
     setLinkedJobId(recipe.job_id);
+    setSelectedPrintId((recipe as any).print_id ?? null);
     setJobNumber(recipe.name);
     setJobDescription(recipe.customer_name || '');
     setPrintType(recipe.print_type === 'multi_rotation' ? 'multi' : 'single');
