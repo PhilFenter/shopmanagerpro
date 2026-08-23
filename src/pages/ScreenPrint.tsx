@@ -1010,9 +1010,9 @@ export default function ScreenPrint() {
                   fields={[
                     { name: 'shopTemp', kind: 'number', label: 'Shop temp °F', min: 40, max: 120, current: environment.shopTemp },
                     { name: 'platenTemp', kind: 'number', label: 'Platen temp °F', min: 40, max: 200, current: environment.platenTemp },
-                    { name: 'dryerTemp1', kind: 'number', label: 'Dryer temp 1 °F', min: 100, max: 400, current: environment.dryerTemp1 },
-                    { name: 'dryerTemp2', kind: 'number', label: 'Dryer temp 2 °F', min: 100, max: 400, current: environment.dryerTemp2 },
-                    { name: 'beltSpeed', kind: 'number', label: 'Belt speed', min: 0, max: 20, current: environment.beltSpeed },
+                    { name: 'dryerTemp1', kind: 'number', label: 'Chamber 1 temp °F', min: 100, max: 800, current: environment.dryerTemp1 },
+                    { name: 'dryerTemp2', kind: 'number', label: 'Chamber 2 temp °F', min: 100, max: 800, current: environment.dryerTemp2 },
+                    { name: 'beltSpeed', kind: 'number', label: 'Dwell time seconds', min: 0, max: 120, current: environment.beltSpeed },
                     { name: 'rating', kind: 'number', label: 'Quality rating stars', min: 0, max: 5, current: rating },
                   ] as VoiceFieldSpec[]}
                   onApply={(u, notes) => {
@@ -1055,34 +1055,34 @@ export default function ScreenPrint() {
                   />
                 </div>
                 <div>
-                  <Label>Dryer Temp 1 (°F):</Label>
+                  <Label>Chamber 1 Temp (°F):</Label>
                   <Input
                     type="number"
                     inputMode="decimal"
-                    placeholder="320"
+                    placeholder="700"
                     value={environment.dryerTemp1 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp1: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Dryer Temp 2 (°F):</Label>
+                  <Label>Chamber 2 Temp (°F):</Label>
                   <Input
                     type="number"
                     inputMode="decimal"
-                    placeholder="320"
+                    placeholder="550"
                     value={environment.dryerTemp2 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp2: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Belt Speed:</Label>
+                  <Label>Dwell Time (s):</Label>
                   <Input
                     type="number"
                     step="0.1"
                     inputMode="decimal"
-                    placeholder="3"
+                    placeholder="90"
                     value={environment.beltSpeed ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, beltSpeed: e.target.value ? parseFloat(e.target.value) : null }))}
                     className="mt-1"
@@ -1260,10 +1260,9 @@ export default function ScreenPrint() {
                     fields: [
                       { label: 'Print Type', value: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' },
                       { label: 'Squeegee', value: viewingRecipe.squeegee_settings },
-                      { label: 'Flash Temp', value: viewingRecipe.flash_temp ? `${viewingRecipe.flash_temp}°F` : null, mono: true },
-                      { label: 'Flash Time', value: viewingRecipe.flash_time ? `${viewingRecipe.flash_time}s` : null, mono: true },
-                      { label: 'Cure Temp', value: viewingRecipe.cure_temp ? `${viewingRecipe.cure_temp}°F` : null, mono: true },
-                      { label: 'Cure Time', value: viewingRecipe.cure_time ? `${viewingRecipe.cure_time}s` : null, mono: true },
+                      { label: 'Chamber 1 Temp', value: viewingRecipe.flash_temp ? `${viewingRecipe.flash_temp}°F` : null, mono: true },
+                      { label: 'Chamber 2 Temp', value: viewingRecipe.cure_temp ? `${viewingRecipe.cure_temp}°F` : null, mono: true },
+                      { label: 'Dwell Time', value: viewingRecipe.cure_time ? `${viewingRecipe.cure_time}s` : null, mono: true },
                     ],
                   },
                   ...(Array.isArray(viewingRecipe.platen_setup) && viewingRecipe.platen_setup.some((p: any) => p?.settings) ? [{
