@@ -367,8 +367,14 @@ export default function ScreenPrint() {
                  data.equipmentType === 'stampinator' ? data.stampinator : null,
       }));
 
+      const selectedPrint = prints.find((p) => p.id === selectedPrintId);
+      const baseName = jobNumber || jobDescription;
+      const printLabel = selectedPrint
+        ? `${selectedPrint.design_name} • ${selectedPrint.location}`
+        : null;
+
       const recipeData: any = {
-        name: jobNumber || jobDescription,
+        name: printLabel ? `${baseName} — ${printLabel}` : baseName,
         customer_name: jobDescription || null,
         job_id: linkedJobId,
         print_id: selectedPrintId,
@@ -389,7 +395,16 @@ export default function ScreenPrint() {
       } else {
         await createRecipe.mutateAsync(recipeData);
       }
-      
+
+      if (keepGoing) {
+        // Stay on this job, start a fresh recipe for the next print
+        setEditingRecipeId(null);
+        setSelectedPrintId(null);
+        setRating(0);
+        setNotes('');
+        return;
+      }
+
       clearAll();
       setActiveTab('saved');
     } finally {
