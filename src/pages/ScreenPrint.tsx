@@ -600,6 +600,41 @@ export default function ScreenPrint() {
                   </div>
                 </div>
               </div>
+
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="w-full sm:max-w-sm">
+                  <Label>This recipe is for:</Label>
+                  <Select
+                    value={selectedPrintId ?? 'none'}
+                    onValueChange={(v) => setSelectedPrintId(v === 'none' ? null : v)}
+                    disabled={!linkedJobId}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={linkedJobId ? 'Whole job (no specific print)' : 'Link a job first'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Whole job (no specific print)</SelectItem>
+                      {prints.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.design_name} • {p.location}
+                          {p.garment_color ? ` • ${p.garment_color}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Each print (design + location) can have its own recipe.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setLibraryOpen(true)}>
+                    <BookOpen className="mr-2 h-4 w-4" /> Standard Recipes
+                  </Button>
+                  <Button variant="outline" onClick={() => setSaveTemplateOpen(true)}>
+                    <Save className="mr-2 h-4 w-4" /> Save to Library
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
