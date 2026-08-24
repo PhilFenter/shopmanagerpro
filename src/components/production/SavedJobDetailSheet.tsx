@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { RotateCcw, Trash2, Calendar, Camera, Loader2, FileDown, Upload } from 'lucide-react';
+import { RotateCcw, Trash2, Calendar, Camera, Loader2, FileDown, Upload, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { useJobPhotos } from '@/hooks/useJobPhotos';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,6 +59,17 @@ export function SavedJobDetailSheet({
 }: SavedJobDetailSheetProps) {
   const { photos, isLoading: photosLoading } = useJobPhotos(open && jobId ? jobId : undefined);
   const [pushing, setPushing] = useState(false);
+  const [pushingPhotos, setPushingPhotos] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+
+  const togglePhoto = (id: string) => {
+    setSelectedPhotos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const pdfInput = {
     title,
@@ -151,6 +162,58 @@ export function SavedJobDetailSheet({
     }
   };
 
+  const handlePushPhotosToPrintavo = async () => {
+    if (!jobId || selectedPhotos.size === 0) return;
+    setPushingPhotos(true);
+    try {
+      const targets = photos.filter((p) => selectedPhotos.has(p.id));
+      let sent = 0;
+      const failures: string[] = [];
+
+      for (const photo of targets) {
+        try {
+          const { data: signed, error: signError } = await supabase.storage
+            .from('job-photos')
+            .createSignedUrl(photo.storage_path, 60 * 60 * 24 * 30);
+          if (signError || !signed?.signedUrl) {
+            throw signError || new Error('Could not create a link for this photo');
+          }
+
+          const { data, error } = await supabase.functions.invoke('push-production-file', {
+            body: { jobId, fileUrl: signed.signedUrl },
+          });
+
+          if (error) {
+            const details = (error as any)?.context
+              ? await (error as any).context.text()
+              : error.message;
+            let msg = details;
+            try {
+              msg = JSON.parse(details)?.error || details;
+            } catch { /* keep raw */ }
+            throw new Error(msg);
+          }
+          if (data?.error) throw new Error(data.error);
+          sent += 1;
+        } catch (e: any) {
+          failures.push(`${photo.filename}: ${e?.message || 'failed'}`);
+        }
+      }
+
+      if (sent > 0) {
+        toast.success(`Sent ${sent} photo${sent === 1 ? '' : 's'} to Printavo`);
+        setSelectedPhotos(new Set());
+      }
+      if (failures.length > 0) {
+        toast.error(failures[0]);
+      }
+    } finally {
+      setPushingPhotos(false);
+    }
+  };
+
+
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -185,25 +248,61 @@ export function SavedJobDetailSheet({
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : photos.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {photos.map((photo) => (
-                    <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden border">
-                      <img
-                        src={photo.url}
-                        alt={photo.description || photo.filename}
-                        className="w-full h-full object-cover"
-                      />
-                      {photo.description && (
-                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-xs px-1 py-0.5 truncate">
-                          {photo.description}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    {photos.map((photo) => {
+                      const selected = selectedPhotos.has(photo.id);
+                      return (
+                        <button
+                          key={photo.id}
+                          type="button"
+                          onClick={() => togglePhoto(photo.id)}
+                          className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors ${
+                            selected ? 'border-primary' : 'border-border'
+                          }`}
+                        >
+                          <img
+                            src={photo.url}
+                            alt={photo.description || photo.filename}
+                            className="w-full h-full object-cover"
+                          />
+                          {selected && (
+                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                              <Check className="h-3 w-3" />
+                            </div>
+                          )}
+                          {photo.description && (
+                            <div className="absolute bottom-0 inset-x-0 bg-background/80 text-xs px-1 py-0.5 truncate">
+                              {photo.description}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={handlePushPhotosToPrintavo}
+                    disabled={selectedPhotos.size === 0 || pushingPhotos}
+                  >
+                    {pushingPhotos ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="mr-2 h-4 w-4" />
+                    )}
+                    Send {selectedPhotos.size > 0 ? `${selectedPhotos.size} ` : ''}photo
+                    {selectedPhotos.size === 1 ? '' : 's'} to Printavo
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tap photos to select which ones to attach to the Printavo order.
+                  </p>
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground py-2">No photos for this job.</p>
               )}
+
             </div>
           )}
 
