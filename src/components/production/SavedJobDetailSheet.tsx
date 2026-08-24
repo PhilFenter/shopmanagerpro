@@ -248,25 +248,61 @@ export function SavedJobDetailSheet({
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : photos.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {photos.map((photo) => (
-                    <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden border">
-                      <img
-                        src={photo.url}
-                        alt={photo.description || photo.filename}
-                        className="w-full h-full object-cover"
-                      />
-                      {photo.description && (
-                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-xs px-1 py-0.5 truncate">
-                          {photo.description}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    {photos.map((photo) => {
+                      const selected = selectedPhotos.has(photo.id);
+                      return (
+                        <button
+                          key={photo.id}
+                          type="button"
+                          onClick={() => togglePhoto(photo.id)}
+                          className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors ${
+                            selected ? 'border-primary' : 'border-border'
+                          }`}
+                        >
+                          <img
+                            src={photo.url}
+                            alt={photo.description || photo.filename}
+                            className="w-full h-full object-cover"
+                          />
+                          {selected && (
+                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                              <Check className="h-3 w-3" />
+                            </div>
+                          )}
+                          {photo.description && (
+                            <div className="absolute bottom-0 inset-x-0 bg-background/80 text-xs px-1 py-0.5 truncate">
+                              {photo.description}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={handlePushPhotosToPrintavo}
+                    disabled={selectedPhotos.size === 0 || pushingPhotos}
+                  >
+                    {pushingPhotos ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="mr-2 h-4 w-4" />
+                    )}
+                    Send {selectedPhotos.size > 0 ? `${selectedPhotos.size} ` : ''}photo
+                    {selectedPhotos.size === 1 ? '' : 's'} to Printavo
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tap photos to select which ones to attach to the Printavo order.
+                  </p>
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground py-2">No photos for this job.</p>
               )}
+
             </div>
           )}
 
