@@ -59,6 +59,17 @@ export function SavedJobDetailSheet({
 }: SavedJobDetailSheetProps) {
   const { photos, isLoading: photosLoading } = useJobPhotos(open && jobId ? jobId : undefined);
   const [pushing, setPushing] = useState(false);
+  const [pushingPhotos, setPushingPhotos] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+
+  const togglePhoto = (id: string) => {
+    setSelectedPhotos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const pdfInput = {
     title,
