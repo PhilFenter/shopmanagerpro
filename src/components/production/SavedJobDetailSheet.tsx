@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { RotateCcw, Trash2, Calendar, Camera, Loader2, FileDown, Upload } from 'lucide-react';
+import { RotateCcw, Trash2, Calendar, Camera, Loader2, FileDown, Upload, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { useJobPhotos } from '@/hooks/useJobPhotos';
 import { supabase } from '@/integrations/supabase/client';
