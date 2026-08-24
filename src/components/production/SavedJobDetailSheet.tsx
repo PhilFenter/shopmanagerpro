@@ -162,6 +162,58 @@ export function SavedJobDetailSheet({
     }
   };
 
+  const handlePushPhotosToPrintavo = async () => {
+    if (!jobId || selectedPhotos.size === 0) return;
+    setPushingPhotos(true);
+    try {
+      const targets = photos.filter((p) => selectedPhotos.has(p.id));
+      let sent = 0;
+      const failures: string[] = [];
+
+      for (const photo of targets) {
+        try {
+          const { data: signed, error: signError } = await supabase.storage
+            .from('job-photos')
+            .createSignedUrl(photo.storage_path, 60 * 60 * 24 * 30);
+          if (signError || !signed?.signedUrl) {
+            throw signError || new Error('Could not create a link for this photo');
+          }
+
+          const { data, error } = await supabase.functions.invoke('push-production-file', {
+            body: { jobId, fileUrl: signed.signedUrl },
+          });
+
+          if (error) {
+            const details = (error as any)?.context
+              ? await (error as any).context.text()
+              : error.message;
+            let msg = details;
+            try {
+              msg = JSON.parse(details)?.error || details;
+            } catch { /* keep raw */ }
+            throw new Error(msg);
+          }
+          if (data?.error) throw new Error(data.error);
+          sent += 1;
+        } catch (e: any) {
+          failures.push(`${photo.filename}: ${e?.message || 'failed'}`);
+        }
+      }
+
+      if (sent > 0) {
+        toast.success(`Sent ${sent} photo${sent === 1 ? '' : 's'} to Printavo`);
+        setSelectedPhotos(new Set());
+      }
+      if (failures.length > 0) {
+        toast.error(failures[0]);
+      }
+    } finally {
+      setPushingPhotos(false);
+    }
+  };
+
+
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
