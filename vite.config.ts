@@ -51,11 +51,42 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/reset-password/, /^\/quote\/approve/],
+        // 'html' intentionally excluded: generateSW auto-registers a
+        // precache-bound NavigationRoute for index.html as soon as it's in
+        // the precache manifest, and that route always wins over any
+        // runtimeCaching rule below for the same request — the NetworkFirst
+        // navigation rule was silently unreachable while it was included.
+        // The origin already serves index.html correctly (verified: no-cache,
+        // must-revalidate, and correct SPA fallback for deep links like
+        // /action-items) so the SW doesn't need to own navigation fallback.
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff2}"],
+        // vite-plugin-pwa defaults this to "index.html" via `??` whenever
+        // it's not set at all, which re-registers the same precache-bound
+        // NavigationRoute this config is trying to avoid — an explicit
+        // `undefined` wouldn't survive that (nullish-coalescing treats it the
+        // same as absent), but an empty string does: it's not nullish, so it
+        // passes through, and workbox-build's template only emits the
+        // NavigationRoute when navigateFallback is truthy.
+        navigateFallback: "",
         clientsClaim: true,
         skipWaiting: true,
         runtimeCaching: [
+          {
+            // Navigations (page loads/reloads) go network-first instead of
+            // serving a cached app shell. Without this, a normal reload could
+            // keep rendering an old build until the background update-check +
+            // reload cycle catches up — a cycle Safari in particular is slow
+            // and unreliable about completing. This app shows live shop data,
+            // where a stale UI is actively misleading, so freshness wins over
+            // offline navigation; falls back to the cached shell only if the
+            // network genuinely doesn't respond in time.
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              networkTimeoutSeconds: 4,
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",
