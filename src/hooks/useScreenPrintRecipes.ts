@@ -20,7 +20,10 @@ export interface InkColor {
 export interface ScreenPrintRecipe {
   id: string;
   job_id: string | null;
+  print_id: string | null;
   name: string;
+
+
   customer_name: string | null;
   print_type: 'single' | 'multi_rotation';
   platen_setup: PlatenSetup[];
@@ -69,6 +72,8 @@ export function useScreenPrintRecipes() {
         .insert({
           name: input.name!,
           job_id: input.job_id,
+          print_id: input.print_id ?? null,
+
           customer_name: input.customer_name,
           print_type: input.print_type ?? 'single',
           platen_setup: input.platen_setup as unknown as any,

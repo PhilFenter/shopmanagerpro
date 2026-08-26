@@ -10,32 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -484,6 +459,7 @@ export type Database = {
           press_pressure: string | null
           press_temp: number | null
           press_time: number | null
+          print_id: string | null
           updated_at: string
         }
         Insert: {
@@ -499,6 +475,7 @@ export type Database = {
           press_pressure?: string | null
           press_temp?: number | null
           press_time?: number | null
+          print_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -514,6 +491,7 @@ export type Database = {
           press_pressure?: string | null
           press_temp?: number | null
           press_time?: number | null
+          print_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -529,6 +507,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dtf_recipes_print_id_fkey"
+            columns: ["print_id"]
+            isOneToOne: false
+            referencedRelation: "job_prints"
             referencedColumns: ["id"]
           },
         ]
@@ -546,6 +531,7 @@ export type Database = {
           needle_setup: Json
           notes: string | null
           placement: string | null
+          print_id: string | null
           stitch_count: number | null
           updated_at: string
         }
@@ -561,6 +547,7 @@ export type Database = {
           needle_setup?: Json
           notes?: string | null
           placement?: string | null
+          print_id?: string | null
           stitch_count?: number | null
           updated_at?: string
         }
@@ -576,6 +563,7 @@ export type Database = {
           needle_setup?: Json
           notes?: string | null
           placement?: string | null
+          print_id?: string | null
           stitch_count?: number | null
           updated_at?: string
         }
@@ -592,6 +580,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "embroidery_recipes_print_id_fkey"
+            columns: ["print_id"]
+            isOneToOne: false
+            referencedRelation: "job_prints"
             referencedColumns: ["id"]
           },
         ]
@@ -1291,6 +1286,7 @@ export type Database = {
           passes: number | null
           patch_height: number | null
           patch_width: number | null
+          print_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1309,6 +1305,7 @@ export type Database = {
           passes?: number | null
           patch_height?: number | null
           patch_width?: number | null
+          print_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1327,6 +1324,7 @@ export type Database = {
           passes?: number | null
           patch_height?: number | null
           patch_width?: number | null
+          print_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1342,6 +1340,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leather_recipes_print_id_fkey"
+            columns: ["print_id"]
+            isOneToOne: false
+            referencedRelation: "job_prints"
             referencedColumns: ["id"]
           },
         ]
@@ -2056,6 +2061,84 @@ export type Database = {
           },
         ]
       }
+      recipe_templates: {
+        Row: {
+          belt_speed: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          dryer_temp_1: number | null
+          dryer_temp_2: number | null
+          garment_color: string | null
+          id: string
+          ink_color: string | null
+          is_active: boolean
+          low_cure: boolean
+          max_qty: number | null
+          min_qty: number | null
+          name: string
+          notes: string | null
+          platen_setup: Json
+          rotations: number
+          screens: number | null
+          service_type: string
+          strokes: number | null
+          updated_at: string
+          use_flash: boolean
+          use_stampinator: boolean
+        }
+        Insert: {
+          belt_speed?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dryer_temp_1?: number | null
+          dryer_temp_2?: number | null
+          garment_color?: string | null
+          id?: string
+          ink_color?: string | null
+          is_active?: boolean
+          low_cure?: boolean
+          max_qty?: number | null
+          min_qty?: number | null
+          name: string
+          notes?: string | null
+          platen_setup?: Json
+          rotations?: number
+          screens?: number | null
+          service_type?: string
+          strokes?: number | null
+          updated_at?: string
+          use_flash?: boolean
+          use_stampinator?: boolean
+        }
+        Update: {
+          belt_speed?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dryer_temp_1?: number | null
+          dryer_temp_2?: number | null
+          garment_color?: string | null
+          id?: string
+          ink_color?: string | null
+          is_active?: boolean
+          low_cure?: boolean
+          max_qty?: number | null
+          min_qty?: number | null
+          name?: string
+          notes?: string | null
+          platen_setup?: Json
+          rotations?: number
+          screens?: number | null
+          service_type?: string
+          strokes?: number | null
+          updated_at?: string
+          use_flash?: boolean
+          use_stampinator?: boolean
+        }
+        Relationships: []
+      }
       screen_print_recipes: {
         Row: {
           created_at: string
@@ -2071,6 +2154,7 @@ export type Database = {
           name: string
           notes: string | null
           platen_setup: Json
+          print_id: string | null
           print_type: string
           quality_rating: number | null
           rotation_sequence: Json | null
@@ -2091,6 +2175,7 @@ export type Database = {
           name: string
           notes?: string | null
           platen_setup?: Json
+          print_id?: string | null
           print_type?: string
           quality_rating?: number | null
           rotation_sequence?: Json | null
@@ -2111,6 +2196,7 @@ export type Database = {
           name?: string
           notes?: string | null
           platen_setup?: Json
+          print_id?: string | null
           print_type?: string
           quality_rating?: number | null
           rotation_sequence?: Json | null
@@ -2130,6 +2216,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs_with_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screen_print_recipes_print_id_fkey"
+            columns: ["print_id"]
+            isOneToOne: false
+            referencedRelation: "job_prints"
             referencedColumns: ["id"]
           },
         ]
@@ -2903,9 +2996,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["admin", "team", "manager"],

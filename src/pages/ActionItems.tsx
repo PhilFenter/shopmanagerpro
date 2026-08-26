@@ -230,6 +230,17 @@ export default function ActionItems() {
                   {item.customer_name}
                 </Badge>
               )}
+              {item.created_at && (
+                <span
+                  className="flex items-center gap-1"
+                  title={format(new Date(item.created_at), "EEEE, MMM d, yyyy 'at' h:mm a")}
+                >
+                  <Clock className="h-3 w-3" />
+                  Received {format(new Date(item.created_at), 'MMM d, h:mm a')}
+                  <span className="opacity-70">({formatDistanceToNow(new Date(item.created_at), { addSuffix: true })})</span>
+                </span>
+              )}
+
               {item.due_date && (
                 <span
                   className={cn('flex items-center gap-1', isOverdue && 'text-destructive font-semibold')}

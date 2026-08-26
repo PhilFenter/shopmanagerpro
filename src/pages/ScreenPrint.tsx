@@ -11,13 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X } from 'lucide-react';
+import { Plus, Loader2, Search, Trash2, Save, Printer, Star, RotateCcw, Clock, Camera, X, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ProductionPhotos, { PhotoSlot } from '@/components/production/ProductionPhotos';
 import { SavedJobDetailSheet } from '@/components/production/SavedJobDetailSheet';
 import { JobPicker } from '@/components/jobs/JobPicker';
 import { JobPrintsManager } from '@/components/jobs/JobPrintsManager';
+import { useJobPrints } from '@/hooks/useJobPrints';
+import { RecipeTemplateLibraryDialog, SaveRecipeTemplateDialog } from '@/components/production/RecipeTemplateLibrary';
+import type { RecipeTemplate } from '@/hooks/useRecipeTemplates';
 import { VoiceDictateButton, VoiceFieldSpec } from '@/components/voice/VoiceDictateButton';
 
 // Types for position settings
@@ -67,27 +70,37 @@ interface EnvironmentSettings {
   beltSpeed: number | null;
 }
 
+const readSavedEnvironment = (value: string | null): Partial<EnvironmentSettings> => {
+  if (!value) return {};
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed as Partial<EnvironmentSettings> : {};
+  } catch {
+    return {};
+  }
+};
+
 // PhotoSlot is now imported from ProductionPhotos
 
-// Default settings — all numeric fields start empty so users can type
-// without backspacing. Typical values are shown as placeholder hints only.
+// Default starting settings for all print heads — shop standard baselines.
 const defaultPrintHead: PrintHeadSettings = {
   pantone: '',
   screenMesh: '',
-  airPressure: null,
-  printSpeed: null,
-  floodSpeed: null,
-  squeegeeAngle: null,
-  floodAngle: null,
-  squeegeeHeight: null,
-  floodHeight: null,
+  airPressure: 40,
+  printSpeed: 4,
+  floodSpeed: 4,
+  squeegeeAngle: 10,
+  floodAngle: 20,
+  squeegeeHeight: 8,
+  floodHeight: 10,
   active: false,
 };
 
 const defaultFlash: FlashSettings = {
   flashType: 'smart',
-  flashTemp: null,
-  flashTime: null,
+  flashTemp: 102,
+  flashTime: 3,
   flashHeight: null,
   flashActive: false,
 };
@@ -95,7 +108,7 @@ const defaultFlash: FlashSettings = {
 const defaultStamp: StampSettings = {
   stampPressure: null,
   stampTime: null,
-  stampTemp: null,
+  stampTemp: 300,
   stampActive: false,
 };
 
@@ -124,6 +137,10 @@ export default function ScreenPrint() {
 
   // Job setup state
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
+  const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const { prints } = useJobPrints(linkedJobId);
   const [jobNumber, setJobNumber] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [operator, setOperator] = useState('');
@@ -151,9 +168,9 @@ export default function ScreenPrint() {
   const [environment, setEnvironment] = useState<EnvironmentSettings>({
     shopTemp: null,
     platenTemp: null,
-    dryerTemp1: null,
-    dryerTemp2: null,
-    beltSpeed: null,
+    dryerTemp1: 700,
+    dryerTemp2: 550,
+    beltSpeed: 45,
   });
 
   // Rating & notes
@@ -179,6 +196,20 @@ export default function ScreenPrint() {
     const matchesRating = !ratingFilter || r.quality_rating === parseInt(ratingFilter);
     return matchesSearch && matchesRating;
   });
+
+  // Group saved recipes by job so multiple prints on one job stay together
+  const groupedRecipes = (() => {
+    const map = new Map<string, { key: string; title: string; subtitle: string | null; recipes: typeof filteredRecipes }>();
+    for (const r of filteredRecipes) {
+      const baseName = r.name.includes(' — ') ? r.name.split(' — ')[0] : r.name;
+      const key = r.job_id || `name:${baseName}`;
+      if (!map.has(key)) {
+        map.set(key, { key, title: baseName, subtitle: r.customer_name || null, recipes: [] });
+      }
+      map.get(key)!.recipes.push(r);
+    }
+    return Array.from(map.values());
+  })();
 
   // Update position equipment type
   const updateEquipment = (pos: number, type: EquipmentType) => {
@@ -242,6 +273,7 @@ export default function ScreenPrint() {
     if (!confirm('Clear all settings? This will reset all fields.')) return;
     
     setLinkedJobId(null);
+    setSelectedPrintId(null);
     setJobNumber('');
     setJobDescription('');
     setOperator('');
@@ -262,7 +294,7 @@ export default function ScreenPrint() {
     }
     setPositions(initial);
     
-    setEnvironment({ shopTemp: null, platenTemp: null, dryerTemp1: null, dryerTemp2: null, beltSpeed: null });
+    setEnvironment({ shopTemp: null, platenTemp: null, dryerTemp1: 700, dryerTemp2: 550, beltSpeed: 45 });
     setRating(0);
     setNotes('');
     setPhotos([
@@ -274,8 +306,74 @@ export default function ScreenPrint() {
     setEditingRecipeId(null);
   };
 
+  // Snapshot of current press setup for the standard-recipe library
+  const buildTemplatePayload = () => {
+    const platenData = Object.entries(positions).map(([pos, data]) => ({
+      position: parseInt(pos),
+      equipment_type: data.equipmentType,
+      settings:
+        data.equipmentType === 'printhead' ? data.printhead :
+        data.equipmentType === 'flash' ? data.flash :
+        data.equipmentType === 'stampinator' ? data.stampinator : null,
+      active:
+        data.equipmentType === 'printhead' ? data.printhead?.active :
+        data.equipmentType === 'flash' ? data.flash?.flashActive :
+        data.equipmentType === 'stampinator' ? data.stampinator?.stampActive : false,
+    }));
+    return {
+      rotations,
+      platen_setup: platenData,
+      use_flash: Object.values(positions).some((p) => p.equipmentType === 'flash' && p.flash?.flashActive),
+      use_stampinator: Object.values(positions).some(
+        (p) => p.equipmentType === 'stampinator' && p.stampinator?.stampActive
+      ),
+      dryer_temp_1: environment.dryerTemp1,
+      dryer_temp_2: environment.dryerTemp2,
+      belt_speed: environment.beltSpeed,
+      notes: notes || null,
+    };
+  };
+
+  // Apply a standard recipe from the library onto the current setup
+  const applyTemplate = (t: RecipeTemplate) => {
+    setRotations(t.rotations || 1);
+    setPrintType((t.rotations || 1) > 1 ? 'multi' : 'single');
+    setEnvironment((prev) => ({
+      ...prev,
+      dryerTemp1: t.dryer_temp_1 ?? prev.dryerTemp1,
+      dryerTemp2: t.dryer_temp_2 ?? prev.dryerTemp2,
+      beltSpeed: t.belt_speed ?? prev.beltSpeed,
+    }));
+
+    if (Array.isArray(t.platen_setup) && t.platen_setup.length > 0) {
+      const newPositions: Record<number, PositionData> = {};
+      for (let i = 1; i <= 12; i++) {
+        const saved = t.platen_setup.find((p: any) => p.position === i);
+        if (saved && saved.equipment_type) {
+          newPositions[i] = {
+            equipmentType: saved.equipment_type as EquipmentType,
+            printhead: saved.equipment_type === 'printhead' ? { ...defaultPrintHead, ...saved.settings } : { ...defaultPrintHead },
+            flash: saved.equipment_type === 'flash' ? { ...defaultFlash, ...saved.settings } : { ...defaultFlash },
+            stampinator: saved.equipment_type === 'stampinator' ? { ...defaultStamp, ...saved.settings } : { ...defaultStamp },
+          };
+        } else {
+          newPositions[i] = {
+            equipmentType: getDefaultEquipment(i),
+            printhead: { ...defaultPrintHead },
+            flash: { ...defaultFlash },
+            stampinator: { ...defaultStamp },
+          };
+        }
+      }
+      setPositions(newPositions);
+    }
+
+    const summary = [t.name, t.description].filter(Boolean).join(' — ');
+    setNotes((prev) => (prev ? `${prev}\n\nFrom library: ${summary}` : `From library: ${summary}`));
+  };
+
   // Save job
-  const handleSave = async () => {
+  const handleSave = async (keepGoing = false) => {
     if (!jobNumber.trim() && !jobDescription.trim()) {
       alert('Please enter a job number or description');
       return;
@@ -294,10 +392,17 @@ export default function ScreenPrint() {
                  data.equipmentType === 'stampinator' ? data.stampinator : null,
       }));
 
+      const selectedPrint = prints.find((p) => p.id === selectedPrintId);
+      const baseName = jobNumber || jobDescription;
+      const printLabel = selectedPrint
+        ? `${selectedPrint.design_name} • ${selectedPrint.location}`
+        : null;
+
       const recipeData: any = {
-        name: jobNumber || jobDescription,
+        name: printLabel ? `${baseName} — ${printLabel}` : baseName,
         customer_name: jobDescription || null,
         job_id: linkedJobId,
+        print_id: selectedPrintId,
         print_type: printType === 'multi' ? 'multi_rotation' as const : 'single' as const,
         platen_setup: platenData,
         rotation_sequence: printType === 'multi' ? rotationData : null,
@@ -315,7 +420,16 @@ export default function ScreenPrint() {
       } else {
         await createRecipe.mutateAsync(recipeData);
       }
-      
+
+      if (keepGoing) {
+        // Stay on this job, start a fresh recipe for the next print
+        setEditingRecipeId(null);
+        setSelectedPrintId(null);
+        setRating(0);
+        setNotes('');
+        return;
+      }
+
       clearAll();
       setActiveTab('saved');
     } finally {
@@ -326,6 +440,7 @@ export default function ScreenPrint() {
   // Load saved job
   const loadRecipe = (recipe: ScreenPrintRecipe) => {
     setLinkedJobId(recipe.job_id);
+    setSelectedPrintId((recipe as any).print_id ?? null);
     setJobNumber(recipe.name);
     setJobDescription(recipe.customer_name || '');
     setPrintType(recipe.print_type === 'multi_rotation' ? 'multi' : 'single');
@@ -375,8 +490,16 @@ export default function ScreenPrint() {
 
   // Delete recipe
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this saved job?')) return;
+    if (!confirm('Delete this saved recipe?')) return;
     await deleteRecipe.mutateAsync(id);
+  };
+
+  // Delete every recipe saved under one job group
+  const handleDeleteGroup = async (ids: string[], title: string) => {
+    if (!confirm(`Delete all ${ids.length} saved recipes for "${title}"?`)) return;
+    for (const id of ids) {
+      await deleteRecipe.mutateAsync(id);
+    }
   };
 
   // Voice dictation for a single press position
@@ -406,9 +529,7 @@ export default function ScreenPrint() {
           { name: 'flashTime', kind: 'number', label: 'Flash time seconds', min: 0, max: 30, current: position.flash?.flashTime },
           { name: 'flashHeight', kind: 'number', label: 'Flash height', min: 0, max: 10, current: position.flash?.flashHeight },
           { name: 'flashActive', kind: 'boolean', label: 'Flash active yes/no', current: position.flash?.flashActive },
-          { name: 'stampPressure', kind: 'number', label: 'Stamp pressure PSI', min: 0, max: 200, current: position.stampinator?.stampPressure },
-          { name: 'stampTime', kind: 'number', label: 'Stamp time seconds', min: 0, max: 30, current: position.stampinator?.stampTime },
-          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °F', min: 100, max: 500, current: position.stampinator?.stampTemp },
+          { name: 'stampTemp', kind: 'number', label: 'Stamp temperature °C', min: 100, max: 500, current: position.stampinator?.stampTemp },
           { name: 'stampActive', kind: 'boolean', label: 'Stamp active yes/no', current: position.stampinator?.stampActive },
         ] as VoiceFieldSpec[]}
         onApply={(u, notes) => {
@@ -430,8 +551,6 @@ export default function ScreenPrint() {
           if (typeof u.flashTime === 'number') updateFlash(pos, 'flashTime', u.flashTime);
           if (typeof u.flashHeight === 'number') updateFlash(pos, 'flashHeight', u.flashHeight);
           if (typeof u.flashActive === 'boolean') updateFlash(pos, 'flashActive', u.flashActive);
-          if (typeof u.stampPressure === 'number') updateStamp(pos, 'stampPressure', u.stampPressure);
-          if (typeof u.stampTime === 'number') updateStamp(pos, 'stampTime', u.stampTime);
           if (typeof u.stampTemp === 'number') updateStamp(pos, 'stampTemp', u.stampTemp);
           if (typeof u.stampActive === 'boolean') updateStamp(pos, 'stampActive', u.stampActive);
           if (notes) setNotes((n) => (n ? n + '\n' : '') + notes);
@@ -444,7 +563,7 @@ export default function ScreenPrint() {
   const getPositionBg = (equipmentType: EquipmentType) => {
     switch (equipmentType) {
       case 'flash': return 'bg-accent/50 border-accent';
-      case 'stampinator': return 'bg-secondary border-secondary';
+      case 'stampinator': return 'bg-secondary/20 border-secondary/40';
       case 'empty': return 'bg-muted/30 border-muted';
       default: return 'bg-primary/5 border-primary/20';
     }
@@ -523,6 +642,41 @@ export default function ScreenPrint() {
                     <Clock className="h-4 w-4" />
                     {format(new Date(dateTime), 'MM/dd/yyyy, hh:mm a')}
                   </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="w-full sm:max-w-sm">
+                  <Label>This recipe is for:</Label>
+                  <Select
+                    value={selectedPrintId ?? 'none'}
+                    onValueChange={(v) => setSelectedPrintId(v === 'none' ? null : v)}
+                    disabled={!linkedJobId}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={linkedJobId ? 'Whole job (no specific print)' : 'Link a job first'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Whole job (no specific print)</SelectItem>
+                      {prints.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.design_name} • {p.location}
+                          {p.garment_color ? ` • ${p.garment_color}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Each print (design + location) can have its own recipe.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setLibraryOpen(true)}>
+                    <BookOpen className="mr-2 h-4 w-4" /> Standard Recipes
+                  </Button>
+                  <Button variant="outline" onClick={() => setSaveTemplateOpen(true)}>
+                    <Save className="mr-2 h-4 w-4" /> Save to Library
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -767,7 +921,12 @@ export default function ScreenPrint() {
                             <Label className="text-xs">Flash Type:</Label>
                             <Select
                               value={position.flash?.flashType || 'smart'}
-                              onValueChange={(v) => updateFlash(pos, 'flashType', v as 'smart' | 'manual')}
+                              onValueChange={(v) => {
+                                const isManual = v === 'manual';
+                                updateFlash(pos, 'flashType', v as 'smart' | 'manual');
+                                updateFlash(pos, 'flashTemp', isManual ? 5 : 102);
+                                updateFlash(pos, 'flashTime', isManual ? 5 : 3);
+                              }}
                             >
                               <SelectTrigger className="mt-1 h-8 text-xs">
                                 <SelectValue />
@@ -780,18 +939,20 @@ export default function ScreenPrint() {
                           </div>
                           {position.flash?.flashType === 'manual' && (
                             <p className="text-[10px] text-muted-foreground italic">
-                              Record the dial positions below so the next operator can dial them in.
+                              Rotary dial: 1-10 on each side, time on one side and temp on the other. Nominal is 5.
                             </p>
                           )}
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label className="text-xs">
-                                {position.flash?.flashType === 'manual' ? 'Temp Dial Position:' : 'Flash Temperature (°F):'}
+                                {position.flash?.flashType === 'manual' ? 'Temp Dial (1-10):' : 'Flash Temperature (°C):'}
                               </Label>
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 5' : '350'}
+                                min={position.flash?.flashType === 'manual' ? 1 : undefined}
+                                max={position.flash?.flashType === 'manual' ? 10 : undefined}
+                                placeholder={position.flash?.flashType === 'manual' ? '5' : '102'}
                                 value={position.flash?.flashTemp ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -799,13 +960,15 @@ export default function ScreenPrint() {
                             </div>
                             <div>
                               <Label className="text-xs">
-                                {position.flash?.flashType === 'manual' ? 'Time Dial Position:' : 'Flash Time (seconds):'}
+                                {position.flash?.flashType === 'manual' ? 'Time Dial (1-10):' : 'Flash Time (seconds):'}
                               </Label>
                               <Input
                                 type="number"
                                 inputMode="decimal"
                                 step="0.1"
-                                placeholder={position.flash?.flashType === 'manual' ? 'e.g. 3' : '3'}
+                                min={position.flash?.flashType === 'manual' ? 1 : undefined}
+                                max={position.flash?.flashType === 'manual' ? 10 : undefined}
+                                placeholder={position.flash?.flashType === 'manual' ? '5' : '3'}
                                 value={position.flash?.flashTime ?? ''}
                                 onChange={(e) => updateFlash(pos, 'flashTime', e.target.value ? parseFloat(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -847,38 +1010,14 @@ export default function ScreenPrint() {
                       {/* Stampinator Settings */}
                       {position.equipmentType === 'stampinator' && (
                         <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground">No pressure or time control — fixed by the stampinator.</div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-xs">Stamp Pressure (PSI):</Label>
+                              <Label className="text-xs">Stamp Temperature (°C):</Label>
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder="80"
-                                value={position.stampinator?.stampPressure ?? ''}
-                                onChange={(e) => updateStamp(pos, 'stampPressure', e.target.value ? parseInt(e.target.value) : null)}
-                                className="mt-1 h-8 text-xs"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Stamp Time (seconds):</Label>
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                step="0.1"
-                                placeholder="2"
-                                value={position.stampinator?.stampTime ?? ''}
-                                onChange={(e) => updateStamp(pos, 'stampTime', e.target.value ? parseFloat(e.target.value) : null)}
-                                className="mt-1 h-8 text-xs"
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs">Stamp Temperature (°F):</Label>
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                placeholder="350"
+                                placeholder="300"
                                 value={position.stampinator?.stampTemp ?? ''}
                                 onChange={(e) => updateStamp(pos, 'stampTemp', e.target.value ? parseInt(e.target.value) : null)}
                                 className="mt-1 h-8 text-xs"
@@ -919,9 +1058,9 @@ export default function ScreenPrint() {
                   fields={[
                     { name: 'shopTemp', kind: 'number', label: 'Shop temp °F', min: 40, max: 120, current: environment.shopTemp },
                     { name: 'platenTemp', kind: 'number', label: 'Platen temp °F', min: 40, max: 200, current: environment.platenTemp },
-                    { name: 'dryerTemp1', kind: 'number', label: 'Dryer temp 1 °F', min: 100, max: 400, current: environment.dryerTemp1 },
-                    { name: 'dryerTemp2', kind: 'number', label: 'Dryer temp 2 °F', min: 100, max: 400, current: environment.dryerTemp2 },
-                    { name: 'beltSpeed', kind: 'number', label: 'Belt speed', min: 0, max: 20, current: environment.beltSpeed },
+                    { name: 'dryerTemp1', kind: 'number', label: 'Chamber 1 temp °F', min: 100, max: 800, current: environment.dryerTemp1 },
+                    { name: 'dryerTemp2', kind: 'number', label: 'Chamber 2 temp °F', min: 100, max: 800, current: environment.dryerTemp2 },
+                    { name: 'beltSpeed', kind: 'number', label: 'Dwell time seconds', min: 0, max: 120, current: environment.beltSpeed },
                     { name: 'rating', kind: 'number', label: 'Quality rating stars', min: 0, max: 5, current: rating },
                   ] as VoiceFieldSpec[]}
                   onApply={(u, notes) => {
@@ -964,34 +1103,34 @@ export default function ScreenPrint() {
                   />
                 </div>
                 <div>
-                  <Label>Dryer Temp 1 (°F):</Label>
+                  <Label>Chamber 1 Temp (°F):</Label>
                   <Input
                     type="number"
                     inputMode="decimal"
-                    placeholder="320"
+                    placeholder="700"
                     value={environment.dryerTemp1 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp1: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Dryer Temp 2 (°F):</Label>
+                  <Label>Chamber 2 Temp (°F):</Label>
                   <Input
                     type="number"
                     inputMode="decimal"
-                    placeholder="320"
+                    placeholder="550"
                     value={environment.dryerTemp2 ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, dryerTemp2: e.target.value ? parseInt(e.target.value) : null }))}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Belt Speed:</Label>
+                  <Label>Dwell Time (s):</Label>
                   <Input
                     type="number"
                     step="0.1"
                     inputMode="decimal"
-                    placeholder="3"
+                    placeholder="45"
                     value={environment.beltSpeed ?? ''}
                     onChange={(e) => setEnvironment(prev => ({ ...prev, beltSpeed: e.target.value ? parseFloat(e.target.value) : null }))}
                     className="mt-1"
@@ -1052,20 +1191,41 @@ export default function ScreenPrint() {
           />
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Button variant="outline" onClick={clearAll}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Clear All
             </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
+            {linkedJobId && (
+              <Button variant="secondary" onClick={() => handleSave(true)} disabled={isSaving}>
+                <Plus className="mr-2 h-4 w-4" />
+                Save &amp; Next Print
+              </Button>
+            )}
+            <Button className="flex-1" onClick={() => handleSave(false)} disabled={isSaving}>
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              {editingRecipeId ? 'Update Job' : 'Save Job'}
+              {editingRecipeId ? 'Update Recipe' : 'Save Recipe'}
             </Button>
           </div>
+
+          <RecipeTemplateLibraryDialog
+            open={libraryOpen}
+            onOpenChange={setLibraryOpen}
+            serviceType="screen_print"
+            quantity={linkedJobId ? jobs.find((j) => j.id === linkedJobId)?.quantity ?? null : null}
+            onApply={applyTemplate}
+          />
+          <SaveRecipeTemplateDialog
+            open={saveTemplateOpen}
+            onOpenChange={setSaveTemplateOpen}
+            serviceType="screen_print"
+            buildPayload={buildTemplatePayload}
+            defaultName={jobNumber || jobDescription}
+          />
         </TabsContent>
 
         {/* SAVED JOBS TAB */}
@@ -1117,23 +1277,67 @@ export default function ScreenPrint() {
             </Card>
           ) : (
             <>
-              <div className="space-y-2">
-                {filteredRecipes.map((recipe) => (
-                  <Card 
-                    key={recipe.id} 
-                    className="cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => setViewingRecipe(recipe)}
-                  >
-                    <CardContent className="flex items-center justify-between py-4">
-                      <div>
-                        <div className="font-semibold">{recipe.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {recipe.customer_name || 'No description'} | {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
+              <div className="space-y-3">
+                {groupedRecipes.map((group) => (
+                  <Card key={group.key}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center justify-between gap-3">
+                        <span className="truncate">{group.title}</span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {group.recipes.length} {group.recipes.length === 1 ? 'print' : 'prints'}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            title="Delete all recipes for this job"
+                            onClick={() => handleDeleteGroup(group.recipes.map((r) => r.id), group.title)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </span>
+                      </CardTitle>
+                      {group.subtitle && (
+                        <p className="text-sm text-muted-foreground">{group.subtitle}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-2 pb-4">
+                      {group.recipes.map((recipe) => (
+                        <div
+                          key={recipe.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setViewingRecipe(recipe)}
+                          onKeyDown={(e) => e.key === 'Enter' && setViewingRecipe(recipe)}
+                          className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {recipe.name.includes(' — ')
+                                ? recipe.name.split(' — ').slice(1).join(' — ')
+                                : 'Whole job (no specific print)'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(recipe.updated_at), 'MMM d, yyyy h:mm a')}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <span className="text-primary">
+                              {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              title="Delete this recipe"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(recipe.id); }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-primary">
-                        {'★'.repeat(recipe.quality_rating || 0)}{'☆'.repeat(5 - (recipe.quality_rating || 0))}
-                      </div>
+                      ))}
                     </CardContent>
                   </Card>
                 ))}
@@ -1146,19 +1350,60 @@ export default function ScreenPrint() {
                 subtitle={viewingRecipe?.customer_name}
                 jobId={viewingRecipe?.job_id}
                 rating={viewingRecipe?.quality_rating}
+                processLabel="Screen Print"
                 badges={viewingRecipe ? [{ label: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' }] : []}
-                sections={viewingRecipe ? [
-                  {
-                    title: 'Print Settings',
-                    fields: [
-                      { label: 'Print Type', value: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' },
-                      { label: 'Squeegee', value: viewingRecipe.squeegee_settings },
-                      { label: 'Flash Temp', value: viewingRecipe.flash_temp ? `${viewingRecipe.flash_temp}°F` : null, mono: true },
-                      { label: 'Flash Time', value: viewingRecipe.flash_time ? `${viewingRecipe.flash_time}s` : null, mono: true },
-                      { label: 'Cure Temp', value: viewingRecipe.cure_temp ? `${viewingRecipe.cure_temp}°F` : null, mono: true },
-                      { label: 'Cure Time', value: viewingRecipe.cure_time ? `${viewingRecipe.cure_time}s` : null, mono: true },
-                    ],
-                  },
+                sections={viewingRecipe ? (() => {
+                  const savedEnvironment = readSavedEnvironment(viewingRecipe.squeegee_settings);
+                  const chamber1 = savedEnvironment.dryerTemp1 ?? viewingRecipe.flash_temp;
+                  const chamber2 = savedEnvironment.dryerTemp2 ?? viewingRecipe.cure_temp;
+                  const dwellTime = savedEnvironment.beltSpeed ?? viewingRecipe.cure_time;
+
+                  return [
+                    {
+                      title: 'Print Settings',
+                      fields: [
+                        { label: 'Print Type', value: viewingRecipe.print_type === 'multi_rotation' ? 'Multi-Rotation' : 'Single' },
+                        { label: 'Shop Temp', value: savedEnvironment.shopTemp != null ? `${savedEnvironment.shopTemp}°F` : null, mono: true },
+                        { label: 'Platen Temp', value: savedEnvironment.platenTemp != null ? `${savedEnvironment.platenTemp}°F` : null, mono: true },
+                        { label: 'Chamber 1 Temp', value: chamber1 != null ? `${chamber1}°F` : null, mono: true },
+                        { label: 'Chamber 2 Temp', value: chamber2 != null ? `${chamber2}°F` : null, mono: true },
+                        { label: 'Dwell Time', value: dwellTime != null ? `${dwellTime} seconds` : null, mono: true },
+                      ],
+                    },
+                  ...(Array.isArray(viewingRecipe.platen_setup) && viewingRecipe.platen_setup.some((p: any) => p?.settings) ? [{
+                    title: 'Press Setup',
+                    fields: viewingRecipe.platen_setup
+                      .filter((p: any) => p?.settings && Object.values(p.settings).some((v) => v !== null && v !== '' && v !== false))
+                      .map((p: any) => {
+                        const s = p.settings || {};
+                        const bits: string[] = [];
+                        if (p.equipment_type === 'flash') {
+                          const isManual = s.flashType === 'manual';
+                          if (s.flashType) bits.push(isManual ? 'Manual flash (dial)' : 'Smart flash');
+                          if (s.flashTemp) bits.push(isManual ? `temp dial ${s.flashTemp}` : `${s.flashTemp}°C`);
+                          if (s.flashTime) bits.push(isManual ? `time dial ${s.flashTime}` : `${s.flashTime}s`);
+                          if (s.flashHeight) bits.push(`height ${s.flashHeight}`);
+
+                        } else if (p.equipment_type === 'stampinator') {
+                          if (s.stampTemp) bits.push(`${s.stampTemp}°C`);
+                        } else {
+                          if (s.pantone) bits.push(s.pantone);
+                          if (s.screenMesh) bits.push(`${s.screenMesh} mesh`);
+                          if (s.airPressure) bits.push(`${s.airPressure} psi`);
+                          if (s.printSpeed) bits.push(`print ${s.printSpeed}`);
+                          if (s.floodSpeed) bits.push(`flood ${s.floodSpeed}`);
+                          if (s.squeegeeAngle) bits.push(`sq angle ${s.squeegeeAngle}`);
+                          if (s.floodAngle) bits.push(`flood angle ${s.floodAngle}`);
+                          if (s.squeegeeHeight) bits.push(`sq ht ${s.squeegeeHeight}`);
+                          if (s.floodHeight) bits.push(`flood ht ${s.floodHeight}`);
+                        }
+                        return {
+                          label: `Position ${p.position}${p.equipment_type && p.equipment_type !== 'printhead' ? ` (${p.equipment_type})` : ''}`,
+                          value: bits.join(' • ') || null,
+                        };
+                      })
+                      .filter((f: any) => f.value),
+                  }] : []),
                   ...(viewingRecipe.ink_colors && viewingRecipe.ink_colors.length > 0 ? [{
                     title: 'Ink Colors',
                     fields: viewingRecipe.ink_colors.map((ink, i) => ({
@@ -1166,7 +1411,9 @@ export default function ScreenPrint() {
                       value: `${ink.color} (${ink.type}, ${ink.mesh} mesh)`,
                     })),
                   }] : []),
-                ] : []}
+                  ];
+                })() : []}
+
                 notes={viewingRecipe?.notes}
                 updatedAt={viewingRecipe?.updated_at}
                 onLoadForReorder={() => viewingRecipe && loadRecipe(viewingRecipe)}

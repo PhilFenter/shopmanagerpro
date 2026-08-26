@@ -724,6 +724,7 @@ export default function DTF() {
               <SavedJobDetailSheet
                 open={!!viewingRecipe}
                 onOpenChange={(open) => !open && setViewingRecipe(null)}
+                processLabel="DTF"
                 title={viewingRecipe?.name || ''}
                 subtitle={viewingRecipe?.customer_name}
                 jobId={viewingRecipe?.job_id}
