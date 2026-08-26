@@ -10,7 +10,7 @@ export interface ChecklistItem {
 
 export interface ActionItem {
   id: string;
-  created_by: string;
+  created_by: string | null;
   title: string;
   description: string | null;
   customer_name: string | null;

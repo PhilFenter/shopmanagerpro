@@ -122,6 +122,18 @@ export function GlobalJobSearch({ open, onOpenChange }: Props) {
     return () => window.removeEventListener('keydown', handler);
   }, [open, onOpenChange]);
 
+  // Lock body scroll while this full-screen overlay is open — otherwise a
+  // touch that starts past the overlay's own scrollable bounds can bleed
+  // through and scroll the page underneath on mobile.
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
   const selectJob = (job: RecentJob | SearchResult) => {
     pushRecentJob({
       id: job.id,

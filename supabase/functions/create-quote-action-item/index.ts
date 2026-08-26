@@ -720,6 +720,10 @@ Deno.serve(async (req) => {
     autoChecklist.push({ id: crypto.randomUUID(), text: "Send final quote to customer", done: false });
 
     // 7. Create action item for follow-up
+    // created_by is left null — this is the public website endpoint, so there's
+    // no authenticated team member to attribute it to. fanout_action_item_new()
+    // already treats a null created_by as "no specific owner" and notifies
+    // everyone, so this is the value that trigger was designed for.
     const { error: aiErr } = await serviceClient
       .from("action_items")
       .insert({
@@ -733,12 +737,36 @@ Deno.serve(async (req) => {
         source: "website",
         priority: "high",
         status: "open",
-        created_by: "00000000-0000-0000-0000-000000000000",
         checklist: autoChecklist,
       });
 
     if (aiErr) {
       console.error("Action item error:", aiErr);
+      // The quote itself is already saved — never fail the customer-facing
+      // response over this. But a failure here used to be completely silent
+      // (nothing but a log line nobody was watching), which is how quotes went
+      // unactioned for weeks. Best-effort alert a human instead.
+      try {
+        const resendApiKey = Deno.env.get("RESEND_API_KEY");
+        const alertEmail = Deno.env.get("NEW_QUOTE_ALERT_EMAIL");
+        if (resendApiKey && alertEmail) {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${resendApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "Hell's Canyon Designs <alerts@hellscanyondesigns.com>",
+              to: [alertEmail],
+              subject: `Action item failed to create for quote ${quote.quote_number || quote.id}`,
+              html: `<p>Quote <strong>${quote.quote_number || quote.id}</strong> from ${escapeHtml(customer_name)} was saved, but its action item failed to create and needs manual follow-up.</p><p>Error: ${escapeHtml(aiErr.message)}</p>`,
+            }),
+          });
+        }
+      } catch (alertErr) {
+        console.error("Action item failure alert also failed:", alertErr);
+      }
     }
 
     // 7. Send confirmation email to customer

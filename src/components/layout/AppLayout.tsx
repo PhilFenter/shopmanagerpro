@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
   LayoutDashboard,
   Briefcase,
@@ -183,24 +184,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-2 border-b px-4">
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <Printer className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold">Shop Manager</span>
-        <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search jobs"
-            title="Search jobs (⌘K)"
-          >
-            <Search className="h-5 w-5" />
-          </Button>
-          <NotificationBell />
-        </div>
+        {/* Search/notifications live in the mobile top bar already — no need to duplicate them here */}
+        {!mobile && (
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search jobs"
+              title="Search jobs (⌘K)"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            <NotificationBell />
+          </div>
+        )}
       </div>
-      
-      <nav className="flex-1 space-y-1 p-4">
+
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-4">
         {navigation.map((item) => (
           <NavItem key={item.name} item={item} mobile={mobile} />
         ))}
@@ -243,7 +247,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         )}
       </nav>
       
-      <div className="border-t p-4">
+      <div className="shrink-0 border-t p-4">
         <div className="mb-3 flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
             {user?.email?.[0].toUpperCase()}
@@ -266,14 +270,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="flex h-screen bg-background">
       {/* Mobile sidebar */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-72 bg-card shadow-xl">
-            <SidebarContent mobile />
-          </div>
-        </div>
-      )}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-72 max-w-[85vw] p-0 lg:hidden">
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+          <SidebarContent mobile />
+        </SheetContent>
+      </Sheet>
 
       {/* Desktop sidebar */}
       <aside className="hidden w-72 border-r bg-card lg:block">
