@@ -63,7 +63,13 @@ export function useActionItems() {
   });
 
   const openItems = items.filter(i => i.status === 'open');
-  const completedItems = items.filter(i => i.status === 'completed');
+  const completedItems = items
+    .filter(i => i.status === 'completed')
+    .sort((a, b) => {
+      const aDate = new Date(a.created_at).getTime();
+      const bDate = new Date(b.created_at).getTime();
+      return bDate - aDate;
+    });
 
   const now = new Date();
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
