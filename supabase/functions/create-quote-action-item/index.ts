@@ -484,8 +484,28 @@ Deno.serve(async (req) => {
     }
 
     if (quantity !== undefined && quantity !== null) {
-      const parsedQuantity = Number(quantity);
-      if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0 || parsedQuantity > 1_000_000) {
+      // The Embroidery, Screen Print, and DTF builders send a preset range
+      // label here ("6-12", "96+", "not-sure") rather than a number — every
+      // submission through those three forms was rejected by this check
+      // (added 2026-07-31) since Number("6-12") is NaN. Downstream this value
+      // is only ever read via parseInt(...) || 0 (see buildLineItem/totalQty
+      // below), which already tolerates a label like that gracefully, so a
+      // non-numeric quantity only needs a sane length bound, not strict
+      // numeric validation — that's still enforced for real numeric input
+      // (Hats, Custom Apparel, Leather, Wholesale Patches all send an actual
+      // number and keep getting the full range/finite check).
+      const quantityStr = String(quantity);
+      const parsedQuantity = Number(quantityStr.trim());
+      // Number() (unlike parseInt) requires the *whole* string to be a valid
+      // numeric literal, so it doubles as the numeric/label discriminator:
+      // "-5" and "48" parse (and still get the full range check below);
+      // "6-12" and "not-sure" don't, and fall through to the length check.
+      const isNumeric = Number.isFinite(parsedQuantity) && quantityStr.trim() !== "";
+      if (isNumeric) {
+        if (parsedQuantity < 0 || parsedQuantity > 1_000_000) {
+          return bad("Invalid quantity");
+        }
+      } else if (quantityStr.length > 50) {
         return bad("Invalid quantity");
       }
     }
