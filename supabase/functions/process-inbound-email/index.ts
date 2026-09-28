@@ -266,7 +266,9 @@ Deno.serve(async (req) => {
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
       const backEmb = method === "embroidery" && cat !== "hat" && /\bback\b/i.test(String(it.locations || "")) && !/back of (the )?(cap|hat)/i.test(String(it.locations || ""));
       if (backEmb) flags.push(`Item ${items.indexOf(it) + 1}: asked for BACK embroidery — we don't offer it. Suggest screen print/DTF for the back. Priced front only.`);
-      const jacket = /jacket|coat|vest|shell|parka|carhartt\s*j/i.test(`${it.item || ""} ${it.garment || ""}`);
+      // Hoodies/sweatshirts embroider at the shirt price ($15), even "hooded jackets" / zip hoodies.
+      const garmentText = `${it.item || ""} ${it.garment || ""}`;
+      const jacket = /jacket|coat|vest|shell|parka|carhartt\s*j/i.test(garmentText) && !/hood|sweat/i.test(garmentText);
       const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
       let suggestions: Suggestion[] = [];
       if (qty >= CUSTOM_QUOTE_QTY) {
