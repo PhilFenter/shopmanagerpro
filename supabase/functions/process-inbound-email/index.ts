@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
           next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
           assumptions: [
             "hat price list, shipping included",
-            method === "embroidery" ? `up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches` : "",
+            method === "embroidery" ? `up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches (+$1.50 per 1,000 over — confirm after digitizing)` : "",
             method === "embroidery" && qty < 50 ? "+$45 digitizing" : "",
             locations > 1 ? `${Math.min(locations, 3)} locations (+$8 each extra)` : "",
             locations > 3 ? "MORE THAN 3 LOCATIONS — price by hand" : "",

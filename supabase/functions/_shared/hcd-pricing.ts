@@ -259,6 +259,8 @@ export const CUSTOM_QUOTE_QTY = 700;
 export const HAT_EXTRA_LOCATION = 8;
 export const HAT_SIDE_FLAG = 5;
 export const HAT_STITCH_LIMIT = 8000;
+// Over 8,000 stitches: +$1.50 per 1,000 (same rate as apparel over 10,000). Applied after digitizing.
+export const HAT_PER_1K_OVER = 1.5;
 
 export function hatPrice(style: string | null, qty: number, opts: { locations?: number } = {}): Suggestion | null {
   if (qty <= 0) return null;
