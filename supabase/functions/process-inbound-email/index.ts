@@ -24,6 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { categoryOf, suggestTiers, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,7 +64,7 @@ Read the email (and any earlier thread context) and return ONLY a JSON object wi
     { "item": "t-shirts|hoodies|polos|hats|jackets|hi-vis|other", "garment": string|null, "colors": string|null,
       "quantity": number|null, "sizes": { "S": number, ... } | null,
       "decoration": "screen_print|dtf|embroidery|leather_patch|uv_patch|pvc_patch|woven_patch|unknown",
-      "locations": string|null, "notes": string|null }
+      "locations": string|null, "print_colors": number|null, "notes": string|null }
   ],
   "total_quantity": number|null,
   "deadline": string|null,
@@ -79,6 +80,7 @@ Guidance:
 - existing_customer_order = a known customer asking for a reorder or a new job.
 - not_actionable = receipts, notifications, spam, thank-yous that need nothing.
 - ready_to_price is true only if we know items, rough quantity and decoration locations (artwork may still be coming).
+- print_colors: number of ink colors in the design only if the customer says so or it's obvious (e.g. "white logo" = 1). Otherwise null.
 - Don't invent numbers. If a quantity is a range, use the low end and say so in notes.
 - reply_draft: only when classification is new_quote_request, quote_follow_up or existing_customer_order AND something is missing.
   Write it like Phil: short, friendly, plain, 2-5 sentences, ask at most 3 things, no prices, no bullet-point walls,
@@ -249,6 +251,26 @@ Deno.serve(async (req) => {
     const missing: string[] = Array.isArray(ai.missing) ? ai.missing.map(String).slice(0, 8) : [];
     const ready = ai.ready_to_price === true && missing.length === 0;
 
+    // 4b. Suggested Good / Better / Best pricing (Printavo formula, suggestions only)
+    const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
+    const pricing: { suggestions: Suggestion[]; qty: number; method: string; assumptions: string }[] = [];
+    for (const it of items) {
+      const method = suggestMethod(it, totalQty);
+      const cat = categoryOf(it.item || it.garment);
+      const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 0);
+      const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
+      const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
+      let suggestions: Suggestion[] = [];
+      if (cat && qty > 0 && method !== "unknown") {
+        try {
+          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations });
+        } catch (e) {
+          console.error("pricing failed:", e);
+        }
+      }
+      pricing.push({ suggestions, qty, method, assumptions: assumptionsFor(method, colors) });
+    }
+
     // 5. Quote — follow-ups attach to the open quote instead of making a new one
     let quoteId: string | null = null;
     let quoteNumber: string | null = null;
@@ -280,8 +302,9 @@ Deno.serve(async (req) => {
       if (items.length) {
         const rows = items.map((it, idx) => {
           const method = suggestMethod(it, totalQty);
+          const pick = pricing[idx]?.suggestions.find((x) => x.tier === tierHint);
           const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 1);
-          const desc = [it.garment || it.item || "Item", method !== "unknown" ? `— ${method.replace(/_/g, " ")}` : ""]
+          const desc = [pick && !it.garment ? pick.name : (it.garment || it.item || "Item"), method !== "unknown" ? `— ${method.replace(/_/g, " ")}` : ""]
             .filter(Boolean).join(" ");
           return {
             quote_id: quoteId,
@@ -291,11 +314,15 @@ Deno.serve(async (req) => {
             sizes: cleanSizes(it.sizes),
             color: it.colors ? String(it.colors).slice(0, 100) : null,
             placement: it.locations ? String(it.locations).slice(0, 200) : null,
-            garment_cost: 0,
-            garment_markup_pct: 200,
-            decoration_cost: 0,
-            decoration_params: { source: "email", ...it, suggested_method: method },
-            line_total: 0,
+            style_number: pick && !it.garment ? pick.style : null,
+            garment_cost: pick?.garment_cost ?? 0,
+            garment_markup_pct: pick?.markup_pct ?? 200,
+            decoration_cost: pick?.decoration_cost ?? 0,
+            decoration_params: {
+              source: "email", ...it, suggested_method: method,
+              suggested_tiers: pricing[idx]?.suggestions ?? [], pricing_assumptions: pricing[idx]?.assumptions ?? "",
+            },
+            line_total: pick ? Number((pick.unit_price * qty).toFixed(2)) : 0,
             notes: it.notes ? String(it.notes).slice(0, 500) : null,
             sort_order: idx,
           };
@@ -337,6 +364,13 @@ Deno.serve(async (req) => {
           method !== "unknown" ? `method: ${method.replace(/_/g, " ")}` : "",
         ].filter(Boolean).join(" · ")}`;
       }),
+      ...pricing.flatMap((p, i) => p.suggestions.length ? [
+        "",
+        `Suggested price, item ${i + 1} (${p.qty} pcs, ${p.method.replace(/_/g, " ")}${p.assumptions ? `, ${p.assumptions}` : ""}):`,
+        ...p.suggestions.map((s) =>
+          `  ${s.tier === tierHint ? "→ " : "  "}${s.tier.toUpperCase()}: ${s.name} — $${s.unit_price.toFixed(2)} ea / $${s.total.toFixed(2)}${s.upcharge_2xl > 0 ? ` (2XL+ add $${s.upcharge_2xl.toFixed(2)})` : ""}`),
+      ] : []),
+      pricing.some((p) => p.suggestions.length) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
       ai.reply_draft ? "\nA reply draft asking for the missing info is saved in Gmail — review and send." : "",
     ].filter((l) => l !== "");
 

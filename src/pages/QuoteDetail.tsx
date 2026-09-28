@@ -101,7 +101,8 @@ interface QuoteData {
 }
 
 function calculateLineTotal(item: LineItem): number {
-  // Per-size-tier pricing: Σ(size_qty × tier_cost × markup) + (total_qty × decoration)
+  // Per-size-tier pricing: Σ(size_qty × tier_cost × markup%) + (total_qty × decoration)
+  // Same formula as Printavo pricing matrices: markup 200 = cost × 2.00 (not × 3).
   const hasSizeCosts = Object.keys(item.size_costs).length > 0;
   
   if (hasSizeCosts) {
@@ -109,14 +110,14 @@ function calculateLineTotal(item: LineItem): number {
     for (const [size, qty] of Object.entries(item.sizes)) {
       if (!qty) continue;
       const tierCost = item.size_costs[size] ?? item.garment_cost;
-      garmentTotal += qty * tierCost * (1 + item.garment_markup_pct / 100);
+      garmentTotal += qty * tierCost * (item.garment_markup_pct / 100);
     }
     const decorTotal = item.quantity * item.decoration_cost;
     return Number((garmentTotal + decorTotal).toFixed(2));
   }
   
   // Fallback: flat garment cost
-  const garmentSell = item.garment_cost * (1 + item.garment_markup_pct / 100);
+  const garmentSell = item.garment_cost * (item.garment_markup_pct / 100);
   return Number(((garmentSell + item.decoration_cost) * item.quantity).toFixed(2));
 }
 
