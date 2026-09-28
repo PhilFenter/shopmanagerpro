@@ -1,3 +1,4 @@
+import { richardsonCost } from "./richardson-2026.ts";
 // HCD Good / Better / Best pricing — used by email intake to suggest a first price.
 //
 // Formula matches Printavo exactly:  (garment cost × markup%) + decoration price
@@ -7,6 +8,7 @@
 // If Phil changes a matrix in Printavo, update the numbers here (or re-export and paste).
 // Garment costs: product_catalog (SanMar import) first, then the fallback list below
 // (SanMar SDL standard piece price, size L, colored garment, 2026-09-28).
+// Order: SanMar (product_catalog → fallback list) first, then the Richardson 2026 wholesale list.
 // Phil quotes from SanMar list price on purpose — his volume discount is margin cushion.
 //
 // Suggestions only. Nothing here is sent to customers; Phil reviews every quote.
@@ -126,7 +128,7 @@ function decoColumn(service: string, colors: number | null): number {
   return 0;
 }
 
-export async function garmentCost(db: any, pick: Pick): Promise<number> {
+export async function garmentCost(db: any, pick: Pick, qty = 12): Promise<number> {
   try {
     const { data } = await db
       .from("product_catalog")
@@ -140,7 +142,8 @@ export async function garmentCost(db: any, pick: Pick): Promise<number> {
       return prices[Math.floor(prices.length / 2)];
     }
   } catch (_) { /* fall back */ }
-  return pick.cost;
+  if (pick.cost > 0) return pick.cost; // SanMar list (fallback table)
+  return richardsonCost(pick.style, qty) ?? 0; // then Richardson wholesale
 }
 
 export async function suggestTiers(
@@ -162,7 +165,7 @@ export async function suggestTiers(
   const out: Suggestion[] = [];
   for (const tier of ["good", "better", "best"] as Tier[]) {
     const p = picks[tier];
-    const cost = await garmentCost(db, p);
+    const cost = await garmentCost(db, p, qty);
     const garmentSell = p.map ? p.map : cost * (row.markup / 100);
     const unit = Number((garmentSell + deco).toFixed(2));
     out.push({
@@ -203,7 +206,7 @@ export async function suggestRequested(
   const row = matrixRow(service, qty);
   if (!row || qty <= 0) return null;
   const known = Object.values(PICKS).flatMap((t) => Object.values(t)).find((p) => p.style === style.toUpperCase());
-  const cost = await garmentCost(db, known ?? { style, name: style, cost: 0, cost2xl: 0, msrp: 0 });
+  const cost = await garmentCost(db, known ?? { style, name: style, cost: 0, cost2xl: 0, msrp: 0 }, qty);
   if (!cost) return null;
   const col = decoColumn(service, opts.colors ?? null);
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
