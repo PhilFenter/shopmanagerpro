@@ -230,7 +230,7 @@ export const HAT_PRICE_TIERS = [
   { min: 24, price: 26 },
   { min: 12, price: 27 },
 ];
-// Upcharge vs the 112 (from the website form + Phil's quotes). 110 = website number; Phil to confirm.
+// Upcharge vs the 112 (from the website form + Phil's quotes). All numbers match the website (Phil confirmed).
 export const HAT_UPCHARGES: Record<string, { name: string; add: number }> = {
   "112": { name: "Richardson 112 Trucker", add: 0 },
   "115": { name: "Richardson 115 Low Pro Trucker", add: 0 },
