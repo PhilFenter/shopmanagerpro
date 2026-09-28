@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, styleFromText, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -261,6 +261,15 @@ Deno.serve(async (req) => {
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
       const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
       let suggestions: Suggestion[] = [];
+      if (cat === "hat" && qty > 0) {
+        // Hats use Phil's flat price list (same as the website), not the markup formula
+        const hp = hatPrice(styleFromText(it.garment), qty);
+        pricing.push({
+          suggestions: [], requested: hp, qty, method,
+          assumptions: `hat price list (patch or embroidery${method === "embroidery" && qty < 50 ? ", +$45 digitizing" : ""}, shipping included${qty < 12 ? ", 12 minimum" : ""})`,
+        });
+        continue;
+      }
       if (cat && qty > 0 && method !== "unknown") {
         try {
           suggestions = await suggestTiers(db, cat, method, qty, { colors, locations });

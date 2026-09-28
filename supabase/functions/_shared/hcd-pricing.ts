@@ -219,3 +219,41 @@ export async function suggestRequested(
     decoration_cost: deco, unit_price: unit, total: Number((unit * qty).toFixed(2)), upcharge_2xl: 0,
   };
 }
+
+// ── Hats: Phil's flat price list (same as the website hat form) ─────────────
+// Price per hat on a Richardson 112, patch OR embroidery, includes real leather,
+// sewing, and shipping. Embroidery adds a one-time $45 digitizing fee under 50 hats.
+export const HAT_PRICE_TIERS = [
+  { min: 100, price: 19 },
+  { min: 72, price: 21 },
+  { min: 48, price: 23 },
+  { min: 24, price: 26 },
+  { min: 12, price: 27 },
+];
+// Upcharge vs the 112 (from the website form + Phil's quotes). 110 = website number; Phil to confirm.
+export const HAT_UPCHARGES: Record<string, { name: string; add: number }> = {
+  "112": { name: "Richardson 112 Trucker", add: 0 },
+  "115": { name: "Richardson 115 Low Pro Trucker", add: 0 },
+  "112FP": { name: "Richardson 112FP Five Panel", add: 0 },
+  "112PFP": { name: "Richardson 112PFP Printed Five Panel", add: 1.5 },
+  "110": { name: "Richardson 110 R-Flex", add: 1.25 },
+  "6606": { name: "YP Classics 6606 Retro Trucker", add: 1.05 },
+  "OFA": { name: "Legacy OFA", add: 2 },
+  "112PT": { name: "Richardson 112PT Printed Tactical", add: 2 },
+  "112PL": { name: "Richardson 112+ R-Flex", add: 2 },
+};
+export const HAT_MIN = 12;
+
+export function hatPrice(style: string | null, qty: number): Suggestion | null {
+  if (qty <= 0) return null;
+  const q = Math.max(qty, HAT_MIN);
+  const tier = HAT_PRICE_TIERS.find((t) => q >= t.min)!;
+  const key = (style || "112").toUpperCase();
+  const known = HAT_UPCHARGES[key];
+  const unit = Number((tier.price + (known?.add ?? 0)).toFixed(2));
+  return {
+    tier: "better", style: key, name: known?.name ?? `${key} (not on hat list — priced as a 112, check it)`,
+    garment_cost: 0, markup_pct: 0, decoration_cost: unit, unit_price: unit,
+    total: Number((unit * q).toFixed(2)), upcharge_2xl: 0,
+  };
+}
