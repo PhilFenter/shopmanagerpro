@@ -17,29 +17,31 @@ type Row = { qty: number; prices: number[]; markup: number };
 type Matrix = { columns: string[]; rows: Row[] };
 
 export const MATRICES: Record<string, Matrix> = {
+  // New 2027 tables (Phil approved 2026-09-28): breaks 12/24/48/72/144/288/500, 700+ custom.
+  // Upload the matching -NEW.csv files to Printavo so quotes and invoices agree.
   screen_print: {
     columns: ["1 color", "2 color", "3 color", "4 color", "5 color", "6 color", "7 color", "8 color", "9 color"],
     rows: [
-      { qty: 12, prices: [3.57, 4.56, 5.56, 6.56, 7.55, 8.55, 9.55, 10.54, 11.54], markup: 200 },
-      { qty: 24, prices: [2.48, 3.68, 4.87, 6.07, 7.26, 8.46, 9.66, 10.85, 12.06], markup: 200 },
-      { qty: 72, prices: [1.62, 2.82, 4.02, 5.21, 6.41, 7.6, 8.8, 9.99, 11.19], markup: 175 },
-      { qty: 144, prices: [1.3, 1.5, 1.9, 2.3, 2.7, 3.1, 3.5, 3.9, 4.3], markup: 160 },
-      { qty: 240, prices: [1.2, 1.4, 1.8, 2.2, 2.6, 3.0, 3.4, 3.8, 4.2], markup: 150 },
-      { qty: 360, prices: [1.0, 1.3, 1.7, 2.1, 2.5, 2.9, 3.3, 3.7, 4.1], markup: 150 },
-      { qty: 500, prices: [0.9, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2, 3.6, 4.0], markup: 150 },
-      { qty: 1200, prices: [0.8, 1.1, 1.5, 1.9, 2.3, 2.7, 3.1, 3.5, 3.9], markup: 150 },
-      { qty: 2500, prices: [0.6, 1.0, 1.4, 1.8, 2.2, 2.6, 3.0, 3.4, 3.8], markup: 150 },
-      { qty: 5000, prices: [0.5, 0.9, 1.3, 1.7, 2.1, 2.5, 2.9, 3.3, 3.7], markup: 150 },
+      { qty: 12, prices: [3.57, 4.57, 5.57, 6.57, 7.57, 8.57, 9.57, 10.57, 11.57], markup: 200 },
+      { qty: 24, prices: [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5], markup: 190 },
+      { qty: 48, prices: [2, 2.95, 3.9, 4.85, 5.8, 6.75, 7.7, 8.65, 9.6], markup: 180 },
+      { qty: 72, prices: [1.65, 2.55, 3.45, 4.35, 5.25, 6.15, 7.05, 7.95, 8.85], markup: 170 },
+      { qty: 144, prices: [1.3, 2.05, 2.8, 3.55, 4.3, 5.05, 5.8, 6.55, 7.3], markup: 160 },
+      { qty: 288, prices: [1.15, 1.75, 2.35, 2.95, 3.55, 4.15, 4.75, 5.35, 5.95], markup: 150 },
+      { qty: 500, prices: [0.95, 1.45, 1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95], markup: 150 },
     ],
   },
   dtf: {
     columns: ["4 x 4", "11 x 5", "11 x 14"],
     rows: [
-      { qty: 1, prices: [1.5, 3.0, 4.75], markup: 200 },
-      { qty: 15, prices: [1.2, 3.0, 4.75], markup: 200 },
-      { qty: 50, prices: [1.1, 2.75, 4.75], markup: 175 },
-      { qty: 100, prices: [1.0, 2.0, 4.0], markup: 160 },
-      { qty: 250, prices: [1.0, 1.5, 4.0], markup: 140 },
+      { qty: 1, prices: [1.5, 3, 4.75], markup: 200 },
+      { qty: 12, prices: [1.5, 3, 4.75], markup: 200 },
+      { qty: 24, prices: [1.43, 2.85, 4.51], markup: 190 },
+      { qty: 48, prices: [1.35, 2.7, 4.28], markup: 180 },
+      { qty: 72, prices: [1.35, 2.7, 4.28], markup: 170 },
+      { qty: 144, prices: [1.28, 2.55, 4.04], markup: 160 },
+      { qty: 288, prices: [1.2, 2.4, 3.8], markup: 150 },
+      { qty: 500, prices: [1.13, 2.25, 3.56], markup: 150 },
     ],
   },
   // Phil (2026-09-28): embroidery is mostly small batches, so keep it simple —
