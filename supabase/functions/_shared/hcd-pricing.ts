@@ -75,7 +75,7 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
     best: { style: "NL6210", name: "Next Level 6210 CVC", cost: 5.19, cost2xl: 6.76, msrp: 8.38 },
   },
   hoodie: {
-    good: { style: "18500", name: "Gildan 18500 Heavy Blend", cost: 14.76, cost2xl: 17.73, msrp: 25.52 },
+    good: { style: "PC78H", name: "Port & Co PC78H Core Fleece", cost: 14.63, cost2xl: 17.57, msrp: 25.26 },
     better: { style: "PC90H", name: "Port & Co PC90H Essential Fleece", cost: 18.5, cost2xl: 21.97, msrp: 29.0 },
     // Carhartt has a $55 MAP; 2x markup would be ~$80. Priced at MAP + decoration. Phil to confirm.
     best: { style: "CTK121", name: "Carhartt K121 Midweight", cost: 39.75, cost2xl: 39.75, msrp: 55, map: 55 },
