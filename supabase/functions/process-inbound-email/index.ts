@@ -262,6 +262,7 @@ Deno.serve(async (req) => {
       const cat = categoryOf(it.item || it.garment);
       const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 0);
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
+      const jacket = /jacket|coat|vest|shell|parka|carhartt\s*j/i.test(`${it.item || ""} ${it.garment || ""}`);
       const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
       let suggestions: Suggestion[] = [];
       if (qty >= CUSTOM_QUOTE_QTY) {
@@ -291,7 +292,7 @@ Deno.serve(async (req) => {
       }
       if (cat && qty > 0 && method !== "unknown") {
         try {
-          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations });
+          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations, jacket });
         } catch (e) {
           console.error("pricing failed:", e);
         }
@@ -301,7 +302,7 @@ Deno.serve(async (req) => {
       const style = styleFromText(it.garment);
       if (style && qty > 0 && method !== "unknown") {
         try {
-          requested = await suggestRequested(db, style, method, qty, { colors, locations });
+          requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket });
         } catch (e) {
           console.error("requested-style pricing failed:", e);
         }
@@ -311,8 +312,8 @@ Deno.serve(async (req) => {
       const nq = method !== "unknown" ? matrixNextTier(method, qty) : null;
       if (nq && cat) {
         try {
-          const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations }) : null;
-          const nt = ns ? null : (await suggestTiers(db, cat, method, nq, { colors, locations })).find((x) => x.tier === tierHint) ?? null;
+          const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations, jacket }) : null;
+          const nt = ns ? null : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket })).find((x) => x.tier === tierHint) ?? null;
           next = { qty: nq, pick: ns ?? nt };
         } catch (e) {
           console.error("next-tier pricing failed:", e);

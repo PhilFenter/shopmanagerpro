@@ -42,14 +42,14 @@ export const MATRICES: Record<string, Matrix> = {
       { qty: 250, prices: [1.0, 1.5, 4.0], markup: 140 },
     ],
   },
+  // Phil (2026-09-28): embroidery is mostly small batches, so keep it simple —
+  // $15 shirts / $20 jackets up to 10,000 stitches, +$1.50 per 1,000 over that.
+  // Same price at any quantity (a 700-jacket job was quoted by hand at $12). 21k+ = custom.
   embroidery: {
-    columns: ["0-5000", "6001-7000", "7001-8000", "8001-9000", "9001-10000", "10000+", "40K-50K", "60K-80K"],
+    columns: ["Shirts up to 10,000", "Jackets up to 10,000", "Shirts 10,001-12,000", "Jackets 10,001-12,000",
+      "Shirts 12,001-15,000", "Jackets 12,001-15,000", "Shirts 15,001-21,000", "Jackets 15,001-21,000"],
     rows: [
-      { qty: 1, prices: [12, 15, 15, 15, 15, 18, 50, 70], markup: 200 },
-      { qty: 25, prices: [12, 15, 15, 15, 15, 15, 50, 70], markup: 190 },
-      { qty: 50, prices: [12, 15, 15, 15, 15, 15, 50, 70], markup: 190 },
-      { qty: 100, prices: [12, 15, 14, 14, 14, 14, 50, 70], markup: 180 },
-      { qty: 250, prices: [12, 12, 14, 14, 14, 14, 50, 70], markup: 150 },
+      { qty: 12, prices: [15, 20, 18, 23, 22.5, 27.5, 31.5, 36.5], markup: 200 },
     ],
   },
   leather_patch: {
@@ -122,11 +122,11 @@ export type Suggestion = {
 };
 
 /** Decoration column index. Defaults: 1-color screen print, 11x5 DTF, 6k–10k stitches. */
-function decoColumn(service: string, colors: number | null): number {
+function decoColumn(service: string, colors: number | null, jacket = false): number {
   if (service === "screen_print") return Math.min(Math.max((colors || 1) - 1, 0), 8);
   if (service === "dtf") return 1;
-  // Embroidery: ~80% of HCD designs are 6,000–10,000 stitches → default to that column, not 0–5k.
-  if (service === "embroidery") return 1;
+  // Embroidery: ~80% of HCD designs are under 10,000 stitches → shirt or jacket base column.
+  if (service === "embroidery") return jacket ? 1 : 0;
   return 0;
 }
 
@@ -153,12 +153,12 @@ export async function suggestTiers(
   category: string,
   service: string,
   qty: number,
-  opts: { colors?: number | null; locations?: number } = {},
+  opts: { colors?: number | null; locations?: number; jacket?: boolean } = {},
 ): Promise<Suggestion[]> {
   const picks = PICKS[category];
   const row = matrixRow(service, qty);
   if (!picks || !row || qty <= 0) return [];
-  const col = decoColumn(service, opts.colors ?? null);
+  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
   const firstLoc = row.prices[col] ?? row.prices[0];
   // Extra locations on screen print/DTF are priced at 1-color / 4x4.
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
@@ -187,7 +187,7 @@ export async function suggestTiers(
 
 export function assumptionsFor(service: string, colors: number | null): string {
   if (service === "screen_print") return `${colors || 1}-color print${colors ? "" : " (assumed — confirm after art)"}`;
-  if (service === "embroidery") return "6,000–10,000 stitches (typical — confirm after digitizing)";
+  if (service === "embroidery") return "up to 10,000 stitches (+$1.50 per 1,000 over — confirm after digitizing)";
   if (service === "dtf") return "11x5 transfer";
   if (service === "leather_patch") return "sewn leather patch";
   return "";
@@ -203,14 +203,14 @@ export function styleFromText(text: string | null | undefined): string | null {
 
 /** Price the exact style the customer asked for (if we can find its cost). */
 export async function suggestRequested(
-  db: any, style: string, service: string, qty: number, opts: { colors?: number | null; locations?: number } = {},
+  db: any, style: string, service: string, qty: number, opts: { colors?: number | null; locations?: number; jacket?: boolean } = {},
 ): Promise<Suggestion | null> {
   const row = matrixRow(service, qty);
   if (!row || qty <= 0) return null;
   const known = Object.values(PICKS).flatMap((t) => Object.values(t)).find((p) => p.style === style.toUpperCase());
   const cost = await garmentCost(db, known ?? { style, name: style, cost: 0, cost2xl: 0, msrp: 0 }, qty);
   if (!cost) return null;
-  const col = decoColumn(service, opts.colors ?? null);
+  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
   const deco = Number(((row.prices[col] ?? row.prices[0]) + extraLocs * (service === "screen_print" || service === "dtf" ? row.prices[0] : 0)).toFixed(2));
   const garmentSell = known?.map ? known.map : cost * (row.markup / 100);
