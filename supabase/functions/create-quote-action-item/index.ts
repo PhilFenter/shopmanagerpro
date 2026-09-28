@@ -789,7 +789,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Send confirmation email to customer
+    // 7. Notify Phil that a new action item arrived (fire-and-forget)
+    // This was missing — action items were created silently with no alert.
+    try {
+      await serviceClient.functions.invoke("notify-new-action-item", {
+        body: {
+          action_item: {
+            title: actionTitle,
+            description: actionDescParts.join("\n"),
+            customer_name,
+            source: "website",
+            priority: "high",
+          },
+        },
+      });
+    } catch (notifyErr) {
+      console.error("New action item notification failed:", notifyErr);
+      // Never let this block the quote — the action item is already saved.
+    }
+
+    // 8. Send confirmation email to customer
     if (email) {
       try {
         const resendApiKey = Deno.env.get("RESEND_API_KEY");
