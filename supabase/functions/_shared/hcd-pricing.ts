@@ -121,10 +121,12 @@ export type Suggestion = {
   upcharge_2xl: number;
 };
 
-/** Decoration column index. Defaults: 1-color screen print, 11x5 DTF, <5k stitches. */
+/** Decoration column index. Defaults: 1-color screen print, 11x5 DTF, 6k–10k stitches. */
 function decoColumn(service: string, colors: number | null): number {
   if (service === "screen_print") return Math.min(Math.max((colors || 1) - 1, 0), 8);
   if (service === "dtf") return 1;
+  // Embroidery: ~80% of HCD designs are 6,000–10,000 stitches → default to that column, not 0–5k.
+  if (service === "embroidery") return 1;
   return 0;
 }
 
@@ -185,7 +187,7 @@ export async function suggestTiers(
 
 export function assumptionsFor(service: string, colors: number | null): string {
   if (service === "screen_print") return `${colors || 1}-color print${colors ? "" : " (assumed — confirm after art)"}`;
-  if (service === "embroidery") return "under 5,000 stitches (assumed — confirm after digitizing)";
+  if (service === "embroidery") return "6,000–10,000 stitches (typical — confirm after digitizing)";
   if (service === "dtf") return "11x5 transfer";
   if (service === "leather_patch") return "sewn leather patch";
   return "";
