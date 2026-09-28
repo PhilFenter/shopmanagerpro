@@ -243,6 +243,8 @@ export const HAT_UPCHARGES: Record<string, { name: string; add: number }> = {
   "112PL": { name: "Richardson 112+ R-Flex", add: 2 },
 };
 export const HAT_MIN = 12;
+// Anything this size or bigger is a custom quote (a few a year) — no auto price.
+export const CUSTOM_QUOTE_QTY = 700;
 
 // Embroidered hats: same price as a patch up to 8,000 stitches, one location.
 // 2nd and 3rd locations (embroidered) +$8 each. Side flag +$5 (upsell).
@@ -268,7 +270,7 @@ export function hatPrice(style: string | null, qty: number, opts: { locations?: 
 /** Next price break above qty for hats (null at the top tier). */
 export function hatNextTier(qty: number): number | null {
   const q = Math.max(qty, HAT_MIN);
-  const ups = HAT_PRICE_TIERS.map((t) => t.min).filter((m) => m > q).sort((a, b) => a - b);
+  const ups = HAT_PRICE_TIERS.map((t) => t.min).filter((m) => m > q && m < CUSTOM_QUOTE_QTY).sort((a, b) => a - b);
   return ups[0] ?? null;
 }
 
@@ -277,6 +279,6 @@ export function matrixNextTier(service: string, qty: number): number | null {
   const m = MATRICES[service];
   if (!m) return null;
   // Skip breaks only a few pieces away (DTF 12 → 15 isn't useful); need at least +12.
-  const up = m.rows.map((r) => r.qty).filter((x) => x >= qty + 12).sort((a, b) => a - b);
+  const up = m.rows.map((r) => r.qty).filter((x) => x >= qty + 12 && x < CUSTOM_QUOTE_QTY).sort((a, b) => a - b);
   return up[0] ?? null;
 }

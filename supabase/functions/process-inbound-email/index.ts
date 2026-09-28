@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -254,7 +254,7 @@ Deno.serve(async (req) => {
     // 4b. Suggested Good / Better / Best pricing (Printavo formula, suggestions only)
     const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
-      next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number };
+      next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean };
     const pricing: Priced[] = [];
     for (const it of items) {
       const method = suggestMethod(it, totalQty);
@@ -263,6 +263,11 @@ Deno.serve(async (req) => {
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
       const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
       let suggestions: Suggestion[] = [];
+      if (qty >= CUSTOM_QUOTE_QTY) {
+        // 700+ pieces: Phil prices these by hand
+        pricing.push({ suggestions: [], requested: null, qty, method, custom: true, assumptions: "" });
+        continue;
+      }
       if (cat === "hat" && qty > 0) {
         // Hats use Phil's flat price list (same as the website), not the markup formula.
         // Embroidery = patch price up to 8,000 stitches; 2nd/3rd locations +$8 each.
@@ -410,6 +415,7 @@ Deno.serve(async (req) => {
           method !== "unknown" ? `method: ${method.replace(/_/g, " ")}` : "",
         ].filter(Boolean).join(" · ")}`;
       }),
+      ...pricing.flatMap((p, i) => p.custom ? ["", `Item ${i + 1}: ${p.qty} pcs — CUSTOM QUOTE (${CUSTOM_QUOTE_QTY}+ pieces). No auto price; price this one by hand.`] : []),
       ...pricing.flatMap((p, i) => p.suggestions.length || p.requested ? [
         "",
         `Suggested price, item ${i + 1} (${p.qty} pcs, ${p.method.replace(/_/g, " ")}${p.assumptions ? `, ${p.assumptions}` : ""}):`,
