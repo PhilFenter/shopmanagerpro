@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, styleFromText, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
 
     // 4b. Suggested Good / Better / Best pricing (Printavo formula, suggestions only)
     const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
-    const pricing: { suggestions: Suggestion[]; qty: number; method: string; assumptions: string }[] = [];
+    const pricing: { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string }[] = [];
     for (const it of items) {
       const method = suggestMethod(it, totalQty);
       const cat = categoryOf(it.item || it.garment);
@@ -268,7 +268,17 @@ Deno.serve(async (req) => {
           console.error("pricing failed:", e);
         }
       }
-      pricing.push({ suggestions, qty, method, assumptions: assumptionsFor(method, colors) });
+      // Customer named a specific garment (e.g. "112PT") → price that exact style too
+      let requested: Suggestion | null = null;
+      const style = styleFromText(it.garment);
+      if (style && qty > 0 && method !== "unknown") {
+        try {
+          requested = await suggestRequested(db, style, method, qty, { colors, locations });
+        } catch (e) {
+          console.error("requested-style pricing failed:", e);
+        }
+      }
+      pricing.push({ suggestions, requested, qty, method, assumptions: assumptionsFor(method, colors) });
     }
 
     // 5. Quote — follow-ups attach to the open quote instead of making a new one
@@ -302,7 +312,7 @@ Deno.serve(async (req) => {
       if (items.length) {
         const rows = items.map((it, idx) => {
           const method = suggestMethod(it, totalQty);
-          const pick = pricing[idx]?.suggestions.find((x) => x.tier === tierHint);
+          const pick = pricing[idx]?.requested ?? pricing[idx]?.suggestions.find((x) => x.tier === tierHint);
           const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 1);
           const desc = [pick && !it.garment ? pick.name : (it.garment || it.item || "Item"), method !== "unknown" ? `— ${method.replace(/_/g, " ")}` : ""]
             .filter(Boolean).join(" ");
@@ -314,7 +324,7 @@ Deno.serve(async (req) => {
             sizes: cleanSizes(it.sizes),
             color: it.colors ? String(it.colors).slice(0, 100) : null,
             placement: it.locations ? String(it.locations).slice(0, 200) : null,
-            style_number: pick && !it.garment ? pick.style : null,
+            style_number: pick ? pick.style : null,
             garment_cost: pick?.garment_cost ?? 0,
             garment_markup_pct: pick?.markup_pct ?? 200,
             decoration_cost: pick?.decoration_cost ?? 0,
@@ -364,13 +374,14 @@ Deno.serve(async (req) => {
           method !== "unknown" ? `method: ${method.replace(/_/g, " ")}` : "",
         ].filter(Boolean).join(" · ")}`;
       }),
-      ...pricing.flatMap((p, i) => p.suggestions.length ? [
+      ...pricing.flatMap((p, i) => p.suggestions.length || p.requested ? [
         "",
         `Suggested price, item ${i + 1} (${p.qty} pcs, ${p.method.replace(/_/g, " ")}${p.assumptions ? `, ${p.assumptions}` : ""}):`,
+        ...(p.requested ? [`  ★ ASKED FOR: ${p.requested.name} — $${p.requested.unit_price.toFixed(2)} ea / $${p.requested.total.toFixed(2)}`] : []),
         ...p.suggestions.map((s) =>
-          `  ${s.tier === tierHint ? "→ " : "  "}${s.tier.toUpperCase()}: ${s.name} — $${s.unit_price.toFixed(2)} ea / $${s.total.toFixed(2)}${s.upcharge_2xl > 0 ? ` (2XL+ add $${s.upcharge_2xl.toFixed(2)})` : ""}`),
+          `  ${!p.requested && s.tier === tierHint ? "→ " : "  "}${s.tier.toUpperCase()}: ${s.name} — $${s.unit_price.toFixed(2)} ea / $${s.total.toFixed(2)}${s.upcharge_2xl > 0 ? ` (2XL+ add $${s.upcharge_2xl.toFixed(2)})` : ""}`),
       ] : []),
-      pricing.some((p) => p.suggestions.length) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
+      pricing.some((p) => p.suggestions.length || p.requested) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
       ai.reply_draft ? "\nA reply draft asking for the missing info is saved in Gmail — review and send." : "",
     ].filter((l) => l !== "");
 

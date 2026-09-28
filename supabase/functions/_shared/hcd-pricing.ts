@@ -187,3 +187,32 @@ export function assumptionsFor(service: string, colors: number | null): string {
   if (service === "leather_patch") return "sewn leather patch";
   return "";
 }
+
+/** Pull a style number out of what the customer wrote, e.g. "Richardson 112PT hats" → "112PT". */
+export function styleFromText(text: string | null | undefined): string | null {
+  const m = String(text || "").toUpperCase().match(/\b([A-Z]{0,4}\d{2,6}[A-Z]{0,4})\b/g);
+  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "K121": "CTK121" };
+  const hit = m ? m.find((s) => !/^\d{4}$/.test(s) || ["5000", "8000", "2000", "1717", "3001", "6210", "3600"].includes(s)) ?? null : null;
+  return hit ? (ALIAS[hit] ?? hit) : null;
+}
+
+/** Price the exact style the customer asked for (if we can find its cost). */
+export async function suggestRequested(
+  db: any, style: string, service: string, qty: number, opts: { colors?: number | null; locations?: number } = {},
+): Promise<Suggestion | null> {
+  const row = matrixRow(service, qty);
+  if (!row || qty <= 0) return null;
+  const known = Object.values(PICKS).flatMap((t) => Object.values(t)).find((p) => p.style === style.toUpperCase());
+  const cost = await garmentCost(db, known ?? { style, name: style, cost: 0, cost2xl: 0, msrp: 0 });
+  if (!cost) return null;
+  const col = decoColumn(service, opts.colors ?? null);
+  const extraLocs = Math.max((opts.locations || 1) - 1, 0);
+  const deco = Number(((row.prices[col] ?? row.prices[0]) + extraLocs * (service === "screen_print" || service === "dtf" ? row.prices[0] : 0)).toFixed(2));
+  const garmentSell = known?.map ? known.map : cost * (row.markup / 100);
+  const unit = Number((garmentSell + deco).toFixed(2));
+  return {
+    tier: "better", style: style.toUpperCase(), name: known?.name ?? style.toUpperCase(), garment_cost: cost,
+    markup_pct: known?.map ? Number(((known.map / cost) * 100).toFixed(1)) : row.markup,
+    decoration_cost: deco, unit_price: unit, total: Number((unit * qty).toFixed(2)), upcharge_2xl: 0,
+  };
+}
