@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       // Hoodies/sweatshirts embroider at the shirt price ($15), even "hooded jackets" / zip hoodies.
       const garmentText = `${it.item || ""} ${it.garment || ""}`;
       const jacket = /jacket|coat|vest|shell|parka|carhartt\s*j/i.test(garmentText) && !/hood|sweat/i.test(garmentText);
-      const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
+      const locations = Math.max((it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1) - (backEmb ? 1 : 0), 1);
       let suggestions: Suggestion[] = [];
       if (qty >= CUSTOM_QUOTE_QTY) {
         // 700+ pieces: Phil prices these by hand

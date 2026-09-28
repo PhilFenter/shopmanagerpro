@@ -64,6 +64,9 @@ export const MATRICES: Record<string, Matrix> = {
   },
 };
 
+// Sleeve / extra embroidery spot on apparel (no back embroidery offered).
+export const EMB_EXTRA_LOCATION = 8;
+
 export type Tier = "good" | "better" | "best";
 type Pick = { style: string; name: string; cost: number; cost2xl: number; msrp: number; map?: number };
 
@@ -160,9 +163,9 @@ export async function suggestTiers(
   if (!picks || !row || qty <= 0) return [];
   const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
   const firstLoc = row.prices[col] ?? row.prices[0];
-  // Extra locations on screen print/DTF are priced at 1-color / 4x4.
+  // Extra locations: screen print/DTF at 1-color / 4x4; embroidery (sleeve etc.) $8 each.
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
-  const extra = service === "screen_print" ? row.prices[0] : service === "dtf" ? row.prices[0] : 0;
+  const extra = service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0;
   const deco = Number((firstLoc + extraLocs * extra).toFixed(2));
   const out: Suggestion[] = [];
   for (const tier of ["good", "better", "best"] as Tier[]) {
@@ -212,7 +215,7 @@ export async function suggestRequested(
   if (!cost) return null;
   const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
-  const deco = Number(((row.prices[col] ?? row.prices[0]) + extraLocs * (service === "screen_print" || service === "dtf" ? row.prices[0] : 0)).toFixed(2));
+  const deco = Number(((row.prices[col] ?? row.prices[0]) + extraLocs * (service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0)).toFixed(2));
   const garmentSell = known?.map ? known.map : cost * (row.markup / 100);
   const unit = Number((garmentSell + deco).toFixed(2));
   return {
