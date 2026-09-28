@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.notify-new-action-item]
 verify_jwt = false
+
+[functions.process-inbound-email]
+verify_jwt = false

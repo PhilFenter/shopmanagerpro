@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
 
     const a = action_item;
     const sourceLabel = a.source === "website" ? "Website Quote Request"
+      : a.source === "email" ? "Email Quote Request"
       : a.source === "shopify-sync" ? "Shopify Order"
       : "New Action Item";
 

@@ -87,6 +87,36 @@ function normalizeServiceType(serviceType?: string): string {
   return normalized;
 }
 
+// ── Crew / team intake helpers ────────────────────────
+// The Crew Team form asks "how many people" as a range ("12 to 50") instead of
+// an exact quantity. Previously that fell through to quantity 1, which made the
+// action item read "Custom Garment ×1". These helpers turn the range into a
+// clear "qty TBD" line and a sensible starting quantity (the low end).
+const TEAM_SIZE_RANGES: Record<string, { low: number; high: number | null }> = {
+  "under 12": { low: 12, high: 12 },
+  "12 to 50": { low: 12, high: 50 },
+  "51 to 200": { low: 51, high: 200 },
+  "200 or more": { low: 200, high: null },
+};
+
+function isCrewTeamSubmission(details: Record<string, unknown>, source?: string): boolean {
+  return source === "website-crew-team" || details.source === "website-crew-team";
+}
+
+function parseTeamSize(teamSize: unknown): { low: number; high: number | null; label: string } | null {
+  if (typeof teamSize !== "string" || !teamSize.trim()) return null;
+  const range = TEAM_SIZE_RANGES[teamSize.trim().toLowerCase()];
+  return range ? { ...range, label: teamSize.trim() } : null;
+}
+
+function crewItemsLabel(items: unknown): string {
+  const list = Array.isArray(items) ? items.map(String) : typeof items === "string" ? [items] : [];
+  if (list.includes("Both") || (list.includes("Shirts") && list.includes("Hats"))) return "Shirts + Hats";
+  if (list.includes("Shirts")) return "Shirts";
+  if (list.includes("Hats")) return "Hats";
+  return "Apparel (items TBD)";
+}
+
 function readDetailString(details: Record<string, unknown>, keys: string[]): string {
   for (const key of keys) {
     const value = details[key];
@@ -163,6 +193,25 @@ function buildDescription(
     if (!patchLabel) missingFields.push("patch type");
     if (!hatLabel) missingFields.push("hat style");
     if (!hatColor) missingFields.push("hat colors");
+  } else if (isCrewTeamSubmission(details)) {
+    const team = parseTeamSize(details.teamSize);
+    parts.push(`Items: ${crewItemsLabel(details.itemsLookingFor)}`);
+    parts.push(`People to outfit: ${team?.label || "⚠️ Not specified"}`);
+    if (details.organizationType) parts.push(`Organization: ${details.organizationType}`);
+    if (details.whatYouDoAndWhoYouServe) parts.push(`What they do: ${details.whatYouDoAndWhoYouServe}`);
+    if (details.orderType) parts.push(`Order type: ${details.orderType}`);
+    if (details.artworkStatus) parts.push(`Artwork: ${details.artworkStatus}`);
+    if (details.deadlineDate) parts.push(`Needed by: ${details.deadlineDate}`);
+    // Shop rule: small runs (under ~36 pcs) go DTF, larger runs are screen print candidates.
+    if (team) {
+      parts.push(team.high !== null && team.high < 36
+        ? "Suggested method: DTF (under 36 pcs)"
+        : team.low >= 48
+          ? "Suggested method: Screen print (48+ pcs)"
+          : "Suggested method: DTF or screen print — depends on final qty (36–48 pc cutoff)");
+    }
+    missingFields.push("exact quantity + sizes");
+    if (crewItemsLabel(details.itemsLookingFor).includes("TBD")) missingFields.push("which items (shirts / hats)");
   } else if (normalizedServiceType === "dtf") {
     if (details.orderType) parts.push(`Order type: ${details.orderType}`);
     if (details.garmentType) parts.push(`Garment: ${GARMENT_LABELS[details.garmentType as string] || details.garmentType}`);
@@ -222,6 +271,10 @@ function buildLineItem(
     const garment = GARMENT_LABELS[details.garmentType as string] || details.garmentType || "DTF Transfers";
     const orderType = details.orderType === "transfers" ? "Loose transfers" : "Finished garments";
     description = `${garment} (${orderType})`;
+  } else if (isCrewTeamSubmission(details)) {
+    const team = parseTeamSize(details.teamSize);
+    description = `Crew outfitting — ${crewItemsLabel(details.itemsLookingFor)}${team ? ` (${team.label} people, qty TBD)` : " (qty TBD)"}`;
+    if (!quantity && team) quantity = team.low;
   } else {
     const garment = GARMENT_LABELS[details.garmentType as string] || details.garmentType || "Custom Garment";
     const tier = details.poloTier ? ` — ${details.poloTier}` : "";
@@ -718,7 +771,11 @@ Deno.serve(async (req) => {
       ? resolvedLineItems.reduce((sum: number, li: any) => sum + (parseInt(String(li.quantity), 10) || 0), 0)
       : parseInt(String(quantity), 10) || 0;
 
-    const actionTitle = `Website Quote: ${customer_name} — ${serviceLabel} (${totalQty} pcs)`;
+    const crewTeam = isCrewTeamSubmission(normalizedDetails, source);
+    const crewSize = crewTeam ? parseTeamSize(normalizedDetails.teamSize) : null;
+    const actionTitle = crewTeam
+      ? `Website Quote: ${customer_name}${resolvedCompany ? ` (${resolvedCompany})` : ""} — Crew Outfitting, ${crewSize ? `${crewSize.label} people` : "qty TBD"}`
+      : `Website Quote: ${customer_name} — ${serviceLabel} (${totalQty} pcs)`;
 
     // Build rich description for the action item
     const actionDescParts = [
@@ -735,6 +792,11 @@ Deno.serve(async (req) => {
       if (!hatLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
       if (!hatColor) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
       if (!patchLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
+    }
+    if (crewTeam) {
+      autoChecklist.push({ id: crypto.randomUUID(), text: "Get exact quantity + size breakdown", done: false });
+      autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm items (shirts / hats) and Good / Better / Best garment", done: false });
+      autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm print locations (left chest, back, etc.)", done: false });
     }
     autoChecklist.push({ id: crypto.randomUUID(), text: "Review artwork / logo files", done: false });
     autoChecklist.push({ id: crypto.randomUUID(), text: "Send final quote to customer", done: false });
@@ -791,7 +853,8 @@ Deno.serve(async (req) => {
 
     // 7. Notify Phil that a new action item arrived (fire-and-forget)
     // This was missing — action items were created silently with no alert.
-    try {
+    // Skipped when the insert failed (the failure alert above already went out).
+    if (!aiErr) try {
       await serviceClient.functions.invoke("notify-new-action-item", {
         body: {
           action_item: {
