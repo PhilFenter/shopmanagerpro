@@ -43,6 +43,7 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 (laser leather, leatherette, UV printed, PVC, embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
 Rules of thumb:
 - Orders under about 36-48 pieces are DTF. Larger runs are screen print candidates.
+- Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
 - Shirt minimum is 12 pieces. Small jobs still need to be worth doing.
 - Phil offers Good / Better / Best garment options (e.g. Good = Gildan/Jerzees basics, Better = Next Level 6210 / Bella Canvas 3001, Best = Comfort Colors / premium).
 - Most customers say "screen print" but don't know methods. Don't make them choose a method — we recommend it.
