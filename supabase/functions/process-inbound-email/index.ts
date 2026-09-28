@@ -43,6 +43,7 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 (laser leather, leatherette, UV printed, PVC, embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
 Rules of thumb:
 - Orders under about 36-48 pieces are DTF. Larger runs are screen print candidates.
+- HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
 - Shirt minimum is 12 pieces. Small jobs still need to be worth doing.
 - Phil offers Good / Better / Best garment options (e.g. Good = Gildan/Jerzees basics, Better = Next Level 6210 / Bella Canvas 3001, Best = Comfort Colors / premium).
@@ -257,11 +258,14 @@ Deno.serve(async (req) => {
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
       next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean };
     const pricing: Priced[] = [];
+    const flags: string[] = [];
     for (const it of items) {
       const method = suggestMethod(it, totalQty);
       const cat = categoryOf(it.item || it.garment);
       const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 0);
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
+      const backEmb = method === "embroidery" && cat !== "hat" && /\bback\b/i.test(String(it.locations || "")) && !/back of (the )?(cap|hat)/i.test(String(it.locations || ""));
+      if (backEmb) flags.push(`Item ${items.indexOf(it) + 1}: asked for BACK embroidery — we don't offer it. Suggest screen print/DTF for the back. Priced front only.`);
       const jacket = /jacket|coat|vest|shell|parka|carhartt\s*j/i.test(`${it.item || ""} ${it.garment || ""}`);
       const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
       let suggestions: Suggestion[] = [];
@@ -428,6 +432,7 @@ Deno.serve(async (req) => {
         ...(p.hat ? [`  UPSELL: side flag +$${HAT_SIDE_FLAG.toFixed(2)} per hat`] : []),
       ] : []),
       pricing.some((p) => p.suggestions.length || p.requested) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
+      ...(flags.length ? ["", ...flags.map((f) => `⚠ ${f}`)] : []),
       willDraft ? "\nA reply draft is saved in Gmail (hat prices included when it's a hat job) — review and send." : "",
     ].filter((l) => l !== "");
 
