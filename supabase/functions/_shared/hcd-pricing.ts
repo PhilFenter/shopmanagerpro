@@ -244,16 +244,38 @@ export const HAT_UPCHARGES: Record<string, { name: string; add: number }> = {
 };
 export const HAT_MIN = 12;
 
-export function hatPrice(style: string | null, qty: number): Suggestion | null {
+// Embroidered hats: same price as a patch up to 8,000 stitches, one location.
+// 2nd and 3rd locations (embroidered) +$8 each. Side flag +$5 (upsell).
+export const HAT_EXTRA_LOCATION = 8;
+export const HAT_SIDE_FLAG = 5;
+export const HAT_STITCH_LIMIT = 8000;
+
+export function hatPrice(style: string | null, qty: number, opts: { locations?: number } = {}): Suggestion | null {
   if (qty <= 0) return null;
   const q = Math.max(qty, HAT_MIN);
   const tier = HAT_PRICE_TIERS.find((t) => q >= t.min)!;
   const key = (style || "112").toUpperCase();
   const known = HAT_UPCHARGES[key];
-  const unit = Number((tier.price + (known?.add ?? 0)).toFixed(2));
+  const extraLocs = Math.min(Math.max((opts.locations || 1) - 1, 0), 2);
+  const unit = Number((tier.price + (known?.add ?? 0) + extraLocs * HAT_EXTRA_LOCATION).toFixed(2));
   return {
     tier: "better", style: key, name: known?.name ?? `${key} (not on hat list — priced as a 112, check it)`,
     garment_cost: 0, markup_pct: 0, decoration_cost: unit, unit_price: unit,
     total: Number((unit * q).toFixed(2)), upcharge_2xl: 0,
   };
+}
+
+/** Next price break above qty for hats (null at the top tier). */
+export function hatNextTier(qty: number): number | null {
+  const q = Math.max(qty, HAT_MIN);
+  const ups = HAT_PRICE_TIERS.map((t) => t.min).filter((m) => m > q).sort((a, b) => a - b);
+  return ups[0] ?? null;
+}
+
+/** Next price break above qty in a decoration matrix (null at the top). */
+export function matrixNextTier(service: string, qty: number): number | null {
+  const m = MATRICES[service];
+  if (!m) return null;
+  const up = m.rows.map((r) => r.qty).filter((x) => x > qty).sort((a, b) => a - b);
+  return up[0] ?? null;
 }

@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,7 +49,7 @@ Rules of thumb:
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
 - Apparel: what items, rough quantity, which decoration locations (e.g. left chest + back), artwork (or that it's coming), and roughly Good/Better/Best or a garment they like. Sizes and colors are needed before ordering, not before a first price.
-- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.
+- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.
 - Deadline if they have one.
 `;
 
@@ -253,7 +253,9 @@ Deno.serve(async (req) => {
 
     // 4b. Suggested Good / Better / Best pricing (Printavo formula, suggestions only)
     const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
-    const pricing: { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string }[] = [];
+    type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
+      next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number };
+    const pricing: Priced[] = [];
     for (const it of items) {
       const method = suggestMethod(it, totalQty);
       const cat = categoryOf(it.item || it.garment);
@@ -262,11 +264,22 @@ Deno.serve(async (req) => {
       const locations = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1;
       let suggestions: Suggestion[] = [];
       if (cat === "hat" && qty > 0) {
-        // Hats use Phil's flat price list (same as the website), not the markup formula
-        const hp = hatPrice(styleFromText(it.garment), qty);
+        // Hats use Phil's flat price list (same as the website), not the markup formula.
+        // Embroidery = patch price up to 8,000 stitches; 2nd/3rd locations +$8 each.
+        const hs = styleFromText(it.garment);
+        const hp = hatPrice(hs, qty, { locations });
+        const nq = hatNextTier(qty);
         pricing.push({
-          suggestions: [], requested: hp, qty, method,
-          assumptions: `hat price list (patch or embroidery${method === "embroidery" && qty < 50 ? ", +$45 digitizing" : ""}, shipping included${qty < 12 ? ", 12 minimum" : ""})`,
+          suggestions: [], requested: hp, qty, method, hat: true, locations,
+          next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
+          assumptions: [
+            "hat price list, shipping included",
+            method === "embroidery" ? `up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches` : "",
+            method === "embroidery" && qty < 50 ? "+$45 digitizing" : "",
+            locations > 1 ? `${Math.min(locations, 3)} locations (+$8 each extra)` : "",
+            locations > 3 ? "MORE THAN 3 LOCATIONS — price by hand" : "",
+            qty < 12 ? "12 minimum" : "",
+          ].filter(Boolean).join(", "),
         });
         continue;
       }
@@ -287,7 +300,19 @@ Deno.serve(async (req) => {
           console.error("requested-style pricing failed:", e);
         }
       }
-      pricing.push({ suggestions, requested, qty, method, assumptions: assumptionsFor(method, colors) });
+      // Always show the next price break too (e.g. asked for 12 → also show 24)
+      let next: Priced["next"] = null;
+      const nq = method !== "unknown" ? matrixNextTier(method, qty) : null;
+      if (nq && cat) {
+        try {
+          const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations }) : null;
+          const nt = ns ? null : (await suggestTiers(db, cat, method, nq, { colors, locations })).find((x) => x.tier === tierHint) ?? null;
+          next = { qty: nq, pick: ns ?? nt };
+        } catch (e) {
+          console.error("next-tier pricing failed:", e);
+        }
+      }
+      pricing.push({ suggestions, requested, qty, method, assumptions: assumptionsFor(method, colors), next });
     }
 
     // 5. Quote — follow-ups attach to the open quote instead of making a new one
@@ -360,6 +385,8 @@ Deno.serve(async (req) => {
       : "Email quote";
     const title = `${ready ? "✅" : "❓"} ${kind}: ${name}${company ? ` (${company})` : ""} — ${itemSummary}`.slice(0, 200);
 
+    const willDraft = Boolean(ai.reply_draft) || (pricing.some((p) => p.hat && p.requested) &&
+      ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification));
     const descLines = [
       ready ? "READY TO PRICE" : `NEEDS INFO: ${missing.join("; ") || "see email"}`,
       "",
@@ -389,14 +416,16 @@ Deno.serve(async (req) => {
         ...(p.requested ? [`  ★ ASKED FOR: ${p.requested.name} — $${p.requested.unit_price.toFixed(2)} ea / $${p.requested.total.toFixed(2)}`] : []),
         ...p.suggestions.map((s) =>
           `  ${!p.requested && s.tier === tierHint ? "→ " : "  "}${s.tier.toUpperCase()}: ${s.name} — $${s.unit_price.toFixed(2)} ea / $${s.total.toFixed(2)}${s.upcharge_2xl > 0 ? ` (2XL+ add $${s.upcharge_2xl.toFixed(2)})` : ""}`),
+        ...(p.next?.pick ? [`  NEXT BREAK: ${p.next.qty} pcs of ${p.next.pick.name} — $${p.next.pick.unit_price.toFixed(2)} ea`] : []),
+        ...(p.hat ? [`  UPSELL: side flag +$${HAT_SIDE_FLAG.toFixed(2)} per hat`] : []),
       ] : []),
       pricing.some((p) => p.suggestions.length || p.requested) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
-      ai.reply_draft ? "\nA reply draft asking for the missing info is saved in Gmail — review and send." : "",
+      willDraft ? "\nA reply draft is saved in Gmail (hat prices included when it's a hat job) — review and send." : "",
     ].filter((l) => l !== "");
 
     const checklist = [
       ...missing.map((m) => ({ id: crypto.randomUUID(), text: `Get: ${m}`, done: false })),
-      ...(ai.reply_draft ? [{ id: crypto.randomUUID(), text: "Review + send the Gmail reply draft", done: false }] : []),
+      ...(willDraft ? [{ id: crypto.randomUUID(), text: "Review + send the Gmail reply draft", done: false }] : []),
       { id: crypto.randomUUID(), text: "Price it (Good / Better / Best)", done: false },
       { id: crypto.randomUUID(), text: "Push to Printavo", done: false },
     ];
@@ -430,13 +459,41 @@ Deno.serve(async (req) => {
       console.error("notify failed:", e);
     }
 
+    // 8. Hat prices are a firm list, so the reply draft gives them the price,
+    //    the next break, and the side-flag option. Phil still reviews before sending.
+    let replyDraft: string | null = typeof ai.reply_draft === "string" && ai.reply_draft.trim() ? ai.reply_draft.trim() : null;
+    const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
+      const r = p.requested!;
+      const nm = r.name.includes("not on hat list") ? "hats" : `${r.name.replace(/^Richardson /, "")} hats`;
+      let t = `For ${Math.max(p.qty, 12)} ${nm} with your logo, it's $${r.unit_price.toFixed(2)} each.`;
+      if (p.next?.pick) t += ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.`;
+      return t;
+    });
+    if (hatLines.length && ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification)) {
+      const emb = pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
+      const para = [
+        ...hatLines,
+        "That includes a sample for approval and shipping in the lower 48.",
+        emb ? "Embroidery has a one-time $45 digitizing fee." : "",
+        `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
+        "Turnaround is about 2-3 weeks after payment.",
+      ].filter(Boolean).join(" ");
+      if (replyDraft) {
+        const i = replyDraft.lastIndexOf("Thank you");
+        replyDraft = i > 0 ? `${replyDraft.slice(0, i).trimEnd()}\n\n${para}\n\n${replyDraft.slice(i)}` : `${replyDraft}\n\n${para}`;
+      } else {
+        const first = String(name || "").split(/\s|@/)[0] || "there";
+        replyDraft = `Hi ${first},\n\nThanks for reaching out. ${para}\n\nThank you\n\nPhil`;
+      }
+    }
+
     return json({
       status: "created",
       classification,
       ready_to_price: ready,
       action_item_id: actionItem.id,
       quote_number: quoteNumber,
-      reply_draft: typeof ai.reply_draft === "string" && ai.reply_draft.trim() ? ai.reply_draft.trim() : null,
+      reply_draft: replyDraft,
     });
   } catch (err) {
     console.error("process-inbound-email error:", err);
