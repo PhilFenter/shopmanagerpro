@@ -276,6 +276,7 @@ export function hatNextTier(qty: number): number | null {
 export function matrixNextTier(service: string, qty: number): number | null {
   const m = MATRICES[service];
   if (!m) return null;
-  const up = m.rows.map((r) => r.qty).filter((x) => x > qty).sort((a, b) => a - b);
+  // Skip breaks only a few pieces away (DTF 12 → 15 isn't useful); need at least +12.
+  const up = m.rows.map((r) => r.qty).filter((x) => x >= qty + 12).sort((a, b) => a - b);
   return up[0] ?? null;
 }
