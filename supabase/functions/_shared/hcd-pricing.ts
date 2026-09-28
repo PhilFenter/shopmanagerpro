@@ -238,6 +238,9 @@ export const HAT_UPCHARGES: Record<string, { name: string; add: number }> = {
   "115": { name: "Richardson 115 Low Pro Trucker", add: 0 },
   "112FP": { name: "Richardson 112FP Five Panel", add: 0 },
   "112PFP": { name: "Richardson 112PFP Printed Five Panel", add: 1.5 },
+  "112P": { name: "Richardson 112P Printed Trucker", add: 1.5 },   // Phil's 544-hat order: 112P $20 vs 880/882 $18.50
+  "880": { name: "Richardson 880 Blaze/Camo Trucker", add: 0 },
+  "882": { name: "Richardson 882 Blaze Trucker", add: 0 },
   "110": { name: "Richardson 110 R-Flex", add: 1.25 },
   "6606": { name: "YP Classics 6606 Retro Trucker", add: 1.05 },
   "OFA": { name: "Legacy OFA", add: 2 },
