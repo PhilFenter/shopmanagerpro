@@ -4,7 +4,7 @@ Turns customer emails sent to info@ into ShopManagerPro action items and draft q
 
 ```
 Customer email → info@ (Gmail)
-      │  Apps Script, every 5 min
+      │  Apps Script, every hour
       ▼
 process-inbound-email (Supabase)
       │  AI sorts it and pulls out the details
@@ -42,9 +42,8 @@ process-inbound-email (Supabase)
      - `CREATE_DRAFTS` = `true`
    - Run `testDryRun` and approve the Gmail permissions. The log shows what the AI pulled from the newest email. Nothing gets written.
    - Run `skipExistingInbox`. It marks the current inbox as already handled, so the first run doesn't flood ShopManagerPro.
-   - Run `installTrigger`. The script now runs every 5 minutes.
-4. **phil@hellscanyonartglass.com**: in Google Admin (or that mailbox's Gmail settings), forward it to info@.
-5. **Optional, phil@hellscanyondesigns.com**: install the same script in that account with `MAILBOX` = `phil`. Leave `CREATE_DRAFTS` = `true` if Phil wants drafts there too.
+   - Run `installTrigger`. The script now runs every hour.
+4. **Optional, phil@hellscanyondesigns.com**: install the same script in that account with `MAILBOX` = `phil`. Leave `CREATE_DRAFTS` = `true` if Phil wants drafts there too.
 
 ## Turning it off
 
