@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, assumptionsFor,
+  screenPrintMin, screenFees, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY,
+  SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, type Tier,
+} from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +92,36 @@ function normalizeServiceType(serviceType?: string): string {
   return normalized;
 }
 
+// ── Crew / team intake helpers ────────────────────────
+// The Crew Team form asks "how many people" as a range ("12 to 50") instead of
+// an exact quantity. Previously that fell through to quantity 1, which made the
+// action item read "Custom Garment ×1". These helpers turn the range into a
+// clear "qty TBD" line and a sensible starting quantity (the low end).
+const TEAM_SIZE_RANGES: Record<string, { low: number; high: number | null }> = {
+  "under 12": { low: 12, high: 12 },
+  "12 to 50": { low: 12, high: 50 },
+  "51 to 200": { low: 51, high: 200 },
+  "200 or more": { low: 200, high: null },
+};
+
+function isCrewTeamSubmission(details: Record<string, unknown>, source?: string): boolean {
+  return source === "website-crew-team" || details.source === "website-crew-team";
+}
+
+function parseTeamSize(teamSize: unknown): { low: number; high: number | null; label: string } | null {
+  if (typeof teamSize !== "string" || !teamSize.trim()) return null;
+  const range = TEAM_SIZE_RANGES[teamSize.trim().toLowerCase()];
+  return range ? { ...range, label: teamSize.trim() } : null;
+}
+
+function crewItemsLabel(items: unknown): string {
+  const list = Array.isArray(items) ? items.map(String) : typeof items === "string" ? [items] : [];
+  if (list.includes("Both") || (list.includes("Shirts") && list.includes("Hats"))) return "Shirts + Hats";
+  if (list.includes("Shirts")) return "Shirts";
+  if (list.includes("Hats")) return "Hats";
+  return "Apparel (items TBD)";
+}
+
 function readDetailString(details: Record<string, unknown>, keys: string[]): string {
   for (const key of keys) {
     const value = details[key];
@@ -141,6 +176,96 @@ function resolveHatDetails(details: Record<string, unknown>) {
   };
 }
 
+
+// ── Suggested pricing for website requests (same rules as email intake) ──
+// Internal notes only: shown on the action item for Phil, never sent to the customer.
+const GARMENT_CATEGORY: Record<string, string> = {
+  tshirt: "tee", tshirts: "tee", tanks: "tee", hoodie: "hoodie", hoodies: "hoodie", polo: "polo", jacket: "jacket",
+};
+
+async function websitePricingLines(
+  db: any, serviceType: string, details: Record<string, unknown>, qty: number,
+): Promise<string[]> {
+  if (!qty || qty <= 0) return [];
+  if (qty >= CUSTOM_QUOTE_QTY) return ["", `💲 ${qty} pcs — CUSTOM QUOTE (${CUSTOM_QUOTE_QTY}+ pieces). Price this one by hand.`];
+  const out: string[] = [""];
+
+  if (serviceType === "custom_hats") {
+    const { hatCode } = resolveHatDetails(details);
+    const style = (String(hatCode || "").match(/\d{2,4}[a-z]*/i)?.[0] || "112").toUpperCase();
+    const patchType = readDetailString(details, ["patchType", "patch_type"]);
+    const embroidery = patchType === "direct-embroidery";
+    const hp = hatPrice(style, qty);
+    const nq = hatNextTier(qty);
+    const np = nq ? hatPrice(style, nq) : null;
+    if (!hp) return [];
+    out.push(`💲 Suggested price (${qty} hats, hat price list, shipping included${embroidery ? `, up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches: +$3 to 10k, +$6 max to 21k` : ""}${embroidery && qty < 50 ? ", +$45 digitizing" : ""}${qty < 12 ? ", 12 minimum" : ""}):`);
+    out.push(`  ${hp.name}: $${hp.unit_price.toFixed(2)} ea / $${hp.total.toFixed(2)}`);
+    if (np && nq) out.push(`  NEXT BREAK: ${nq} hats — $${np.unit_price.toFixed(2)} ea`);
+    out.push(`  UPSELL: side flag +$${HAT_SIDE_FLAG.toFixed(2)} per hat. 2nd/3rd embroidered location +$8 each.`);
+    return out;
+  }
+
+  const garmentKey = String(details.garmentType || "");
+  const cat = GARMENT_CATEGORY[garmentKey] || null;
+  const colors = parseInt(String(details.printColors ?? ""), 10) || null;
+  const rec = String(details.recommendedDecoration || "").toLowerCase();
+  let method = serviceType === "screen_print" || serviceType === "embroidery" || serviceType === "dtf"
+    ? serviceType
+    : /embroid/.test(rec) ? "embroidery" : /dtf|transfer/.test(rec) ? "dtf" : /screen/.test(rec) ? "screen_print"
+    : qty >= screenPrintMin(colors) ? "screen_print" : "dtf";
+  const locs = method === "embroidery" ? details.embroideryLocations : details.printLocations;
+  const locList = Array.isArray(locs) ? locs.map(String) : [];
+  const backEmb = method === "embroidery" && locList.some((l) => /\bback\b/i.test(l));
+  const locations = Math.max(locList.length - (backEmb ? 1 : 0), 1);
+  const flags: string[] = [];
+  if (backEmb) flags.push("Asked for BACK embroidery — we don't offer it. Suggest screen print/DTF for the back. Priced front only.");
+  if (method === "screen_print" && qty < screenPrintMin(colors)) {
+    flags.push(`${qty} pcs is under the screen print minimum (${screenPrintMin(colors)} for ${colors || 1} color) — priced as DTF.`);
+    method = "dtf";
+  }
+  const fees: string[] = [];
+  if ((method === "dtf" || method === "embroidery") && qty < SMALL_MIN) flags.push(`${qty} pcs is under our ${SMALL_MIN}-piece minimum.`);
+  else if ((method === "dtf" || method === "embroidery") && qty < SMALL_ORDER_UNDER) fees.push(`+$${SMALL_ORDER_FEE} small order fee (under ${SMALL_ORDER_UNDER})`);
+  if (method === "screen_print") {
+    const sf = screenFees(colors, locations, qty);
+    fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
+  }
+  const jacket = garmentKey === "jacket";
+  const style = styleFromText(String(details.style || details.styleNumber || details.garmentStyle || ""));
+  const tierHint = (["good", "better", "best"].includes(String(details.poloTier || "").toLowerCase()) ? String(details.poloTier).toLowerCase() : "better") as Tier;
+  let tiers: Awaited<ReturnType<typeof suggestTiers>> = [];
+  let requested = null as Awaited<ReturnType<typeof suggestRequested>>;
+  try {
+    if (cat && cat !== "jacket") tiers = await suggestTiers(db, cat, method, qty, { colors, locations, jacket });
+    if (style) requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket });
+  } catch (e) {
+    console.error("website pricing failed:", e);
+  }
+  if (!tiers.length && !requested) {
+    if (jacket && method === "embroidery") out.push("💲 Jacket embroidery: garment × 200% + $20 (up to 10,000 stitches), +$8 per sleeve/extra spot. Pick the jacket and price by hand.");
+    return [...(out.length > 1 ? out : []), ...flags.map((f) => `⚠ ${f}`)];
+  }
+  const assumptions = [assumptionsFor(method, colors), ...fees].filter(Boolean).join(", ");
+  out.push(`💲 Suggested price (${qty} pcs, ${method.replace(/_/g, " ")}${assumptions ? `, ${assumptions}` : ""}):`);
+  if (requested) out.push(`  ★ ASKED FOR: ${requested.name} — $${requested.unit_price.toFixed(2)} ea / $${requested.total.toFixed(2)}`);
+  for (const t of tiers) {
+    out.push(`  ${!requested && t.tier === tierHint ? "→ " : "  "}${t.tier.toUpperCase()}: ${t.name} — $${t.unit_price.toFixed(2)} ea / $${t.total.toFixed(2)}${t.upcharge_2xl > 0 ? ` (2XL+ add $${t.upcharge_2xl.toFixed(2)})` : ""}`);
+  }
+  const nq = matrixNextTier(method, qty);
+  if (nq && cat && cat !== "jacket") {
+    try {
+      const np = requested ? await suggestRequested(db, requested.style, method, nq, { colors, locations, jacket })
+        : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket })).find((x) => x.tier === tierHint) ?? null;
+      if (np) out.push(`  NEXT BREAK: ${nq} pcs of ${np.name} — $${np.unit_price.toFixed(2)} ea`);
+    } catch (e) {
+      console.error("website next-break pricing failed:", e);
+    }
+  }
+  out.push("  (SanMar list cost × markup + decoration. Check before sending.)");
+  return [...out, ...flags.map((f) => `⚠ ${f}`)];
+}
+
 /** Build a human-readable description from details */
 function buildDescription(
   serviceType: string,
@@ -163,6 +288,25 @@ function buildDescription(
     if (!patchLabel) missingFields.push("patch type");
     if (!hatLabel) missingFields.push("hat style");
     if (!hatColor) missingFields.push("hat colors");
+  } else if (isCrewTeamSubmission(details)) {
+    const team = parseTeamSize(details.teamSize);
+    parts.push(`Items: ${crewItemsLabel(details.itemsLookingFor)}`);
+    parts.push(`People to outfit: ${team?.label || "⚠️ Not specified"}`);
+    if (details.organizationType) parts.push(`Organization: ${details.organizationType}`);
+    if (details.whatYouDoAndWhoYouServe) parts.push(`What they do: ${details.whatYouDoAndWhoYouServe}`);
+    if (details.orderType) parts.push(`Order type: ${details.orderType}`);
+    if (details.artworkStatus) parts.push(`Artwork: ${details.artworkStatus}`);
+    if (details.deadlineDate) parts.push(`Needed by: ${details.deadlineDate}`);
+    // Shop rule: screen print minimum is 24 for 1 color (+12 per extra color); below that is DTF.
+    if (team) {
+      parts.push(team.high !== null && team.high < 24
+        ? "Suggested method: DTF (under the 24-pc screen print minimum)"
+        : team.low >= 24
+          ? "Suggested method: Screen print if qty ≥ 24 for 1 color (+12 per extra color), otherwise DTF"
+          : "Suggested method: DTF or screen print — depends on final qty (24 pcs for 1 color, +12 per extra color)");
+    }
+    missingFields.push("exact quantity + sizes");
+    if (crewItemsLabel(details.itemsLookingFor).includes("TBD")) missingFields.push("which items (shirts / hats)");
   } else if (normalizedServiceType === "dtf") {
     if (details.orderType) parts.push(`Order type: ${details.orderType}`);
     if (details.garmentType) parts.push(`Garment: ${GARMENT_LABELS[details.garmentType as string] || details.garmentType}`);
@@ -222,6 +366,10 @@ function buildLineItem(
     const garment = GARMENT_LABELS[details.garmentType as string] || details.garmentType || "DTF Transfers";
     const orderType = details.orderType === "transfers" ? "Loose transfers" : "Finished garments";
     description = `${garment} (${orderType})`;
+  } else if (isCrewTeamSubmission(details)) {
+    const team = parseTeamSize(details.teamSize);
+    description = `Crew outfitting — ${crewItemsLabel(details.itemsLookingFor)}${team ? ` (${team.label} people, qty TBD)` : " (qty TBD)"}`;
+    if (!quantity && team) quantity = team.low;
   } else {
     const garment = GARMENT_LABELS[details.garmentType as string] || details.garmentType || "Custom Garment";
     const tier = details.poloTier ? ` — ${details.poloTier}` : "";
@@ -718,7 +866,11 @@ Deno.serve(async (req) => {
       ? resolvedLineItems.reduce((sum: number, li: any) => sum + (parseInt(String(li.quantity), 10) || 0), 0)
       : parseInt(String(quantity), 10) || 0;
 
-    const actionTitle = `Website Quote: ${customer_name} — ${serviceLabel} (${totalQty} pcs)`;
+    const crewTeam = isCrewTeamSubmission(normalizedDetails, source);
+    const crewSize = crewTeam ? parseTeamSize(normalizedDetails.teamSize) : null;
+    const actionTitle = crewTeam
+      ? `Website Quote: ${customer_name}${resolvedCompany ? ` (${resolvedCompany})` : ""} — Crew Outfitting, ${crewSize ? `${crewSize.label} people` : "qty TBD"}`
+      : `Website Quote: ${customer_name} — ${serviceLabel} (${totalQty} pcs)`;
 
     // Build rich description for the action item
     const actionDescParts = [
@@ -727,6 +879,12 @@ Deno.serve(async (req) => {
     if (resolvedCompany) actionDescParts.push(`Company: ${resolvedCompany}`);
     if (detailDescription) actionDescParts.push(detailDescription);
     if (notes && !detailDescription.includes(notes)) actionDescParts.push(`Notes: ${notes}`);
+    // Suggested pricing (internal only) — same rules as the email intake
+    try {
+      actionDescParts.push(...await websitePricingLines(serviceClient, normalizedServiceType, normalizedDetails, crewTeam ? 0 : totalQty));
+    } catch (e) {
+      console.error("website pricing lines failed:", e);
+    }
 
     // 6. Build auto-checklist for missing info
     const autoChecklist: Array<{ id: string; text: string; done: boolean }> = [];
@@ -735,6 +893,11 @@ Deno.serve(async (req) => {
       if (!hatLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat style (Richardson 112, etc.)", done: false });
       if (!hatColor) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm hat colors", done: false });
       if (!patchLabel) autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm patch type (laser leather, UV, etc.)", done: false });
+    }
+    if (crewTeam) {
+      autoChecklist.push({ id: crypto.randomUUID(), text: "Get exact quantity + size breakdown", done: false });
+      autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm items (shirts / hats) and Good / Better / Best garment", done: false });
+      autoChecklist.push({ id: crypto.randomUUID(), text: "Confirm print locations (left chest, back, etc.)", done: false });
     }
     autoChecklist.push({ id: crypto.randomUUID(), text: "Review artwork / logo files", done: false });
     autoChecklist.push({ id: crypto.randomUUID(), text: "Send final quote to customer", done: false });
@@ -791,7 +954,8 @@ Deno.serve(async (req) => {
 
     // 7. Notify Phil that a new action item arrived (fire-and-forget)
     // This was missing — action items were created silently with no alert.
-    try {
+    // Skipped when the insert failed (the failure alert above already went out).
+    if (!aiErr) try {
       await serviceClient.functions.invoke("notify-new-action-item", {
         body: {
           action_item: {

@@ -26,6 +26,8 @@ export const SPEC_KEYS = new Set([
   'garmentType', 'orderType', 'printLocations', 'embroideryLocations',
   'printColors', 'style_number', 'style', 'colors', 'shape', 'size',
   'patch_type', 'intent', 'poloTier', 'recommendedDecoration', 'eventDate',
+  // internal routing tag, not something Phil needs to read
+  'source',
 ]);
 
 const LEGACY_NOTE_FIELDS: { label: string; aliases: string[] }[] = [
@@ -84,8 +86,15 @@ export function extractBrandFieldsFromQuoteData(quoteData: any): BrandField[] {
       }
     }
 
-    for (const field of parseLegacyBrandFieldsFromText(li?.notes || '')) {
-      if (!merged.has(field.label)) merged.set(field.label, field);
+    // Only fall back to scraping "Label: value" text out of the notes for old
+    // records that have no structured decoration_params. For newer website
+    // quotes the notes repeat the same fields, and the text parser glued them
+    // into one run-on "Brand Source" value.
+    const hasStructured = li?.decoration_params && Object.keys(li.decoration_params).length > 0;
+    if (!hasStructured) {
+      for (const field of parseLegacyBrandFieldsFromText(li?.notes || '')) {
+        if (!merged.has(field.label)) merged.set(field.label, field);
+      }
     }
   }
 
