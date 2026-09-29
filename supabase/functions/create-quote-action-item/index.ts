@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, assumptionsFor,
+  screenPrintMin, screenFees, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY,
+  SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, type Tier,
+} from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,6 +176,96 @@ function resolveHatDetails(details: Record<string, unknown>) {
   };
 }
 
+
+// ── Suggested pricing for website requests (same rules as email intake) ──
+// Internal notes only: shown on the action item for Phil, never sent to the customer.
+const GARMENT_CATEGORY: Record<string, string> = {
+  tshirt: "tee", tshirts: "tee", tanks: "tee", hoodie: "hoodie", hoodies: "hoodie", polo: "polo", jacket: "jacket",
+};
+
+async function websitePricingLines(
+  db: any, serviceType: string, details: Record<string, unknown>, qty: number,
+): Promise<string[]> {
+  if (!qty || qty <= 0) return [];
+  if (qty >= CUSTOM_QUOTE_QTY) return ["", `💲 ${qty} pcs — CUSTOM QUOTE (${CUSTOM_QUOTE_QTY}+ pieces). Price this one by hand.`];
+  const out: string[] = [""];
+
+  if (serviceType === "custom_hats") {
+    const { hatCode } = resolveHatDetails(details);
+    const style = (String(hatCode || "").match(/\d{2,4}[a-z]*/i)?.[0] || "112").toUpperCase();
+    const patchType = readDetailString(details, ["patchType", "patch_type"]);
+    const embroidery = patchType === "direct-embroidery";
+    const hp = hatPrice(style, qty);
+    const nq = hatNextTier(qty);
+    const np = nq ? hatPrice(style, nq) : null;
+    if (!hp) return [];
+    out.push(`💲 Suggested price (${qty} hats, hat price list, shipping included${embroidery ? `, up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches: +$3 to 10k, +$6 max to 21k` : ""}${embroidery && qty < 50 ? ", +$45 digitizing" : ""}${qty < 12 ? ", 12 minimum" : ""}):`);
+    out.push(`  ${hp.name}: $${hp.unit_price.toFixed(2)} ea / $${hp.total.toFixed(2)}`);
+    if (np && nq) out.push(`  NEXT BREAK: ${nq} hats — $${np.unit_price.toFixed(2)} ea`);
+    out.push(`  UPSELL: side flag +$${HAT_SIDE_FLAG.toFixed(2)} per hat. 2nd/3rd embroidered location +$8 each.`);
+    return out;
+  }
+
+  const garmentKey = String(details.garmentType || "");
+  const cat = GARMENT_CATEGORY[garmentKey] || null;
+  const colors = parseInt(String(details.printColors ?? ""), 10) || null;
+  const rec = String(details.recommendedDecoration || "").toLowerCase();
+  let method = serviceType === "screen_print" || serviceType === "embroidery" || serviceType === "dtf"
+    ? serviceType
+    : /embroid/.test(rec) ? "embroidery" : /dtf|transfer/.test(rec) ? "dtf" : /screen/.test(rec) ? "screen_print"
+    : qty >= screenPrintMin(colors) ? "screen_print" : "dtf";
+  const locs = method === "embroidery" ? details.embroideryLocations : details.printLocations;
+  const locList = Array.isArray(locs) ? locs.map(String) : [];
+  const backEmb = method === "embroidery" && locList.some((l) => /\bback\b/i.test(l));
+  const locations = Math.max(locList.length - (backEmb ? 1 : 0), 1);
+  const flags: string[] = [];
+  if (backEmb) flags.push("Asked for BACK embroidery — we don't offer it. Suggest screen print/DTF for the back. Priced front only.");
+  if (method === "screen_print" && qty < screenPrintMin(colors)) {
+    flags.push(`${qty} pcs is under the screen print minimum (${screenPrintMin(colors)} for ${colors || 1} color) — priced as DTF.`);
+    method = "dtf";
+  }
+  const fees: string[] = [];
+  if ((method === "dtf" || method === "embroidery") && qty < SMALL_MIN) flags.push(`${qty} pcs is under our ${SMALL_MIN}-piece minimum.`);
+  else if ((method === "dtf" || method === "embroidery") && qty < SMALL_ORDER_UNDER) fees.push(`+$${SMALL_ORDER_FEE} small order fee (under ${SMALL_ORDER_UNDER})`);
+  if (method === "screen_print") {
+    const sf = screenFees(colors, locations, qty);
+    fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
+  }
+  const jacket = garmentKey === "jacket";
+  const style = styleFromText(String(details.style || details.styleNumber || details.garmentStyle || ""));
+  const tierHint = (["good", "better", "best"].includes(String(details.poloTier || "").toLowerCase()) ? String(details.poloTier).toLowerCase() : "better") as Tier;
+  let tiers: Awaited<ReturnType<typeof suggestTiers>> = [];
+  let requested = null as Awaited<ReturnType<typeof suggestRequested>>;
+  try {
+    if (cat && cat !== "jacket") tiers = await suggestTiers(db, cat, method, qty, { colors, locations, jacket });
+    if (style) requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket });
+  } catch (e) {
+    console.error("website pricing failed:", e);
+  }
+  if (!tiers.length && !requested) {
+    if (jacket && method === "embroidery") out.push("💲 Jacket embroidery: garment × 200% + $20 (up to 10,000 stitches), +$8 per sleeve/extra spot. Pick the jacket and price by hand.");
+    return [...(out.length > 1 ? out : []), ...flags.map((f) => `⚠ ${f}`)];
+  }
+  const assumptions = [assumptionsFor(method, colors), ...fees].filter(Boolean).join(", ");
+  out.push(`💲 Suggested price (${qty} pcs, ${method.replace(/_/g, " ")}${assumptions ? `, ${assumptions}` : ""}):`);
+  if (requested) out.push(`  ★ ASKED FOR: ${requested.name} — $${requested.unit_price.toFixed(2)} ea / $${requested.total.toFixed(2)}`);
+  for (const t of tiers) {
+    out.push(`  ${!requested && t.tier === tierHint ? "→ " : "  "}${t.tier.toUpperCase()}: ${t.name} — $${t.unit_price.toFixed(2)} ea / $${t.total.toFixed(2)}${t.upcharge_2xl > 0 ? ` (2XL+ add $${t.upcharge_2xl.toFixed(2)})` : ""}`);
+  }
+  const nq = matrixNextTier(method, qty);
+  if (nq && cat && cat !== "jacket") {
+    try {
+      const np = requested ? await suggestRequested(db, requested.style, method, nq, { colors, locations, jacket })
+        : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket })).find((x) => x.tier === tierHint) ?? null;
+      if (np) out.push(`  NEXT BREAK: ${nq} pcs of ${np.name} — $${np.unit_price.toFixed(2)} ea`);
+    } catch (e) {
+      console.error("website next-break pricing failed:", e);
+    }
+  }
+  out.push("  (SanMar list cost × markup + decoration. Check before sending.)");
+  return [...out, ...flags.map((f) => `⚠ ${f}`)];
+}
+
 /** Build a human-readable description from details */
 function buildDescription(
   serviceType: string,
@@ -202,13 +297,13 @@ function buildDescription(
     if (details.orderType) parts.push(`Order type: ${details.orderType}`);
     if (details.artworkStatus) parts.push(`Artwork: ${details.artworkStatus}`);
     if (details.deadlineDate) parts.push(`Needed by: ${details.deadlineDate}`);
-    // Shop rule: small runs (under ~36 pcs) go DTF, larger runs are screen print candidates.
+    // Shop rule: screen print minimum is 24 for 1 color (+12 per extra color); below that is DTF.
     if (team) {
-      parts.push(team.high !== null && team.high < 36
-        ? "Suggested method: DTF (under 36 pcs)"
-        : team.low >= 48
-          ? "Suggested method: Screen print (48+ pcs)"
-          : "Suggested method: DTF or screen print — depends on final qty (36–48 pc cutoff)");
+      parts.push(team.high !== null && team.high < 24
+        ? "Suggested method: DTF (under the 24-pc screen print minimum)"
+        : team.low >= 24
+          ? "Suggested method: Screen print if qty ≥ 24 for 1 color (+12 per extra color), otherwise DTF"
+          : "Suggested method: DTF or screen print — depends on final qty (24 pcs for 1 color, +12 per extra color)");
     }
     missingFields.push("exact quantity + sizes");
     if (crewItemsLabel(details.itemsLookingFor).includes("TBD")) missingFields.push("which items (shirts / hats)");
@@ -784,6 +879,12 @@ Deno.serve(async (req) => {
     if (resolvedCompany) actionDescParts.push(`Company: ${resolvedCompany}`);
     if (detailDescription) actionDescParts.push(detailDescription);
     if (notes && !detailDescription.includes(notes)) actionDescParts.push(`Notes: ${notes}`);
+    // Suggested pricing (internal only) — same rules as the email intake
+    try {
+      actionDescParts.push(...await websitePricingLines(serviceClient, normalizedServiceType, normalizedDetails, crewTeam ? 0 : totalQty));
+    } catch (e) {
+      console.error("website pricing lines failed:", e);
+    }
 
     // 6. Build auto-checklist for missing info
     const autoChecklist: Array<{ id: string; text: string; done: boolean }> = [];
