@@ -30,17 +30,19 @@ export const MATRICES: Record<string, Matrix> = {
       { qty: 500, prices: [0.95, 1.45, 1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95], markup: 150 },
     ],
   },
+  // DTF priced at replacement cost (Supacolor 1–9 / 10–49 / 50–99 / 100+), Phil 2026-09-29:
+  // the back shop sells to HCD at market, in-house savings are margin.
   dtf: {
     columns: ["4 x 4", "11 x 5", "11 x 14"],
     rows: [
-      { qty: 6, prices: [1.5, 3, 4.75], markup: 200 },
-      { qty: 12, prices: [1.5, 3, 4.75], markup: 200 },
-      { qty: 24, prices: [1.43, 2.85, 4.51], markup: 190 },
-      { qty: 48, prices: [1.35, 2.7, 4.28], markup: 180 },
-      { qty: 72, prices: [1.35, 2.7, 4.28], markup: 170 },
-      { qty: 144, prices: [1.28, 2.55, 4.04], markup: 160 },
-      { qty: 288, prices: [1.2, 2.4, 3.8], markup: 150 },
-      { qty: 500, prices: [1.13, 2.25, 3.56], markup: 150 },
+      { qty: 6, prices: [3.04, 6.59, 11.79], markup: 200 },
+      { qty: 12, prices: [2.01, 4.33, 7.62], markup: 200 },
+      { qty: 24, prices: [2.01, 4.33, 7.62], markup: 190 },
+      { qty: 48, prices: [2.01, 4.33, 7.62], markup: 180 },
+      { qty: 72, prices: [1.7, 3.66, 6.49], markup: 170 },
+      { qty: 144, prices: [1.39, 2.99, 5.3], markup: 160 },
+      { qty: 288, prices: [1.39, 2.99, 5.3], markup: 150 },
+      { qty: 500, prices: [1.39, 2.99, 5.3], markup: 150 },
     ],
   },
   // Phil (2026-09-28): embroidery is mostly small batches, so keep it simple —
