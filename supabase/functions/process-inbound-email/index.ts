@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +44,7 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 Rules of thumb:
 - Orders under about 36-48 pieces are DTF. Larger runs are screen print candidates.
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
+- Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
 - Shirt minimum is 12 pieces. Small jobs still need to be worth doing.
 - Phil offers Good / Better / Best garment options (e.g. Good = Gildan/Jerzees basics, Better = Next Level 6210 / Bella Canvas 3001, Best = Comfort Colors / premium).
@@ -111,9 +112,9 @@ function suggestMethod(item: any, totalQty: number | null): string {
   const isHat = /hat|cap/i.test(String(item?.item || ""));
   if (isHat) return "leather_patch";
   const q = Number(item?.quantity) || totalQty || 0;
-  if (q > 0 && q < 36) return "dtf";
-  if (q >= 48) return "screen_print";
-  return "unknown";
+  if (q <= 0) return "unknown";
+  // Screen print only at/above the minimum for the color count (24 + 12 per extra color); else DTF.
+  return q >= screenPrintMin(Number(item?.print_colors) || 1) ? "screen_print" : "dtf";
 }
 
 function cleanSizes(sizes: unknown): Record<string, number> {
@@ -260,10 +261,23 @@ Deno.serve(async (req) => {
     const pricing: Priced[] = [];
     const flags: string[] = [];
     for (const it of items) {
-      const method = suggestMethod(it, totalQty);
+      let method = suggestMethod(it, totalQty);
       const cat = categoryOf(it.item || it.garment);
       const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 0);
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
+      const n = items.indexOf(it) + 1;
+      const fees: string[] = [];
+      if (cat !== "hat" && qty > 0 && qty < CUSTOM_QUOTE_QTY) {
+        if (method === "screen_print" && qty < screenPrintMin(colors)) {
+          flags.push(`Item ${n}: ${qty} pcs is under the screen print minimum (${screenPrintMin(colors)} for ${colors || 1} color) — quoted as DTF.`);
+          method = "dtf";
+        }
+        if ((method === "dtf" || method === "embroidery") && qty < SMALL_MIN) {
+          flags.push(`Item ${n}: ${qty} pcs is under our ${SMALL_MIN}-piece minimum.`);
+        } else if ((method === "dtf" || method === "embroidery") && qty < SMALL_ORDER_UNDER) {
+          fees.push(`+$${SMALL_ORDER_FEE} small order fee (under ${SMALL_ORDER_UNDER})`);
+        }
+      }
       const backEmb = method === "embroidery" && cat !== "hat" && /\bback\b/i.test(String(it.locations || "")) && !/back of (the )?(cap|hat)/i.test(String(it.locations || ""));
       if (backEmb) flags.push(`Item ${items.indexOf(it) + 1}: asked for BACK embroidery — we don't offer it. Suggest screen print/DTF for the back. Priced front only.`);
       // Hoodies/sweatshirts embroider at the shirt price ($15), even "hooded jackets" / zip hoodies.
@@ -325,7 +339,11 @@ Deno.serve(async (req) => {
           console.error("next-tier pricing failed:", e);
         }
       }
-      pricing.push({ suggestions, requested, qty, method, assumptions: assumptionsFor(method, colors), next });
+      if (method === "screen_print") {
+        const sf = screenFees(colors, locations, qty);
+        fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
+      }
+      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors), ...fees].join(", "), next });
     }
 
     // 5. Quote — follow-ups attach to the open quote instead of making a new one

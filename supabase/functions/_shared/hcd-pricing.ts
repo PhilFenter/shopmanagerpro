@@ -22,7 +22,6 @@ export const MATRICES: Record<string, Matrix> = {
   screen_print: {
     columns: ["1 color", "2 color", "3 color", "4 color", "5 color", "6 color", "7 color", "8 color", "9 color"],
     rows: [
-      { qty: 12, prices: [3.57, 4.57, 5.57, 6.57, 7.57, 8.57, 9.57, 10.57, 11.57], markup: 200 },
       { qty: 24, prices: [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5], markup: 190 },
       { qty: 48, prices: [2, 2.95, 3.9, 4.85, 5.8, 6.75, 7.7, 8.65, 9.6], markup: 180 },
       { qty: 72, prices: [1.65, 2.55, 3.45, 4.35, 5.25, 6.15, 7.05, 7.95, 8.85], markup: 170 },
@@ -34,7 +33,7 @@ export const MATRICES: Record<string, Matrix> = {
   dtf: {
     columns: ["4 x 4", "11 x 5", "11 x 14"],
     rows: [
-      { qty: 1, prices: [1.5, 3, 4.75], markup: 200 },
+      { qty: 6, prices: [1.5, 3, 4.75], markup: 200 },
       { qty: 12, prices: [1.5, 3, 4.75], markup: 200 },
       { qty: 24, prices: [1.43, 2.85, 4.51], markup: 190 },
       { qty: 48, prices: [1.35, 2.7, 4.28], markup: 180 },
@@ -68,6 +67,28 @@ export const MATRICES: Record<string, Matrix> = {
 
 // Sleeve / extra embroidery spot on apparel (no back embroidery offered).
 export const EMB_EXTRA_LOCATION = 8;
+
+// Minimums and fees (Phil, 2026-09-28)
+// Screen print: 24 minimum for 1 color, +12 shirts per extra color (2c 36, 3c 48 ...).
+// $20 screen fee per color per location, waived at SCREEN_FEE_WAIVE_QTY+ (CTS + auto reclaim, screens aren't kept).
+export const SCREEN_MIN_BASE = 24;
+export const SCREEN_MIN_PER_COLOR = 12;
+export const SCREEN_FEE = 20;
+export const SCREEN_FEE_WAIVE_QTY = 144;
+// DTF / embroidery: 6-piece minimum, $30 small order fee under 12.
+export const SMALL_MIN = 6;
+export const SMALL_ORDER_UNDER = 12;
+export const SMALL_ORDER_FEE = 30;
+
+export function screenPrintMin(colors: number | null | undefined): number {
+  return SCREEN_MIN_BASE + SCREEN_MIN_PER_COLOR * (Math.max(colors || 1, 1) - 1);
+}
+/** Screen fees for the job: front colors + 1 screen per extra location (1-color assumed). */
+export function screenFees(colors: number | null | undefined, locations: number, qty: number): number {
+  if (qty >= SCREEN_FEE_WAIVE_QTY) return 0;
+  const screens = Math.max(colors || 1, 1) + Math.max(locations - 1, 0);
+  return screens * SCREEN_FEE;
+}
 
 export type Tier = "good" | "better" | "best";
 type Pick = { style: string; name: string; cost: number; cost2xl: number; msrp: number; map?: number };
