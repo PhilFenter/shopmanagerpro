@@ -16,7 +16,9 @@
 //   INTAKE_SECRET same value as the INBOUND_EMAIL_SECRET Supabase secret
 //   MAILBOX       info   (use "phil" if installed in phil@hellscanyondesigns.com)
 //   CREATE_DRAFTS true   (set to false to only create action items)
-var SEARCH_QUERY = 'in:inbox newer_than:2d -from:me -category:promotions -category:social';
+// Promotions/Social are NOT excluded: Gmail files real customer emails (e.g. from AOL)
+// there. The AI already ignores marketing mail.
+var SEARCH_QUERY = 'in:inbox newer_than:2d -from:me';
 var MAX_THREADS_PER_RUN = 30;
 var LABELS = {
   processed: 'SMP/Processed',
