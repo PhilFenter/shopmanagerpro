@@ -474,19 +474,23 @@ Deno.serve(async (req) => {
         customer_id: customerId,
         quote_id: quoteId,
         source: "email",
-        priority: ready ? "high" : "medium",
+        priority: ready ? "high" : "normal",
         status: "open",
         checklist,
         notes: `${marker} thread:${threadId} mailbox:${mailbox}`,
       })
       .select("id")
       .single();
-    if (aiErr) throw new Error(`action item insert failed: ${aiErr.message}`);
+    if (aiErr) {
+      // Don't leave an orphan draft quote behind when the action item can't be saved.
+      if (!attachToExisting && quoteId) await db.from("quotes").delete().eq("id", quoteId);
+      throw new Error(`action item insert failed: ${aiErr.message}`);
+    }
 
     // 7. Alert Phil (never blocks)
     try {
       await db.functions.invoke("notify-new-action-item", {
-        body: { action_item: { title, description: descLines.join("\n"), customer_name: name, source: "email", priority: ready ? "high" : "medium" } },
+        body: { action_item: { title, description: descLines.join("\n"), customer_name: name, source: "email", priority: ready ? "high" : "normal" } },
       });
     } catch (e) {
       console.error("notify failed:", e);

@@ -16,8 +16,10 @@
 //   INTAKE_SECRET same value as the INBOUND_EMAIL_SECRET Supabase secret
 //   MAILBOX       info   (use "phil" if installed in phil@hellscanyondesigns.com)
 //   CREATE_DRAFTS true   (set to false to only create action items)
-var SEARCH_QUERY = 'in:inbox newer_than:2d -from:me -category:promotions -category:social';
-var MAX_THREADS_PER_RUN = 50;
+// Promotions/Social are NOT excluded: Gmail files real customer emails (e.g. from AOL)
+// there. The AI already ignores marketing mail.
+var SEARCH_QUERY = 'in:inbox newer_than:2d -from:me';
+var MAX_THREADS_PER_RUN = 30;
 var LABELS = {
   processed: 'SMP/Processed',
   ignored: 'SMP/Ignored',
@@ -38,16 +40,24 @@ function processInbox() {
   var seen = loadSeen_();
   var threads = GmailApp.search(SEARCH_QUERY, 0, MAX_THREADS_PER_RUN);
 
-  threads.forEach(function (thread) {
+  var started = Date.now();
+  var smpLabels = Object.keys(LABELS).map(function (k) { return LABELS[k]; });
+  for (var i = 0; i < threads.length; i++) {
+    // Google stops a run at 6 minutes. Stop at 4 and save progress; the next run continues.
+    if (Date.now() - started > 4 * 60 * 1000) { console.log('Time limit; will continue next run'); break; }
+    var thread = threads[i];
     var messages = thread.getMessages();
     var msg = messages[messages.length - 1]; // newest message in the thread
     var id = msg.getId();
-    if (seen[id]) return;
+    if (seen[id]) continue;
+    // Already labeled and no newer message since: skip without calling the AI again.
+    var already = thread.getLabels().some(function (l) { return smpLabels.indexOf(l.getName()) !== -1; });
+    if (already && messages.length === 1) { seen[id] = Date.now(); continue; }
 
     var from = parseFrom_(msg.getFrom());
     if (OWN_DOMAINS.indexOf(from.email.split('@')[1]) !== -1) {
       seen[id] = Date.now(); // our own reply is the newest — nothing to do
-      return;
+      continue;
     }
 
     var payload = {
@@ -91,7 +101,8 @@ function processInbox() {
       thread.addLabel(label_(LABELS.error));
       seen[id] = Date.now(); // don't retry forever; the label shows it needs a look
     }
-  });
+    saveSeen_(seen); // save after every email so a cut-off run doesn't redo work
+  }
 
   saveSeen_(seen);
 }
