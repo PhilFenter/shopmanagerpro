@@ -34,7 +34,7 @@ function processInbox() {
   var url = props.getProperty('FUNCTION_URL');
   var secret = props.getProperty('INTAKE_SECRET');
   var mailbox = props.getProperty('MAILBOX') || 'info';
-  var createDrafts = (props.getProperty('CREATE_DRAFTS') || 'true') === 'true';
+  var createDrafts = String(props.getProperty('CREATE_DRAFTS') || 'true').trim().toLowerCase() !== 'false';
   if (!url || !secret) throw new Error('Set FUNCTION_URL and INTAKE_SECRET in Script properties');
 
   var seen = loadSeen_();
@@ -90,10 +90,14 @@ function processInbox() {
 
       if (out.status === 'ignored') {
         thread.addLabel(label_(LABELS.ignored));
+        console.log(msg.getSubject() + ' → ignored (' + (out.classification || out.reason || '') + ')');
       } else if (out.status === 'created' || out.status === 'duplicate') {
         thread.addLabel(label_(LABELS.processed));
         if (out.status === 'created' && !out.ready_to_price) thread.addLabel(label_(LABELS.needsInfo));
         if (createDrafts && out.reply_draft) msg.createDraftReply(out.reply_draft);
+        console.log(msg.getSubject() + ' → ' + out.status + ' (' + (out.classification || '') + ')' +
+          (out.quote_number ? ', quote ' + out.quote_number : '') +
+          (out.reply_draft ? (createDrafts ? ', draft saved' : ', draft skipped (CREATE_DRAFTS)') : ', no draft'));
       }
       seen[id] = Date.now();
     } catch (e) {
