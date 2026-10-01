@@ -501,7 +501,7 @@ Deno.serve(async (req) => {
     let replyDraft: string | null = typeof ai.reply_draft === "string" && ai.reply_draft.trim() ? ai.reply_draft.trim() : null;
     const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
       const r = p.requested!;
-      const nm = r.name.includes("not on hat list") ? "hats" : `${r.name.replace(/^Richardson /, "")} hats`;
+      const nm = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
       let t = `For ${Math.max(p.qty, 12)} ${nm} with your logo, it's $${r.unit_price.toFixed(2)} each.`;
       if (p.next?.pick) t += ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.`;
       return t;
