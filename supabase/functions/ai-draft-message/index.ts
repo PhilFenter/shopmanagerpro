@@ -1,3 +1,4 @@
+import { aiConfig } from "../_shared/ai.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -37,8 +38,7 @@ Deno.serve(async (req) => {
     }
     // --- END AUTH CHECK ---
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ai = aiConfig("google/gemini-3-flash-preview");
 
     const { customerName, customerEmail, customerPhone, company, context, channel, totalRevenue, totalOrders, lastOrderDate } = await req.json();
 
@@ -70,14 +70,14 @@ Context/purpose: ${context}
 
 ${channel === 'email' ? 'Provide a subject line on the first line prefixed with "Subject: " then the email body.' : 'Keep it under 160 characters.'}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(ai.url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${ai.key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: ai.model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

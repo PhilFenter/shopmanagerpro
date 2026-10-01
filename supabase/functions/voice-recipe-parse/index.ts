@@ -1,3 +1,4 @@
+import { aiConfig } from "../_shared/ai.ts";
 // Voice recipe parser: transcribes audio via Lovable AI STT, then extracts
 // structured field updates + notes via Gemini. Returns { transcript, updates, notes }.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
@@ -46,13 +47,16 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
+    let ai;
+    try {
+      ai = aiConfig('google/gemini-2.5-flash');
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String((e as Error).message) }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const apiKey = ai.key;
 
     const body = (await req.json()) as Payload;
     if (!body?.audioBase64 || !body?.type || !Array.isArray(body.fields)) {
@@ -66,10 +70,10 @@ Deno.serve(async (req) => {
     const audioBytes = b64ToBytes(body.audioBase64);
     const audioBlob = new Blob([audioBytes], { type: body.mimeType || 'audio/webm' });
     const fd = new FormData();
-    fd.append('model', 'openai/gpt-4o-mini-transcribe');
+    fd.append('model', ai.transcribeModel);
     fd.append('file', audioBlob, extToName(body.mimeType));
 
-    const sttRes = await fetch('https://ai.gateway.lovable.dev/v1/audio/transcriptions', {
+    const sttRes = await fetch(ai.transcribeUrl, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}` },
       body: fd,
@@ -120,14 +124,14 @@ Rules:
 - If truly nothing is parseable, still put the transcript in "notes".
 - Return strict JSON: {"updates": {...}, "notes": "..."}`;
 
-    const chatRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const chatRes = await fetch(ai.url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: ai.model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Transcript: """${transcript}"""` },
