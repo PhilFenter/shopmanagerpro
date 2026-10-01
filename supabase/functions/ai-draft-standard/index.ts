@@ -1,3 +1,4 @@
+import { aiConfig } from "../_shared/ai.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -36,8 +37,7 @@ Deno.serve(async (req) => {
     }
     // --- END AUTH CHECK ---
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ai = aiConfig("google/gemini-2.5-flash");
 
     const { sop_title, sop_description, steps, skill_name, department, evaluator_notes } = await req.json();
 
@@ -83,14 +83,14 @@ ${sopContent}
 
 Draft the minimum acceptable standard and check ride conditions for this skill.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(ai.url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${ai.key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: ai.model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

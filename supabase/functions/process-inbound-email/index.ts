@@ -131,8 +131,8 @@ function cleanSizes(sizes: unknown): Record<string, number> {
 async function runAI(userContent: string): Promise<any> {
   const apiKey = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("AI_API_KEY (or LOVABLE_API_KEY) is not configured");
-  const url = Deno.env.get("AI_API_URL") || "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const model = Deno.env.get("AI_MODEL") || "google/gemini-3-flash-preview";
+  const url = Deno.env.get("AI_API_URL") || (Deno.env.get("AI_API_KEY") ? "https://api.openai.com/v1/chat/completions" : "https://ai.gateway.lovable.dev/v1/chat/completions");
+  const model = Deno.env.get("AI_MODEL") || (Deno.env.get("AI_API_KEY") ? "gpt-4.1-mini" : "google/gemini-3-flash-preview");
 
   const res = await fetch(url, {
     method: "POST",
