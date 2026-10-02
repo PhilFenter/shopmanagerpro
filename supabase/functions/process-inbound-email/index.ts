@@ -35,12 +35,24 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 // Added word for word to the bottom of every reply draft. Edit here to change it.
-const REPLY_FOOTER = [
-  "--",
-  "Hells Canyon Designs",
-  "Custom Apparel · Screen Printing · Embroidery · Leather Patch & Embroidered Hats",
-  "Mon–Thurs 8–4, Fri until noon · 208-748-6242 · hellscanyondesigns.com",
-].join("\n");
+// Plain-text version (fallback) and an HTML version (centered, lines don't wrap).
+const FOOTER_LINES = {
+  name: "Hells Canyon Designs",
+  services1: "Custom Apparel · Company Online Stores · Screen Printing",
+  services2: "Embroidery · Leather Patch & Embroidered Hats",
+  contact: "Mon–Thurs 8–4, Fri until noon · 208-748-6242 · hellscanyondesigns.com",
+};
+const REPLY_FOOTER = ["--", FOOTER_LINES.name, FOOTER_LINES.services1, FOOTER_LINES.services2, FOOTER_LINES.contact].join("\n");
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const REPLY_FOOTER_HTML =
+  `<div style="margin-top:18px;padding-top:10px;border-top:1px solid #ddd;text-align:center;font-family:Arial,Helvetica,sans-serif;color:#333;">` +
+  `<div style="font-size:15px;font-weight:bold;white-space:nowrap;">${esc(FOOTER_LINES.name)}</div>` +
+  `<div style="font-size:12px;white-space:nowrap;">${esc(FOOTER_LINES.services1)}</div>` +
+  `<div style="font-size:12px;white-space:nowrap;">${esc(FOOTER_LINES.services2)}</div>` +
+  `<div style="font-size:11px;color:#666;margin-top:3px;">${esc(FOOTER_LINES.contact)}</div>` +
+  `</div>`;
+const draftHtml = (text: string) =>
+  `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;">${esc(text).replace(/\n/g, "<br>")}</div>${REPLY_FOOTER_HTML}`;
 
 const OWN_DOMAINS = ["hellscanyondesigns.com", "hellscanyonartglass.com", "mail.hellscanyondesigns.com"];
 
@@ -598,6 +610,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    const replyDraftHtml = replyDraft ? draftHtml(replyDraft.trimEnd()) : null;
     if (replyDraft) replyDraft = `${replyDraft.trimEnd()}\n\n${REPLY_FOOTER}`;
 
     return json({
@@ -608,6 +621,7 @@ Deno.serve(async (req) => {
       action_item_id: actionItem.id,
       quote_number: quoteNumber,
       reply_draft: replyDraft,
+      reply_draft_html: replyDraftHtml,
     });
   } catch (err) {
     console.error("process-inbound-email error:", err);

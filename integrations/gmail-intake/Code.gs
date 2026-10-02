@@ -94,7 +94,7 @@ function processInbox() {
       } else if (out.status === 'created' || out.status === 'duplicate') {
         thread.addLabel(label_(LABELS.processed));
         if (out.status === 'created' && !out.ready_to_price) thread.addLabel(label_(LABELS.needsInfo));
-        if (createDrafts && out.reply_draft) msg.createDraftReply(out.reply_draft);
+        if (createDrafts && out.reply_draft) msg.createDraftReply(out.reply_draft, out.reply_draft_html ? { htmlBody: out.reply_draft_html } : {});
         console.log(msg.getSubject() + ' → ' + out.status + ' (' + (out.classification || '') + ')' +
           (out.quote_number ? ', quote ' + out.quote_number : '') +
           (out.reply_draft ? (createDrafts ? ', draft saved' : ', draft skipped (CREATE_DRAFTS)') : ', no draft'));
