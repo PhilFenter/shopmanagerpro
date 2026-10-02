@@ -38,8 +38,7 @@ const json = (body: unknown, status = 200) =>
 const REPLY_FOOTER = [
   "--",
   "Hells Canyon Designs",
-  "Business Apparel · Corporate Stores · Custom Headwear",
-  "Screen Printing · Embroidery",
+  "Custom Apparel · Screen Printing · Embroidery · Leather Patch & Embroidered Hats",
   "Mon–Thurs 8–4, Fri until noon · 208-748-6242 · hellscanyondesigns.com",
 ].join("\n");
 
