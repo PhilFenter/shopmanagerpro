@@ -34,6 +34,26 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+// Added word for word to the bottom of every reply draft. Edit here to change it.
+// Plain-text version (fallback) and an HTML version (centered, lines don't wrap).
+const FOOTER_LINES = {
+  name: "Hells Canyon Designs",
+  services1: "Custom Apparel · Company Online Stores · Screen Printing",
+  services2: "Embroidery · Leather Patch & Embroidered Hats",
+  contact: "Mon–Thurs 8–4, Fri until noon · 208-748-6242 · hellscanyondesigns.com",
+};
+const REPLY_FOOTER = ["--", FOOTER_LINES.name, FOOTER_LINES.services1, FOOTER_LINES.services2, FOOTER_LINES.contact].join("\n");
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const REPLY_FOOTER_HTML =
+  `<div style="margin-top:18px;padding-top:10px;border-top:1px solid #ddd;text-align:center;font-family:Arial,Helvetica,sans-serif;color:#333;">` +
+  `<div style="font-size:15px;font-weight:bold;white-space:nowrap;">${esc(FOOTER_LINES.name)}</div>` +
+  `<div style="font-size:12px;white-space:nowrap;">${esc(FOOTER_LINES.services1)}</div>` +
+  `<div style="font-size:12px;white-space:nowrap;">${esc(FOOTER_LINES.services2)}</div>` +
+  `<div style="font-size:11px;color:#666;margin-top:3px;">${esc(FOOTER_LINES.contact)}</div>` +
+  `</div>`;
+const draftHtml = (text: string) =>
+  `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;">${esc(text).replace(/\n/g, "<br>")}</div>${REPLY_FOOTER_HTML}`;
+
 const OWN_DOMAINS = ["hellscanyondesigns.com", "hellscanyonartglass.com", "mail.hellscanyondesigns.com"];
 
 // ── Shop rules the AI uses. Keep this short and in Phil's words. ─────────────
@@ -42,11 +62,9 @@ You work intake for Hells Canyon Designs (HCD), a small custom apparel shop in L
 Services: screen printing (10-color automatic press), DTF transfers, embroidery, and patch hats
 (laser leather, leatherette, UV printed, PVC, embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
 Rules of thumb:
-- Orders under about 36-48 pieces are DTF. Larger runs are screen print candidates.
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
-- Shirt minimum is 12 pieces. Small jobs still need to be worth doing.
 - Phil offers Good / Better / Best garment options (e.g. Good = Gildan/Jerzees basics, Better = Next Level 6210 / Bella Canvas 3001, Best = Comfort Colors / premium).
 - Most customers say "screen print" but don't know methods. Don't make them choose a method — we recommend it.
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
@@ -85,10 +103,25 @@ Guidance:
 - ready_to_price is true only if we know items, rough quantity and decoration locations (artwork may still be coming).
 - print_colors: number of ink colors in the design only if the customer says so or it's obvious (e.g. "white logo" = 1). Otherwise null.
 - Don't invent numbers. If a quantity is a range, use the low end and say so in notes.
-- reply_draft: only when classification is new_quote_request, quote_follow_up or existing_customer_order AND something is missing.
-  Write it like Phil: short, friendly, plain, 2-5 sentences, ask at most 3 things, no prices, no bullet-point walls,
-  no "I hope this email finds you well". Start with "Hi <first name>," and end with "Thank you\\n\\nPhil".
-  If nothing is missing, reply_draft is null.
+- missing: plain-language things we still need to quote AND order. If PREVIOUSLY MISSING items are listed in the
+  input, reuse their exact wording for anything still missing and leave out anything the customer has now answered.
+- items: describe the WHOLE order as known so far across the whole thread (not just this message), so the quote stays complete.
+- reply_draft: write one whenever classification is new_quote_request, quote_follow_up or existing_customer_order.
+  GOAL: get everything we need in ONE reply so there's no back-and-forth. Ask for whatever is still missing, naturally:
+    quantity and sizes ("let us know the sizes you're going to need"), decoration locations ("are we doing a left chest
+    and a back print, or just left chest?"), garment as a choice that upsells ("do you want hoodies or crew necks?",
+    "we can also do these on a nicer, softer tee"), garment and logo colors, artwork ("send over your logo file"), deadline.
+  VOICE: open with "Hi <first name>," (or "Hi," if no name) then "Thanks for reaching out." Every customer should feel
+    appreciated. Then get straight to the solution. We're busy, they're busy: show them we're real people who can solve
+    their problem. Don't pad it or talk just to hear yourself talk. Answer their questions first, suggest options they may
+    not know about, and give it a personal touch. A short list is fine when there are several questions. Plain words,
+    no exclamation-point overload, no "I hope this email finds you well", never promise a ship date.
+  You have latitude: use judgment to make the reply genuinely helpful. End with "Thank you\\n\\nPhil" (nothing after it).
+  Do not write prices yourself; hat prices and the shop footer are added automatically.
+  EXAMPLES OF PHIL'S REAL EMAILS (match the tone, don't copy them):
+    "Hi Ian,\\n\\nOn the hats for embroidery, we have $45 digitizing fee to convert the logo for embroidery. That's a onetime fee. We can then change thread color and all that with our software. Half black and half white are no problem.\\n\\nOn the shirts what are we doing for print locations?\\n\\nThank you\\n\\nPhil"
+    "Hi Kelly,\\n\\nWe will get a sample made of that on Monday. The hat we used was a Richardson 632. It comes in several colors. If you go to Richardsonsports.com and search 632 you can see the colors.\\n\\nI'll get a sample made and send a picture Monday afternoon.\\n\\nThank you\\n\\nPhil"
+    "Hi Tina,\\n\\nAre you familiar with DTF or Direct to film transfers? I am thinking for your order due to time, and the fact that you have left chest, full back and both sleeves we will use that method instead of screen printing. It's a lot of screens and setups for that size order.\\n\\nWe have some Black Next Level 6210 shirts in stock that we could use for this unless you had another shirt you wanted to use.\\n\\nThank you\\n\\nPhil"
 `;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -212,6 +245,31 @@ Deno.serve(async (req) => {
       openQuote = data ?? null;
     }
 
+    // 2b. Is there already an open job for this thread (or this customer's open quote)?
+    //     Replies update that job instead of creating another action item.
+    type OpenJob = { id: string; quote_id: string | null; checklist: any; notes: string | null };
+    let openJob: OpenJob | null = null;
+    if (threadId) {
+      const { data } = await db.from("action_items").select("id, quote_id, checklist, notes")
+        .eq("status", "open").ilike("notes", `%thread:${threadId}%`)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      openJob = (data as OpenJob) ?? null;
+    }
+    if (!openJob && openQuote) {
+      const { data } = await db.from("action_items").select("id, quote_id, checklist, notes")
+        .eq("status", "open").eq("quote_id", openQuote.id)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      openJob = (data as OpenJob) ?? null;
+    }
+    const prevChecklist: { id: string; text: string; done: boolean }[] = Array.isArray(openJob?.checklist) ? openJob!.checklist : [];
+    const prevMissing = prevChecklist.filter((c) => !c.done && /^Get: /.test(c.text)).map((c) => c.text.replace(/^Get: /, ""));
+    let prevLines = "";
+    if (openJob?.quote_id) {
+      const { data: li } = await db.from("quote_line_items").select("description, quantity, sizes, color, placement")
+        .eq("quote_id", openJob.quote_id).order("sort_order");
+      prevLines = (li ?? []).map((l: any) => `- ${l.quantity} × ${l.description}${l.color ? `, ${l.color}` : ""}${l.placement ? `, ${l.placement}` : ""}${l.sizes && Object.keys(l.sizes).length ? `, sizes ${JSON.stringify(l.sizes)}` : ""}`).join("\n");
+    }
+
     // 3. AI extraction
     const ai = await runAI([
       `Mailbox: ${mailbox}@`,
@@ -225,10 +283,12 @@ Deno.serve(async (req) => {
       "EMAIL:",
       body,
       threadContext ? `\nEARLIER IN THREAD:\n${threadContext}` : "",
+      openJob ? `\nOPEN JOB FOR THIS CUSTOMER (update it with anything new):\n${prevLines || "(no line items yet)"}` : "",
+      prevMissing.length ? `PREVIOUSLY MISSING: ${prevMissing.map((m) => `"${m}"`).join(", ")}` : "",
     ].join("\n"));
 
     const classification = String(ai.classification || "not_actionable");
-    if (dryRun) return json({ status: "dry_run", customer_match: customer?.name ?? null, open_quote: openQuote?.quote_number ?? null, ai });
+    if (dryRun) return json({ status: "dry_run", customer_match: customer?.name ?? null, open_quote: openQuote?.quote_number ?? null, open_job: openJob?.id ?? null, ai });
 
     if (classification === "vendor_or_solicitation" || classification === "not_actionable") {
       return json({ status: "ignored", classification, summary: ai.summary ?? null });
@@ -349,10 +409,13 @@ Deno.serve(async (req) => {
     // 5. Quote — follow-ups attach to the open quote instead of making a new one
     let quoteId: string | null = null;
     let quoteNumber: string | null = null;
-    const attachToExisting = classification === "quote_follow_up" && openQuote;
-    if (attachToExisting) {
-      quoteId = openQuote!.id;
-      quoteNumber = openQuote!.quote_number;
+    const existingQuote = openJob?.quote_id
+      ? { id: openJob.quote_id, quote_number: (await db.from("quotes").select("quote_number").eq("id", openJob.quote_id).maybeSingle()).data?.quote_number ?? null }
+      : (classification === "quote_follow_up" && openQuote ? openQuote : null);
+    const attachToExisting = Boolean(existingQuote);
+    if (existingQuote) {
+      quoteId = existingQuote.id;
+      quoteNumber = existingQuote.quote_number;
     } else {
       const { data: quote, error } = await db
         .from("quotes")
@@ -373,38 +436,40 @@ Deno.serve(async (req) => {
       if (error) throw new Error(`quote insert failed: ${error.message}`);
       quoteId = quote.id;
       quoteNumber = quote.quote_number;
+    }
 
-      if (items.length) {
-        const rows = items.map((it, idx) => {
-          const method = suggestMethod(it, totalQty);
-          const pick = pricing[idx]?.requested ?? pricing[idx]?.suggestions.find((x) => x.tier === tierHint);
-          const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 1);
-          const desc = [pick && !it.garment ? pick.name : (it.garment || it.item || "Item"), method !== "unknown" ? `— ${method.replace(/_/g, " ")}` : ""]
-            .filter(Boolean).join(" ");
-          return {
-            quote_id: quoteId,
-            service_type: DECORATION_TO_SERVICE[method] || "other",
-            description: desc.slice(0, 200),
-            quantity: qty,
-            sizes: cleanSizes(it.sizes),
-            color: it.colors ? String(it.colors).slice(0, 100) : null,
-            placement: it.locations ? String(it.locations).slice(0, 200) : null,
-            style_number: pick ? pick.style : null,
-            garment_cost: pick?.garment_cost ?? 0,
-            garment_markup_pct: pick?.markup_pct ?? 200,
-            decoration_cost: pick?.decoration_cost ?? 0,
-            decoration_params: {
-              source: "email", ...it, suggested_method: method,
-              suggested_tiers: pricing[idx]?.suggestions ?? [], pricing_assumptions: pricing[idx]?.assumptions ?? "",
-            },
-            line_total: pick ? Number((pick.unit_price * qty).toFixed(2)) : 0,
-            notes: it.notes ? String(it.notes).slice(0, 500) : null,
-            sort_order: idx,
-          };
-        });
-        const { error: liErr } = await db.from("quote_line_items").insert(rows);
-        if (liErr) console.error("line items insert failed:", liErr.message);
-      }
+    if (items.length) {
+      const rows = items.map((it, idx) => {
+        const method = suggestMethod(it, totalQty);
+        const pick = pricing[idx]?.requested ?? pricing[idx]?.suggestions.find((x) => x.tier === tierHint);
+        const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 1);
+        const desc = [pick && !it.garment ? pick.name : (it.garment || it.item || "Item"), method !== "unknown" ? `— ${method.replace(/_/g, " ")}` : ""]
+          .filter(Boolean).join(" ");
+        return {
+          quote_id: quoteId,
+          service_type: DECORATION_TO_SERVICE[method] || "other",
+          description: desc.slice(0, 200),
+          quantity: qty,
+          sizes: cleanSizes(it.sizes),
+          color: it.colors ? String(it.colors).slice(0, 100) : null,
+          placement: it.locations ? String(it.locations).slice(0, 200) : null,
+          style_number: pick ? pick.style : null,
+          garment_cost: pick?.garment_cost ?? 0,
+          garment_markup_pct: pick?.markup_pct ?? 200,
+          decoration_cost: pick?.decoration_cost ?? 0,
+          decoration_params: {
+            source: "email", ...it, suggested_method: method,
+            suggested_tiers: pricing[idx]?.suggestions ?? [], pricing_assumptions: pricing[idx]?.assumptions ?? "",
+          },
+          line_total: pick ? Number((pick.unit_price * qty).toFixed(2)) : 0,
+          notes: it.notes ? String(it.notes).slice(0, 500) : null,
+          sort_order: idx,
+        };
+      });
+      // On a reply, the AI returns the whole order so far, so replace the old lines.
+      if (attachToExisting) await db.from("quote_line_items").delete().eq("quote_id", quoteId);
+      const { error: liErr } = await db.from("quote_line_items").insert(rows);
+      if (liErr) console.error("line items insert failed:", liErr.message);
     }
 
     // 6. Action item
@@ -456,31 +521,52 @@ Deno.serve(async (req) => {
       willDraft ? "\nA reply draft is saved in Gmail (hat prices included when it's a hat job) — review and send." : "",
     ].filter((l) => l !== "");
 
-    const checklist = [
+    let checklist: { id: string; text: string; done: boolean }[] = [
       ...missing.map((m) => ({ id: crypto.randomUUID(), text: `Get: ${m}`, done: false })),
       ...(willDraft ? [{ id: crypto.randomUUID(), text: "Review + send the Gmail reply draft", done: false }] : []),
       { id: crypto.randomUUID(), text: "Price it (Good / Better / Best)", done: false },
       { id: crypto.randomUUID(), text: "Push to Printavo", done: false },
     ];
+    if (openJob) {
+      // Answered "Get:" items get checked off; still-missing ones stay open; new ones are added.
+      const norm = (t: string) => t.toLowerCase().replace(/^get:\s*/, "").replace(/[^a-z0-9 ]/g, "").trim();
+      const stillMissing = new Set(missing.map(norm));
+      const merged = prevChecklist.map((c) => {
+        if (/^Get: /.test(c.text) && !c.done && !stillMissing.has(norm(c.text))) return { ...c, done: true };
+        if (c.text === "Review + send the Gmail reply draft" && willDraft) return { ...c, done: false };
+        return c;
+      });
+      const have = new Set(merged.map((c) => norm(c.text)));
+      const added = missing.filter((m) => !have.has(norm(m))).map((m) => ({ id: crypto.randomUUID(), text: `Get: ${m}`, done: false }));
+      const firstNonGet = merged.findIndex((c) => !/^Get: /.test(c.text));
+      checklist = firstNonGet === -1 ? [...merged, ...added] : [...merged.slice(0, firstNonGet), ...added, ...merged.slice(firstNonGet)];
+      if (willDraft && !checklist.some((c) => c.text === "Review + send the Gmail reply draft")) {
+        const at = checklist.findIndex((c) => !/^Get: /.test(c.text));
+        checklist.splice(at === -1 ? checklist.length : at, 0, { id: crypto.randomUUID(), text: "Review + send the Gmail reply draft", done: false });
+      }
+    }
 
-    const { data: actionItem, error: aiErr } = await db
-      .from("action_items")
-      .insert({
-        title,
-        description: descLines.join("\n"),
-        customer_name: name,
-        customer_email: fromEmail,
-        customer_phone: phone,
-        customer_id: customerId,
-        quote_id: quoteId,
-        source: "email",
-        priority: ready ? "high" : "normal",
-        status: "open",
-        checklist,
-        notes: `${marker} thread:${threadId} mailbox:${mailbox}`,
-      })
-      .select("id")
-      .single();
+    const actionFields = {
+      title,
+      description: descLines.join("\n"),
+      customer_name: name,
+      customer_email: fromEmail,
+      customer_phone: phone,
+      customer_id: customerId,
+      quote_id: quoteId,
+      source: "email",
+      priority: ready ? "high" : "normal",
+      status: "open",
+      checklist,
+      notes: `${marker} thread:${threadId} mailbox:${mailbox}`,
+    };
+    if (openJob) {
+      (actionFields as any).notes = `${openJob.notes || ""} ${marker}`.trim();
+      (actionFields as any).description = `UPDATED from customer reply ${new Date().toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}\n${descLines.join("\n")}`;
+    }
+    const { data: actionItem, error: aiErr } = openJob
+      ? await db.from("action_items").update(actionFields).eq("id", openJob.id).select("id").single()
+      : await db.from("action_items").insert(actionFields).select("id").single();
     if (aiErr) {
       // Don't leave an orphan draft quote behind when the action item can't be saved.
       if (!attachToExisting && quoteId) await db.from("quotes").delete().eq("id", quoteId);
@@ -501,7 +587,7 @@ Deno.serve(async (req) => {
     let replyDraft: string | null = typeof ai.reply_draft === "string" && ai.reply_draft.trim() ? ai.reply_draft.trim() : null;
     const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
       const r = p.requested!;
-      const nm = r.name.includes("not on hat list") ? "hats" : `${r.name.replace(/^Richardson /, "")} hats`;
+      const nm = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
       let t = `For ${Math.max(p.qty, 12)} ${nm} with your logo, it's $${r.unit_price.toFixed(2)} each.`;
       if (p.next?.pick) t += ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.`;
       return t;
@@ -524,13 +610,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    const replyDraftHtml = replyDraft ? draftHtml(replyDraft.trimEnd()) : null;
+    if (replyDraft) replyDraft = `${replyDraft.trimEnd()}\n\n${REPLY_FOOTER}`;
+
     return json({
       status: "created",
+      updated_existing: Boolean(openJob),
       classification,
       ready_to_price: ready,
       action_item_id: actionItem.id,
       quote_number: quoteNumber,
       reply_draft: replyDraft,
+      reply_draft_html: replyDraftHtml,
     });
   } catch (err) {
     console.error("process-inbound-email error:", err);
