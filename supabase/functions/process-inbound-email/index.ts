@@ -54,6 +54,9 @@ const REPLY_FOOTER_HTML =
 const draftHtml = (text: string) =>
   `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;">${esc(text).replace(/\n/g, "<br>")}</div>${REPLY_FOOTER_HTML}`;
 
+// Converting low-res art to print-ready art. "$40 in most cases" (Phil, Oct 2026). Billed after the order is approved.
+const ART_CLEANUP_FEE = 40;
+
 const OWN_DOMAINS = ["hellscanyondesigns.com", "hellscanyonartglass.com", "mail.hellscanyondesigns.com"];
 
 // ── Shop rules the AI uses. Keep this short and in Phil's words. ─────────────
@@ -66,7 +69,20 @@ Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
-- Phil offers Good / Better / Best garment options (e.g. Good = Gildan/Jerzees basics, Better = Next Level 6210 / Bella Canvas 3001, Best = Comfort Colors / premium).
+HOUSE PICKS (what we recommend; prices for these are added to replies automatically):
+- Tees: Good = Port & Co PC54 (low-cost cotton; Gildan 5000 is the other budget option), Better = Next Level 6210
+  (soft blend, holds its shape, our go-to for crews), Best = Bella+Canvas 3001 (retail-soft, the one people keep wearing).
+- Hoodies: Good = District DT6100 V.I.T. (Port & Co PC78H if they want the basic), Better = District DT6150 V.I.T. Heavyweight, Best = District DT7800 Cloud Fleece
+  (the nicer District hoodies). Crewnecks: PC78, District DT6104, District DT7804.
+- Hats: Richardson 112 trucker is the go-to.
+RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): answer like Phil would. Give ONE clear pick with
+  a short reason and ONE alternative. Never punt it back to them ("whatever you like").
+- Garment: work crews and businesses -> Next Level 6210 or a District hoodie; giveaways/events on a budget -> PC54 or
+  Gildan 5000; merch to sell or "they want people to actually wear it" -> Bella+Canvas 3001.
+- Placement: businesses and crews -> left chest + full back; events, teams and fundraisers -> full front; hats -> front patch.
+- Ink color: one color keeps the cost down and usually looks the cleanest. Light ink (white, cream, light gray) on dark
+  garments, dark ink on light garments; match the logo's main color when the logo is simple. Avoid low-contrast combos
+  (navy on black, gray on heather gray, yellow on white). Thin lines and small text print better in a solid, high-contrast color.
 - Most customers say "screen print" but don't know methods. Don't make them choose a method — we recommend it.
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
@@ -83,8 +99,8 @@ Read the email (and any earlier thread context) and return ONLY a JSON object wi
   "customer": { "name": string|null, "company": string|null, "phone": string|null },
   "summary": "one or two sentences in plain English about what they want",
   "items": [
-    { "item": "t-shirts|hoodies|polos|hats|jackets|hi-vis|other", "garment": string|null, "colors": string|null,
-      "quantity": number|null, "sizes": { "S": number, ... } | null,
+    { "item": "t-shirts|hoodies|crewnecks|polos|hats|jackets|hi-vis|other", "garment": string|null, "colors": string|null,
+      "quantity": number|null, "sizes": { "S": number, ... } | null, "locations_assumed": boolean,
       "decoration": "screen_print|dtf|embroidery|leather_patch|uv_patch|pvc_patch|woven_patch|unknown",
       "locations": string|null, "print_colors": number|null, "notes": string|null }
   ],
@@ -92,7 +108,8 @@ Read the email (and any earlier thread context) and return ONLY a JSON object wi
   "deadline": string|null,
   "artwork": "attached|coming|needs_design|unknown",
   "tier_hint": "good|better|best|unknown",
-  "missing": [ short plain-language things still needed to give a first price ],
+  "missing": [ short plain-language things that BLOCK a first price (usually only quantity, or what items) ],
+  "needed_later": [ short plain-language things needed before ordering, not before a price: sizes, garment color, logo/ink colors, artwork, deadline ],
   "ready_to_price": boolean,
   "reply_draft": string|null
 }
@@ -101,17 +118,29 @@ Guidance:
 - quote_follow_up = customer replying with more info (sizes, logo, quantity) on something already being quoted.
 - existing_customer_order = a known customer asking for a reorder or a new job.
 - not_actionable = receipts, notifications, spam, thank-yous that need nothing.
-- ready_to_price is true only if we know items, rough quantity and decoration locations (artwork may still be coming).
+- PRICE FIRST: don't make the customer answer questions we can reasonably assume. ready_to_price is true when we know
+  what items and a rough quantity. If decoration locations aren't stated, ASSUME them (businesses/crews: "left chest + full
+  back"; events/teams/fundraisers: "full front"; hats: "front") and set locations_assumed true. If the item is vague
+  ("some shirts"), assume t-shirts. Assume a 1-color print unless told otherwise.
 - print_colors: number of ink colors in the design only if the customer says so or it's obvious (e.g. "white logo" = 1). Otherwise null.
 - Don't invent numbers. If a quantity is a range, use the low end and say so in notes.
-- missing: plain-language things we still need to quote AND order. If PREVIOUSLY MISSING items are listed in the
-  input, reuse their exact wording for anything still missing and leave out anything the customer has now answered.
+- missing / needed_later: if PREVIOUSLY MISSING items are listed in the input, reuse their exact wording for anything
+  still open (in whichever list fits) and leave out anything the customer has now answered.
 - items: describe the WHOLE order as known so far across the whole thread (not just this message), so the quote stays complete.
 - reply_draft: write one whenever classification is new_quote_request, quote_follow_up or existing_customer_order.
-  GOAL: get everything we need in ONE reply so there's no back-and-forth. Ask for whatever is still missing, naturally:
-    quantity and sizes ("let us know the sizes you're going to need"), decoration locations ("are we doing a left chest
-    and a back print, or just left chest?"), garment as a choice that upsells ("do you want hoodies or crew necks?",
-    "we can also do these on a nicer, softer tee"), garment and logo colors, artwork ("send over your logo file"), deadline.
+  GOAL: give them a price in the FIRST reply and keep back-and-forth to a minimum. When we know items and a rough
+    quantity, prices (Good/Better/Best, with what we assumed) are added right after your text automatically, so don't
+    write prices, don't list options we already price, and don't say you'll send pricing later. Then:
+    - Ask only what's in "missing" (usually nothing, or just quantity).
+    - Ask for needed_later things in ONE short line, e.g. "When you're ready, send over the sizes and your logo file and
+      we'll put a mockup together."
+    - One upsell is welcome when it fits ("we can do these as hoodies too", "a full back print really stands out").
+    - If they asked what we recommend, answer it directly using HOUSE PICKS / RECOMMENDING.
+    - If quantity is unknown, ask for a rough quantity and mention what you'd recommend so they have something to react to.
+  ARTWORK: if the input says ARTWORK CHECK: low-res, ask naturally for the original logo file ("the original from your
+    designer, a PDF or AI file, or a bigger PNG"). If they don't have one, that's no problem: we can convert it to
+    print-ready art, usually a $${ART_CLEANUP_FEE} art fee, done once the order is approved. We send a quick preview
+    mockup before the order. Never promise a finished, production-ready mockup up front.
   FOLLOW-UPS: if there is EARLIER IN THREAD or an OPEN JOB, this is NOT the first reply. Do NOT say "Thanks for reaching out"
     again. Start "Hi <first name>," and go straight in (e.g. "Thanks, got the sizes."). NEVER ask again about anything already
     answered or decided anywhere in the thread or the open job (patch type, decoration, hat style, locations, colors, sizes).
@@ -167,6 +196,28 @@ function cleanSizes(sizes: unknown): Record<string, number> {
   return out;
 }
 
+// ── Artwork check (file type + size only; no time spent before the sale) ──────
+type AttachMeta = { name: string; type?: string; size?: number };
+type ArtCheck = { status: "vector" | "good" | "low_res" | "check" | "none"; note: string };
+export function artCheck(meta: AttachMeta[]): ArtCheck {
+  const isArt = (a: AttachMeta) => /\.(ai|eps|svg|pdf|cdr|psd|tiff?|png|jpe?g|gif|webp|heic|bmp)$/i.test(a.name) || /^image\//.test(a.type || "");
+  let files = meta.filter(isArt);
+  // Skip tiny images (email signature logos, icons) unless that's all there is.
+  const real = files.filter((a) => !(a.size && a.size < 15_000 && !/\.(ai|eps|svg|pdf)$/i.test(a.name)));
+  if (real.length) files = real;
+  if (!files.length) return { status: "none", note: "" };
+  const kb = (a: AttachMeta) => (a.size ? `${Math.round(a.size / 1024)} KB` : "size unknown");
+  const vector = files.find((a) => /\.(ai|eps|svg|pdf|cdr)$/i.test(a.name));
+  if (vector) return { status: "vector", note: `✅ Art: ${vector.name} looks like vector/print-ready — OK to make a preview mockup.` };
+  const big = files.find((a) => /\.(psd|tiff?)$/i.test(a.name) || ((a.size || 0) >= 400_000 && !/screen ?shot|\.heic$/i.test(a.name)));
+  if (big) return { status: "good", note: `✅ Art: ${big.name} (${kb(big)}) should be big enough for a preview mockup.` };
+  const f = files[0];
+  if (/screen ?shot|\.heic$/i.test(f.name) || (f.size && f.size < 150_000)) {
+    return { status: "low_res", note: `⚠ Art: ${f.name} (${kb(f)}) looks low-res. Ask for the original file. If they don't have it, art cleanup is usually $${ART_CLEANUP_FEE}, done only after the order is approved. Preview mockup only until then.` };
+  }
+  return { status: "check", note: `? Art: ${f.name} (${kb(f)}) — give it a quick look before mocking up.` };
+}
+
 async function runAI(userContent: string): Promise<any> {
   const apiKey = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("AI_API_KEY (or LOVABLE_API_KEY) is not configured");
@@ -193,6 +244,60 @@ async function runAI(userContent: string): Promise<any> {
   return JSON.parse(match[0]);
 }
 
+
+// ── Apparel prices for the reply draft ───────────────────────────────────────
+const TIER_BLURB: Record<string, Record<Tier, string>> = {
+  tee: { good: "basic cotton, best price", better: "softer blend, holds its shape", best: "retail-soft, the one people keep wearing" },
+  hoodie: { good: "soft everyday hoodie", better: "heavier, nicer feel", best: "super soft, premium" },
+  crew: { good: "everyday crewneck", better: "softer, nicer feel", best: "super soft, premium" },
+  polo: { good: "performance basic", better: "classic soft polo", best: "premium performance" },
+};
+const ITEM_WORD: Record<string, string> = { tee: "shirts", hoodie: "hoodies", crew: "crewnecks", polo: "polos" };
+const shortName = (n: string) => n.replace(/^Port & Co /, "Port & Co ").replace(/ (Core Cotton|CVC|Core Fleece Hoodie|Core Fleece Crew)$/, "");
+
+function decoPhrase(p: { method: string; colors?: number | null; where?: string | null }): string {
+  const where = (p.where || "front").replace(/\s*\+\s*/g, " and ").toLowerCase();
+  if (p.method === "screen_print") return `a ${p.colors || 1}-color ${where} print`;
+  if (p.method === "dtf") return `a full-color ${where} transfer`;
+  if (p.method === "embroidery") return `embroidery on the ${where}`;
+  return where;
+}
+
+export function apparelPriceParas(pricing: any[], isFollowUp: boolean): string[] {
+  const out: string[] = [];
+  for (const p of pricing) {
+    if (p.hat || p.custom || !p.qty || !(p.suggestions?.length || p.requested)) continue;
+    const word = ITEM_WORD[p.cat || ""] || "pieces";
+    const head = `For ${p.qty} ${word} with ${decoPhrase(p)}`;
+    const lines: string[] = [];
+    if (p.requested) {
+      lines.push(`${head} on the ${shortName(p.requested.name)}, it's $${p.requested.unit_price.toFixed(2)} each.`);
+    } else if (isFollowUp) {
+      const pick = p.suggestions.find((s: Suggestion) => s.tier === "better") ?? p.suggestions[0];
+      lines.push(`${head} on the ${shortName(pick.name)}, it's $${pick.unit_price.toFixed(2)} each.`);
+    } else {
+      lines.push(`${head}:`);
+      for (const s of p.suggestions as Suggestion[]) {
+        const blurb = TIER_BLURB[p.cat]?.[s.tier];
+        lines.push(`- ${shortName(s.name)}${blurb ? ` (${blurb})` : ""}: $${s.unit_price.toFixed(2)} each`);
+      }
+    }
+    const extra: string[] = [];
+    if (p.setup > 0) extra.push(`There's a one-time $${p.setup} screen setup.`);
+    if (p.fees?.length) extra.push(`Under ${SMALL_ORDER_UNDER} pieces there's a $${SMALL_ORDER_FEE} small order fee.`);
+    const up = (p.requested ? null : (p.suggestions.find((s: Suggestion) => s.tier === "better") ?? p.suggestions[0]))?.upcharge_2xl ?? 0;
+    if (!isFollowUp && up > 0) extra.push(`2XL and up run about $${Math.ceil(up)} more.`);
+    if (!isFollowUp && p.next?.pick) extra.push(`At ${p.next.qty} pieces it drops to about $${p.next.pick.unit_price.toFixed(2)} each on the ${shortName(p.next.pick.name)}.`);
+    if (!isFollowUp && (p.assumedWhere || (p.method === "screen_print" && !p.colors))) {
+      extra.push(p.method === "screen_print"
+        ? `I priced it as ${decoPhrase(p)}; if your logo has more colors or you want a different setup, I'll adjust it.`
+        : `I priced it as ${decoPhrase(p)}; if you want a different setup, I'll adjust it.`);
+    }
+    out.push([lines.join("\n"), extra.join(" ")].filter(Boolean).join("\n"));
+  }
+  return out;
+}
+
 // ── Handler ─────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -214,6 +319,10 @@ Deno.serve(async (req) => {
     const body = String(p.body || "").slice(0, 8000);
     const threadContext = String(p.thread_context || "").slice(0, 6000);
     const attachmentNames: string[] = Array.isArray(p.attachment_names) ? p.attachment_names.map(String).slice(0, 20) : [];
+    const attachMeta: AttachMeta[] = Array.isArray(p.attachment_meta)
+      ? p.attachment_meta.slice(0, 20).map((a: any) => ({ name: String(a?.name || ""), type: a?.type ? String(a.type) : undefined, size: Number(a?.size) || undefined }))
+      : attachmentNames.map((n) => ({ name: n }));
+    const art = artCheck(attachMeta);
     const dryRun = p.dry_run === true;
 
     if (!messageId || !fromEmail) return json({ error: "message_id and from_email are required" }, 400);
@@ -285,6 +394,7 @@ Deno.serve(async (req) => {
         : "Not in our customer list.",
       `Subject: ${subject}`,
       attachmentNames.length ? `Attachments: ${attachmentNames.join(", ")}` : "No attachments.",
+      art.status === "low_res" ? "ARTWORK CHECK: low-res — ask for the original logo file." : art.status === "vector" || art.status === "good" ? "ARTWORK CHECK: looks usable." : "",
       "",
       "EMAIL:",
       body,
@@ -318,12 +428,19 @@ Deno.serve(async (req) => {
     const items: any[] = Array.isArray(ai.items) ? ai.items.slice(0, 10) : [];
     const totalQty: number | null = Number(ai.total_quantity) > 0 ? Math.round(Number(ai.total_quantity)) : null;
     const missing: string[] = Array.isArray(ai.missing) ? ai.missing.map(String).slice(0, 8) : [];
+    const neededLater: string[] = (Array.isArray(ai.needed_later) ? ai.needed_later.map(String) : [])
+      .filter((m: string) => !missing.includes(m)).slice(0, 8);
+    if (art.status === "low_res" && ![...missing, ...neededLater].some((m) => /logo|art|file/i.test(m))) {
+      neededLater.push("original logo file (PDF, AI, EPS or a large PNG)");
+    }
     const ready = ai.ready_to_price === true && missing.length === 0;
+    const allOpen = [...missing, ...neededLater];
 
     // 4b. Suggested Good / Better / Best pricing (Printavo formula, suggestions only)
     const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
-      next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean };
+      next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean;
+      cat?: string | null; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[] };
     const pricing: Priced[] = [];
     const flags: string[] = [];
     for (const it of items) {
@@ -409,7 +526,10 @@ Deno.serve(async (req) => {
         const sf = screenFees(colors, locations, qty);
         fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
       }
-      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors), ...fees].join(", "), next });
+      const setup = method === "screen_print" ? screenFees(colors, locations, qty) : 0;
+      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors), ...fees].join(", "), next,
+        cat, colors, where: it.locations ? String(it.locations) : null, assumedWhere: it.locations_assumed === true, setup,
+        fees: fees.filter((f) => /small order/.test(f)) });
     }
 
     // 5. Quote — follow-ups attach to the open quote instead of making a new one
@@ -487,10 +607,11 @@ Deno.serve(async (req) => {
       : "Email quote";
     const title = `${ready ? "✅" : "❓"} ${kind}: ${name}${company ? ` (${company})` : ""} — ${itemSummary}`.slice(0, 200);
 
-    const willDraft = Boolean(ai.reply_draft) || (pricing.some((p) => p.hat && p.requested) &&
+    const willDraft = Boolean(ai.reply_draft) || (pricing.some((p) => (p.hat && p.requested) || (!p.hat && !p.custom && (p.suggestions.length || p.requested))) &&
       ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification));
     const descLines = [
       ready ? "READY TO PRICE" : `NEEDS INFO: ${missing.join("; ") || "see email"}`,
+      ...pricing.flatMap((p, i) => p.assumedWhere ? [`(Item ${i + 1} locations assumed: ${p.where} — the draft tells the customer)`] : []),
       "",
       ai.summary ? `What they want: ${ai.summary}` : "",
       quoteNumber ? `Quote: ${quoteNumber}${attachToExisting ? " (existing — customer replied with more info)" : " (new draft)"}` : "",
@@ -501,6 +622,8 @@ Deno.serve(async (req) => {
       ai.artwork && ai.artwork !== "unknown" ? `Artwork: ${String(ai.artwork).replace(/_/g, " ")}` : "",
       ai.tier_hint && ai.tier_hint !== "unknown" ? `Garment tier: ${ai.tier_hint}` : "",
       attachmentNames.length ? `Attachments: ${attachmentNames.join(", ")}` : "",
+      art.note,
+      neededLater.length ? `Before ordering: ${neededLater.join("; ")}` : "",
       "",
       ...items.map((it, i) => {
         const method = suggestMethod(it, totalQty);
@@ -524,11 +647,12 @@ Deno.serve(async (req) => {
       ] : []),
       pricing.some((p) => p.suggestions.length || p.requested) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
       ...(flags.length ? ["", ...flags.map((f) => `⚠ ${f}`)] : []),
-      willDraft ? "\nA reply draft is saved in Gmail (hat prices included when it's a hat job) — review and send." : "",
+      willDraft ? "\nA reply draft is saved in Gmail with prices included — check them, then send." : "",
     ].filter((l) => l !== "");
 
     let checklist: { id: string; text: string; done: boolean }[] = [
-      ...missing.map((m) => ({ id: crypto.randomUUID(), text: `Get: ${m}`, done: false })),
+      ...allOpen.map((m) => ({ id: crypto.randomUUID(), text: `Get: ${m}`, done: false })),
+      ...(art.status === "vector" || art.status === "good" ? [{ id: crypto.randomUUID(), text: "Make preview mockup (art looks usable)", done: false }] : []),
       ...(willDraft ? [{ id: crypto.randomUUID(), text: "Review + send the Gmail reply draft", done: false }] : []),
       { id: crypto.randomUUID(), text: "Price it (Good / Better / Best)", done: false },
       { id: crypto.randomUUID(), text: "Push to Printavo", done: false },
@@ -536,16 +660,20 @@ Deno.serve(async (req) => {
     if (openJob) {
       // Answered "Get:" items get checked off; still-missing ones stay open; new ones are added.
       const norm = (t: string) => t.toLowerCase().replace(/^get:\s*/, "").replace(/[^a-z0-9 ]/g, "").trim();
-      const stillMissing = new Set(missing.map(norm));
+      const stillMissing = new Set(allOpen.map(norm));
       const merged = prevChecklist.map((c) => {
         if (/^Get: /.test(c.text) && !c.done && !stillMissing.has(norm(c.text))) return { ...c, done: true };
         if (c.text === "Review + send the Gmail reply draft" && willDraft) return { ...c, done: false };
         return c;
       });
       const have = new Set(merged.map((c) => norm(c.text)));
-      const added = missing.filter((m) => !have.has(norm(m))).map((m) => ({ id: crypto.randomUUID(), text: `Get: ${m}`, done: false }));
+      const added = allOpen.filter((m) => !have.has(norm(m))).map((m) => ({ id: crypto.randomUUID(), text: `Get: ${m}`, done: false }));
       const firstNonGet = merged.findIndex((c) => !/^Get: /.test(c.text));
       checklist = firstNonGet === -1 ? [...merged, ...added] : [...merged.slice(0, firstNonGet), ...added, ...merged.slice(firstNonGet)];
+      if ((art.status === "vector" || art.status === "good") && !checklist.some((c) => /^Make preview mockup/.test(c.text))) {
+        const at = checklist.findIndex((c) => !/^Get: /.test(c.text));
+        checklist.splice(at === -1 ? checklist.length : at, 0, { id: crypto.randomUUID(), text: "Make preview mockup (art looks usable)", done: false });
+      }
       if (willDraft && !checklist.some((c) => c.text === "Review + send the Gmail reply draft")) {
         const at = checklist.findIndex((c) => !/^Get: /.test(c.text));
         checklist.splice(at === -1 ? checklist.length : at, 0, { id: crypto.randomUUID(), text: "Review + send the Gmail reply draft", done: false });
@@ -588,9 +716,11 @@ Deno.serve(async (req) => {
       console.error("notify failed:", e);
     }
 
-    // 8. Hat prices are a firm list, so the reply draft gives them the price,
-    //    the next break, and the side-flag option. Phil still reviews before sending.
+    // 8. Prices go into the reply draft so the customer gets a number in the first reply.
+    //    Hats: Phil's firm price list. Apparel: Good/Better/Best from the matrices, with what we assumed.
+    //    Phil still reviews every draft before it's sent.
     let replyDraft: string | null = typeof ai.reply_draft === "string" && ai.reply_draft.trim() ? ai.reply_draft.trim() : null;
+    const isFollowUp = Boolean(openJob || threadContext);
     const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
       const r = p.requested!;
       const nm = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
@@ -598,26 +728,31 @@ Deno.serve(async (req) => {
       if (p.next?.pick) t += ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.`;
       return t;
     });
-    if (hatLines.length && ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification)) {
+    const paras: string[] = [];
+    if (hatLines.length) {
       const emb = pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
       // Follow-ups only restate the price; the sample/flag/turnaround details were in the first reply.
-      const isFollowUp = Boolean(openJob || threadContext);
-      const para = isFollowUp ? hatLines.join(" ") : [
+      paras.push(isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
         "That includes a sample for approval and shipping in the lower 48.",
         emb ? "Embroidery has a one-time $45 digitizing fee." : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
         "Turnaround is about 2-3 weeks after payment.",
-      ].filter(Boolean).join(" ");
+      ].filter(Boolean).join(" "));
+    }
+    paras.push(...apparelPriceParas(pricing, isFollowUp));
+    const priceable = ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification);
+    if (paras.length && priceable) {
+      const para = paras.join("\n\n");
       if (replyDraft) {
-        // Put hat prices BEFORE the sign-off, whatever sign-off the AI used.
+        // Put prices BEFORE the sign-off, whatever sign-off the AI used.
         const signOff = replyDraft.match(/\n\s*(?:thank you|thanks|best|regards|cheers)[ ,.!]*(?:so much)?[ ,.!]*\n+\s*phil\s*$/i)
           || replyDraft.match(/\n\s*phil\s*$/i);
         const bodyPart = signOff ? replyDraft.slice(0, signOff.index).trimEnd() : replyDraft.trimEnd();
         replyDraft = `${bodyPart}\n\n${para}\n\nThank you\n\nPhil`;
       } else {
         const first = String(name || "").split(/\s|@/)[0] || "there";
-        replyDraft = `Hi ${first},\n\n${openJob || threadContext ? "" : "Thanks for reaching out. "}${para}\n\nThank you\n\nPhil`;
+        replyDraft = `Hi ${first},\n\n${isFollowUp ? "" : "Thanks for reaching out. "}${para}\n\nThank you\n\nPhil`;
       }
     }
 
