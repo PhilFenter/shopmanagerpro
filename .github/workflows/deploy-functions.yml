@@ -1,0 +1,78 @@
+# Deploys changed Supabase Edge Functions when a PR is merged to main.
+# Only functions whose folder changed (or that import a changed _shared file) are deployed.
+# One-time setup: add repo secret SUPABASE_ACCESS_TOKEN (Supabase → Account → Access Tokens).
+# Manual run: Actions → "Deploy Supabase functions" → Run workflow → type function names (or "all").
+name: Deploy Supabase functions
+
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/functions/**"]
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: 'Function names separated by spaces, or "all"'
+        required: true
+        default: "process-inbound-email"
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: fzkxeodjkaeqkwqhwcdv
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Work out which functions changed
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            list="${{ github.event.inputs.functions }}"
+            if [ "$list" = "all" ]; then
+              list=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_*' -exec basename {} \; | sort)
+            fi
+          else
+            before="${{ github.event.before }}"
+            if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then before="HEAD~1"; fi
+            files=$(git diff --name-only "$before" "${{ github.sha }}" -- supabase/functions)
+            list=""
+            for f in $files; do
+              name=$(echo "$f" | cut -d/ -f3)
+              if [ "$name" = "_shared" ]; then
+                shared=$(basename "$f")
+                for user in $(grep -rl "_shared/$shared" supabase/functions --include=*.ts | cut -d/ -f3 | sort -u); do
+                  [ "$user" != "_shared" ] && list="$list $user"
+                done
+              elif [ -d "supabase/functions/$name" ]; then
+                list="$list $name"
+              fi
+            done
+          fi
+          list=$(echo $list | tr ' ' '\n' | sort -u | tr '\n' ' ')
+          echo "Functions to deploy: ${list:-none}"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        if: steps.changed.outputs.list != ''
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Repo secret SUPABASE_ACCESS_TOKEN is not set (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          for fn in ${{ steps.changed.outputs.list }}; do
+            echo "::group::Deploying $fn"
+            supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
+            echo "::endgroup::"
+          done
+          echo "Deployed: ${{ steps.changed.outputs.list }}" >> "$GITHUB_STEP_SUMMARY"
