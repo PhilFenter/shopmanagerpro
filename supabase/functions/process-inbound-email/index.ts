@@ -60,7 +60,8 @@ const OWN_DOMAINS = ["hellscanyondesigns.com", "hellscanyonartglass.com", "mail.
 const SHOP_RULES = `
 You work intake for Hells Canyon Designs (HCD), a small custom apparel shop in Lewiston, Idaho.
 Services: screen printing (10-color automatic press), DTF transfers, embroidery, and patch hats
-(laser leather, leatherette, UV printed, PVC, embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
+(laser leather, leatherette, UV flat and UV textured, and embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
+- When talking to customers about patches say "leather, UV flat and textured, or embroidered patches". Never mention PVC patches.
 Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
@@ -111,7 +112,12 @@ Guidance:
     quantity and sizes ("let us know the sizes you're going to need"), decoration locations ("are we doing a left chest
     and a back print, or just left chest?"), garment as a choice that upsells ("do you want hoodies or crew necks?",
     "we can also do these on a nicer, softer tee"), garment and logo colors, artwork ("send over your logo file"), deadline.
-  VOICE: open with "Hi <first name>," (or "Hi," if no name) then "Thanks for reaching out." Every customer should feel
+  FOLLOW-UPS: if there is EARLIER IN THREAD or an OPEN JOB, this is NOT the first reply. Do NOT say "Thanks for reaching out"
+    again. Start "Hi <first name>," and go straight in (e.g. "Thanks, got the sizes."). NEVER ask again about anything already
+    answered or decided anywhere in the thread or the open job (patch type, decoration, hat style, locations, colors, sizes).
+    If the customer already chose a leather or UV patch, don't offer embroidery or other patch types again. Only ask what is
+    still missing.
+  VOICE: on the FIRST reply only, open with "Hi <first name>," (or "Hi," if no name) then "Thanks for reaching out." Every customer should feel
     appreciated. Then get straight to the solution. We're busy, they're busy: show them we're real people who can solve
     their problem. Don't pad it or talk just to hear yourself talk. Answer their questions first, suggest options they may
     not know about, and give it a personal touch. A short list is fine when there are several questions. Plain words,
@@ -594,7 +600,9 @@ Deno.serve(async (req) => {
     });
     if (hatLines.length && ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification)) {
       const emb = pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
-      const para = [
+      // Follow-ups only restate the price; the sample/flag/turnaround details were in the first reply.
+      const isFollowUp = Boolean(openJob || threadContext);
+      const para = isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
         "That includes a sample for approval and shipping in the lower 48.",
         emb ? "Embroidery has a one-time $45 digitizing fee." : "",
@@ -602,11 +610,14 @@ Deno.serve(async (req) => {
         "Turnaround is about 2-3 weeks after payment.",
       ].filter(Boolean).join(" ");
       if (replyDraft) {
-        const i = replyDraft.lastIndexOf("Thank you");
-        replyDraft = i > 0 ? `${replyDraft.slice(0, i).trimEnd()}\n\n${para}\n\n${replyDraft.slice(i)}` : `${replyDraft}\n\n${para}`;
+        // Put hat prices BEFORE the sign-off, whatever sign-off the AI used.
+        const signOff = replyDraft.match(/\n\s*(?:thank you|thanks|best|regards|cheers)[ ,.!]*(?:so much)?[ ,.!]*\n+\s*phil\s*$/i)
+          || replyDraft.match(/\n\s*phil\s*$/i);
+        const bodyPart = signOff ? replyDraft.slice(0, signOff.index).trimEnd() : replyDraft.trimEnd();
+        replyDraft = `${bodyPart}\n\n${para}\n\nThank you\n\nPhil`;
       } else {
         const first = String(name || "").split(/\s|@/)[0] || "there";
-        replyDraft = `Hi ${first},\n\nThanks for reaching out. ${para}\n\nThank you\n\nPhil`;
+        replyDraft = `Hi ${first},\n\n${openJob || threadContext ? "" : "Thanks for reaching out. "}${para}\n\nThank you\n\nPhil`;
       }
     }
 
