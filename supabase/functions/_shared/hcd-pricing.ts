@@ -95,18 +95,23 @@ export function screenFees(colors: number | null | undefined, locations: number,
 export type Tier = "good" | "better" | "best";
 type Pick = { style: string; name: string; cost: number; cost2xl: number; msrp: number; map?: number };
 
-// Phil's Good / Better / Best picks. Costs = fallback only.
+// Phil's Good / Better / Best picks (Oct 2026). Costs = SanMar S–XL piece price (fallback only;
+// product_catalog wins when it has S–XL rows). cost2xl = SanMar 2XL piece price.
 export const PICKS: Record<string, Record<Tier, Pick>> = {
   tee: {
-    good: { style: "5000", name: "Gildan 5000 Heavy Cotton", cost: 4.11, cost2xl: 6.01, msrp: 6.22 },
-    better: { style: "64000", name: "Gildan Softstyle 64000", cost: 4.58, cost2xl: 6.18, msrp: 7.16 },
-    best: { style: "NL6210", name: "Next Level 6210 CVC", cost: 5.19, cost2xl: 6.76, msrp: 8.38 },
+    good: { style: "PC54", name: "Port & Co PC54 Core Cotton", cost: 4.0, cost2xl: 5.96, msrp: 6.0 },
+    better: { style: "NL6210", name: "Next Level 6210 CVC", cost: 5.19, cost2xl: 6.76, msrp: 8.38 },
+    best: { style: "BC3001", name: "Bella+Canvas 3001", cost: 5.8, cost2xl: 7.07, msrp: 9.6 },
   },
   hoodie: {
-    good: { style: "PC78H", name: "Port & Co PC78H Core Fleece", cost: 14.63, cost2xl: 17.57, msrp: 25.26 },
-    better: { style: "PC90H", name: "Port & Co PC90H Essential Fleece", cost: 18.5, cost2xl: 21.97, msrp: 29.0 },
-    // Carhartt has a $55 MAP; 2x markup would be ~$80. Priced at MAP + decoration. Phil to confirm.
-    best: { style: "CTK121", name: "Carhartt K121 Midweight", cost: 39.75, cost2xl: 39.75, msrp: 55, map: 55 },
+    good: { style: "PC78H", name: "Port & Co PC78H Core Fleece Hoodie", cost: 14.63, cost2xl: 17.57, msrp: 25.26 },
+    better: { style: "DT6150", name: "District DT6150 V.I.T. Heavyweight Hoodie", cost: 18.99, cost2xl: 19.99, msrp: 29.98 },
+    best: { style: "DT7800", name: "District DT7800 Cloud Fleece Hoodie", cost: 20.55, cost2xl: 21.55, msrp: 33.1 },
+  },
+  crew: {
+    good: { style: "PC78", name: "Port & Co PC78 Core Fleece Crew", cost: 11.23, cost2xl: 12.33, msrp: 18.46 },
+    better: { style: "DT6104", name: "District DT6104 V.I.T. Fleece Crew", cost: 13.37, cost2xl: 14.37, msrp: 22.74 },
+    best: { style: "DT7804", name: "District DT7804 Cloud Fleece Crew", cost: 19.51, cost2xl: 20.51, msrp: 31.02 },
   },
   polo: {
     good: { style: "ST550", name: "Sport-Tek ST550 Competitor", cost: 9.26, cost2xl: 10.26, msrp: 14.52 },
@@ -120,10 +125,23 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
   },
 };
 
+// Other styles we know the cost of when a customer asks for them by name.
+export const KNOWN_STYLES: Pick[] = [
+  { style: "5000", name: "Gildan 5000 Heavy Cotton", cost: 4.11, cost2xl: 6.01, msrp: 5.48 },
+  { style: "64000", name: "Gildan Softstyle 64000", cost: 4.58, cost2xl: 6.18, msrp: 7.16 },
+  { style: "DT6100", name: "District DT6100 V.I.T. Fleece Hoodie", cost: 14.41, cost2xl: 15.41, msrp: 24.82 },
+  { style: "DT1101", name: "District DT1101 Perfect Weight Fleece Hoodie", cost: 19.84, cost2xl: 20.84, msrp: 31.68 },
+  { style: "DT8100", name: "District DT8100 Re-Fleece Hoodie", cost: 15.44, cost2xl: 16.44, msrp: 26.88 },
+  { style: "PC90H", name: "Port & Co PC90H Essential Fleece", cost: 18.5, cost2xl: 21.97, msrp: 29.0 },
+  // Carhartt has a $55 MAP; priced at MAP + decoration.
+  { style: "CTK121", name: "Carhartt K121 Midweight", cost: 39.75, cost2xl: 39.75, msrp: 55, map: 55 },
+];
+
 export function categoryOf(item: string | null | undefined): string | null {
   const s = String(item || "").toLowerCase();
   if (/hat|cap|beanie/.test(s)) return "hat";
-  if (/hood|sweat|crew/.test(s)) return "hoodie";
+  if (/hood/.test(s)) return "hoodie";
+  if (/crew ?neck|sweatshirt|\bcrews?\b(?! ?members?)|sweats?\b/.test(s)) return "crew";
   if (/polo/.test(s)) return "polo";
   if (/tee|t-shirt|shirt/.test(s)) return "tee";
   return null;
@@ -224,7 +242,7 @@ export function assumptionsFor(service: string, colors: number | null): string {
 /** Pull a style number out of what the customer wrote, e.g. "Richardson 112PT hats" → "112PT". */
 export function styleFromText(text: string | null | undefined): string | null {
   const m = String(text || "").toUpperCase().match(/\b([A-Z]{0,4}\d{2,6}[A-Z]{0,4})\b/g);
-  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "K121": "CTK121" };
+  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "K121": "CTK121", "G500": "5000" };
   const hit = m ? m.find((s) => !/^\d{4}$/.test(s) || ["5000", "8000", "2000", "1717", "3001", "6210", "3600"].includes(s)) ?? null : null;
   return hit ? (ALIAS[hit] ?? hit) : null;
 }
@@ -235,7 +253,7 @@ export async function suggestRequested(
 ): Promise<Suggestion | null> {
   const row = matrixRow(service, qty);
   if (!row || qty <= 0) return null;
-  const known = Object.values(PICKS).flatMap((t) => Object.values(t)).find((p) => p.style === style.toUpperCase());
+  const known = [...Object.values(PICKS).flatMap((t) => Object.values(t)), ...KNOWN_STYLES].find((p) => p.style === style.toUpperCase());
   const cost = await garmentCost(db, known ?? { style, name: style, cost: 0, cost2xl: 0, msrp: 0 }, qty);
   if (!cost) return null;
   const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);

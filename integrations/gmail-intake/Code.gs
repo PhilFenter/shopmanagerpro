@@ -4,7 +4,7 @@
  * Install this inside the info@hellscanyondesigns.com Google account
  * (script.google.com → New project → paste this file). See README.md.
  *
- * Every hour it looks at recent inbox mail, sends each new customer
+ * Every 5 minutes it looks at recent inbox mail, sends each new customer
  * email to the `process-inbound-email` Supabase function, labels the thread,
  * and — when info is missing — saves a reply DRAFT in the thread for Phil to
  * review. It never sends email by itself.
@@ -73,6 +73,10 @@ function processInbox() {
         .map(function (m) { return 'From: ' + m.getFrom() + '\n' + m.getPlainBody().slice(0, 1500); })
         .join('\n---\n'),
       attachment_names: msg.getAttachments().map(function (a) { return a.getName(); }),
+      // File type + size so the shop can tell a print-ready logo from a tiny screenshot.
+      attachment_meta: msg.getAttachments().map(function (a) {
+        return { name: a.getName(), type: a.getContentType(), size: a.getSize() };
+      }),
     };
 
     try {
@@ -116,9 +120,9 @@ function installTrigger() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'processInbox') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('processInbox').timeBased().everyHours(1).create();
+  ScriptApp.newTrigger('processInbox').timeBased().everyMinutes(5).create(); // checks every 5 minutes
   Object.keys(LABELS).forEach(function (k) { label_(LABELS[k]); });
-  console.log('Trigger installed: processInbox every hour');
+  console.log('Trigger installed: processInbox every 5 minutes');
 }
 
 /** Optional: run once before installTrigger() to skip everything already in the inbox. */

@@ -180,7 +180,7 @@ function resolveHatDetails(details: Record<string, unknown>) {
 // ── Suggested pricing for website requests (same rules as email intake) ──
 // Internal notes only: shown on the action item for Phil, never sent to the customer.
 const GARMENT_CATEGORY: Record<string, string> = {
-  tshirt: "tee", tshirts: "tee", tanks: "tee", hoodie: "hoodie", hoodies: "hoodie", polo: "polo", jacket: "jacket",
+  tshirt: "tee", tshirts: "tee", tanks: "tee", hoodie: "hoodie", hoodies: "hoodie", crewneck: "crew", crewnecks: "crew", sweatshirt: "crew", sweatshirts: "crew", polo: "polo", jacket: "jacket",
 };
 
 async function websitePricingLines(
