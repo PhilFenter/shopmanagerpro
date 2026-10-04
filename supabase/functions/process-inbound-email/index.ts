@@ -60,7 +60,8 @@ const OWN_DOMAINS = ["hellscanyondesigns.com", "hellscanyonartglass.com", "mail.
 const SHOP_RULES = `
 You work intake for Hells Canyon Designs (HCD), a small custom apparel shop in Lewiston, Idaho.
 Services: screen printing (10-color automatic press), DTF transfers, embroidery, and patch hats
-(laser leather, leatherette, UV printed, PVC, embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
+(laser leather, leatherette, UV flat and UV textured, and embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
+- When talking to customers about patches say "leather, UV flat and textured, or embroidered patches". Never mention PVC patches.
 Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
@@ -602,8 +603,11 @@ Deno.serve(async (req) => {
         "Turnaround is about 2-3 weeks after payment.",
       ].filter(Boolean).join(" ");
       if (replyDraft) {
-        const i = replyDraft.lastIndexOf("Thank you");
-        replyDraft = i > 0 ? `${replyDraft.slice(0, i).trimEnd()}\n\n${para}\n\n${replyDraft.slice(i)}` : `${replyDraft}\n\n${para}`;
+        // Put hat prices BEFORE the sign-off, whatever sign-off the AI used.
+        const signOff = replyDraft.match(/\n\s*(?:thank you|thanks|best|regards|cheers)[^\n]*\n+\s*phil\s*$/i)
+          || replyDraft.match(/\n\s*phil\s*$/i);
+        const bodyPart = signOff ? replyDraft.slice(0, signOff.index).trimEnd() : replyDraft.trimEnd();
+        replyDraft = `${bodyPart}\n\n${para}\n\nThank you\n\nPhil`;
       } else {
         const first = String(name || "").split(/\s|@/)[0] || "there";
         replyDraft = `Hi ${first},\n\nThanks for reaching out. ${para}\n\nThank you\n\nPhil`;
