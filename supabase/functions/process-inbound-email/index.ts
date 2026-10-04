@@ -604,7 +604,7 @@ Deno.serve(async (req) => {
       ].filter(Boolean).join(" ");
       if (replyDraft) {
         // Put hat prices BEFORE the sign-off, whatever sign-off the AI used.
-        const signOff = replyDraft.match(/\n\s*(?:thank you|thanks|best|regards|cheers)[^\n]*\n+\s*phil\s*$/i)
+        const signOff = replyDraft.match(/\n\s*(?:thank you|thanks|best|regards|cheers)[ ,.!]*(?:so much)?[ ,.!]*\n+\s*phil\s*$/i)
           || replyDraft.match(/\n\s*phil\s*$/i);
         const bodyPart = signOff ? replyDraft.slice(0, signOff.index).trimEnd() : replyDraft.trimEnd();
         replyDraft = `${bodyPart}\n\n${para}\n\nThank you\n\nPhil`;
