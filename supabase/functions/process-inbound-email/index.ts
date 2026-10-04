@@ -600,7 +600,9 @@ Deno.serve(async (req) => {
     });
     if (hatLines.length && ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification)) {
       const emb = pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
-      const para = [
+      // Follow-ups only restate the price; the sample/flag/turnaround details were in the first reply.
+      const isFollowUp = Boolean(openJob || threadContext);
+      const para = isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
         "That includes a sample for approval and shipping in the lower 48.",
         emb ? "Embroidery has a one-time $45 digitizing fee." : "",
