@@ -16,7 +16,8 @@ Not automated on purpose: database migrations and secrets. Those stay with Drew 
 2. **GitHub secret:** github.com/PhilFenter/shopmanagerpro → **Settings → Secrets and variables → Actions**
    → *New repository secret* → name `SUPABASE_ACCESS_TOKEN`, paste the token.
 3. **Give Phil access:** Supabase → **Organization settings → Team → Invite** →
-   `phil@hellscanyondesigns.com`, role **Developer** (can deploy, read logs, run SQL, set secrets; can't delete the project or change billing).
+   `phil@hellscanyondesigns.com`, role **Administrator** (full project access including secrets and logs; can't change org settings or add owners).
+   Developer is more limited and can't change project settings, which may include secrets.
    Phil accepts the invite email, then reconnects Supabase in Computer.
 4. **Test:** Actions → Deploy Supabase functions → Run workflow → `process-inbound-email`. Green = done.
 
