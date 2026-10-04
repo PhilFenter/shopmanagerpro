@@ -112,7 +112,12 @@ Guidance:
     quantity and sizes ("let us know the sizes you're going to need"), decoration locations ("are we doing a left chest
     and a back print, or just left chest?"), garment as a choice that upsells ("do you want hoodies or crew necks?",
     "we can also do these on a nicer, softer tee"), garment and logo colors, artwork ("send over your logo file"), deadline.
-  VOICE: open with "Hi <first name>," (or "Hi," if no name) then "Thanks for reaching out." Every customer should feel
+  FOLLOW-UPS: if there is EARLIER IN THREAD or an OPEN JOB, this is NOT the first reply. Do NOT say "Thanks for reaching out"
+    again. Start "Hi <first name>," and go straight in (e.g. "Thanks, got the sizes."). NEVER ask again about anything already
+    answered or decided anywhere in the thread or the open job (patch type, decoration, hat style, locations, colors, sizes).
+    If the customer already chose a leather or UV patch, don't offer embroidery or other patch types again. Only ask what is
+    still missing.
+  VOICE: on the FIRST reply only, open with "Hi <first name>," (or "Hi," if no name) then "Thanks for reaching out." Every customer should feel
     appreciated. Then get straight to the solution. We're busy, they're busy: show them we're real people who can solve
     their problem. Don't pad it or talk just to hear yourself talk. Answer their questions first, suggest options they may
     not know about, and give it a personal touch. A short list is fine when there are several questions. Plain words,
@@ -610,7 +615,7 @@ Deno.serve(async (req) => {
         replyDraft = `${bodyPart}\n\n${para}\n\nThank you\n\nPhil`;
       } else {
         const first = String(name || "").split(/\s|@/)[0] || "there";
-        replyDraft = `Hi ${first},\n\nThanks for reaching out. ${para}\n\nThank you\n\nPhil`;
+        replyDraft = `Hi ${first},\n\n${openJob || threadContext ? "" : "Thanks for reaching out. "}${para}\n\nThank you\n\nPhil`;
       }
     }
 
