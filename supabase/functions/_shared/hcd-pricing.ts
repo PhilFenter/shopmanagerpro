@@ -104,7 +104,7 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
     best: { style: "BC3001", name: "Bella+Canvas 3001", cost: 5.8, cost2xl: 7.07, msrp: 9.6 },
   },
   hoodie: {
-    good: { style: "PC78H", name: "Port & Co PC78H Core Fleece Hoodie", cost: 14.63, cost2xl: 17.57, msrp: 25.26 },
+    good: { style: "DT6100", name: "District DT6100 V.I.T. Fleece Hoodie", cost: 14.41, cost2xl: 15.41, msrp: 24.82 },
     better: { style: "DT6150", name: "District DT6150 V.I.T. Heavyweight Hoodie", cost: 18.99, cost2xl: 19.99, msrp: 29.98 },
     best: { style: "DT7800", name: "District DT7800 Cloud Fleece Hoodie", cost: 20.55, cost2xl: 21.55, msrp: 33.1 },
   },
@@ -129,7 +129,7 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
 export const KNOWN_STYLES: Pick[] = [
   { style: "5000", name: "Gildan 5000 Heavy Cotton", cost: 4.11, cost2xl: 6.01, msrp: 5.48 },
   { style: "64000", name: "Gildan Softstyle 64000", cost: 4.58, cost2xl: 6.18, msrp: 7.16 },
-  { style: "DT6100", name: "District DT6100 V.I.T. Fleece Hoodie", cost: 14.41, cost2xl: 15.41, msrp: 24.82 },
+  { style: "PC78H", name: "Port & Co PC78H Core Fleece Hoodie", cost: 14.63, cost2xl: 17.57, msrp: 25.26 },
   { style: "DT1101", name: "District DT1101 Perfect Weight Fleece Hoodie", cost: 19.84, cost2xl: 20.84, msrp: 31.68 },
   { style: "DT8100", name: "District DT8100 Re-Fleece Hoodie", cost: 15.44, cost2xl: 16.44, msrp: 26.88 },
   { style: "PC90H", name: "Port & Co PC90H Essential Fleece", cost: 18.5, cost2xl: 21.97, msrp: 29.0 },

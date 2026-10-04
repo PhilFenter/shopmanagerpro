@@ -54,6 +54,9 @@ const REPLY_FOOTER_HTML =
 const draftHtml = (text: string) =>
   `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;">${esc(text).replace(/\n/g, "<br>")}</div>${REPLY_FOOTER_HTML}`;
 
+// Converting low-res art to print-ready art. "$40 in most cases" (Phil, Oct 2026). Billed after the order is approved.
+const ART_CLEANUP_FEE = 40;
+
 const OWN_DOMAINS = ["hellscanyondesigns.com", "hellscanyonartglass.com", "mail.hellscanyondesigns.com"];
 
 // ── Shop rules the AI uses. Keep this short and in Phil's words. ─────────────
@@ -69,7 +72,7 @@ Rules of thumb:
 HOUSE PICKS (what we recommend; prices for these are added to replies automatically):
 - Tees: Good = Port & Co PC54 (low-cost cotton; Gildan 5000 is the other budget option), Better = Next Level 6210
   (soft blend, holds its shape, our go-to for crews), Best = Bella+Canvas 3001 (retail-soft, the one people keep wearing).
-- Hoodies: Good = Port & Co PC78H, Better = District DT6150 V.I.T. Heavyweight, Best = District DT7800 Cloud Fleece
+- Hoodies: Good = District DT6100 V.I.T. (Port & Co PC78H if they want the basic), Better = District DT6150 V.I.T. Heavyweight, Best = District DT7800 Cloud Fleece
   (the nicer District hoodies). Crewnecks: PC78, District DT6104, District DT7804.
 - Hats: Richardson 112 trucker is the go-to.
 RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): answer like Phil would. Give ONE clear pick with
@@ -135,8 +138,9 @@ Guidance:
     - If they asked what we recommend, answer it directly using HOUSE PICKS / RECOMMENDING.
     - If quantity is unknown, ask for a rough quantity and mention what you'd recommend so they have something to react to.
   ARTWORK: if the input says ARTWORK CHECK: low-res, ask naturally for the original logo file ("the original from your
-    designer, a PDF or AI file, or a bigger PNG"). We send a quick preview mockup before the order; final art gets
-    cleaned up for print once the order is approved. Never promise a finished, production-ready mockup up front.
+    designer, a PDF or AI file, or a bigger PNG"). If they don't have one, that's no problem: we can convert it to
+    print-ready art, usually a $${ART_CLEANUP_FEE} art fee, done once the order is approved. We send a quick preview
+    mockup before the order. Never promise a finished, production-ready mockup up front.
   FOLLOW-UPS: if there is EARLIER IN THREAD or an OPEN JOB, this is NOT the first reply. Do NOT say "Thanks for reaching out"
     again. Start "Hi <first name>," and go straight in (e.g. "Thanks, got the sizes."). NEVER ask again about anything already
     answered or decided anywhere in the thread or the open job (patch type, decoration, hat style, locations, colors, sizes).
@@ -209,7 +213,7 @@ export function artCheck(meta: AttachMeta[]): ArtCheck {
   if (big) return { status: "good", note: `✅ Art: ${big.name} (${kb(big)}) should be big enough for a preview mockup.` };
   const f = files[0];
   if (/screen ?shot|\.heic$/i.test(f.name) || (f.size && f.size < 150_000)) {
-    return { status: "low_res", note: `⚠ Art: ${f.name} (${kb(f)}) looks low-res. Ask for the original file; don't spend time cleaning it up before the order is approved. Preview mockup only.` };
+    return { status: "low_res", note: `⚠ Art: ${f.name} (${kb(f)}) looks low-res. Ask for the original file. If they don't have it, art cleanup is usually $${ART_CLEANUP_FEE}, done only after the order is approved. Preview mockup only until then.` };
   }
   return { status: "check", note: `? Art: ${f.name} (${kb(f)}) — give it a quick look before mocking up.` };
 }
@@ -244,7 +248,7 @@ async function runAI(userContent: string): Promise<any> {
 // ── Apparel prices for the reply draft ───────────────────────────────────────
 const TIER_BLURB: Record<string, Record<Tier, string>> = {
   tee: { good: "basic cotton, best price", better: "softer blend, holds its shape", best: "retail-soft, the one people keep wearing" },
-  hoodie: { good: "solid everyday hoodie", better: "heavier, nicer feel", best: "super soft, premium" },
+  hoodie: { good: "soft everyday hoodie", better: "heavier, nicer feel", best: "super soft, premium" },
   crew: { good: "everyday crewneck", better: "softer, nicer feel", best: "super soft, premium" },
   polo: { good: "performance basic", better: "classic soft polo", best: "premium performance" },
 };
