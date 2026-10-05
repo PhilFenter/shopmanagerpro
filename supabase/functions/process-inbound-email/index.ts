@@ -87,7 +87,7 @@ RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): ans
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
 - Apparel: what items, rough quantity, which decoration locations (e.g. left chest + back), artwork (or that it's coming), and roughly Good/Better/Best or a garment they like. Sizes and colors are needed before ordering, not before a first price.
-- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.
+- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch (leather, UV flat or textured)?"
 - Deadline if they have one.
 `;
 
@@ -433,14 +433,26 @@ Deno.serve(async (req) => {
     if (art.status === "low_res" && ![...missing, ...neededLater].some((m) => /logo|art|file/i.test(m))) {
       neededLater.push("original logo file (PDF, AI, EPS or a large PNG)");
     }
-    const ready = ai.ready_to_price === true && missing.length === 0;
+    // Hats: one size (unless fitted), and decoration type never blocks a hat price.
+    const hatOnly = items.length > 0 && items.every((it) => categoryOf(it.item || it.garment) === "hat");
+    const fitted = items.some((it) => /fitted|flex ?fit|\b(110|185|6277|r-?flex)\b/i.test(`${it.garment || ""} ${it.notes || ""}`));
+    if (hatOnly) {
+      const noSizes = (m: string) => fitted || !/\bsizes?\b/i.test(m);
+      const deco = (m: string) => /patch|embroider|decoration/i.test(m);
+      const moved = missing.filter(deco);
+      const keep = missing.filter((m) => !deco(m) && noSizes(m));
+      missing.length = 0; missing.push(...keep);
+      const later = [...neededLater, ...moved].filter(noSizes);
+      neededLater.length = 0; neededLater.push(...later.filter((m, i) => later.indexOf(m) === i));
+    }
+    const ready = (ai.ready_to_price === true || (hatOnly && items.some((it) => Number(it.quantity) > 0 || totalQty))) && missing.length === 0;
     const allOpen = [...missing, ...neededLater];
 
     // 4b. Suggested Good / Better / Best pricing (Printavo formula, suggestions only)
     const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
       next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean;
-      cat?: string | null; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[] };
+      cat?: string | null; decoUnknown?: boolean; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[] };
     const pricing: Priced[] = [];
     const flags: string[] = [];
     for (const it of items) {
@@ -480,12 +492,13 @@ Deno.serve(async (req) => {
         const hp = hatPrice(hs, qty, { locations });
         const nq = hatNextTier(qty);
         pricing.push({
-          suggestions: [], requested: hp, qty, method, hat: true, locations,
+          suggestions: [], requested: hp, qty, method, hat: true, locations, decoUnknown: String(it.decoration || "unknown") === "unknown",
           next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
           assumptions: [
             "hat price list, shipping included",
             method === "embroidery" ? `up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches (over that: +$3 to 10k, +$6 max to 21k — confirm after digitizing)` : "",
             method === "embroidery" && qty < 50 ? "+$45 digitizing" : "",
+            String(it.decoration || "unknown") === "unknown" ? "decoration not chosen yet (same price for patch or embroidery)" : "",
             locations > 1 ? `${Math.min(locations, 3)} locations (+$8 each extra)` : "",
             locations > 3 ? "MORE THAN 3 LOCATIONS — price by hand" : "",
             qty < 12 ? "12 minimum" : "",
@@ -645,7 +658,8 @@ Deno.serve(async (req) => {
         ...(p.next?.pick ? [`  NEXT BREAK: ${p.next.qty} pcs of ${p.next.pick.name} — $${p.next.pick.unit_price.toFixed(2)} ea`] : []),
         ...(p.hat ? [`  UPSELL: side flag +$${HAT_SIDE_FLAG.toFixed(2)} per hat`] : []),
       ] : []),
-      pricing.some((p) => p.suggestions.length || p.requested) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
+      pricing.some((p) => !p.hat && (p.suggestions.length || p.requested)) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
+      pricing.some((p) => p.hat && p.requested) ? "  (Hat price list. Check before sending.)" : "",
       ...(flags.length ? ["", ...flags.map((f) => `⚠ ${f}`)] : []),
       willDraft ? "\nA reply draft is saved in Gmail with prices included — check them, then send." : "",
     ].filter((l) => l !== "");
@@ -731,11 +745,12 @@ Deno.serve(async (req) => {
     const paras: string[] = [];
     if (hatLines.length) {
       const emb = pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
+      const embMaybe = emb && pricing.every((p) => !p.hat || p.decoUnknown);
       // Follow-ups only restate the price; the sample/flag/turnaround details were in the first reply.
       paras.push(isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
         "That includes a sample for approval and shipping in the lower 48.",
-        emb ? "Embroidery has a one-time $45 digitizing fee." : "",
+        emb ? (embMaybe ? "Same price for a patch or embroidery; embroidery has a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
         "Turnaround is about 2-3 weeks after payment.",
       ].filter(Boolean).join(" "));
@@ -749,7 +764,12 @@ Deno.serve(async (req) => {
         const signOff = replyDraft.match(/\n\s*(?:thank you|thanks|best|regards|cheers)[ ,.!]*(?:so much)?[ ,.!]*\n+\s*phil\s*$/i)
           || replyDraft.match(/\n\s*phil\s*$/i);
         const bodyPart = signOff ? replyDraft.slice(0, signOff.index).trimEnd() : replyDraft.trimEnd();
-        replyDraft = `${bodyPart}\n\n${para}\n\nThank you\n\nPhil`;
+        // PRICE FIRST: prices go right after the greeting + opening paragraph, questions after.
+        const parts = bodyPart.split(/\n\s*\n/);
+        const greet = /^(hi|hello|hey)\b[^\n]{0,40},?$/i.test(parts[0]?.trim() || "");
+        const at = greet ? Math.min(2, parts.length) : Math.min(1, parts.length);
+        parts.splice(at, 0, para);
+        replyDraft = `${parts.join("\n\n")}\n\nThank you\n\nPhil`;
       } else {
         const first = String(name || "").split(/\s|@/)[0] || "there";
         replyDraft = `Hi ${first},\n\n${isFollowUp ? "" : "Thanks for reaching out. "}${para}\n\nThank you\n\nPhil`;
