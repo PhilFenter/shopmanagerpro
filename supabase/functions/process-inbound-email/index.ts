@@ -97,7 +97,7 @@ What we need to price a job:
 const SYSTEM_PROMPT = `${SHOP_RULES}
 Read the email (and any earlier thread context) and return ONLY a JSON object with this shape:
 {
-  "classification": "new_quote_request" | "quote_follow_up" | "existing_customer_order" | "vendor_or_solicitation" | "not_actionable",
+  "classification": "new_quote_request" | "quote_follow_up" | "existing_customer_order" | "customer_admin" | "vendor_or_solicitation" | "not_actionable",
   "confidence": 0-1,
   "customer": { "name": string|null, "company": string|null, "phone": string|null },
   "summary": "one or two sentences in plain English about what they want",
@@ -119,7 +119,10 @@ Read the email (and any earlier thread context) and return ONLY a JSON object wi
 Guidance:
 - vendor_or_solicitation = someone trying to SELL to HCD (digitizing, patches, blanks, marketing, SEO, shop closing sales).
 - quote_follow_up = customer replying with more info (sizes, logo, quantity) on something already being quoted.
-- existing_customer_order = a known customer asking for a reorder or a new job.
+- existing_customer_order = a known customer asking for a reorder or a new job (new or changed items to make).
+- customer_admin = a customer email that is NOT asking for something to be made or priced: invoices, payments, payroll
+  deduction / order spreadsheets for an order already in progress, receipts, W-9s, tracking/pickup questions, "thanks, got
+  them". These are handled by Phil directly — no quote, no draft.
 - not_actionable = receipts, notifications, spam, thank-yous that need nothing.
 - PRICE FIRST: don't make the customer answer questions we can reasonably assume. ready_to_price is true when we know
   what items and a rough quantity. If decoration locations aren't stated, ASSUME them (businesses/crews: "left chest + full
@@ -412,6 +415,13 @@ Deno.serve(async (req) => {
     const classification = String(ai.classification || "not_actionable");
     if (dryRun) return json({ status: "dry_run", customer_match: customer?.name ?? null, open_quote: openQuote?.quote_number ?? null, open_job: openJob?.id ?? null, ai });
 
+    // Billing / paperwork from customers (invoices, payments, payroll spreadsheets) isn't a quote — Phil handles those.
+    const adminWords = /invoice|payment|payroll|receipt|tracking|w-?9|statement|spreadsheet|paid|pick ?up/i;
+    const noItems = !Array.isArray(ai.items) || ai.items.length === 0;
+    if (classification === "customer_admin" ||
+        (classification === "existing_customer_order" && noItems && adminWords.test(`${ai.summary || ""} ${subject}`))) {
+      return json({ status: "ignored", classification: "customer_admin", summary: ai.summary ?? null });
+    }
     if (classification === "vendor_or_solicitation" || classification === "not_actionable") {
       return json({ status: "ignored", classification, summary: ai.summary ?? null });
     }
