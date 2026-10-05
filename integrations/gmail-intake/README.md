@@ -52,3 +52,13 @@ In Apps Script, go to Triggers and delete `processInbox`. That's it. No database
 ## Tuning
 
 The shop rules and the tone of the reply drafts are in `SHOP_RULES` / `SYSTEM_PROMPT` at the top of `supabase/functions/process-inbound-email/index.ts`. Edit them in plain English.
+
+
+## Installing in phil@ too
+Same script, a second copy inside the phil@hellscanyondesigns.com Google account
+(script.google.com while signed in as phil@ → New project → paste Code.gs).
+Script properties: `FUNCTION_URL` and `INTAKE_SECRET` (same values as info@), `MAILBOX` = `phil`,
+`CREATE_DRAFTS` = `true`, `ONLY_NEW_THREADS` = `true`.
+Run `skipExistingInbox` once (so it ignores what's already there), then `installTrigger`.
+With ONLY_NEW_THREADS it only picks up brand-new conversations (and replies in threads it started),
+so Phil's ongoing back-and-forth with customers is left alone. Printavo messages are always skipped.
