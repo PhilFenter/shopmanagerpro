@@ -16,6 +16,8 @@
 //   INTAKE_SECRET same value as the INBOUND_EMAIL_SECRET Supabase secret
 //   MAILBOX       info   (use "phil" if installed in phil@hellscanyondesigns.com)
 //   CREATE_DRAFTS true   (set to false to only create action items)
+//   ONLY_NEW_THREADS true  (use in phil@: only brand-new conversations, plus replies in threads
+//                           the system already started; ongoing back-and-forth is left alone)
 // Promotions/Social are NOT excluded: Gmail files real customer emails (e.g. from AOL)
 // there. The AI already ignores marketing mail.
 var SEARCH_QUERY = 'in:inbox newer_than:2d -from:me';
@@ -27,6 +29,8 @@ var LABELS = {
   needsInfo: 'SMP/Needs Info',
 };
 var OWN_DOMAINS = ['hellscanyondesigns.com', 'hellscanyonartglass.com'];
+// Never send these to intake: Printavo customer messages are already tracked in Printavo.
+var SKIP_DOMAINS = ['printavo.com', 'messages.printavo.com'];
 
 // ── Main job (runs on the timer) ─────────────────────────────────────────────
 function processInbox() {
@@ -35,6 +39,7 @@ function processInbox() {
   var secret = props.getProperty('INTAKE_SECRET');
   var mailbox = props.getProperty('MAILBOX') || 'info';
   var createDrafts = String(props.getProperty('CREATE_DRAFTS') || 'true').trim().toLowerCase() !== 'false';
+  var onlyNew = String(props.getProperty('ONLY_NEW_THREADS') || 'false').trim().toLowerCase() === 'true';
   if (!url || !secret) throw new Error('Set FUNCTION_URL and INTAKE_SECRET in Script properties');
 
   var seen = loadSeen_();
@@ -53,9 +58,16 @@ function processInbox() {
     // Already labeled and no newer message since: skip without calling the AI again.
     var already = thread.getLabels().some(function (l) { return smpLabels.indexOf(l.getName()) !== -1; });
     if (already && messages.length === 1) { seen[id] = Date.now(); continue; }
+    // phil@ mode: skip conversations already in progress that the system didn't start.
+    if (onlyNew && !already && messages.length > 1) { seen[id] = Date.now(); continue; }
 
     var from = parseFrom_(msg.getFrom());
-    if (OWN_DOMAINS.indexOf(from.email.split('@')[1]) !== -1) {
+    var domain = from.email.split('@')[1] || '';
+    if (SKIP_DOMAINS.some(function (d) { return domain === d || domain.slice(-(d.length + 1)) === '.' + d; })) {
+      seen[id] = Date.now();
+      continue;
+    }
+    if (OWN_DOMAINS.indexOf(domain) !== -1) {
       seen[id] = Date.now(); // our own reply is the newest — nothing to do
       continue;
     }
