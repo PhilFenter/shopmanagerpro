@@ -90,7 +90,7 @@ RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): ans
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
 - Apparel: what items, rough quantity, which decoration locations (e.g. left chest + back), artwork (or that it's coming), and roughly Good/Better/Best or a garment they like. Sizes and colors are needed before ordering, not before a first price.
-- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch (leather, UV flat or textured)?"
+- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  HAT MINIMUM / SAMPLES: 12 hats minimum, even for "a sample" or "1 or 2 to try" (it's the time it takes to make the first\n  patch and burn it on the leather / set up the embroidery). Say why in a few words, then offer: split the 12 across colors\n  (e.g. 6 of each) and we send pictures of the patch on the actual hats before we make them all. Never offer 1-2 samples.\n  Leather patches: ask for the logo as a black and white vector file (PDF, AI or EPS) for best results.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch (leather, UV flat or textured)?"
 - Deadline if they have one.
 `;
 
@@ -208,8 +208,9 @@ export function artCheck(meta: AttachMeta[]): ArtCheck {
   const isArt = (a: AttachMeta) => /\.(ai|eps|svg|pdf|cdr|psd|tiff?|png|jpe?g|gif|webp|heic|bmp)$/i.test(a.name) || /^image\//.test(a.type || "");
   let files = meta.filter(isArt);
   // Skip tiny images (email signature logos, icons) unless that's all there is.
-  const real = files.filter((a) => !(a.size && a.size < 15_000 && !/\.(ai|eps|svg|pdf)$/i.test(a.name)));
-  if (real.length) files = real;
+  // Outlook/Apple signature images are named image.png, image001.png, Outlook-xyz.png and are small.
+  const sig = (a: AttachMeta) => /^(image\d*|outlook-[\w-]+)\.(png|jpe?g|gif)$/i.test(a.name) && (a.size || 0) < 60_000;
+  files = files.filter((a) => !sig(a) && !(a.size && a.size < 15_000 && !/\.(ai|eps|svg|pdf)$/i.test(a.name)));
   if (!files.length) return { status: "none", note: "" };
   const kb = (a: AttachMeta) => (a.size ? `${Math.round(a.size / 1024)} KB` : "size unknown");
   const vector = files.find((a) => /\.(ai|eps|svg|pdf|cdr)$/i.test(a.name));
@@ -435,8 +436,13 @@ Deno.serve(async (req) => {
     const missing: string[] = Array.isArray(ai.missing) ? ai.missing.map(String).slice(0, 8) : [];
     const neededLater: string[] = (Array.isArray(ai.needed_later) ? ai.needed_later.map(String) : [])
       .filter((m: string) => !missing.includes(m)).slice(0, 8);
-    if (art.status === "low_res" && ![...missing, ...neededLater].some((m) => /logo|art|file/i.test(m))) {
+    if (art.status === "low_res" && items.length > 0 && ![...missing, ...neededLater].some((m) => /logo|art|file/i.test(m))) {
       neededLater.push("original logo file (PDF, AI, EPS or a large PNG)");
+    }
+    // Our own rules (minimums) are never a question for the customer.
+    for (const list of [missing, neededLater]) {
+      const keep = list.filter((m) => !/\bminimum\b|\bmin(imum)? order\b|\bmoq\b/i.test(m));
+      list.length = 0; list.push(...keep);
     }
     // Hats: one size (unless fitted), and decoration type never blocks a hat price.
     const hatOnly = items.length > 0 && items.every((it) => categoryOf(it.item || it.garment) === "hat");
@@ -503,14 +509,16 @@ Deno.serve(async (req) => {
         pricing.push({ suggestions: [], requested: null, qty, method, custom: true, assumptions: "" });
         continue;
       }
-      if (cat === "hat" && qty > 0) {
+      if (cat === "hat") {
+        // Quantity unknown or "1 or 2 samples": price at the 12 minimum so the customer still gets a number.
+        const hq = Math.max(qty, 12);
         // Hats use Phil's flat price list (same as the website), not the markup formula.
         // Embroidery = patch price up to 8,000 stitches; 2nd/3rd locations +$8 each.
         const hs = styleFromText(it.garment);
-        const hp = hatPrice(hs, qty, { locations });
-        const nq = hatNextTier(qty);
+        const hp = hatPrice(hs, hq, { locations });
+        const nq = hatNextTier(hq);
         pricing.push({
-          suggestions: [], requested: hp, qty, method, hat: true, locations, decoUnknown: String(it.decoration || "unknown") === "unknown",
+          suggestions: [], requested: hp, qty: hq, method, hat: true, locations, decoUnknown: String(it.decoration || "unknown") === "unknown",
           next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
           assumptions: [
             "hat price list, shipping included",
@@ -519,7 +527,7 @@ Deno.serve(async (req) => {
             String(it.decoration || "unknown") === "unknown" ? "decoration not chosen yet (same price for patch or embroidery)" : "",
             locations > 1 ? `${Math.min(locations, 3)} locations (+$8 each extra)` : "",
             locations > 3 ? "MORE THAN 3 LOCATIONS — price by hand" : "",
-            qty < 12 ? "12 minimum" : "",
+            qty < 12 ? (qty > 0 ? `asked for ${qty} — priced at the 12 minimum` : "quantity not given — priced at the 12 minimum") : "",
           ].filter(Boolean).join(", "),
         });
         continue;
@@ -653,7 +661,7 @@ Deno.serve(async (req) => {
       ai.artwork && ai.artwork !== "unknown" ? `Artwork: ${String(ai.artwork).replace(/_/g, " ")}` : "",
       ai.tier_hint && ai.tier_hint !== "unknown" ? `Garment tier: ${ai.tier_hint}` : "",
       attachmentNames.length ? `Attachments: ${attachmentNames.join(", ")}` : "",
-      art.note,
+      items.length ? art.note : "",
       neededLater.length ? `Before ordering: ${neededLater.join("; ")}` : "",
       "",
       ...items.map((it, i) => {
@@ -679,7 +687,9 @@ Deno.serve(async (req) => {
       pricing.some((p) => !p.hat && (p.suggestions.length || p.requested)) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
       pricing.some((p) => p.hat && p.requested) ? "  (Hat price list. Check before sending.)" : "",
       ...(flags.length ? ["", ...flags.map((f) => `⚠ ${f}`)] : []),
-      willDraft ? "\nA reply draft is saved in Gmail with prices included — check them, then send." : "",
+      willDraft ? (pricing.some((p) => p.requested || p.suggestions.length)
+        ? "\nA reply draft is saved in Gmail with prices included — check them, then send."
+        : "\nA reply draft is saved in Gmail (no prices in it) — check it, then send.") : "",
     ].filter((l) => l !== "");
 
     let checklist: { id: string; text: string; done: boolean }[] = [
