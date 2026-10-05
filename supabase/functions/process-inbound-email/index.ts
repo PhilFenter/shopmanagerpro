@@ -68,18 +68,21 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
+- Polos get embroidery, left chest only. No DTF/full-color transfers on polos, and nothing on the back of a polo.
+  Never recommend a t-shirt style (like the Next Level 6210) for polos.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
 HOUSE PICKS (what we recommend; prices for these are added to replies automatically):
 - Tees: Good = Port & Co PC54 (low-cost cotton; Gildan 5000 is the other budget option), Better = Next Level 6210
   (soft blend, holds its shape, our go-to for crews), Best = Bella+Canvas 3001 (retail-soft, the one people keep wearing).
 - Hoodies: Good = District DT6100 V.I.T. (Port & Co PC78H if they want the basic), Better = District DT6150 V.I.T. Heavyweight, Best = District DT7800 Cloud Fleece
   (the nicer District hoodies). Crewnecks: PC78, District DT6104, District DT7804.
+- Polos: Good = Sport-Tek ST550, Better = Port Authority K500 Silk Touch, Best = Sport-Tek ST650.
 - Hats: Richardson 112 trucker is the go-to.
 RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): answer like Phil would. Give ONE clear pick with
   a short reason and ONE alternative. Never punt it back to them ("whatever you like").
 - Garment: work crews and businesses -> Next Level 6210 or a District hoodie; giveaways/events on a budget -> PC54 or
   Gildan 5000; merch to sell or "they want people to actually wear it" -> Bella+Canvas 3001.
-- Placement: businesses and crews -> left chest + full back; events, teams and fundraisers -> full front; hats -> front patch.
+- Placement: polos -> left chest embroidery only; businesses and crews -> left chest + full back on tees/hoodies; events, teams and fundraisers -> full front; hats -> front patch.
 - Ink color: one color keeps the cost down and usually looks the cleanest. Light ink (white, cream, light gray) on dark
   garments, dark ink on light garments; match the logo's main color when the logo is simple. Avoid low-contrast combos
   (navy on black, gray on heather gray, yellow on white). Thin lines and small text print better in a solid, high-contrast color.
@@ -123,6 +126,8 @@ Guidance:
   back"; events/teams/fundraisers: "full front"; hats: "front") and set locations_assumed true. If the item is vague
   ("some shirts"), assume t-shirts. Assume a 1-color print unless told otherwise.
 - print_colors: number of ink colors in the design only if the customer says so or it's obvious (e.g. "white logo" = 1). Otherwise null.
+- items[].garment: ONLY a style the customer named (e.g. "Bella Canvas 3001", "like the 112"). Never fill in our own pick —
+  Good/Better/Best options are priced automatically when garment is null.
 - Don't invent numbers. If a quantity is a range, use the low end and say so in notes.
 - missing / needed_later: if PREVIOUSLY MISSING items are listed in the input, reuse their exact wording for anything
   still open (in whichever list fits) and leave out anything the customer has now answered.
@@ -459,6 +464,19 @@ Deno.serve(async (req) => {
       let method = suggestMethod(it, totalQty);
       const cat = categoryOf(it.item || it.garment);
       const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 0);
+      // Polos: embroidery, left chest only. No transfers, nothing on the back.
+      if (cat === "polo") {
+        const n0 = items.indexOf(it) + 1;
+        const asked = String(it.decoration || "unknown");
+        if (asked !== "unknown" && asked !== "embroidery" && /transfer|\bdtf\b|screen ?print|printed/i.test(String(body || ""))) flags.push(`Item ${n0}: polo asked as ${asked.replace(/_/g, " ")} — polos get embroidery; priced embroidery.`);
+        method = "embroidery"; it.decoration = "embroidery";
+        const loc = String(it.locations || "");
+        if (!loc || it.locations_assumed === true) { it.locations = "left chest"; }
+        else if (/\bback\b/i.test(loc)) {
+          flags.push(`Item ${n0}: polo with a back location — we don't decorate polo backs. Priced left chest only; tell the customer.`);
+          it.locations = loc.split(/\+|,|&|\band\b/i).map((x) => x.trim()).filter((x) => x && !/\bback\b/i.test(x)).join(" + ") || "left chest";
+        }
+      }
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
       const n = items.indexOf(it) + 1;
       const fees: string[] = [];
