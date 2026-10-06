@@ -76,7 +76,7 @@ Rules of thumb:
   order another if something goes wrong. Then the good news: something for every budget — value (Port & Company, Gildan,
   Jerzees), mid-range (Port Authority, Sport-Tek, OGIO), premium (Nike, The North Face, Eddie Bauer, Carhartt) — and
   offer a product guide for that item (polos, jackets, outerwear...). Exceptions: items we can't source, or large orders
-  (we embroidered 700 company-supplied jackets for Clearwater Paper). Then: one extra test piece first, a signed waiver
+  (we embroidered 700 company-supplied jackets for Clearwater Paper). New garments only — never used, worn or washed items. Then: one extra test piece first, a signed waiver
   (we don't replace, refund or reimburse their garments), and Phil approves it in advance. Never promise an exception and
   don't quote a price for decorating their garments.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
@@ -492,7 +492,7 @@ Deno.serve(async (req) => {
     for (const it of items) {
       if (it.customer_supplied === true) {
         // Their own garments: no auto price — the draft steers them to garments we carry.
-        flags.push(`Item ${items.indexOf(it) + 1}: customer wants to bring their own ${it.item || "garments"} — no auto price. Draft points them to our brands. Exceptions (can't source / large order) need a test piece, signed waiver, and your approval.`);
+        flags.push(`Item ${items.indexOf(it) + 1}: customer wants to bring their own ${it.item || "garments"} — no auto price. Draft points them to our brands. Exceptions (can't source / large order) are new garments only and need a test piece, signed waiver, and your approval.`);
         continue;
       }
       let method = suggestMethod(it, totalQty);
