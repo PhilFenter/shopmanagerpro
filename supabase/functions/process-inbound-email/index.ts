@@ -70,6 +70,13 @@ Rules of thumb:
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
 - Polos get embroidery, left chest only. No DTF/full-color transfers on polos, and nothing on the back of a polo.
   Never recommend a t-shirt style (like the Next Level 6210) for polos.
+- CUSTOMER-SUPPLIED GARMENTS ("can I bring my own shirts/jackets in to be embroidered/printed?"): we don't love it. Explain
+  briefly in Phil's words: every unique piece someone brings in is an experiment for us; items we source we've usually run
+  before, and if something happens we can get another. Then the good news: we carry lots of great brands (Nike, OGIO,
+  North Face, Eddie Bauer and others) at a variety of budgets, and offer to send a guide for that item (e.g. a polo guide).
+  Exceptions: items we can't get, or a huge order — then they provide one for testing and understand we can't replace
+  items that get damaged in the process (we did 700 jackets for Clearwater Paper that way). Don't quote a price for
+  decorating their garments.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
 HOUSE PICKS (what we recommend; prices for these are added to replies automatically):
 - Tees: Good = Port & Co PC54 (low-cost cotton; Gildan 5000 is the other budget option), Better = Next Level 6210
@@ -105,7 +112,7 @@ Read the email (and any earlier thread context) and return ONLY a JSON object wi
     { "item": "t-shirts|hoodies|crewnecks|polos|hats|jackets|hi-vis|other", "garment": string|null, "colors": string|null,
       "quantity": number|null, "sizes": { "S": number, ... } | null, "locations_assumed": boolean,
       "decoration": "screen_print|dtf|embroidery|leather_patch|uv_patch|pvc_patch|woven_patch|unknown",
-      "locations": string|null, "print_colors": number|null, "notes": string|null }
+      "locations": string|null, "print_colors": number|null, "customer_supplied": boolean, "notes": string|null }
   ],
   "total_quantity": number|null,
   "deadline": string|null,
@@ -139,6 +146,9 @@ Guidance:
   GOAL: give them a price in the FIRST reply and keep back-and-forth to a minimum. When we know items and a rough
     quantity, prices (Good/Better/Best, with what we assumed) are added right after your text automatically, so don't
     write prices, don't list options we already price, and don't say you'll send pricing later. Then:
+    - LAYOUT: the first paragraph is only the greeting line's thank-you plus ONE sentence about the job. No questions in
+      it — prices are inserted right after the first paragraph, and questions go AFTER the prices.
+    - Sizes are for apparel only. Never ask for hat sizes (even on a mixed order, say "sizes for the polos").
     - Ask only what's in "missing" (usually nothing, or just quantity).
     - Ask for needed_later things in ONE short line, e.g. "When you're ready, send over the sizes and your logo file and
       we'll put a mockup together."
@@ -162,6 +172,7 @@ Guidance:
   You have latitude: use judgment to make the reply genuinely helpful. End with "Thank you\\n\\nPhil" (nothing after it).
   Do not write prices yourself; hat prices and the shop footer are added automatically.
   EXAMPLES OF PHIL'S REAL EMAILS (match the tone, don't copy them):
+    "Hi Paislie,\\n\\nWe don't love embroidering garments people bring in. There are a few reasons and first is every time someone brings in a unique piece it's an experiment for us and we are hoping for the best. On items that we source we have typically run them before and if something happens, we can get another. Some things work better than others.\\n\\nThe good news is we carry lots of great brands. Nike, Ogio, North Face, Eddie Bauer and other options. So folks can get things at a variety of budgets.\\n\\nWe do make exceptions if they are items we can't get or it's a huge order. We did 700 jackets for Clearwater Paper last year. They provided one for testing and understood if something happened during the process we would not replace the item.\\n\\nI hope that makes sense. Let me know if you would like a polo shirt guide to choose some items from.\\n\\nThank you\\n\\nPhil"
     "Hi Ian,\\n\\nOn the hats for embroidery, we have $45 digitizing fee to convert the logo for embroidery. That's a onetime fee. We can then change thread color and all that with our software. Half black and half white are no problem.\\n\\nOn the shirts what are we doing for print locations?\\n\\nThank you\\n\\nPhil"
     "Hi Kelly,\\n\\nWe will get a sample made of that on Monday. The hat we used was a Richardson 632. It comes in several colors. If you go to Richardsonsports.com and search 632 you can see the colors.\\n\\nI'll get a sample made and send a picture Monday afternoon.\\n\\nThank you\\n\\nPhil"
     "Hi Tina,\\n\\nAre you familiar with DTF or Direct to film transfers? I am thinking for your order due to time, and the fact that you have left chest, full back and both sleeves we will use that method instead of screen printing. It's a lot of screens and setups for that size order.\\n\\nWe have some Black Next Level 6210 shirts in stock that we could use for this unless you had another shirt you wanted to use.\\n\\nThank you\\n\\nPhil"
@@ -477,6 +488,11 @@ Deno.serve(async (req) => {
     const pricing: Priced[] = [];
     const flags: string[] = [];
     for (const it of items) {
+      if (it.customer_supplied === true) {
+        // Their own garments: no auto price — the draft steers them to garments we carry.
+        flags.push(`Item ${items.indexOf(it) + 1}: customer wants to bring their own ${it.item || "garments"} — no auto price. Draft points them to our brands (exceptions: items we can't get or huge orders, one test piece, no replacement).`);
+        continue;
+      }
       let method = suggestMethod(it, totalQty);
       const cat = categoryOf(it.item || it.garment);
       const qty = Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : (items.length === 1 && totalQty ? totalQty : 0);
