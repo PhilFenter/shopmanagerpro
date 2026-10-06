@@ -70,13 +70,15 @@ Rules of thumb:
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
 - Polos get embroidery, left chest only. No DTF/full-color transfers on polos, and nothing on the back of a polo.
   Never recommend a t-shirt style (like the Next Level 6210) for polos.
-- CUSTOMER-SUPPLIED GARMENTS ("can I bring my own shirts/jackets in to be embroidered/printed?"): we don't love it. Explain
-  briefly in Phil's words: every unique piece someone brings in is an experiment for us; items we source we've usually run
-  before, and if something happens we can get another. Then the good news: we carry lots of great brands (Nike, OGIO,
-  North Face, Eddie Bauer and others) at a variety of budgets, and offer to send a guide for that item (e.g. a polo guide).
-  Exceptions: items we can't get, or a huge order — then they provide one for testing and understand we can't replace
-  items that get damaged in the process (we did 700 jackets for Clearwater Paper that way). Don't quote a price for
-  decorating their garments.
+- CUSTOMER-SUPPLIED GARMENTS ("can I bring my own shirts/jackets in?"): HCD policy — we generally don't decorate garments
+  we didn't supply. Explain briefly in Phil's words: every outside garment is an experiment (fabrics, linings, coatings
+  react differently), and we can't replace what we didn't supply; on garments we carry we've already run them and can
+  order another if something goes wrong. Then the good news: something for every budget — value (Port & Company, Gildan,
+  Jerzees), mid-range (Port Authority, Sport-Tek, OGIO), premium (Nike, The North Face, Eddie Bauer, Carhartt) — and
+  offer a product guide for that item (polos, jackets, outerwear...). Exceptions: items we can't source, or large orders
+  (we embroidered 700 company-supplied jackets for Clearwater Paper). Then: one extra test piece first, a signed waiver
+  (we don't replace, refund or reimburse their garments), and Phil approves it in advance. Never promise an exception and
+  don't quote a price for decorating their garments.
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
 HOUSE PICKS (what we recommend; prices for these are added to replies automatically):
 - Tees: Good = Port & Co PC54 (low-cost cotton; Gildan 5000 is the other budget option), Better = Next Level 6210
@@ -490,7 +492,7 @@ Deno.serve(async (req) => {
     for (const it of items) {
       if (it.customer_supplied === true) {
         // Their own garments: no auto price — the draft steers them to garments we carry.
-        flags.push(`Item ${items.indexOf(it) + 1}: customer wants to bring their own ${it.item || "garments"} — no auto price. Draft points them to our brands (exceptions: items we can't get or huge orders, one test piece, no replacement).`);
+        flags.push(`Item ${items.indexOf(it) + 1}: customer wants to bring their own ${it.item || "garments"} — no auto price. Draft points them to our brands. Exceptions (can't source / large order) need a test piece, signed waiver, and your approval.`);
         continue;
       }
       let method = suggestMethod(it, totalQty);
