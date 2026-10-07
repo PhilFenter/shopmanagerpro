@@ -60,7 +60,7 @@ labor hours and overhead, which doesn't require anyone hitting a stopwatch.
 
 <!-- Add new entries above this line, most recent first. -->
 ## 2026-10-07 — System health fixes (silent failures)
-- Scheduled jobs (Printavo sync, quote status/import, Shopify sync, quote follow-ups) were all getting 401: Vault holds the legacy service-role JWT, the runtime's SUPABASE_SERVICE_ROLE_KEY no longer string-matches it. `_shared/auth.ts` `isServiceRoleRequest()` now accepts either form; a JWT is only trusted after Supabase Auth's admin API accepts it.
-- Quote follow-ups skip quotes sent more than 30 days ago, so turning the job back on doesn't email stale quotes.
+- Scheduled jobs (Printavo sync, quote status/import, Shopify sync) were all getting 401: Vault holds the legacy service-role JWT, the runtime's SUPABASE_SERVICE_ROLE_KEY no longer string-matches it. `_shared/auth.ts` `isServiceRoleRequest()` now accepts either form; a JWT is only trusted after Supabase Auth's admin API accepts it.
+- Quote follow-ups stay OFF on purpose: Phil sends quote reminders from Printavo. quote-follow-up is unchanged and keeps rejecting the cron call; unschedule `quote-follow-up-daily` if it should stop trying.
 - Resend rejects the root domain (not verified); alerts@ and quotes@ now send from mail.hellscanyondesigns.com like the customer emails, replies to info@.
 - notify-new-action-item was callable by anyone with any body; it now builds the alert from the real row and only for items created in the last 2 minutes (same rule as send-push).

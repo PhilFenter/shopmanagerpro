@@ -1,4 +1,3 @@
-import { isServiceRoleRequest } from "../_shared/auth.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -17,7 +16,6 @@ const SERVICE_LABELS: Record<string, string> = {
 };
 
 // Escalating sequence config: [days_since_created, follow_up_count_required]
-const MAX_FOLLOW_UP_AGE_DAYS = 30;
 const ESCALATION_STEPS = [
   { minDays: 3, count: 0, tone: "gentle" },
   { minDays: 7, count: 1, tone: "firmer" },
@@ -143,12 +141,8 @@ Deno.serve(async (req) => {
     });
 
     const token = authHeader.replace("Bearer ", "");
-    // The daily cron job authenticates with the service-role key; staff with a session.
-    const isCron = await isServiceRoleRequest(req);
-    const { data: claimsData, error: authError } = isCron
-      ? { data: null, error: null }
-      : await authClient.auth.getClaims(token);
-    if (!isCron && (authError || !claimsData?.claims?.sub)) {
+    const { data: claimsData, error: authError } = await authClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -188,9 +182,6 @@ Deno.serve(async (req) => {
       const clockStart = new Date(q.quote_sent_at);
       const daysSinceSent = Math.floor((now.getTime() - clockStart.getTime()) / (1000 * 60 * 60 * 24));
       const currentCount = q.follow_up_count || 0;
-      // Don't chase old quotes: the sequence is 3/7/14 days, so anything sent
-      // more than 30 days ago is stale (avoids a backlog blast after downtime).
-      if (daysSinceSent > MAX_FOLLOW_UP_AGE_DAYS) continue;
 
       const nextStep = ESCALATION_STEPS.find(
         (s) => s.count === currentCount && daysSinceSent >= (customDelayDays ?? s.minDays)
@@ -269,7 +260,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Hell's Canyon Designs <quotes@mail.hellscanyondesigns.com>",
+            from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
             reply_to: "info@hellscanyondesigns.com",
             to: [q.customer_email],
             subject,
