@@ -50,10 +50,19 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
     expect(lineTotal(l, p)).toBeCloseTo(354.88, 2);
   });
 
-  it("12 mid-grade polos, left-chest embroidery = $39.08", async () => {
+  it("12 mid-grade polos, left-chest embroidery = $39.08 + $45 digitizing", async () => {
     const l = line({ item: "polo", qty: 12, method: "embroidery", placements: ["Left chest"], tier: "better" });
     const p = await priceLine(db, l);
     expect(chosen(l, p)!.unit_price).toBe(39.08);
+    expect(p.fees).toEqual([{ label: "Digitizing (one-time, to set up your logo)", amount: 45 }]);
+    expect(lineTotal(l, p)).toBeCloseTo(513.96, 2);
+  });
+
+  it("apparel digitizing: with small-order fee under 12, waived at 50+", async () => {
+    const few = await priceLine(db, line({ item: "hoodie", qty: 8, method: "embroidery", placements: ["Left chest"] }));
+    expect(few.fees.map((f) => f.amount)).toEqual([30, 45]);
+    const many = await priceLine(db, line({ item: "hoodie", qty: 50, method: "embroidery", placements: ["Left chest"] }));
+    expect(many.fees).toEqual([]);
   });
 
   it("hats: 12 x 112PT patch = $29, under 12 bills at 12, embroidery adds digitizing", async () => {

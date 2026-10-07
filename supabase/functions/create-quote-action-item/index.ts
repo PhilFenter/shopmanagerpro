@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, assumptionsFor,
   screenPrintMin, screenFees, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY,
-  SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, type Tier,
+  SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, type Tier,
 } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
@@ -227,6 +227,7 @@ async function websitePricingLines(
   const fees: string[] = [];
   if ((method === "dtf" || method === "embroidery") && qty < SMALL_MIN) flags.push(`${qty} pcs is under our ${SMALL_MIN}-piece minimum.`);
   else if ((method === "dtf" || method === "embroidery") && qty < SMALL_ORDER_UNDER) fees.push(`+$${SMALL_ORDER_FEE} small order fee (under ${SMALL_ORDER_UNDER})`);
+  if (method === "embroidery" && qty < DIGITIZING_WAIVE_QTY) fees.push(`+$${DIGITIZING_FEE} digitizing (one-time, waived at ${DIGITIZING_WAIVE_QTY}+ or if logo is on file)`);
   if (method === "screen_print") {
     const sf = screenFees(colors, locations, qty);
     fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");

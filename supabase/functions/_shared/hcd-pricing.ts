@@ -81,6 +81,10 @@ export const SCREEN_FEE_WAIVE_QTY = 144;
 export const SMALL_MIN = 6;
 export const SMALL_ORDER_UNDER = 12;
 export const SMALL_ORDER_FEE = 30;
+// Embroidery digitizing (Phil, 2026-10-07): same rule for hats and apparel —
+// $45 one-time to set up the logo, waived at 50+ pieces.
+export const DIGITIZING_FEE = 45;
+export const DIGITIZING_WAIVE_QTY = 50;
 
 // DTF size by placement (Phil, 2026-10-07):
 //   left chest / pocket / sleeve / nape → 4x4

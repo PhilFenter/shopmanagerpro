@@ -19,6 +19,8 @@ import {
   SMALL_MIN,
   SMALL_ORDER_UNDER,
   SMALL_ORDER_FEE,
+  DIGITIZING_FEE,
+  DIGITIZING_WAIVE_QTY,
   SCREEN_FEE,
   SCREEN_FEE_WAIVE_QTY,
   HAT_MIN,
@@ -121,6 +123,8 @@ export interface Priced {
   nextBreak: { qty: number; unit: number } | null;
 }
 
+const DIGITIZING: Fee = { label: "Digitizing (one-time, to set up your logo)", amount: DIGITIZING_FEE };
+
 const service = (m: Method) => (m === "patch" || m === "hat_embroidery" ? "hat" : m);
 
 function apparelFees(line: CounterLine, qty: number): Fee[] {
@@ -129,8 +133,10 @@ function apparelFees(line: CounterLine, qty: number): Fee[] {
     const f = screenFees(line.colors, locs, qty);
     return f > 0 ? [{ label: `Screen setup (${f / SCREEN_FEE} screen${f / SCREEN_FEE > 1 ? "s" : ""}, one-time)`, amount: f }] : [];
   }
-  if (qty >= SMALL_MIN && qty < SMALL_ORDER_UNDER) return [{ label: "Small order fee (under 12)", amount: SMALL_ORDER_FEE }];
-  return [];
+  const fees: Fee[] = [];
+  if (qty >= SMALL_MIN && qty < SMALL_ORDER_UNDER) fees.push({ label: "Small order fee (under 12)", amount: SMALL_ORDER_FEE });
+  if (line.method === "embroidery" && qty < DIGITIZING_WAIVE_QTY) fees.push(DIGITIZING);
+  return fees;
 }
 
 /** SanMar catalog details for a style the customer picked: name + S–XL and 2XL piece cost. */
@@ -191,7 +197,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
     out.tiers = [s];
     out.billedQty = Math.max(qty, HAT_MIN);
     if (qty < HAT_MIN) out.notes.push(`Hats start at ${HAT_MIN}. You can split the 12 across hat colors.`);
-    if (line.method === "hat_embroidery" && out.billedQty < 50) out.fees.push({ label: "Digitizing (one-time, to set up your logo)", amount: 45 });
+    if (line.method === "hat_embroidery" && out.billedQty < DIGITIZING_WAIVE_QTY) out.fees.push(DIGITIZING);
     out.notes.push(line.method === "patch" ? "Includes the hat, leather patch, and sewing." : "Includes the hat and embroidery up to 8,000 stitches.");
     if (!HAT_UPCHARGES[line.hatStyle.toUpperCase()]) out.notes.push("Style isn't on our hat list yet, so it's priced like a 112. We'll confirm.");
     const nq = hatNextTier(out.billedQty);
