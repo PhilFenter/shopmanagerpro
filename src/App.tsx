@@ -75,6 +75,7 @@ const QuoteDetail = lazyWithReload(() => import("./pages/QuoteDetail"));
 const PurchaseOrders = lazyWithReload(() => import("./pages/PurchaseOrders"));
 const Handoffs = lazyWithReload(() => import("./pages/Handoffs"));
 const Schedule = lazyWithReload(() => import("./pages/Schedule"));
+const CounterQuote = lazyWithReload(() => import("./pages/CounterQuote"));
 const ResetPassword = lazyWithReload(() => import("./pages/ResetPassword"));
 
 const PageLoader = () => (
@@ -210,6 +211,15 @@ function App() {
                         <AppLayout>
                           <Integrations />
                         </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Counter Quote: full-screen, no sidebar — the customer sees this screen */}
+                  <Route
+                    path="/counter"
+                    element={
+                      <ProtectedRoute>
+                        <CounterQuote />
                       </ProtectedRoute>
                     }
                   />

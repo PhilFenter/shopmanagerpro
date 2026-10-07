@@ -168,9 +168,10 @@ export type Suggestion = {
 };
 
 /** Decoration column index. Defaults: 1-color screen print, 11x5 DTF, 6k–10k stitches. */
-function decoColumn(service: string, colors: number | null, jacket = false): number {
+function decoColumn(service: string, colors: number | null, jacket = false, dtfCol?: number | null): number {
   if (service === "screen_print") return Math.min(Math.max((colors || 1) - 1, 0), 8);
-  if (service === "dtf") return 1;
+  // DTF: 0 = 4x4, 1 = 11x5 (default), 2 = 11x14. Counter screen passes the size; intake uses the default.
+  if (service === "dtf") return dtfCol != null && dtfCol >= 0 && dtfCol <= 2 ? dtfCol : 1;
   // Embroidery: ~80% of HCD designs are under 10,000 stitches → shirt or jacket base column.
   if (service === "embroidery") return jacket ? 1 : 0;
   return 0;
@@ -199,12 +200,12 @@ export async function suggestTiers(
   category: string,
   service: string,
   qty: number,
-  opts: { colors?: number | null; locations?: number; jacket?: boolean } = {},
+  opts: { colors?: number | null; locations?: number; jacket?: boolean; dtfCol?: number | null } = {},
 ): Promise<Suggestion[]> {
   const picks = PICKS[category];
   const row = matrixRow(service, qty);
   if (!picks || !row || qty <= 0) return [];
-  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
+  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false, opts.dtfCol);
   const firstLoc = row.prices[col] ?? row.prices[0];
   // Extra locations: screen print/DTF at 1-color / 4x4; embroidery (sleeve etc.) $8 each.
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
