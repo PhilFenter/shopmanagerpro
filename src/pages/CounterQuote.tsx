@@ -77,6 +77,22 @@ export default function CounterQuote() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
 
+  // Browser Back (or a two-finger swipe on the Mac) from page 2 returns to page 1
+  // instead of leaving the screen and losing the quote.
+  const goInfo = () => {
+    window.history.pushState({ counterStep: "info" }, "");
+    setStep("info");
+  };
+  const goBuild = () => {
+    if (window.history.state?.counterStep === "info") window.history.back(); // popstate → build
+    else setStep("build");
+  };
+  useEffect(() => {
+    const onPop = () => setStep((cur) => (cur === "info" ? "build" : cur));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   const line = lines.find((l) => l.id === activeId) ?? lines[0];
   const p = priced[line.id];
 
@@ -117,6 +133,7 @@ export default function CounterQuote() {
     const l = newLine(item);
     setLines((ls) => [...ls, l]);
     setActiveId(l.id);
+    setStep("build");
   };
   const removeLine = (id: string) => {
     setLines((ls) => {
@@ -365,9 +382,29 @@ export default function CounterQuote() {
       {/* Header */}
       <header className="flex items-center justify-between border-b px-8 py-4">
         <div className="flex items-center gap-4">
-          <Link to="/action-items" className="text-muted-foreground hover:text-foreground" title="Back to Shop Manager"><ArrowLeft className="h-5 w-5" /></Link>
+          {step === "info" ? (
+            <button type="button" onClick={goBuild} className="text-muted-foreground hover:text-foreground" title="Back to the order"><ArrowLeft className="h-5 w-5" /></button>
+          ) : (
+            <Link to="/action-items" className="text-muted-foreground hover:text-foreground" title="Back to Shop Manager"><ArrowLeft className="h-5 w-5" /></Link>
+          )}
           <div className="text-2xl font-bold">Hells Canyon Designs</div>
           <div className="text-xl text-muted-foreground">Let's price your order</div>
+        </div>
+        <div className="flex items-center gap-2 rounded-full bg-muted p-1">
+          {([["build", "1. Your order"], ["info", "2. Your info"]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              disabled={id === "info" && !lines.some((l) => l.qty > 0)}
+              onClick={() => (id === "build" ? (step === "info" && goBuild()) : step === "build" && goInfo())}
+              className={cn(
+                "rounded-full px-5 py-2 text-base font-medium transition-colors disabled:opacity-50",
+                step === id ? "bg-card shadow-sm" : "text-foreground/70 hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <Button variant="outline" size="lg" className="text-base" onClick={() => setNoteOpen(true)}>
           <StickyNote className="mr-2 h-5 w-5" /> Quick note
@@ -400,7 +437,7 @@ export default function CounterQuote() {
             <button
               key={l.id}
               type="button"
-              onClick={() => { setActiveId(l.id); setStep("build"); }}
+              onClick={() => { setActiveId(l.id); if (step === "info") goBuild(); }}
               className={cn(
                 "flex items-center gap-3 rounded-full border-2 px-5 py-2 text-base",
                 l.id === line.id && step === "build" ? "border-primary bg-primary/5" : "border-border",
@@ -556,7 +593,7 @@ export default function CounterQuote() {
         <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           {step === "build" ? pricePanel : summaryPanel}
           {step === "build" ? (
-            <Button size="lg" className="h-16 w-full text-xl" onClick={() => setStep("info")} disabled={!lines.some((l) => l.qty > 0)}>
+            <Button size="lg" className="h-16 w-full text-xl" onClick={goInfo} disabled={!lines.some((l) => l.qty > 0)}>
               Looks good, save my quote <ArrowRight className="ml-2 h-6 w-6" />
             </Button>
           ) : (
@@ -566,7 +603,7 @@ export default function CounterQuote() {
                 Save quote
               </Button>
               {!canSave && <div className="text-center text-muted-foreground">Name and a phone or email, and you're done.</div>}
-              <Button variant="ghost" size="lg" className="w-full" onClick={() => setStep("build")}><ArrowLeft className="mr-2 h-5 w-5" /> Back to the order</Button>
+              <Button variant="outline" size="lg" className="h-14 w-full text-lg" onClick={goBuild}><ArrowLeft className="mr-2 h-5 w-5" /> Back to the order</Button>
             </div>
           )}
         </div>
