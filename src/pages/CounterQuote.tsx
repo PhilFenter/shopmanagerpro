@@ -19,7 +19,7 @@ import {
   ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, StickyNote, Trash2, Send, RotateCcw, Sparkles,
 } from "lucide-react";
 import {
-  ITEMS, METHOD_LABELS, DTF_SIZES, HAT_STYLES, TIER_LABELS,
+  ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary,
   methodsFor, placementsFor, newLine, priceLine, chosen, lineTotal, money,
   saveCounterQuote, saveQuickNote, findCustomer, pushToPrintavo,
   type CounterLine, type Priced, type Item, type Method, type CounterContact, type CounterExtras,
@@ -293,7 +293,7 @@ export default function CounterQuote() {
               </span>
             </div>
             <div className="text-base text-muted-foreground">
-              {ls?.name ?? ""}{ls ? " · " : ""}{l.method === "screen_print" ? `${l.colors}-color print` : l.method === "dtf" ? `${DTF_SIZES[l.dtfSize]} full-color print` : METHOD_LABELS[l.method]} · {l.placements.join(" + ")}
+              {ls?.name ?? ""}{ls ? " · " : ""}{l.method === "screen_print" ? `${l.colors}-color print · ${l.placements.join(" + ")}` : l.method === "dtf" ? `Full-color print · ${dtfSummary(l)}` : `${METHOD_LABELS[l.method]} · ${l.placements.join(" + ")}`}
             </div>
             {ls && ls.upcharge_2xl > 0 && !lp?.blocker && !extras.ownGarments && <div className="text-base text-muted-foreground">2XL and up: {money(ls.unit_price + ls.upcharge_2xl)} each</div>}
             {!extras.ownGarments && lp?.fees.map((f) => <div key={f.label} className="flex justify-between text-base text-muted-foreground"><span>{f.label}</span><span>{money(f.amount)}</span></div>)}
@@ -441,18 +441,6 @@ export default function CounterQuote() {
               </Section>
             )}
 
-            {line.method === "dtf" && (
-              <Section title="Print size">
-                <div className="flex flex-wrap gap-3">
-                  {DTF_SIZES.map((sz, i) => (
-                    <Chip key={sz} active={line.dtfSize === i} onClick={() => update({ dtfSize: i })}>
-                      {sz}<span className="ml-2 text-sm opacity-70">{["chest / sleeve", "standard front", "full front / back"][i]}</span>
-                    </Chip>
-                  ))}
-                </div>
-              </Section>
-            )}
-
             {line.item === "hat" && (
               <Section title="Hat style">
                 <div className="flex flex-wrap gap-3">
@@ -467,8 +455,26 @@ export default function CounterQuote() {
 
             <Section title="Where does it go?">
               <div className="flex flex-wrap gap-3">
-                {placementsFor(line.item, line.method).map((pl) => <Chip key={pl} active={line.placements.includes(pl)} onClick={() => togglePlacement(pl)}>{pl}</Chip>)}
+                {placementsFor(line.item, line.method).map((pl) => (
+                  <Chip key={pl} active={line.placements.includes(pl)} onClick={() => togglePlacement(pl)}>
+                    {pl}
+                    {line.method === "dtf" && !DTF_SIZED_PLACEMENTS.includes(pl) && <span className="ml-2 text-sm opacity-70">4 x 4</span>}
+                  </Chip>
+                ))}
               </div>
+              {line.method === "dtf" && line.placements.filter((pl) => DTF_SIZED_PLACEMENTS.includes(pl)).map((pl) => {
+                const key = pl === "Front" ? "dtfFront" : "dtfBack";
+                return (
+                  <div key={pl} className="flex flex-wrap items-center gap-3 pl-1">
+                    <span className="w-28 text-lg font-medium">{pl} size</span>
+                    {[1, 2].map((i) => (
+                      <Chip key={i} active={line[key] === i} onClick={() => update({ [key]: i } as Partial<CounterLine>)}>
+                        {DTF_SIZES[i]}<span className="ml-2 text-sm opacity-70">{i === 1 ? "standard" : "full size"}</span>
+                      </Chip>
+                    ))}
+                  </div>
+                );
+              })}
             </Section>
 
             <Section title="Color (optional)">

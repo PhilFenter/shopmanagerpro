@@ -168,10 +168,9 @@ export type Suggestion = {
 };
 
 /** Decoration column index. Defaults: 1-color screen print, 11x5 DTF, 6k–10k stitches. */
-function decoColumn(service: string, colors: number | null, jacket = false, dtfCol?: number | null): number {
+function decoColumn(service: string, colors: number | null, jacket = false): number {
   if (service === "screen_print") return Math.min(Math.max((colors || 1) - 1, 0), 8);
-  // DTF: 0 = 4x4, 1 = 11x5 (default), 2 = 11x14. Counter screen passes the size; intake uses the default.
-  if (service === "dtf") return dtfCol != null && dtfCol >= 0 && dtfCol <= 2 ? dtfCol : 1;
+  if (service === "dtf") return 1;
   // Embroidery: ~80% of HCD designs are under 10,000 stitches → shirt or jacket base column.
   if (service === "embroidery") return jacket ? 1 : 0;
   return 0;
@@ -200,17 +199,22 @@ export async function suggestTiers(
   category: string,
   service: string,
   qty: number,
-  opts: { colors?: number | null; locations?: number; jacket?: boolean; dtfCol?: number | null } = {},
+  // dtfCols (counter screen): one DTF column per placement — 0 = 4x4, 1 = 11x5, 2 = 11x14.
+  // When set, DTF decoration = sum of those columns. Intake doesn't pass it, so its pricing is unchanged.
+  opts: { colors?: number | null; locations?: number; jacket?: boolean; dtfCols?: number[] } = {},
 ): Promise<Suggestion[]> {
   const picks = PICKS[category];
   const row = matrixRow(service, qty);
   if (!picks || !row || qty <= 0) return [];
-  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false, opts.dtfCol);
+  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
   const firstLoc = row.prices[col] ?? row.prices[0];
   // Extra locations: screen print/DTF at 1-color / 4x4; embroidery (sleeve etc.) $8 each.
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
   const extra = service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0;
-  const deco = Number((firstLoc + extraLocs * extra).toFixed(2));
+  const dtfCols = service === "dtf" && opts.dtfCols?.length ? opts.dtfCols : null;
+  const deco = dtfCols
+    ? Number(dtfCols.reduce((sum, c) => sum + (row.prices[c] ?? row.prices[1]), 0).toFixed(2))
+    : Number((firstLoc + extraLocs * extra).toFixed(2));
   const out: Suggestion[] = [];
   for (const tier of ["good", "better", "best"] as Tier[]) {
     const p = picks[tier];

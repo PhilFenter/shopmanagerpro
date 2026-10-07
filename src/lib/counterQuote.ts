@@ -59,6 +59,16 @@ export function placementsFor(item: Item, method: Method): string[] {
 }
 
 export const DTF_SIZES = ["4 x 4", "11 x 5", "11 x 14"];
+// DTF size by placement: left chest + sleeve are always 4x4; front and back pick 11x5 or 11x14.
+export const DTF_SIZED_PLACEMENTS = ["Front", "Back"];
+export function dtfColFor(line: CounterLine, placement: string): number {
+  if (placement === "Front") return line.dtfFront;
+  if (placement === "Back") return line.dtfBack;
+  return 0;
+}
+export function dtfSummary(line: CounterLine): string {
+  return line.placements.map((pl) => `${pl} ${DTF_SIZES[dtfColFor(line, pl)]}`).join(" + ");
+}
 export const HAT_STYLES = Object.entries(HAT_UPCHARGES).map(([style, v]) => ({ style, name: v.name, add: v.add }));
 export const TIER_LABELS: Record<Tier, string> = { good: "Value", better: "Mid-Grade", best: "Premium" };
 
@@ -68,7 +78,8 @@ export interface CounterLine {
   qty: number;
   method: Method;
   colors: number; // screen print
-  dtfSize: number; // 0..2
+  dtfFront: number; // 1 = 11x5, 2 = 11x14
+  dtfBack: number;  // 1 = 11x5, 2 = 11x14
   placements: string[];
   hatStyle: string;
   tier: Tier;
@@ -82,7 +93,8 @@ export function newLine(item: Item = "tee"): CounterLine {
     qty: item === "hat" ? 24 : 24,
     method: methodsFor(item)[0],
     colors: 1,
-    dtfSize: 1,
+    dtfFront: 1,
+    dtfBack: 2,
     placements: [placementsFor(item, methodsFor(item)[0])[0]],
     hatStyle: "112",
     tier: "better",
@@ -142,7 +154,11 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   }
 
   const svc = service(line.method);
-  const opts = { colors: line.colors, locations: locs, dtfCol: line.dtfSize };
+  const opts = {
+    colors: line.colors,
+    locations: locs,
+    dtfCols: line.method === "dtf" ? line.placements.map((pl) => dtfColFor(line, pl)) : undefined,
+  };
   out.tiers = await suggestTiers(db, line.item, svc, qty, opts);
   out.fees = apparelFees(line, qty);
 
@@ -157,7 +173,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   } else {
     if (qty < SMALL_MIN) out.blocker = `${METHOD_LABELS[line.method]} starts at ${SMALL_MIN} pieces.`;
     if (line.method === "embroidery") out.notes.push("Embroidery up to 10,000 stitches (most logos). We confirm after digitizing.");
-    if (line.method === "dtf") out.notes.push(`${DTF_SIZES[line.dtfSize]} full-color print. No screen fees.`);
+    if (line.method === "dtf") out.notes.push(`Full-color print: ${dtfSummary(line)}. No screen fees.`);
   }
 
   const nq = matrixNextTier(svc, qty);
@@ -185,9 +201,10 @@ export function describeLine(line: CounterLine, s?: Suggestion): string {
   const what = line.item === "hat" ? (s?.name ?? `Hat ${line.hatStyle}`) : (s?.name ?? ITEMS.find((i) => i.id === line.item)!.label);
   const deco =
     line.method === "screen_print" ? `${line.colors}-color screen print` :
-    line.method === "dtf" ? `DTF ${DTF_SIZES[line.dtfSize]}` :
+    line.method === "dtf" ? "DTF" :
     METHOD_LABELS[line.method];
-  return `${what} — ${deco}, ${line.placements.join(" + ") || "location TBD"}`;
+  const where = line.method === "dtf" ? dtfSummary(line) : line.placements.join(" + ");
+  return `${what} — ${deco}, ${where || "location TBD"}`;
 }
 
 export const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -310,7 +327,7 @@ export async function saveCounterQuote(
         method: l.method,
         placements: l.placements,
         ...(l.method === "screen_print" ? { colors: l.colors } : {}),
-        ...(l.method === "dtf" ? { dtfSize: DTF_SIZES[l.dtfSize] } : {}),
+        ...(l.method === "dtf" ? { dtfSizes: Object.fromEntries(l.placements.map((pl) => [pl, DTF_SIZES[dtfColFor(l, pl)]])) } : {}),
         ...(l.item === "hat" ? { hatStyle: l.hatStyle } : { tier: l.tier }),
       },
       line_total: priceIt ? Number((s!.unit_price * qty).toFixed(2)) : 0,
