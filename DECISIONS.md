@@ -5,6 +5,28 @@ Short entries on non-obvious calls made in this app, so nobody (including future
 
 ---
 
+## Counter Quote screen is customer-facing on purpose
+**Date:** 2026-10
+**What:** `/counter` is a full-screen walk-in quote page with no sidebar. It's meant to be used with
+the customer sitting next to the salesperson at the work-area iMac. Prices come from
+`_shared/hcd-pricing.ts`, the same engine as email and website intake. Saving creates one
+quote, its line items, and one action item (`source: "counter"`). "Send to Printavo" calls the
+existing `push-to-printavo` on that same quote.
+
+**Why:** Walk-ins were ending up on sticky notes. Typing a Printavo quote while the customer
+watches felt awkward: lots of internal fields, costs and markups on screen, and no price until
+the end. This screen shows the price first, contact info comes second, and nothing internal
+(garment cost, markup %) is ever shown.
+
+**Don't:**
+- Show garment cost or markup on this page. The customer can see it.
+- Copy pricing numbers into `src/lib/counterQuote.ts`. Change `hcd-pricing.ts`, and the counter,
+  email, and website quotes all stay in sync.
+- Remove "Quick note". It's the sticky-note replacement for when there's no time for a full quote.
+- Price customer-supplied garments here. The screen flags them for management review, per the written policy.
+
+---
+
 ## Time Tracking gated to Admin/Manager only
 **Date:** 2026-07
 **What:** The Time Tracking block (`JobTimer`, `TimeEntryForm`, `TimeEntriesList`) on the

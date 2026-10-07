@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, assumptionsFor,
   screenPrintMin, screenFees, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY,
-  SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, type Tier,
+  SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, type Tier,
 } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
@@ -227,6 +227,7 @@ async function websitePricingLines(
   const fees: string[] = [];
   if ((method === "dtf" || method === "embroidery") && qty < SMALL_MIN) flags.push(`${qty} pcs is under our ${SMALL_MIN}-piece minimum.`);
   else if ((method === "dtf" || method === "embroidery") && qty < SMALL_ORDER_UNDER) fees.push(`+$${SMALL_ORDER_FEE} small order fee (under ${SMALL_ORDER_UNDER})`);
+  if (method === "embroidery" && qty < DIGITIZING_WAIVE_QTY) fees.push(`+$${DIGITIZING_FEE} digitizing (one-time, waived at ${DIGITIZING_WAIVE_QTY}+ or if logo is on file)`);
   if (method === "screen_print") {
     const sf = screenFees(colors, locations, qty);
     fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
@@ -237,8 +238,8 @@ async function websitePricingLines(
   let tiers: Awaited<ReturnType<typeof suggestTiers>> = [];
   let requested = null as Awaited<ReturnType<typeof suggestRequested>>;
   try {
-    if (cat && cat !== "jacket") tiers = await suggestTiers(db, cat, method, qty, { colors, locations, jacket });
-    if (style) requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket });
+    if (cat && cat !== "jacket") tiers = await suggestTiers(db, cat, method, qty, { colors, locations, jacket, placements: locList });
+    if (style) requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket, placements: locList });
   } catch (e) {
     console.error("website pricing failed:", e);
   }
@@ -246,7 +247,7 @@ async function websitePricingLines(
     if (jacket && method === "embroidery") out.push("💲 Jacket embroidery: garment × 200% + $20 (up to 10,000 stitches), +$8 per sleeve/extra spot. Pick the jacket and price by hand.");
     return [...(out.length > 1 ? out : []), ...flags.map((f) => `⚠ ${f}`)];
   }
-  const assumptions = [assumptionsFor(method, colors), ...fees].filter(Boolean).join(", ");
+  const assumptions = [assumptionsFor(method, colors, locList), ...fees].filter(Boolean).join(", ");
   out.push(`💲 Suggested price (${qty} pcs, ${method.replace(/_/g, " ")}${assumptions ? `, ${assumptions}` : ""}):`);
   if (requested) out.push(`  ★ ASKED FOR: ${requested.name} — $${requested.unit_price.toFixed(2)} ea / $${requested.total.toFixed(2)}`);
   for (const t of tiers) {
@@ -255,8 +256,8 @@ async function websitePricingLines(
   const nq = matrixNextTier(method, qty);
   if (nq && cat && cat !== "jacket") {
     try {
-      const np = requested ? await suggestRequested(db, requested.style, method, nq, { colors, locations, jacket })
-        : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket })).find((x) => x.tier === tierHint) ?? null;
+      const np = requested ? await suggestRequested(db, requested.style, method, nq, { colors, locations, jacket, placements: locList })
+        : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket, placements: locList })).find((x) => x.tier === tierHint) ?? null;
       if (np) out.push(`  NEXT BREAK: ${nq} pcs of ${np.name} — $${np.unit_price.toFixed(2)} ea`);
     } catch (e) {
       console.error("website next-break pricing failed:", e);

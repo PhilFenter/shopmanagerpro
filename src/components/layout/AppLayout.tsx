@@ -37,6 +37,7 @@ import {
   GraduationCap,
   Inbox,
   Search,
+  Store,
 } from 'lucide-react';
 import { useHandoffs } from '@/hooks/useHandoffs';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,7 @@ interface AppLayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
+  { name: 'Counter Quote', href: '/counter', icon: Store },
   { name: 'Knowledge', href: '/knowledge', icon: BookOpen },
   { name: 'My Training', href: '/training', icon: GraduationCap },
   { name: 'Skills & Credentials', href: '/skills', icon: ClipboardCheck },

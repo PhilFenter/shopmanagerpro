@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -307,6 +307,7 @@ export function apparelPriceParas(pricing: any[], isFollowUp: boolean): string[]
     const extra: string[] = [];
     if (p.setup > 0) extra.push(`There's a one-time $${p.setup} screen setup.`);
     if (p.fees?.length) extra.push(`Under ${SMALL_ORDER_UNDER} pieces there's a $${SMALL_ORDER_FEE} small order fee.`);
+    if (p.digitizing) extra.push(`Embroidery has a one-time $${DIGITIZING_FEE} digitizing fee to set up your logo.`);
     const up = (p.requested ? null : (p.suggestions.find((s: Suggestion) => s.tier === "better") ?? p.suggestions[0]))?.upcharge_2xl ?? 0;
     if (!isFollowUp && up > 0) extra.push(`2XL and up run about $${Math.ceil(up)} more.`);
     if (!isFollowUp && p.next?.pick) extra.push(`At ${p.next.qty} pieces it drops to about $${p.next.pick.unit_price.toFixed(2)} each on the ${shortName(p.next.pick.name)}.`);
@@ -486,7 +487,7 @@ Deno.serve(async (req) => {
     const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
       next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean;
-      cat?: string | null; decoUnknown?: boolean; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[] };
+      cat?: string | null; decoUnknown?: boolean; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[]; digitizing?: boolean };
     const pricing: Priced[] = [];
     const flags: string[] = [];
     for (const it of items) {
@@ -531,6 +532,7 @@ Deno.serve(async (req) => {
       const garmentText = `${it.item || ""} ${it.garment || ""}`;
       const jacket = /jacket|coat|vest|shell|parka|carhartt\s*j/i.test(garmentText) && !/hood|sweat/i.test(garmentText);
       const locations = Math.max((it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1) - (backEmb ? 1 : 0), 1);
+      const placeList = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).map((x) => x.trim()).filter(Boolean) : [];
       let suggestions: Suggestion[] = [];
       if (qty >= CUSTOM_QUOTE_QTY) {
         // 700+ pieces: Phil prices these by hand
@@ -562,7 +564,7 @@ Deno.serve(async (req) => {
       }
       if (cat && qty > 0 && method !== "unknown") {
         try {
-          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations, jacket });
+          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations, jacket, placements: placeList });
         } catch (e) {
           console.error("pricing failed:", e);
         }
@@ -572,7 +574,7 @@ Deno.serve(async (req) => {
       const style = styleFromText(it.garment);
       if (style && qty > 0 && method !== "unknown") {
         try {
-          requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket });
+          requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket, placements: placeList });
         } catch (e) {
           console.error("requested-style pricing failed:", e);
         }
@@ -582,21 +584,23 @@ Deno.serve(async (req) => {
       const nq = method !== "unknown" ? matrixNextTier(method, qty) : null;
       if (nq && cat) {
         try {
-          const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations, jacket }) : null;
-          const nt = ns ? null : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket })).find((x) => x.tier === tierHint) ?? null;
+          const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations, jacket, placements: placeList }) : null;
+          const nt = ns ? null : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket, placements: placeList })).find((x) => x.tier === tierHint) ?? null;
           next = { qty: nq, pick: ns ?? nt };
         } catch (e) {
           console.error("next-tier pricing failed:", e);
         }
       }
+      const digitizing = method === "embroidery" && cat !== "hat" && qty > 0 && qty < DIGITIZING_WAIVE_QTY;
+      if (digitizing) fees.push(`+$${DIGITIZING_FEE} digitizing (one-time, waived at ${DIGITIZING_WAIVE_QTY}+ or if logo is on file)`);
       if (method === "screen_print") {
         const sf = screenFees(colors, locations, qty);
         fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
       }
       const setup = method === "screen_print" ? screenFees(colors, locations, qty) : 0;
-      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors), ...fees].join(", "), next,
+      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors, placeList), ...fees].join(", "), next,
         cat, colors, where: it.locations ? String(it.locations) : null, assumedWhere: it.locations_assumed === true, setup,
-        fees: fees.filter((f) => /small order/.test(f)) });
+        fees: fees.filter((f) => /small order/.test(f)), digitizing });
     }
 
     // 5. Quote — follow-ups attach to the open quote instead of making a new one
