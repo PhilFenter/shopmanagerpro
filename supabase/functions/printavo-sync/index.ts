@@ -1,3 +1,4 @@
+import { isServiceRoleRequest } from "../_shared/auth.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -87,7 +88,7 @@ Deno.serve(async (req) => {
     // check also accepted the anon key when the caller omitted an x-client-info
     // header and sent no filters — but the anon key is public and headers are
     // caller-controlled, so that was an open door to a service-role client.
-    const isAutomatedCronCall = token === serviceRoleKey;
+    const isAutomatedCronCall = await isServiceRoleRequest(req);
 
     let supabase;
     let userId: string | undefined;

@@ -941,7 +941,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "Hell's Canyon Designs <alerts@hellscanyondesigns.com>",
+              from: "Hell's Canyon Designs <alerts@mail.hellscanyondesigns.com>",
               to: [alertEmail],
               subject: `Action item failed to create for quote ${quote.quote_number || quote.id}`,
               html: `<p>Quote <strong>${quote.quote_number || quote.id}</strong> from ${escapeHtml(customer_name)} was saved, but its action item failed to create and needs manual follow-up.</p><p>Error: ${escapeHtml(aiErr.message)}</p>`,

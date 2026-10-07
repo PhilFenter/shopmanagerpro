@@ -1,3 +1,4 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -13,10 +14,26 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { action_item } = await req.json();
-    if (!action_item) {
+    const { action_item: posted } = await req.json();
+    if (!posted?.id) {
       return new Response(JSON.stringify({ error: "action_item required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // This endpoint is public (the insert trigger can't send a key), so the body
+    // is never trusted: the alert is built from the real row, and only for an
+    // item created in the last 2 minutes — the same rule send-push uses.
+    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: action_item } = await db
+      .from("action_items")
+      .select("id, source, title, description, customer_name, priority, quote_id, created_at")
+      .eq("id", posted.id)
+      .maybeSingle();
+    const ageMs = action_item ? Date.now() - new Date(action_item.created_at).getTime() : Infinity;
+    if (!action_item || !Number.isFinite(ageMs) || ageMs > 120_000) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -64,7 +81,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "Hell's Canyon Designs <alerts@hellscanyondesigns.com>",
+        from: "Hell's Canyon Designs <alerts@mail.hellscanyondesigns.com>",
         to: [to],
         subject,
         html,

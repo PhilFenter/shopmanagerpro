@@ -253,7 +253,8 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Hell's Canyon Designs <quotes@hellscanyondesigns.com>",
+        from: "Hell's Canyon Designs <quotes@mail.hellscanyondesigns.com>",
+        reply_to: "info@hellscanyondesigns.com",
         to: [quote.customer_email],
         subject: `Quote ${safeQuoteNumber} — $${grandTotal.toFixed(2)} | Hell's Canyon Designs`,
         html: emailHtml,
