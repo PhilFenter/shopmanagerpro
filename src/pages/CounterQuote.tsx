@@ -223,16 +223,37 @@ export default function CounterQuote() {
             )}
           </div>
 
+          {line.item !== "hat" && p?.requested && (
+            <button
+              type="button"
+              onClick={() => update({ usePick: true })}
+              className={cn(
+                "w-full rounded-2xl border-2 p-4 text-left transition-colors",
+                line.usePick ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
+              )}
+            >
+              <div className="text-sm font-semibold">Your pick</div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-base leading-tight">{p.requested.name}</span>
+                <span className="text-2xl font-bold">{money(p.requested.unit_price)}</span>
+              </div>
+            </button>
+          )}
+          {line.item !== "hat" && p?.requestedMissing && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-base text-amber-950">
+              We'll look up {line.style.trim().toUpperCase()} and confirm its price. Here are our house options in the meantime.
+            </div>
+          )}
           {line.item !== "hat" && p && p.tiers.length > 1 && (
             <div className="grid grid-cols-3 items-stretch gap-3">
               {p.tiers.map((t) => (
                 <button
                   key={t.tier}
                   type="button"
-                  onClick={() => update({ tier: t.tier })}
+                  onClick={() => update({ tier: t.tier, usePick: false })}
                   className={cn(
                     "rounded-2xl border-2 p-3 text-left transition-colors",
-                    line.tier === t.tier ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
+                    line.tier === t.tier && !(line.usePick && p?.requested) ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
                   )}
                 >
                   <div className="text-sm font-semibold">{TIER_LABELS[t.tier]}</div>
@@ -407,6 +428,17 @@ export default function CounterQuote() {
                 {ITEMS.map((it) => <Chip key={it.id} active={line.item === it.id} onClick={() => setItem(it.id)} className="min-w-[140px] py-5 text-xl">{it.label}</Chip>)}
               </div>
             </Section>
+
+            {line.item !== "hat" && (
+              <Section title="Have a specific one in mind? (optional)">
+                <Input
+                  className="h-12 max-w-md text-lg uppercase md:text-lg"
+                  placeholder="Style number, e.g. PC55"
+                  value={line.style}
+                  onChange={(e) => update({ style: e.target.value.replace(/\s+/g, ""), usePick: true })}
+                />
+              </Section>
+            )}
 
             <Section title="How many?">
               <div className="flex flex-wrap items-center gap-3">

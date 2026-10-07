@@ -9,6 +9,8 @@
 // so nothing gets typed twice.
 import {
   suggestTiers,
+  suggestRequested,
+  matrixRow,
   hatPrice,
   hatNextTier,
   matrixNextTier,
@@ -83,6 +85,8 @@ export interface CounterLine {
   placements: string[];
   hatStyle: string;
   tier: Tier;
+  style: string;    // customer's own pick, e.g. "PC55" (optional)
+  usePick: boolean; // price their pick instead of a house tier
   color: string; // garment color, free text
 }
 
@@ -98,6 +102,8 @@ export function newLine(item: Item = "tee"): CounterLine {
     placements: [placementsFor(item, methodsFor(item)[0])[0]],
     hatStyle: "112",
     tier: "better",
+    style: "",
+    usePick: true,
     color: "",
   };
 }
@@ -105,6 +111,8 @@ export function newLine(item: Item = "tee"): CounterLine {
 export interface Fee { label: string; amount: number }
 export interface Priced {
   tiers: Suggestion[];       // 3 for garments, 1 for hats
+  requested: Suggestion | null; // the customer's own pick (style box), if we found its cost
+  requestedMissing: boolean;    // they typed a style we couldn't find
   billedQty: number;         // hats under 12 bill at 12
   fees: Fee[];
   notes: string[];           // friendly, customer-safe notes
@@ -125,11 +133,52 @@ function apparelFees(line: CounterLine, qty: number): Fee[] {
   return [];
 }
 
+/** SanMar catalog details for a style the customer picked: name + S–XL and 2XL piece cost. */
+async function catalogStyle(db: any, style: string) {
+  try {
+    const { data } = await db
+      .from("product_catalog")
+      .select("brand, description, piece_price, size_range")
+      .eq("style_number", style.toUpperCase())
+      .gt("piece_price", 0)
+      .limit(50);
+    const rows = (data || []) as { brand: string | null; description: string | null; piece_price: number; size_range: string | null }[];
+    if (!rows.length) return null;
+    const med = (xs: number[]) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+    const big = rows.filter((r) => /2XL|XXL/i.test(String(r.size_range || "")));
+    const reg = rows.filter((r) => !/2XL|3XL|4XL|5XL|XXL/i.test(String(r.size_range || "")));
+    const name = [rows[0].brand, style.toUpperCase(), rows[0].description].filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, 70);
+    return {
+      name,
+      cost: reg.length ? med(reg.map((r) => Number(r.piece_price))) : null,
+      cost2xl: big.length ? med(big.map((r) => Number(r.piece_price))) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function priceRequested(db: unknown, line: CounterLine, svc: string, qty: number, opts: object): Promise<Suggestion | null> {
+  const style = line.style.trim().toUpperCase();
+  if (!style) return null;
+  const s = await suggestRequested(db, style, svc, qty, opts);
+  if (!s) return null;
+  const cat = await catalogStyle(db, style);
+  const row = matrixRow(svc, qty);
+  const markup = row ? row.markup / 100 : 2;
+  return {
+    ...s,
+    name: cat?.name || s.name,
+    upcharge_2xl: cat?.cost && cat?.cost2xl && cat.cost2xl > cat.cost && s.markup_pct === row?.markup
+      ? Number(((cat.cost2xl - cat.cost) * markup).toFixed(2)) : 0,
+  };
+}
+
 // db = the browser supabase client; used only to read live SanMar prices from product_catalog.
 export async function priceLine(db: unknown, line: CounterLine): Promise<Priced> {
   const qty = Math.max(0, Math.floor(line.qty || 0));
   const locs = Math.max(line.placements.length, 1);
-  const out: Priced = { tiers: [], billedQty: qty, fees: [], notes: [], blocker: null, suggestDtf: false, nextBreak: null };
+  const out: Priced = { tiers: [], requested: null, requestedMissing: false, billedQty: qty, fees: [], notes: [], blocker: null, suggestDtf: false, nextBreak: null };
   if (qty <= 0) return out;
   if (qty >= CUSTOM_QUOTE_QTY) {
     out.blocker = `${CUSTOM_QUOTE_QTY}+ pieces is a custom quote. Phil will price this one, and we'll get back to you quickly.`;
@@ -160,6 +209,10 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
     dtfCols: line.method === "dtf" ? line.placements.map((pl) => dtfColFor(line, pl)) : undefined,
   };
   out.tiers = await suggestTiers(db, line.item, svc, qty, opts);
+  if (line.style.trim()) {
+    out.requested = await priceRequested(db, line, svc, qty, opts);
+    out.requestedMissing = !out.requested;
+  }
   out.fees = apparelFees(line, qty);
 
   if (line.method === "screen_print") {
@@ -178,9 +231,11 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
 
   const nq = matrixNextTier(svc, qty);
   if (nq) {
-    const next = await suggestTiers(db, line.item, svc, nq, opts);
-    const cur = out.tiers.find((t) => t.tier === line.tier);
-    const nxt = next.find((t) => t.tier === line.tier);
+    const pick = !!(out.requested && line.usePick);
+    const cur = pick ? out.requested : out.tiers.find((t) => t.tier === line.tier);
+    const nxt = pick
+      ? await priceRequested(db, line, svc, nq, opts)
+      : (await suggestTiers(db, line.item, svc, nq, opts)).find((t) => t.tier === line.tier);
     if (cur && nxt && nxt.unit_price < cur.unit_price) out.nextBreak = { qty: nq, unit: nxt.unit_price };
   }
   return out;
@@ -188,7 +243,9 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
 
 export function chosen(line: CounterLine, p: Priced | undefined): Suggestion | undefined {
   if (!p) return undefined;
-  return line.item === "hat" ? p.tiers[0] : p.tiers.find((t) => t.tier === line.tier);
+  if (line.item === "hat") return p.tiers[0];
+  if (line.usePick && p.requested) return p.requested;
+  return p.tiers.find((t) => t.tier === line.tier);
 }
 
 export function lineTotal(line: CounterLine, p: Priced | undefined): number {
@@ -328,10 +385,11 @@ export async function saveCounterQuote(
         placements: l.placements,
         ...(l.method === "screen_print" ? { colors: l.colors } : {}),
         ...(l.method === "dtf" ? { dtfSizes: Object.fromEntries(l.placements.map((pl) => [pl, DTF_SIZES[dtfColFor(l, pl)]])) } : {}),
-        ...(l.item === "hat" ? { hatStyle: l.hatStyle } : { tier: l.tier }),
+        ...(l.item === "hat" ? { hatStyle: l.hatStyle } : l.usePick && p?.requested ? { customerPick: l.style.trim().toUpperCase() } : { tier: l.tier }),
       },
       line_total: priceIt ? Number((s!.unit_price * qty).toFixed(2)) : 0,
-      notes: [...(p?.notes ?? []), p?.blocker ?? "", priceIt && s!.upcharge_2xl > 0 ? `2XL+ add ${money(s!.upcharge_2xl)} each` : ""].filter(Boolean).join(" ") || null,
+      notes: [...(p?.notes ?? []), p?.blocker ?? "",
+        p?.requestedMissing ? `Customer asked for ${l.style.trim().toUpperCase()} — not in catalog, priced as house ${l.tier}. Confirm.` : "", priceIt && s!.upcharge_2xl > 0 ? `2XL+ add ${money(s!.upcharge_2xl)} each` : ""].filter(Boolean).join(" ") || null,
     });
     if (priceIt) for (const f of p!.fees) {
       rows.push({
@@ -360,6 +418,7 @@ export async function saveCounterQuote(
     "Confirm garment colors",
     ...(extras.ownGarments ? ["Management approval for customer-supplied garments", "Signed waiver + extra test piece (new, unworn items only)"] : []),
     ...(extras.nonprofit ? ["Get tax-exempt certificate"] : []),
+    ...usable.filter((l) => priced[l.id]?.requestedMissing).map((l) => `Look up ${l.style.trim().toUpperCase()} and confirm price`),
     "Send to Printavo",
   ].map((text) => ({ id: crypto.randomUUID(), text, done: false }));
 

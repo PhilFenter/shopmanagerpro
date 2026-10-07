@@ -100,4 +100,43 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
     expect(t.find((x) => x.tier === "better")!.unit_price).toBe(20.01); // 10.38 + 2.01 + 7.62
     expect(assumptionsFor("dtf", null, ["left chest", "full back"])).toContain("full back 11x14");
   });
+
+  // Fake catalog with one SanMar style the customer picked off the wall.
+  const catalog: Record<string, { brand: string; description: string; piece_price: number; size_range: string }[]> = {
+    PC55: [
+      { brand: "Port & Company", description: "Core Blend Tee", piece_price: 4.98, size_range: "S-XL" },
+      { brand: "Port & Company", description: "Core Blend Tee", piece_price: 6.98, size_range: "2XL" },
+    ],
+  };
+  const catDb = {
+    from: () => {
+      let style = "";
+      const q: any = {
+        select: () => q, gt: () => q,
+        eq: (_c: string, v: string) => { style = v; return q; },
+        limit: async () => ({ data: catalog[style] ?? [] }),
+      };
+      return q;
+    },
+  };
+
+  it("customer's pick (PC55) is priced from the catalog with the same markup", async () => {
+    const l = line({ qty: 24, method: "screen_print", colors: 1, placements: ["Front"], style: "pc55", usePick: true });
+    const p = await priceLine(catDb, l);
+    const s = chosen(l, p)!;
+    expect(s.style).toBe("PC55");
+    expect(s.name).toBe("Port & Company PC55 Core Blend Tee");
+    expect(s.unit_price).toBe(11.96); // 4.98 × 1.90 + 2.50
+    expect(s.upcharge_2xl).toBe(3.8); // (6.98 − 4.98) × 1.90
+    expect(p.nextBreak).toEqual({ qty: 48, unit: 10.96 }); // 4.98 × 1.80 + 2.00
+    // tapping a house tier switches away from their pick
+    expect(chosen({ ...l, usePick: false }, p)!.style).toBe("NL6210");
+  });
+
+  it("unknown style falls back to house tier and flags it", async () => {
+    const l = line({ qty: 24, method: "screen_print", colors: 1, placements: ["Front"], style: "ZZ999", usePick: true });
+    const p = await priceLine(catDb, l);
+    expect(p.requestedMissing).toBe(true);
+    expect(chosen(l, p)!.style).toBe("NL6210");
+  });
 });
