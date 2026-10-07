@@ -237,8 +237,8 @@ async function websitePricingLines(
   let tiers: Awaited<ReturnType<typeof suggestTiers>> = [];
   let requested = null as Awaited<ReturnType<typeof suggestRequested>>;
   try {
-    if (cat && cat !== "jacket") tiers = await suggestTiers(db, cat, method, qty, { colors, locations, jacket });
-    if (style) requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket });
+    if (cat && cat !== "jacket") tiers = await suggestTiers(db, cat, method, qty, { colors, locations, jacket, placements: locList });
+    if (style) requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket, placements: locList });
   } catch (e) {
     console.error("website pricing failed:", e);
   }
@@ -246,7 +246,7 @@ async function websitePricingLines(
     if (jacket && method === "embroidery") out.push("💲 Jacket embroidery: garment × 200% + $20 (up to 10,000 stitches), +$8 per sleeve/extra spot. Pick the jacket and price by hand.");
     return [...(out.length > 1 ? out : []), ...flags.map((f) => `⚠ ${f}`)];
   }
-  const assumptions = [assumptionsFor(method, colors), ...fees].filter(Boolean).join(", ");
+  const assumptions = [assumptionsFor(method, colors, locList), ...fees].filter(Boolean).join(", ");
   out.push(`💲 Suggested price (${qty} pcs, ${method.replace(/_/g, " ")}${assumptions ? `, ${assumptions}` : ""}):`);
   if (requested) out.push(`  ★ ASKED FOR: ${requested.name} — $${requested.unit_price.toFixed(2)} ea / $${requested.total.toFixed(2)}`);
   for (const t of tiers) {
@@ -255,8 +255,8 @@ async function websitePricingLines(
   const nq = matrixNextTier(method, qty);
   if (nq && cat && cat !== "jacket") {
     try {
-      const np = requested ? await suggestRequested(db, requested.style, method, nq, { colors, locations, jacket })
-        : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket })).find((x) => x.tier === tierHint) ?? null;
+      const np = requested ? await suggestRequested(db, requested.style, method, nq, { colors, locations, jacket, placements: locList })
+        : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket, placements: locList })).find((x) => x.tier === tierHint) ?? null;
       if (np) out.push(`  NEXT BREAK: ${nq} pcs of ${np.name} — $${np.unit_price.toFixed(2)} ea`);
     } catch (e) {
       console.error("website next-break pricing failed:", e);

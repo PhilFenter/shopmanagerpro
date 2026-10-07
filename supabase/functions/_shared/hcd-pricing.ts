@@ -82,6 +82,20 @@ export const SMALL_MIN = 6;
 export const SMALL_ORDER_UNDER = 12;
 export const SMALL_ORDER_FEE = 30;
 
+// DTF size by placement (Phil, 2026-10-07):
+//   left chest / pocket / sleeve / nape → 4x4
+//   back → 11x14. Quote the larger size on purpose: if the art is smaller the customer
+//         gets a lower final price; quoting small and raising it later is a worse conversation.
+//   anything else (front, full front, unknown) → 11x5
+export const DTF_COLS = { small: 0, standard: 1, large: 2 } as const;
+export function dtfColForPlacement(placement: string): number {
+  const s = String(placement || "").toLowerCase();
+  if (/\bback\b/.test(s) && !/back of (the )?(cap|hat)|\bneck\b|\bnape\b|\byoke\b/.test(s)) return DTF_COLS.large;
+  if (/chest|pocket|sleeve|\bnape\b|\bneck\b|\byoke\b|4 ?x ?4/.test(s)) return DTF_COLS.small;
+  return DTF_COLS.standard;
+}
+const DTF_SIZE_NAMES = ["4x4", "11x5", "11x14"];
+
 export function screenPrintMin(colors: number | null | undefined): number {
   return SCREEN_MIN_BASE + SCREEN_MIN_PER_COLOR * (Math.max(colors || 1, 1) - 1);
 }
@@ -194,14 +208,24 @@ export async function garmentCost(db: any, pick: Pick, qty = 12): Promise<number
   return richardsonCost(pick.style, qty) ?? 0; // then Richardson wholesale
 }
 
+export type PriceOpts = { colors?: number | null; locations?: number; jacket?: boolean; dtfCols?: number[]; placements?: string[] };
+
+function dtfColsOf(service: string, opts: PriceOpts): number[] | null {
+  if (service !== "dtf") return null;
+  if (opts.dtfCols?.length) return opts.dtfCols;
+  const list = (opts.placements || []).map((p) => String(p).trim()).filter(Boolean);
+  return list.length ? list.map(dtfColForPlacement) : null;
+}
+
 export async function suggestTiers(
   db: any,
   category: string,
   service: string,
   qty: number,
-  // dtfCols (counter screen): one DTF column per placement — 0 = 4x4, 1 = 11x5, 2 = 11x14.
-  // When set, DTF decoration = sum of those columns. Intake doesn't pass it, so its pricing is unchanged.
-  opts: { colors?: number | null; locations?: number; jacket?: boolean; dtfCols?: number[] } = {},
+  // DTF: price each placement at its own size. dtfCols (counter screen) = explicit columns
+  // (0 = 4x4, 1 = 11x5, 2 = 11x14); placements (email/website) = location names, mapped by
+  // dtfColForPlacement. Neither given → old rule (first location 11x5, extras 4x4).
+  opts: PriceOpts = {},
 ): Promise<Suggestion[]> {
   const picks = PICKS[category];
   const row = matrixRow(service, qty);
@@ -211,7 +235,7 @@ export async function suggestTiers(
   // Extra locations: screen print/DTF at 1-color / 4x4; embroidery (sleeve etc.) $8 each.
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
   const extra = service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0;
-  const dtfCols = service === "dtf" && opts.dtfCols?.length ? opts.dtfCols : null;
+  const dtfCols = dtfColsOf(service, opts);
   const deco = dtfCols
     ? Number(dtfCols.reduce((sum, c) => sum + (row.prices[c] ?? row.prices[1]), 0).toFixed(2))
     : Number((firstLoc + extraLocs * extra).toFixed(2));
@@ -236,7 +260,13 @@ export async function suggestTiers(
   return out;
 }
 
-export function assumptionsFor(service: string, colors: number | null): string {
+export function assumptionsFor(service: string, colors: number | null, placements?: string[]): string {
+  const list = (placements || []).map((p) => String(p).trim()).filter(Boolean);
+  if (service === "dtf" && list.length) {
+    const sized = list.map((p) => `${p} ${DTF_SIZE_NAMES[dtfColForPlacement(p)]}`).join(" + ");
+    const back = list.some((p) => dtfColForPlacement(p) === DTF_COLS.large);
+    return `DTF ${sized}${back ? " (back priced at full 11x14; smaller art = lower price)" : ""}`;
+  }
   if (service === "screen_print") return `${colors || 1}-color print${colors ? "" : " (assumed — confirm after art)"}`;
   if (service === "embroidery") return "up to 10,000 stitches (+$1.50 per 1,000 over — confirm after digitizing)";
   if (service === "dtf") return "11x5 transfer";
@@ -254,7 +284,7 @@ export function styleFromText(text: string | null | undefined): string | null {
 
 /** Price the exact style the customer asked for (if we can find its cost). */
 export async function suggestRequested(
-  db: any, style: string, service: string, qty: number, opts: { colors?: number | null; locations?: number; jacket?: boolean } = {},
+  db: any, style: string, service: string, qty: number, opts: PriceOpts = {},
 ): Promise<Suggestion | null> {
   const row = matrixRow(service, qty);
   if (!row || qty <= 0) return null;
@@ -263,7 +293,10 @@ export async function suggestRequested(
   if (!cost) return null;
   const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
-  const deco = Number(((row.prices[col] ?? row.prices[0]) + extraLocs * (service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0)).toFixed(2));
+  const dtfCols = dtfColsOf(service, opts);
+  const deco = dtfCols
+    ? Number(dtfCols.reduce((sum, c) => sum + (row.prices[c] ?? row.prices[1]), 0).toFixed(2))
+    : Number(((row.prices[col] ?? row.prices[0]) + extraLocs * (service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0)).toFixed(2));
   const garmentSell = known?.map ? known.map : cost * (row.markup / 100);
   const unit = Number((garmentSell + deco).toFixed(2));
   return {

@@ -531,6 +531,7 @@ Deno.serve(async (req) => {
       const garmentText = `${it.item || ""} ${it.garment || ""}`;
       const jacket = /jacket|coat|vest|shell|parka|carhartt\s*j/i.test(garmentText) && !/hood|sweat/i.test(garmentText);
       const locations = Math.max((it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).filter((x) => x.trim()).length : 1) - (backEmb ? 1 : 0), 1);
+      const placeList = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).map((x) => x.trim()).filter(Boolean) : [];
       let suggestions: Suggestion[] = [];
       if (qty >= CUSTOM_QUOTE_QTY) {
         // 700+ pieces: Phil prices these by hand
@@ -562,7 +563,7 @@ Deno.serve(async (req) => {
       }
       if (cat && qty > 0 && method !== "unknown") {
         try {
-          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations, jacket });
+          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations, jacket, placements: placeList });
         } catch (e) {
           console.error("pricing failed:", e);
         }
@@ -572,7 +573,7 @@ Deno.serve(async (req) => {
       const style = styleFromText(it.garment);
       if (style && qty > 0 && method !== "unknown") {
         try {
-          requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket });
+          requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket, placements: placeList });
         } catch (e) {
           console.error("requested-style pricing failed:", e);
         }
@@ -582,8 +583,8 @@ Deno.serve(async (req) => {
       const nq = method !== "unknown" ? matrixNextTier(method, qty) : null;
       if (nq && cat) {
         try {
-          const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations, jacket }) : null;
-          const nt = ns ? null : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket })).find((x) => x.tier === tierHint) ?? null;
+          const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations, jacket, placements: placeList }) : null;
+          const nt = ns ? null : (await suggestTiers(db, cat, method, nq, { colors, locations, jacket, placements: placeList })).find((x) => x.tier === tierHint) ?? null;
           next = { qty: nq, pick: ns ?? nt };
         } catch (e) {
           console.error("next-tier pricing failed:", e);
@@ -594,7 +595,7 @@ Deno.serve(async (req) => {
         fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
       }
       const setup = method === "screen_print" ? screenFees(colors, locations, qty) : 0;
-      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors), ...fees].join(", "), next,
+      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors, placeList), ...fees].join(", "), next,
         cat, colors, where: it.locations ? String(it.locations) : null, assumedWhere: it.locations_assumed === true, setup,
         fees: fees.filter((f) => /small order/.test(f)) });
     }

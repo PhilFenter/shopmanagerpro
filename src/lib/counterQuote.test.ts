@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { priceLine, newLine, chosen, lineTotal, describeLine, type CounterLine } from "./counterQuote";
-import { suggestTiers } from "../../supabase/functions/_shared/hcd-pricing.ts";
+import { suggestTiers, dtfColForPlacement, assumptionsFor } from "../../supabase/functions/_shared/hcd-pricing.ts";
 
 // Fake DB with an empty product_catalog → pricing falls back to the SanMar list in
 // hcd-pricing.ts, which is what the printed Front Counter Pricing Guide uses.
@@ -87,8 +87,17 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
     expect(chosen(l, await priceLine(db, l))!.unit_price).toBe(19.04); // 10.38 + 4.33 + 4.33
   });
 
-  it("email/website intake DTF pricing is unchanged (no dtfCols)", async () => {
+  it("intake with no locations keeps the old default (11x5 + 4x4 extras)", async () => {
     const t = await suggestTiers(db, "tee", "dtf", 12, { locations: 2 });
     expect(t.find((x) => x.tier === "better")!.unit_price).toBe(16.72); // 10.38 + 4.33 + 2.01
+  });
+
+  it("email/website: placements map chest/sleeve → 4x4, back → 11x14, front → 11x5", async () => {
+    expect(["Left Chest", "left chest", "Pocket", "Right sleeve"].map(dtfColForPlacement)).toEqual([0, 0, 0, 0]);
+    expect(["Full Back", "back", "Upper back"].map(dtfColForPlacement)).toEqual([2, 2, 2]);
+    expect(["Front", "Full Front", "center front", "back of neck"].map(dtfColForPlacement)).toEqual([1, 1, 1, 0]);
+    const t = await suggestTiers(db, "tee", "dtf", 12, { locations: 2, placements: ["left chest", "full back"] });
+    expect(t.find((x) => x.tier === "better")!.unit_price).toBe(20.01); // 10.38 + 2.01 + 7.62
+    expect(assumptionsFor("dtf", null, ["left chest", "full back"])).toContain("full back 11x14");
   });
 });
