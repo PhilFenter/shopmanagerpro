@@ -7,6 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PAID_LOOKBACK_DAYS = 90;
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
 interface PrintavoSizeCount {
@@ -53,6 +54,7 @@ interface PrintavoInvoice {
     phone?: string | null;
   } | null;
   total?: number | null;
+  paidInFull?: boolean | null;
   salesTax?: number | null;
   salesTaxAmount?: number | null;
   transactions?: {
@@ -140,7 +142,7 @@ Deno.serve(async (req) => {
     const {
       endDate = null,
       minOrderNumber = null,
-      maxPages = 10,
+      maxPages = 20,
       fullScrape = false,
     } = body;
 
@@ -156,9 +158,11 @@ Deno.serve(async (req) => {
         .single();
       if (latestJob?.created_at) {
         const latestDate = new Date(latestJob.created_at);
-        latestDate.setDate(latestDate.getDate() - 7);
+        // Invoices are filtered by "paid", but the window is by creation date, so an
+        // invoice created weeks ago and paid today must still be inside it.
+        latestDate.setDate(latestDate.getDate() - PAID_LOOKBACK_DAYS);
         startDate = latestDate.toISOString().split("T")[0];
-        console.log(`Incremental sync: fetching Printavo orders since ${startDate} (7-day overlap from latest order)`);
+        console.log(`Incremental sync: fetching paid Printavo invoices created since ${startDate} (${PAID_LOOKBACK_DAYS}-day lookback)`);
       } else {
         startDate = `${new Date().getFullYear()}-01-01`;
         console.log(`No existing Printavo orders, defaulting to YTD: ${startDate}`);
@@ -170,7 +174,7 @@ Deno.serve(async (req) => {
     // Pass 1 query: orders WITHOUT line items (low complexity, 25/page)
     const ordersQuery = `
       query GetOrders($first: Int!, $after: String, $sortOn: OrderSortField!, $sortDescending: Boolean!) {
-        orders(first: $first, after: $after, sortOn: $sortOn, sortDescending: $sortDescending) {
+        orders(first: $first, after: $after, sortOn: $sortOn, sortDescending: $sortDescending, paymentStatus: PAID) {
           nodes {
             ... on Invoice {
               id
@@ -181,6 +185,7 @@ Deno.serve(async (req) => {
               status { id name }
               contact { id fullName email phone }
               total
+              paidInFull
               salesTax
               salesTaxAmount
               transactions(first: 20) {
@@ -283,8 +288,10 @@ Deno.serve(async (req) => {
 
       const pageData = data.data?.orders;
       const nodes = pageData?.nodes || [];
+      // Only invoices paid in full become jobs (Phil, 2026-10-07: "until it's paid
+      // it's not a job"). Quotes and unpaid/partly paid invoices stay in Printavo.
       const invoices: PrintavoInvoice[] = nodes.filter(
-        (node: any) => node?.id && node?.visualId
+        (node: any) => node?.id && node?.visualId && node?.paidInFull === true
       );
 
       console.log(`Page ${pageCount}: found ${invoices.length} invoices`);
