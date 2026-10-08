@@ -64,3 +64,9 @@ labor hours and overhead, which doesn't require anyone hitting a stopwatch.
 - Quote follow-ups stay OFF on purpose: Phil sends quote reminders from Printavo. quote-follow-up is unchanged and keeps rejecting the cron call; unschedule `quote-follow-up-daily` if it should stop trying.
 - Resend rejects the root domain (not verified); alerts@ and quotes@ now send from mail.hellscanyondesigns.com like the customer emails, replies to info@.
 - notify-new-action-item was callable by anyone with any body; it now builds the alert from the real row and only for items created in the last 2 minutes (same rule as send-push).
+
+## 2026-10-07 — Jobs are paid-in-full invoices only
+- Phil: "until it's paid it's not a job." Quotes stay separate (sent to Printavo, art and sizes added there); a job comes into ShopManagerPro only once Printavo marks the invoice paid in full. Jobs drive metrics, customer spend, 80/20, and later saved recipes / production files.
+- printavo-sync asks Printavo for `paymentStatus: PAID` and double-checks `paidInFull`. Lookback is 90 days by creation date so an invoice paid weeks after it was created still comes in (was 7 days).
+- Existing unpaid jobs were left in place pending Phil's review (17 on 2026-10-07: 5 with money owed, 12 at $0).
+- printavo-schema-probe is now a read-only, service-role-only list of unpaid / partly paid invoices.
