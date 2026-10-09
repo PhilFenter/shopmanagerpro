@@ -19,7 +19,7 @@ import {
   ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, StickyNote, Trash2, Send, RotateCcw, Sparkles,
 } from "lucide-react";
 import {
-  ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary,
+  ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary, screenColorsFor, screenSummary,
   methodsFor, placementsFor, newLine, priceLine, chosen, lineTotal, money,
   saveCounterQuote, saveQuickNote, findCustomer, pushToPrintavo,
   type CounterLine, type Priced, type Item, type Method, type CounterContact, type CounterExtras,
@@ -132,7 +132,11 @@ export default function CounterQuote() {
   const togglePlacement = (pl: string) => {
     const has = line.placements.includes(pl);
     const next = has ? line.placements.filter((x) => x !== pl) : [...line.placements, pl];
-    if (next.length) update({ placements: next });
+    if (!next.length) return;
+    // Screen print: a newly added location starts as a 1-color design.
+    update(line.method === "screen_print" && !has
+      ? { placements: next, colorsBy: { ...line.colorsBy, [pl]: line.colorsBy?.[pl] ?? (line.placements.length ? 1 : line.colors) } }
+      : { placements: next });
   };
 
   const addLine = (item: Item) => {
@@ -246,6 +250,17 @@ export default function CounterQuote() {
             )}
           </div>
 
+          {p?.approval && (
+            <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-base text-amber-950" role="status">
+              <div className="font-medium">{p.approval}</div>
+              {p.suggestDtf && (
+                <Button variant="outline" className="w-full text-base" onClick={() => setMethod("dtf")}>
+                  Or price it as a full-color print
+                </Button>
+              )}
+            </div>
+          )}
+
           {line.item !== "hat" && p?.requested && (
             <button
               type="button"
@@ -342,7 +357,7 @@ export default function CounterQuote() {
               </span>
             </div>
             <div className="text-base text-muted-foreground">
-              {ls?.name ?? ""}{ls ? " · " : ""}{l.method === "screen_print" ? `${l.colors}-color print · ${l.placements.join(" + ")}` : l.method === "dtf" ? `Full-color print · ${dtfSummary(l)}` : `${METHOD_LABELS[l.method]} · ${l.placements.join(" + ")}`}
+              {ls?.name ?? ""}{ls ? " · " : ""}{l.method === "screen_print" ? (l.placements.length > 1 ? `${screenSummary(l)} print` : `${screenSummary(l)} print · ${l.placements[0] ?? ""}`) : l.method === "dtf" ? `Full-color print · ${dtfSummary(l)}` : `${METHOD_LABELS[l.method]} · ${l.placements.join(" + ")}`}
             </div>
             {ls && ls.upcharge_2xl > 0 && !lp?.blocker && !extras.ownGarments && <div className="text-base text-muted-foreground">2XL and up: {money(ls.unit_price + ls.upcharge_2xl)} each</div>}
             {!extras.ownGarments && lp?.fees.map((f) => <div key={f.label} className="flex justify-between text-base text-muted-foreground"><span>{f.label}</span><span>{money(f.amount)}</span></div>)}
@@ -512,15 +527,6 @@ export default function CounterQuote() {
               {line.item === "polo" && <div className="text-muted-foreground">Polos get left-chest embroidery. It's what looks best on them.</div>}
             </Section>
 
-            {line.method === "screen_print" && (
-              <Section title="How many ink colors in the design?">
-                <div className="flex flex-wrap gap-3">
-                  {[1, 2, 3, 4, 5, 6].map((c) => <Chip key={c} active={line.colors === c} onClick={() => update({ colors: c })}>{c}</Chip>)}
-                  <span className="self-center text-muted-foreground">Not sure? Leave it at 1. We'll confirm with the art.</span>
-                </div>
-              </Section>
-            )}
-
             {line.item === "hat" && (
               <Section title="Hat style">
                 <div className="flex flex-wrap gap-3">
@@ -556,6 +562,25 @@ export default function CounterQuote() {
                 );
               })}
             </Section>
+
+            {line.method === "screen_print" && (
+              <Section title={line.placements.length > 1 ? "How many ink colors in each design?" : "How many ink colors in the design?"}>
+                {line.placements.map((pl, i) => {
+                  const cur = screenColorsFor(line)[i];
+                  const multi = line.placements.length > 1;
+                  return (
+                    <div key={pl} className="flex flex-wrap items-center gap-3">
+                      {multi && <span className="w-28 text-lg font-medium">{pl}</span>}
+                      {[1, 2, 3, 4, 5, 6].map((c) => (
+                        <Chip key={c} active={cur === c} onClick={() => update({ colorsBy: { ...line.colorsBy, [pl]: c }, ...(i === 0 ? { colors: c } : {}) })}>{c}</Chip>
+                      ))}
+                      {!multi && <span className="self-center text-muted-foreground">Not sure? Leave it at 1. We'll confirm with the art.</span>}
+                    </div>
+                  );
+                })}
+                {line.placements.length > 1 && <div className="text-muted-foreground">Each location is its own design and its own screens. Not sure? Leave it at 1. We'll confirm with the art.</div>}
+              </Section>
+            )}
 
             <Section title="Color (optional)">
               <Input className="h-12 max-w-md text-lg md:text-lg" placeholder={line.item === "hat" ? "e.g. black/white, loden" : "e.g. navy, heather gray"} value={line.color} onChange={(e) => update({ color: e.target.value })} />
