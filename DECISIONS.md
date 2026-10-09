@@ -70,3 +70,9 @@ labor hours and overhead, which doesn't require anyone hitting a stopwatch.
 - printavo-sync asks Printavo for `paymentStatus: PAID` and double-checks `paidInFull`. Lookback is 90 days by creation date so an invoice paid weeks after it was created still comes in (was 7 days).
 - Existing unpaid jobs were left in place pending Phil's review (17 on 2026-10-07: 5 with money owed, 12 at $0).
 - printavo-schema-probe is now a read-only, service-role-only list of unpaid / partly paid invoices.
+
+## 2026-10-09 — Counter "customer's pick": live SanMar / S&S lookup
+- product_catalog doesn't have many styles customers ask for (PC55, PC54, PC61) and 1,323 SanMar rows are $0 (Gildan 5000, BC3001, PC450…). The style box used to say "We'll look up…" and stop.
+- Now: catalog first; if missing or $0, ask SanMar getPricing for HCD's own cost (myPrice), then S&S. S–XL cost uses the higher (color) price, 2XL likewise: estimate high, never raise later. Result is cached for the session and written back to product_catalog (admins), so email/website quotes see it too.
+- The screen waits for a 0.7s typing pause before looking up, shows "Looking up PC55…", and says plainly when a style isn't found at either supplier.
+- sanmar-api accepted only user sessions, so the nightly Printavo sync's SanMar cost step was getting 401 every night; it now also accepts the service role.
