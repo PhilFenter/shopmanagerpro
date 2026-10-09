@@ -212,7 +212,34 @@ export async function garmentCost(db: any, pick: Pick, qty = 12): Promise<number
   return richardsonCost(pick.style, qty) ?? 0; // then Richardson wholesale
 }
 
-export type PriceOpts = { colors?: number | null; locations?: number; jacket?: boolean; dtfCols?: number[]; placements?: string[] };
+// screenColors: screen print with a different design per location, one color count per
+// location in order (e.g. [1, 3] = 1-color front + 3-color back). Each location is priced at
+// its own color column. Without it, extra locations are treated as 1-color.
+export type PriceOpts = { colors?: number | null; locations?: number; jacket?: boolean; dtfCols?: number[]; placements?: string[]; screenColors?: number[] };
+
+const screenCol = (c: number) => Math.min(Math.max((c || 1) - 1, 0), 8);
+function screenColorsOf(service: string, opts: PriceOpts): number[] | null {
+  if (service !== "screen_print" || !opts.screenColors?.length) return null;
+  return opts.screenColors.map((c) => Math.max(Math.floor(c || 1), 1));
+}
+/** Decoration price per piece for one matrix row — shared by every suggestion path. */
+function decoPrice(row: Row, service: string, opts: PriceOpts): number {
+  const sc = screenColorsOf(service, opts);
+  if (sc) return Number(sc.reduce((sum, c) => sum + (row.prices[screenCol(c)] ?? row.prices[0]), 0).toFixed(2));
+  const dtfCols = dtfColsOf(service, opts);
+  if (dtfCols) return Number(dtfCols.reduce((sum, c) => sum + (row.prices[c] ?? row.prices[1]), 0).toFixed(2));
+  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
+  // Extra locations: screen print/DTF at 1-color / 4x4; embroidery (sleeve etc.) $8 each.
+  const extraLocs = Math.max((opts.locations || 1) - 1, 0);
+  const extra = service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0;
+  return Number(((row.prices[col] ?? row.prices[0]) + extraLocs * extra).toFixed(2));
+}
+
+/** Screens for a multi-design job: one per color per location ($20 each, waived at 144+). */
+export function screenFeesByLocation(colorsPerLoc: number[], qty: number): number {
+  if (qty >= SCREEN_FEE_WAIVE_QTY) return 0;
+  return colorsPerLoc.reduce((n, c) => n + Math.max(Math.floor(c || 1), 1), 0) * SCREEN_FEE;
+}
 
 function dtfColsOf(service: string, opts: PriceOpts): number[] | null {
   if (service !== "dtf") return null;
@@ -234,15 +261,7 @@ export async function suggestTiers(
   const picks = PICKS[category];
   const row = matrixRow(service, qty);
   if (!picks || !row || qty <= 0) return [];
-  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
-  const firstLoc = row.prices[col] ?? row.prices[0];
-  // Extra locations: screen print/DTF at 1-color / 4x4; embroidery (sleeve etc.) $8 each.
-  const extraLocs = Math.max((opts.locations || 1) - 1, 0);
-  const extra = service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0;
-  const dtfCols = dtfColsOf(service, opts);
-  const deco = dtfCols
-    ? Number(dtfCols.reduce((sum, c) => sum + (row.prices[c] ?? row.prices[1]), 0).toFixed(2))
-    : Number((firstLoc + extraLocs * extra).toFixed(2));
+  const deco = decoPrice(row, service, opts);
   const out: Suggestion[] = [];
   for (const tier of ["good", "better", "best"] as Tier[]) {
     const p = picks[tier];
@@ -309,12 +328,7 @@ export function suggestFromCost(
   const row = matrixRow(service, qty);
   if (!row || qty <= 0 || !(cost > 0)) return null;
   const known = knownStyle(style);
-  const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
-  const extraLocs = Math.max((opts.locations || 1) - 1, 0);
-  const dtfCols = dtfColsOf(service, opts);
-  const deco = dtfCols
-    ? Number(dtfCols.reduce((sum, c) => sum + (row.prices[c] ?? row.prices[1]), 0).toFixed(2))
-    : Number(((row.prices[col] ?? row.prices[0]) + extraLocs * (service === "screen_print" || service === "dtf" ? row.prices[0] : service === "embroidery" ? EMB_EXTRA_LOCATION : 0)).toFixed(2));
+  const deco = decoPrice(row, service, opts);
   const garmentSell = known?.map ? known.map : cost * (row.markup / 100);
   const unit = Number((garmentSell + deco).toFixed(2));
   return {

@@ -16,7 +16,7 @@ import {
   hatNextTier,
   matrixNextTier,
   screenPrintMin,
-  screenFees,
+  screenFeesByLocation,
   SMALL_MIN,
   SMALL_ORDER_UNDER,
   SMALL_ORDER_FEE,
@@ -82,7 +82,8 @@ export interface CounterLine {
   item: Item;
   qty: number;
   method: Method;
-  colors: number; // screen print
+  colors: number; // screen print: default color count (used for any location not set below)
+  colorsBy: Record<string, number>; // screen print: colors per location when designs differ
   dtfFront: number; // 1 = 11x5, 2 = 11x14
   dtfBack: number;  // 1 = 11x5, 2 = 11x14
   placements: string[];
@@ -100,6 +101,7 @@ export function newLine(item: Item = "tee"): CounterLine {
     qty: item === "hat" ? 24 : 24,
     method: methodsFor(item)[0],
     colors: 1,
+    colorsBy: {},
     dtfFront: 1,
     dtfBack: 2,
     placements: [placementsFor(item, methodsFor(item)[0])[0]],
@@ -121,7 +123,20 @@ export interface Priced {
   notes: string[];           // friendly, customer-safe notes
   blocker: string | null;    // can't price at the counter (custom / below minimum)
   suggestDtf: boolean;       // screen print below minimum → offer DTF
+  approval: string | null;   // priced, but needs a manager's OK (staff-facing)
   nextBreak: { qty: number; unit: number } | null;
+}
+
+/** Screen print: one color count per selected location, in placement order. */
+export function screenColorsFor(line: CounterLine): number[] {
+  const list = line.placements.length ? line.placements : [""];
+  return list.map((pl) => Math.max(line.colorsBy?.[pl] ?? line.colors ?? 1, 1));
+}
+/** "3-color" or "1-color Front + 3-color Back". */
+export function screenSummary(line: CounterLine): string {
+  const cs = screenColorsFor(line);
+  if (line.placements.length <= 1) return `${cs[0]}-color`;
+  return line.placements.map((pl, i) => `${cs[i]}-color ${pl}`).join(" + ");
 }
 
 const DIGITIZING: Fee = { label: "Digitizing (one-time, to set up your logo)", amount: DIGITIZING_FEE };
@@ -131,7 +146,7 @@ const service = (m: Method) => (m === "patch" || m === "hat_embroidery" ? "hat" 
 function apparelFees(line: CounterLine, qty: number): Fee[] {
   const locs = Math.max(line.placements.length, 1);
   if (line.method === "screen_print") {
-    const f = screenFees(line.colors, locs, qty);
+    const f = screenFeesByLocation(screenColorsFor(line), qty);
     return f > 0 ? [{ label: `Screen setup (${f / SCREEN_FEE} screen${f / SCREEN_FEE > 1 ? "s" : ""}, one-time)`, amount: f }] : [];
   }
   const fees: Fee[] = [];
@@ -277,7 +292,7 @@ async function priceRequested(db: unknown, line: CounterLine, svc: string, qty: 
 export async function priceLine(db: unknown, line: CounterLine): Promise<Priced> {
   const qty = Math.max(0, Math.floor(line.qty || 0));
   const locs = Math.max(line.placements.length, 1);
-  const out: Priced = { tiers: [], requested: null, requestedMissing: false, billedQty: qty, fees: [], notes: [], blocker: null, suggestDtf: false, nextBreak: null };
+  const out: Priced = { tiers: [], requested: null, requestedMissing: false, billedQty: qty, fees: [], notes: [], blocker: null, approval: null, suggestDtf: false, nextBreak: null };
   if (qty <= 0) return out;
   if (qty >= CUSTOM_QUOTE_QTY) {
     out.blocker = `${CUSTOM_QUOTE_QTY}+ pieces is a custom quote. Phil will price this one, and we'll get back to you quickly.`;
@@ -305,6 +320,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   const opts = {
     colors: line.colors,
     locations: locs,
+    screenColors: line.method === "screen_print" ? screenColorsFor(line) : undefined,
     dtfCols: line.method === "dtf" ? line.placements.map((pl) => dtfColFor(line, pl)) : undefined,
   };
   out.tiers = await suggestTiers(db, line.item, svc, qty, opts);
@@ -315,12 +331,21 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   out.fees = apparelFees(line, qty);
 
   if (line.method === "screen_print") {
-    const min = screenPrintMin(line.colors);
-    if (qty < min) {
-      out.blocker = `Screen print starts at ${min} pieces for ${line.colors} color${line.colors > 1 ? "s" : ""}.`;
+    // Minimum = 24 + 12 per extra color, counting every color on every location
+    // (1-color front + 3-color back = 4 colors = 60). Below that but at or above the
+    // busiest single location's minimum, a manager can approve it (Phil 2026-10-09).
+    const cs = screenColorsFor(line);
+    const total = cs.reduce((a, c) => a + c, 0);
+    const min = screenPrintMin(total);
+    const hardMin = screenPrintMin(Math.max(...cs));
+    if (qty < hardMin) {
+      out.blocker = `Screen print starts at ${hardMin} pieces for ${Math.max(...cs)} color${Math.max(...cs) > 1 ? "s" : ""}.`;
+      out.suggestDtf = true;
+    } else if (qty < min) {
+      out.approval = `Below the ${min}-piece minimum for ${total} total colors. Needs a manager's OK.`;
       out.suggestDtf = true;
     }
-    out.notes.push(`${line.colors}-color print. We'll lock it in once we see the art.`);
+    out.notes.push(`${screenSummary(line)} print. We'll lock it in once we see the art.`);
     if (qty < SCREEN_FEE_WAIVE_QTY) out.notes.push(`Screen setup is waived at ${SCREEN_FEE_WAIVE_QTY}+ pieces.`);
   } else {
     if (qty < SMALL_MIN) out.blocker = `${METHOD_LABELS[line.method]} starts at ${SMALL_MIN} pieces.`;
@@ -356,7 +381,7 @@ export function lineTotal(line: CounterLine, p: Priced | undefined): number {
 export function describeLine(line: CounterLine, s?: Suggestion): string {
   const what = line.item === "hat" ? (s?.name ?? `Hat ${line.hatStyle}`) : (s?.name ?? ITEMS.find((i) => i.id === line.item)!.label);
   const deco =
-    line.method === "screen_print" ? `${line.colors}-color screen print` :
+    line.method === "screen_print" ? (line.placements.length > 1 ? `screen print (${screenSummary(line)})` : `${screenSummary(line)} screen print`) :
     line.method === "dtf" ? "DTF" :
     METHOD_LABELS[line.method];
   const where = line.method === "dtf" ? dtfSummary(line) : line.placements.join(" + ");
@@ -482,12 +507,12 @@ export async function saveCounterQuote(
         source: "counter",
         method: l.method,
         placements: l.placements,
-        ...(l.method === "screen_print" ? { colors: l.colors } : {}),
+        ...(l.method === "screen_print" ? { colors: screenColorsFor(l).reduce((a, c) => a + c, 0), colorsByLocation: Object.fromEntries(l.placements.map((pl, i) => [pl, screenColorsFor(l)[i]])) } : {}),
         ...(l.method === "dtf" ? { dtfSizes: Object.fromEntries(l.placements.map((pl) => [pl, DTF_SIZES[dtfColFor(l, pl)]])) } : {}),
         ...(l.item === "hat" ? { hatStyle: l.hatStyle } : l.usePick && p?.requested ? { customerPick: l.style.trim().toUpperCase() } : { tier: l.tier }),
       },
       line_total: priceIt ? Number((s!.unit_price * qty).toFixed(2)) : 0,
-      notes: [...(p?.notes ?? []), p?.blocker ?? "",
+      notes: [...(p?.notes ?? []), p?.blocker ?? "", p?.approval ? `MANAGER APPROVAL: ${p.approval}` : "",
         p?.requestedMissing ? `Customer asked for ${l.style.trim().toUpperCase()} — not in catalog, priced as house ${l.tier}. Confirm.` : "", priceIt && s!.upcharge_2xl > 0 ? `2XL+ add ${money(s!.upcharge_2xl)} each` : ""].filter(Boolean).join(" ") || null,
     });
     if (priceIt) for (const f of p!.fees) {

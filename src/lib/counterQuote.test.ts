@@ -193,3 +193,38 @@ describe("customer's pick — live SanMar lookup when the catalog doesn't have i
     expect(p.tiers.length).toBe(3);
   });
 });
+
+describe("screen print — different designs front and back", () => {
+  const twoDesigns = (qty: number) =>
+    line({ qty, method: "screen_print", colors: 1, colorsBy: { Front: 1, Back: 3 }, placements: ["Front", "Back"], tier: "better" });
+
+  it("prices each location at its own color count, 4 screens", async () => {
+    const one = await priceLine(db, line({ qty: 72, method: "screen_print", colors: 1, placements: ["Front"], tier: "better" }));
+    const p = await priceLine(db, twoDesigns(72));
+    const s = chosen(twoDesigns(72), p)!;
+    // 72 row: 1-color $1.65 + 3-color $3.45
+    expect(s.decoration_cost).toBe(5.1);
+    expect(s.unit_price - chosen(line({ qty: 72, method: "screen_print", colors: 1, placements: ["Front"], tier: "better" }), one)!.unit_price).toBeCloseTo(3.45, 2);
+    expect(p.fees[0].amount).toBe(80);
+    expect(p.notes[0]).toContain("1-color Front + 3-color Back");
+    expect(p.blocker).toBeNull();
+    expect(p.approval).toBeNull();
+  });
+
+  it("minimum counts total colors (1 + 3 = 4 → 60); 48–59 needs a manager's OK", async () => {
+    const p = await priceLine(db, twoDesigns(50));
+    expect(p.blocker).toBeNull();
+    expect(p.approval).toContain("60-piece minimum for 4 total colors");
+    expect(lineTotal(twoDesigns(50), p)).toBeGreaterThan(0);
+  });
+
+  it("below the busiest design's own minimum is still a hard stop", async () => {
+    const p = await priceLine(db, twoDesigns(40)); // 3-color back alone needs 48
+    expect(p.blocker).toContain("48 pieces for 3 colors");
+    expect(p.suggestDtf).toBe(true);
+  });
+
+  it("describes both designs for Printavo", () => {
+    expect(describeLine(twoDesigns(72))).toContain("1-color Front + 3-color Back");
+  });
+});
