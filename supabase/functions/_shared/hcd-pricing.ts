@@ -292,9 +292,23 @@ export async function suggestRequested(
 ): Promise<Suggestion | null> {
   const row = matrixRow(service, qty);
   if (!row || qty <= 0) return null;
-  const known = [...Object.values(PICKS).flatMap((t) => Object.values(t)), ...KNOWN_STYLES].find((p) => p.style === style.toUpperCase());
+  const known = knownStyle(style);
   const cost = await garmentCost(db, known ?? { style, name: style, cost: 0, cost2xl: 0, msrp: 0 }, qty);
   if (!cost) return null;
+  return suggestFromCost(style, cost, service, qty, opts);
+}
+
+function knownStyle(style: string) {
+  return [...Object.values(PICKS).flatMap((t) => Object.values(t)), ...KNOWN_STYLES].find((p) => p.style === style.toUpperCase());
+}
+
+/** Price a specific style from a known garment cost (e.g. a live SanMar lookup). */
+export function suggestFromCost(
+  style: string, cost: number, service: string, qty: number, opts: PriceOpts = {},
+): Suggestion | null {
+  const row = matrixRow(service, qty);
+  if (!row || qty <= 0 || !(cost > 0)) return null;
+  const known = knownStyle(style);
   const col = decoColumn(service, opts.colors ?? null, opts.jacket ?? false);
   const extraLocs = Math.max((opts.locations || 1) - 1, 0);
   const dtfCols = dtfColsOf(service, opts);

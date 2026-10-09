@@ -98,16 +98,22 @@ export default function CounterQuote() {
 
   // Re-price whenever anything changes (same engine as email/website intake).
   const runId = useRef(0);
+  const lastStyles = useRef("");
   useEffect(() => {
     const id = ++runId.current;
     setPricing(true);
+    // While a style number is being typed, wait for a pause so SanMar is only
+    // asked about the finished style (PC55), not every keystroke (P, PC, PC5).
+    const styles = lines.map((l) => l.style.trim().toUpperCase()).join("|");
+    const typing = styles !== lastStyles.current;
+    lastStyles.current = styles;
     const t = setTimeout(async () => {
       const entries = await Promise.all(lines.map(async (l) => [l.id, await priceLine(supabase, l)] as const));
       if (id === runId.current) {
         setPriced(Object.fromEntries(entries));
         setPricing(false);
       }
-    }, 120);
+    }, typing ? 700 : 120);
     return () => clearTimeout(t);
   }, [lines]);
 
@@ -256,9 +262,14 @@ export default function CounterQuote() {
               </div>
             </button>
           )}
-          {line.item !== "hat" && p?.requestedMissing && (
+          {line.item !== "hat" && line.style.trim() && pricing && !p?.requested && (
+            <div className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-base text-sky-950" role="status">
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> Looking up {line.style.trim().toUpperCase()}…
+            </div>
+          )}
+          {line.item !== "hat" && !pricing && p?.requestedMissing && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-base text-amber-950">
-              We'll look up {line.style.trim().toUpperCase()} and confirm its price. Here are our house options in the meantime.
+              Couldn't find {line.style.trim().toUpperCase()} at SanMar or S&amp;S. Check the style number, or pick one of our house options below.
             </div>
           )}
           {line.item !== "hat" && p && p.tiers.length > 1 && (

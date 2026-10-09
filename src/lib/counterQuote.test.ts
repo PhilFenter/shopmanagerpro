@@ -149,3 +149,47 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
     expect(chosen(l, p)!.style).toBe("NL6210");
   });
 });
+
+describe("customer's pick — live SanMar lookup when the catalog doesn't have it", () => {
+  const calls: string[] = [];
+  const sanmarDb = {
+    ...db,
+    functions: {
+      invoke: async (fn: string, { body }: { body: { action: string; styleNumber: string } }) => {
+        calls.push(`${fn}:${body.action}:${body.styleNumber}`);
+        if (fn !== "sanmar-api" || body.styleNumber !== "PC55") return { data: { success: false } };
+        if (body.action === "getProductInfo") return { data: { success: true, items: [{ brandName: "Port & Company", title: "Core Blend Tee" }] } };
+        return {
+          data: {
+            success: true,
+            pricing: [
+              { size: "S", myPrice: 2.59 }, { size: "M", myPrice: 2.89 }, { size: "XL", myPrice: 2.89 },
+              { size: "2XL", myPrice: 4.34 }, { size: "2XL", myPrice: 4.92 }, { size: "3XL", myPrice: 6.46 },
+            ],
+          },
+        };
+      },
+    },
+  };
+
+  it("prices PC55 from SanMar cost (higher color price), with a 2XL upcharge", async () => {
+    const l = line({ qty: 24, method: "screen_print", colors: 1, placements: ["Front"], style: "PC55" });
+    const p = await priceLine(sanmarDb, l);
+    expect(p.requestedMissing).toBe(false);
+    expect(p.requested!.garment_cost).toBe(2.89);
+    expect(p.requested!.name).toBe("Port & Company PC55 Core Blend Tee");
+    expect(p.requested!.upcharge_2xl).toBeGreaterThan(0);
+  });
+
+  it("asks SanMar once per style, then reuses it", async () => {
+    calls.length = 0;
+    await priceLine(sanmarDb, line({ qty: 48, style: "PC55" }));
+    expect(calls.filter((c) => c.includes("PC55"))).toEqual([]);
+  });
+
+  it("not found anywhere → requestedMissing, house options still shown", async () => {
+    const p = await priceLine(sanmarDb, line({ qty: 24, method: "screen_print", colors: 1, placements: ["Front"], style: "ZZZ999" }));
+    expect(p.requestedMissing).toBe(true);
+    expect(p.tiers.length).toBe(3);
+  });
+});
