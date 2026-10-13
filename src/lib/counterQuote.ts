@@ -11,6 +11,7 @@ import {
   suggestTiers,
   suggestRequested,
   suggestFromCost,
+  freshCatalogCost,
   matrixRow,
   hatPrice,
   hatNextTier,
@@ -91,7 +92,14 @@ export interface CounterLine {
   style: string;    // customer's own pick, e.g. "PC55" (optional)
   usePick: boolean; // price their pick instead of a house tier
   color: string; // garment color, free text
+  sleeve: "short" | "long"; // T-shirts only
 }
+
+/** Pricing category: T-shirts split into short and long sleeve. */
+export const categoryFor = (line: Pick<CounterLine, "item" | "sleeve">) =>
+  line.item === "tee" && line.sleeve === "long" ? "longsleeve" : line.item;
+export const itemLabel = (line: Pick<CounterLine, "item" | "sleeve">) =>
+  line.item === "tee" && line.sleeve === "long" ? "Long Sleeve Tees" : ITEMS.find((i) => i.id === line.item)!.label;
 
 export function newLine(item: Item = "tee"): CounterLine {
   return {
@@ -108,6 +116,7 @@ export function newLine(item: Item = "tee"): CounterLine {
     style: "",
     usePick: true,
     color: "",
+    sleeve: "short",
   };
 }
 
@@ -141,28 +150,17 @@ function apparelFees(line: CounterLine, qty: number): Fee[] {
 }
 
 /** SanMar catalog details for a style the customer picked: name + S–XL and 2XL piece cost. */
+// Only HCD's own, recent price counts (see freshCatalogCost); otherwise ask SanMar live.
 async function catalogStyle(db: any, style: string) {
+  const fresh = await freshCatalogCost(db, style);
+  if (!fresh.cost) return null;
+  let name = style.toUpperCase();
   try {
-    const { data } = await db
-      .from("product_catalog")
-      .select("brand, description, piece_price, size_range")
-      .eq("style_number", style.toUpperCase())
-      .gt("piece_price", 0)
-      .limit(50);
-    const rows = (data || []) as { brand: string | null; description: string | null; piece_price: number; size_range: string | null }[];
-    if (!rows.length) return null;
-    const med = (xs: number[]) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)];
-    const big = rows.filter((r) => /2XL|XXL/i.test(String(r.size_range || "")));
-    const reg = rows.filter((r) => !/2XL|3XL|4XL|5XL|XXL/i.test(String(r.size_range || "")));
-    const name = [rows[0].brand, style.toUpperCase(), rows[0].description].filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, 70);
-    return {
-      name,
-      cost: reg.length ? med(reg.map((r) => Number(r.piece_price))) : null,
-      cost2xl: big.length ? med(big.map((r) => Number(r.piece_price))) : null,
-    };
-  } catch {
-    return null;
-  }
+    const { data } = await db.from("product_catalog").select("brand, description").eq("style_number", style.toUpperCase()).limit(1);
+    const r = (data || [])[0];
+    if (r) name = [r.brand, style.toUpperCase(), r.description].filter(Boolean).join(" ").replace(/&amp;/g, "&").replace(/\s+/g, " ").slice(0, 70);
+  } catch { /* name is optional */ }
+  return { name, cost: fresh.cost, cost2xl: fresh.cost2xl };
 }
 
 export interface LiveStyle { name: string; cost: number; cost2xl: number | null; supplier: "sanmar" | "ss_activewear" }
@@ -262,6 +260,8 @@ async function priceRequested(db: unknown, line: CounterLine, svc: string, qty: 
       s = suggestFromCost(style, live.cost, svc, qty, opts);
     }
   }
+  // SanMar unreachable: fall back to our own cost table for styles we know.
+  if (!s) s = await suggestRequested(db, style, svc, qty, opts);
   if (!s) return null;
   const row = matrixRow(svc, qty);
   const markup = row ? row.markup / 100 : 2;
@@ -307,7 +307,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
     locations: locs,
     dtfCols: line.method === "dtf" ? line.placements.map((pl) => dtfColFor(line, pl)) : undefined,
   };
-  out.tiers = await suggestTiers(db, line.item, svc, qty, opts);
+  out.tiers = await suggestTiers(db, categoryFor(line), svc, qty, opts);
   if (line.style.trim()) {
     out.requested = await priceRequested(db, line, svc, qty, opts);
     out.requestedMissing = !out.requested;
@@ -334,7 +334,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
     const cur = pick ? out.requested : out.tiers.find((t) => t.tier === line.tier);
     const nxt = pick
       ? await priceRequested(db, line, svc, nq, opts)
-      : (await suggestTiers(db, line.item, svc, nq, opts)).find((t) => t.tier === line.tier);
+      : (await suggestTiers(db, categoryFor(line), svc, nq, opts)).find((t) => t.tier === line.tier);
     if (cur && nxt && nxt.unit_price < cur.unit_price) out.nextBreak = { qty: nq, unit: nxt.unit_price };
   }
   return out;
@@ -354,7 +354,7 @@ export function lineTotal(line: CounterLine, p: Priced | undefined): number {
 }
 
 export function describeLine(line: CounterLine, s?: Suggestion): string {
-  const what = line.item === "hat" ? (s?.name ?? `Hat ${line.hatStyle}`) : (s?.name ?? ITEMS.find((i) => i.id === line.item)!.label);
+  const what = line.item === "hat" ? (s?.name ?? `Hat ${line.hatStyle}`) : (s?.name ?? itemLabel(line));
   const deco =
     line.method === "screen_print" ? `${line.colors}-color screen print` :
     line.method === "dtf" ? "DTF" :
@@ -503,7 +503,7 @@ export async function saveCounterQuote(
   }
 
   // One action item — the replacement for the sticky note.
-  const summary = usable.map((l) => `${l.qty} ${ITEMS.find((i) => i.id === l.item)!.label.toLowerCase()}`).join(" + ") || "items TBD";
+  const summary = usable.map((l) => `${l.qty} ${itemLabel(l).toLowerCase()}`).join(" + ") || "items TBD";
   const priceLines = usable.map((l) => {
     const p = priced[l.id];
     const s = chosen(l, p);
