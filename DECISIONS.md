@@ -76,3 +76,8 @@ labor hours and overhead, which doesn't require anyone hitting a stopwatch.
 - Now: catalog first; if missing or $0, ask SanMar getPricing for HCD's own cost (myPrice), then S&S. S–XL cost uses the higher (color) price, 2XL likewise: estimate high, never raise later. Result is cached for the session and written back to product_catalog (admins), so email/website quotes see it too.
 - The screen waits for a 0.7s typing pause before looking up, shows "Looking up PC55…", and says plainly when a style isn't found at either supplier.
 - sanmar-api accepted only user sessions, so the nightly Printavo sync's SanMar cost step was getting 401 every night; it now also accepts the service role.
+
+## 2026-10-09 — Screen print: different color counts per location
+- Each location is its own design, priced at its own color column (1-color front + 3-color back at 72 = $1.65 + $3.45). Screens = sum of colors × $20 (waived 144+). Previously every extra location was assumed 1-color.
+- Minimum (Phil): total colors across all locations → 24 + 12 per extra color (1 + 3 = 4 colors = 60). Between the busiest single design's minimum and that total: priced, flagged "needs a manager's OK" on screen and in the saved quote notes. Below the busiest design's minimum: hard stop with DTF offer, as before.
+- Engine: PriceOpts.screenColors + shared decoPrice(); email/website quotes are unchanged until they pass per-location colors.

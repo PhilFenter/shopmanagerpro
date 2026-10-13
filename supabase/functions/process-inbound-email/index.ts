@@ -83,6 +83,7 @@ Rules of thumb:
 HOUSE PICKS (what we recommend; prices for these are added to replies automatically):
 - Tees: Good = Port & Co PC54 (low-cost cotton; Gildan 5000 is the other budget option), Better = Next Level 6210
   (soft blend, holds its shape, our go-to for crews), Best = Bella+Canvas 3001 (retail-soft, the one people keep wearing).
+- Long sleeve tees: Good = Port & Co PC54LS, Better = Next Level 6211, Best = Bella+Canvas 3501.
 - Hoodies: Good = District DT6100 V.I.T. (Port & Co PC78H if they want the basic), Better = District DT6150 V.I.T. Heavyweight, Best = District DT7800 Cloud Fleece
   (the nicer District hoodies). Crewnecks: PC78, District DT6104, District DT7804.
 - Polos: Good = Sport-Tek ST550, Better = Port Authority K500 Silk Touch, Best = Sport-Tek ST650.
