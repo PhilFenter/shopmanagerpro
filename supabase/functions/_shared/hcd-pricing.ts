@@ -121,7 +121,9 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
   tee: {
     good: { style: "PC54", name: "Port & Co PC54 Core Cotton", cost: 2.44, cost2xl: 4.52, msrp: 6.0 },
     better: { style: "NL6210", name: "Next Level 6210 CVC", cost: 4.09, cost2xl: 5.76, msrp: 8.38 },
-    best: { style: "BC3001", name: "Bella+Canvas 3001", cost: 4.03, cost2xl: 5.78, msrp: 9.6 },
+    // Best = BC3413 Triblend (Phil 2026-10-13): at HCD's cost the BC3001 ($4.03) was under the
+    // NL6210 ($4.09), so Premium priced below Mid-Grade. The 3001 is still a known style.
+    best: { style: "BC3413", name: "Bella+Canvas 3413 Triblend", cost: 6.29, cost2xl: 7.48, msrp: 12.98 },
   },
   longsleeve: {
     good: { style: "PC54LS", name: "Port & Co PC54LS Core Cotton Long Sleeve", cost: 5.04, cost2xl: 6.32, msrp: 9.98 },
@@ -152,6 +154,7 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
 
 // Other styles we know the cost of when a customer asks for them by name (same basis).
 export const KNOWN_STYLES: Pick[] = [
+  { style: "BC3001", name: "Bella+Canvas 3001", cost: 4.03, cost2xl: 5.78, msrp: 9.6 },
   { style: "5000", name: "Gildan 5000 Heavy Cotton", cost: 2.49, cost2xl: 5.01, msrp: 5.48 },
   { style: "64000", name: "Gildan Softstyle 64000", cost: 3.05, cost2xl: 5.18, msrp: 7.16 },
   { style: "5400", name: "Gildan 5400 Heavy Cotton Long Sleeve", cost: 5.28, cost2xl: 6.99, msrp: 9.98 },
@@ -326,8 +329,8 @@ export function assumptionsFor(service: string, colors: number | null, placement
 /** Pull a style number out of what the customer wrote, e.g. "Richardson 112PT hats" → "112PT". */
 export function styleFromText(text: string | null | undefined): string | null {
   const m = String(text || "").toUpperCase().match(/\b([A-Z]{0,4}\d{2,6}[A-Z]{0,4})\b/g);
-  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "K121": "CTK121", "G500": "5000" };
-  const hit = m ? m.find((s) => !/^\d{4}$/.test(s) || ["5000", "8000", "2000", "1717", "3001", "6210", "3600"].includes(s)) ?? null : null;
+  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "3413": "BC3413", "K121": "CTK121", "G500": "5000" };
+  const hit = m ? m.find((s) => !/^\d{4}$/.test(s) || ["5000", "8000", "2000", "1717", "3001", "3413", "6210", "3600"].includes(s)) ?? null : null;
   return hit ? (ALIAS[hit] ?? hit) : null;
 }
 

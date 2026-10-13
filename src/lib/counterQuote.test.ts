@@ -259,3 +259,19 @@ describe("garment cost = HCD's own SanMar price", () => {
     expect(p.tiers[1].unit_price).toBe(13.63); // 6.46 × 1.80 + 2.00
   });
 });
+
+describe("tiers stay in order: Value < Mid-Grade < Premium", () => {
+  it("garment cost rises Good → Better → Best in every category", async () => {
+    const { PICKS } = await import("../../supabase/functions/_shared/hcd-pricing.ts");
+    for (const [cat, t] of Object.entries(PICKS)) {
+      if (cat === "hat") continue;
+      expect(t.good.cost, cat).toBeLessThan(t.better.cost);
+      expect(t.better.cost, cat).toBeLessThan(t.best.cost);
+    }
+  });
+  it("Premium tee is the Bella+Canvas 3413 Triblend", async () => {
+    const p = await priceLine(db, line({ qty: 24, method: "screen_print", colors: 1, placements: ["Front"] }));
+    expect(p.tiers.map((x) => x.style)).toEqual(["PC54", "NL6210", "BC3413"]);
+    expect(p.tiers[2].unit_price).toBe(14.45); // 6.29 × 1.90 + 2.50
+  });
+});
