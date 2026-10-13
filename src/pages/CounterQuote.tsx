@@ -19,7 +19,7 @@ import {
   ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, StickyNote, Trash2, Send, RotateCcw, Sparkles,
 } from "lucide-react";
 import {
-  ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary, screenColorsFor, screenSummary,
+  ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary, screenColorsFor, screenSummary, itemLabel,
   methodsFor, placementsFor, newLine, priceLine, chosen, lineTotal, money,
   saveCounterQuote, saveQuickNote, findCustomer, pushToPrintavo,
   type CounterLine, type Priced, type Item, type Method, type CounterContact, type CounterExtras,
@@ -351,7 +351,7 @@ export default function CounterQuote() {
         return (
           <div key={l.id} className="space-y-1 border-b pb-4 last:border-b-0">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="text-xl font-semibold">{lp?.billedQty ?? l.qty} {ITEMS.find((x) => x.id === l.item)!.label}</span>
+              <span className="text-xl font-semibold">{lp?.billedQty ?? l.qty} {itemLabel(l)}</span>
               <span className="text-xl font-semibold">
                 {extras.ownGarments && l.item !== "hat" ? "Manager review" : lp?.blocker ? "We'll price it" : ls ? `${money(ls.unit_price)} each` : ""}
               </span>
@@ -469,7 +469,7 @@ export default function CounterQuote() {
                 l.id === line.id && step === "build" ? "border-primary bg-primary/5" : "border-border",
               )}
             >
-              <span className="font-semibold">{l.qty} {ITEMS.find((x) => x.id === l.item)!.label}</span>
+              <span className="font-semibold">{l.qty} {itemLabel(l)}</span>
               {ls && !lp?.blocker && !extras.ownGarments && <span className="text-muted-foreground">{money(ls.unit_price)} ea</span>}
               {lines.length > 1 && (
                 <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); removeLine(l.id); }} />
@@ -490,6 +490,12 @@ export default function CounterQuote() {
               <div className="flex flex-wrap gap-3">
                 {ITEMS.map((it) => <Chip key={it.id} active={line.item === it.id} onClick={() => setItem(it.id)} className="min-w-[140px] py-5 text-xl">{it.label}</Chip>)}
               </div>
+              {line.item === "tee" && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Chip active={line.sleeve !== "long"} onClick={() => update({ sleeve: "short" })}>Short sleeve</Chip>
+                  <Chip active={line.sleeve === "long"} onClick={() => update({ sleeve: "long" })}>Long sleeve</Chip>
+                </div>
+              )}
             </Section>
 
             {line.item !== "hat" && (
