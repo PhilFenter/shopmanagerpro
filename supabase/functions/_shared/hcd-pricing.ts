@@ -113,35 +113,34 @@ export function screenFees(colors: number | null | undefined, locations: number,
 export type Tier = "good" | "better" | "best";
 type Pick = { style: string; name: string; cost: number; cost2xl: number; msrp: number; map?: number };
 
-// Phil's Good / Better / Best picks (Oct 2026). cost / cost2xl = HCD's own SanMar price
-// (myPrice, the highest color in S–XL / 2XL — white is a little less), checked 2026-10-13.
-// These were SanMar *list* prices before, which overpriced every house pick 15–60% on the
-// garment. Used only when product_catalog has no fresh "(X)S-(X)L" row (see garmentCost).
+// Phil's Good / Better / Best picks (Oct 2026). cost / cost2xl = SanMar LIST piece price
+// (SDL file, highest color, size L / 2XL). Phil 2026-10-14: quote from list price on purpose —
+// his own (lower) SanMar price is margin cushion. These win over product_catalog for these styles.
 export const PICKS: Record<string, Record<Tier, Pick>> = {
   tee: {
-    good: { style: "PC54", name: "Port & Co PC54 Core Cotton", cost: 2.44, cost2xl: 4.52, msrp: 6.0 },
-    better: { style: "NL6210", name: "Next Level 6210 CVC", cost: 4.09, cost2xl: 5.76, msrp: 8.38 },
-    best: { style: "BC3001", name: "Bella+Canvas 3001", cost: 4.03, cost2xl: 5.78, msrp: 9.6 },
+    good: { style: "PC54", name: "Port & Co PC54 Core Cotton", cost: 4.0, cost2xl: 5.96, msrp: 6.0 },
+    better: { style: "NL6210", name: "Next Level 6210 CVC", cost: 5.19, cost2xl: 6.76, msrp: 8.38 },
+    best: { style: "BC3001", name: "Bella+Canvas 3001", cost: 5.8, cost2xl: 7.07, msrp: 9.6 },
   },
   longsleeve: {
-    good: { style: "PC54LS", name: "Port & Co PC54LS Core Cotton Long Sleeve", cost: 5.04, cost2xl: 6.32, msrp: 9.98 },
-    better: { style: "NL6211", name: "Next Level 6211 CVC Long Sleeve", cost: 6.46, cost2xl: 7.51, msrp: 12.68 },
-    best: { style: "BC3501", name: "Bella+Canvas 3501 Long Sleeve", cost: 6.99, cost2xl: 9.58, msrp: 14.0 },
+    good: { style: "PC54LS", name: "Port & Co PC54LS Core Cotton Long Sleeve", cost: 6.89, cost2xl: 7.92, msrp: 9.98 },
+    better: { style: "NL6211", name: "Next Level 6211 CVC Long Sleeve", cost: 8.46, cost2xl: 9.51, msrp: 12.68 },
+    best: { style: "BC3501", name: "Bella+Canvas 3501 Long Sleeve", cost: 9.69, cost2xl: 11.58, msrp: 14.0 },
   },
   hoodie: {
-    good: { style: "DT6100", name: "District DT6100 V.I.T. Fleece Hoodie", cost: 10.99, cost2xl: 13.41, msrp: 24.82 },
-    better: { style: "DT6150", name: "District DT6150 V.I.T. Heavyweight Hoodie", cost: 14.99, cost2xl: 15.99, msrp: 29.98 },
-    best: { style: "DT7800", name: "District DT7800 Cloud Fleece Hoodie", cost: 16.55, cost2xl: 17.55, msrp: 33.1 },
+    good: { style: "DT6100", name: "District DT6100 V.I.T. Fleece Hoodie", cost: 14.41, cost2xl: 15.41, msrp: 24.82 },
+    better: { style: "DT6150", name: "District DT6150 V.I.T. Heavyweight Hoodie", cost: 18.99, cost2xl: 19.99, msrp: 29.98 },
+    best: { style: "DT7800", name: "District DT7800 Cloud Fleece Hoodie", cost: 20.55, cost2xl: 21.55, msrp: 33.1 },
   },
   crew: {
-    good: { style: "PC78", name: "Port & Co PC78 Core Fleece Crew", cost: 7.15, cost2xl: 10.33, msrp: 18.46 },
-    better: { style: "DT6104", name: "District DT6104 V.I.T. Fleece Crew", cost: 8.99, cost2xl: 12.37, msrp: 22.74 },
-    best: { style: "DT7804", name: "District DT7804 Cloud Fleece Crew", cost: 15.51, cost2xl: 16.51, msrp: 31.02 },
+    good: { style: "PC78", name: "Port & Co PC78 Core Fleece Crew", cost: 11.23, cost2xl: 12.33, msrp: 18.46 },
+    better: { style: "DT6104", name: "District DT6104 V.I.T. Fleece Crew", cost: 13.37, cost2xl: 14.37, msrp: 22.74 },
+    best: { style: "DT7804", name: "District DT7804 Cloud Fleece Crew", cost: 19.51, cost2xl: 20.51, msrp: 31.02 },
   },
   polo: {
-    good: { style: "ST550", name: "Sport-Tek ST550 Competitor", cost: 7.26, cost2xl: 8.26, msrp: 14.52 },
-    better: { style: "K500", name: "Port Authority K500 Silk Touch", cost: 10.04, cost2xl: 11.04, msrp: 20.08 },
-    best: { style: "ST650", name: "Sport-Tek ST650 Micropique", cost: 12.48, cost2xl: 13.48, msrp: 25.96 },
+    good: { style: "ST550", name: "Sport-Tek ST550 Competitor", cost: 9.26, cost2xl: 10.26, msrp: 14.52 },
+    better: { style: "K500", name: "Port Authority K500 Silk Touch", cost: 12.04, cost2xl: 13.04, msrp: 20.08 },
+    best: { style: "ST650", name: "Sport-Tek ST650 Micropique", cost: 14.48, cost2xl: 15.48, msrp: 25.96 },
   },
   hat: {
     good: { style: "C402", name: "Port Authority C402 Snapback Trucker", cost: 4.58, cost2xl: 4.58, msrp: 7.16 },
@@ -152,19 +151,19 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
 
 // Other styles we know the cost of when a customer asks for them by name (same basis).
 export const KNOWN_STYLES: Pick[] = [
-  { style: "5000", name: "Gildan 5000 Heavy Cotton", cost: 2.49, cost2xl: 5.01, msrp: 5.48 },
-  { style: "64000", name: "Gildan Softstyle 64000", cost: 3.05, cost2xl: 5.18, msrp: 7.16 },
-  { style: "5400", name: "Gildan 5400 Heavy Cotton Long Sleeve", cost: 5.28, cost2xl: 6.99, msrp: 9.98 },
-  { style: "PC55", name: "Port & Co PC55 Core Blend Tee", cost: 2.89, cost2xl: 4.92, msrp: 6.5 },
-  { style: "PC61", name: "Port & Co PC61 Essential Tee", cost: 3.02, cost2xl: 4.96, msrp: 6.5 },
-  { style: "PC78H", name: "Port & Co PC78H Core Fleece Hoodie", cost: 9.75, cost2xl: 15.57, msrp: 25.26 },
-  { style: "PC850", name: "Port & Co PC850 Fan Favorite Fleece Crew", cost: 8.97, cost2xl: 12.1, msrp: 20.0 },
-  { style: "PC850H", name: "Port & Co PC850H Fan Favorite Fleece Hoodie", cost: 9.99, cost2xl: 15.1, msrp: 24.0 },
-  { style: "DT1101", name: "District DT1101 Perfect Weight Fleece Hoodie", cost: 12.79, cost2xl: 14.44, msrp: 31.68 },
-  { style: "DT8100", name: "District DT8100 Re-Fleece Hoodie", cost: 13.44, cost2xl: 14.44, msrp: 26.88 },
-  { style: "PC90H", name: "Port & Co PC90H Essential Fleece", cost: 14.45, cost2xl: 17.97, msrp: 29.0 },
+  { style: "5000", name: "Gildan 5000 Heavy Cotton", cost: 4.11, cost2xl: 6.01, msrp: 5.48 },
+  { style: "64000", name: "Gildan Softstyle 64000", cost: 4.58, cost2xl: 6.18, msrp: 7.16 },
+  { style: "5400", name: "Gildan 5400 Heavy Cotton Long Sleeve", cost: 6.89, cost2xl: 7.99, msrp: 9.98 },
+  { style: "PC55", name: "Port & Co PC55 Core Blend Tee", cost: 4.37, cost2xl: 6.19, msrp: 6.5 },
+  { style: "PC61", name: "Port & Co PC61 Essential Tee", cost: 4.45, cost2xl: 6.21, msrp: 6.5 },
+  { style: "PC78H", name: "Port & Co PC78H Core Fleece Hoodie", cost: 14.63, cost2xl: 17.57, msrp: 25.26 },
+  { style: "PC850", name: "Port & Co PC850 Fan Favorite Fleece Crew", cost: 12.51, cost2xl: 14.1, msrp: 20.0 },
+  { style: "PC850H", name: "Port & Co PC850H Fan Favorite Fleece Hoodie", cost: 14.58, cost2xl: 17.1, msrp: 24.0 },
+  { style: "DT1101", name: "District DT1101 Perfect Weight Fleece Hoodie", cost: 19.84, cost2xl: 20.84, msrp: 31.68 },
+  { style: "DT8100", name: "District DT8100 Re-Fleece Hoodie", cost: 15.44, cost2xl: 16.44, msrp: 26.88 },
+  { style: "PC90H", name: "Port & Co PC90H Essential Fleece", cost: 18.5, cost2xl: 21.97, msrp: 29.0 },
   // Carhartt has a $55 MAP; priced at MAP + decoration.
-  { style: "CTK121", name: "Carhartt K121 Midweight", cost: 35.75, cost2xl: 35.75, msrp: 55, map: 55 },
+  { style: "CTK121", name: "Carhartt K121 Midweight", cost: 39.75, cost2xl: 39.75, msrp: 55, map: 55 },
 ];
 
 // Quantity not given: the draft gives a range from a basic pick to the premium one, priced at the 12 minimum.
@@ -216,9 +215,9 @@ function decoColumn(service: string, colors: number | null, jacket = false): num
   return 0;
 }
 
-// product_catalog rows are only trusted when they're HCD's own price and recent: the canonical
-// "(X)S-(X)L" / "2XL" rows written by the live SanMar lookup (myPrice). Older rows (Feb 2026
-// imports, comma size lists) mix in SanMar list prices, e.g. PC78H at $17.05 vs HCD's $9.75.
+// product_catalog rows for quoting: "LIST S-XL" / "LIST 2XL" rows written by the live SanMar / S&S
+// lookup (list piece price). The older "(X)S-(X)L" / "2XL" rows held HCD's own price and are ignored.
+export const LIST_ROWS = { reg: "LIST S-XL", big: "LIST 2XL" } as const;
 export const CATALOG_FRESH_DAYS = 60;
 export async function freshCatalogCost(db: any, style: string): Promise<{ cost: number | null; cost2xl: number | null }> {
   try {
@@ -227,13 +226,13 @@ export async function freshCatalogCost(db: any, style: string): Promise<{ cost: 
       .from("product_catalog")
       .select("piece_price, size_range, updated_at")
       .eq("style_number", style.toUpperCase())
-      .in("size_range", ["(X)S-(X)L", "2XL"])
+      .in("size_range", [LIST_ROWS.reg, LIST_ROWS.big])
       .gt("piece_price", 0)
       .gte("updated_at", since)
       .limit(10);
     const rows = (data || []) as { piece_price: number; size_range: string; updated_at: string }[];
     const newest = (sz: string) => rows.filter((r) => r.size_range === sz).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))[0];
-    const reg = newest("(X)S-(X)L"), big = newest("2XL");
+    const reg = newest(LIST_ROWS.reg), big = newest(LIST_ROWS.big);
     return { cost: reg ? Number(reg.piece_price) : null, cost2xl: big ? Number(big.piece_price) : null };
   } catch (_) {
     return { cost: null, cost2xl: null };
@@ -241,9 +240,9 @@ export async function freshCatalogCost(db: any, style: string): Promise<{ cost: 
 }
 
 export async function garmentCost(db: any, pick: Pick, qty = 12): Promise<number> {
+  if (pick.cost > 0) return pick.cost; // SanMar list price table above
   const fresh = await freshCatalogCost(db, pick.style);
   if (fresh.cost) return fresh.cost;
-  if (pick.cost > 0) return pick.cost; // HCD's SanMar price table above
   return richardsonCost(pick.style, qty) ?? 0; // then Richardson wholesale
 }
 

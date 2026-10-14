@@ -12,6 +12,7 @@ import {
   suggestRequested,
   suggestFromCost,
   freshCatalogCost,
+  LIST_ROWS,
   matrixRow,
   hatPrice,
   hatNextTier,
@@ -165,7 +166,7 @@ function apparelFees(line: CounterLine, qty: number): Fee[] {
 }
 
 /** SanMar catalog details for a style the customer picked: name + S–XL and 2XL piece cost. */
-// Only HCD's own, recent price counts (see freshCatalogCost); otherwise ask SanMar live.
+// Only recent list-price rows count (see freshCatalogCost); otherwise ask SanMar live.
 async function catalogStyle(db: any, style: string) {
   const fresh = await freshCatalogCost(db, style);
   if (!fresh.cost) return null;
@@ -189,7 +190,7 @@ const top = (xs: number[]) => (xs.length ? Math.max(...xs) : null);
 
 /**
  * Styles that aren't in product_catalog (or are listed at $0): ask SanMar for
- * HCD's own wholesale cost (myPrice), then S&S. Cached per style for the session
+ * SanMar LIST piece price (Phil quotes from list on purpose), then S&S list. Cached per style for the session
  * and written back to product_catalog so the next lookup — and email/website
  * quotes — find it locally.
  */
@@ -214,7 +215,7 @@ async function lookupLive(db: any, style: string): Promise<LiveStyle | null> {
       db.functions.invoke("sanmar-api", { body: { action: "getProductInfo", styleNumber: style } }).catch(() => null),
     ]);
     const rows = (pr?.data?.success && pr.data.pricing) || [];
-    const price = (r: any) => Number(r.myPrice) || Number(r.salePrice) || Number(r.piecePrice) || 0;
+    const price = (r: any) => Number(r.piecePrice) || 0;
     const cost = top(rows.filter((r: any) => isBase(String(r.size || ""))).map(price).filter((n: number) => n > 0));
     if (cost) {
       const first = info?.data?.items?.[0];
@@ -227,7 +228,7 @@ async function lookupLive(db: any, style: string): Promise<LiveStyle | null> {
   try {
     const ss = await db.functions.invoke("ss-activewear-api", { body: { action: "getProducts", styleNumber: style } });
     const products = (ss?.data?.success && ss.data.products) || [];
-    const price = (p: any) => parseFloat(p.customerPrice) || parseFloat(p.piecePrice) || 0;
+    const price = (p: any) => parseFloat(p.piecePrice) || parseFloat(p.customerPrice) || 0;
     const sizeOf = (p: any) => String(p.sizeName || p.size || "");
     const cost = top(products.filter((p: any) => isBase(sizeOf(p))).map(price).filter((n: number) => n > 0));
     if (cost) {
@@ -246,8 +247,8 @@ async function lookupLive(db: any, style: string): Promise<LiveStyle | null> {
 /** Best effort (admins only by RLS): fill or fix the S–XL and 2XL rows for this style. */
 async function saveToCatalog(db: any, style: string, live: LiveStyle, brand?: string, title?: string) {
   try {
-    const rows: [string, number][] = [["(X)S-(X)L", live.cost]];
-    if (live.cost2xl) rows.push(["2XL", live.cost2xl]);
+    const rows: [string, number][] = [[LIST_ROWS.reg, live.cost]];
+    if (live.cost2xl) rows.push([LIST_ROWS.big, live.cost2xl]);
     for (const [size_range, piece_price] of rows) {
       const { data: existing } = await db.from("product_catalog").select("id")
         .eq("style_number", style).eq("size_range", size_range).eq("supplier", live.supplier).limit(1);
