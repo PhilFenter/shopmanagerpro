@@ -84,8 +84,9 @@ Rules of thumb:
 - Patches are for hats only. HCD does not put patches on apparel — for shirts/hoodies/jackets suggest embroidery, screen print or DTF.
 HOUSE PICKS (what we recommend; prices for these are added to replies automatically):
 - Tees: Good = Port & Co PC54 (low-cost cotton; Gildan 5000 is the other budget option), Better = Next Level 6210
-  (soft blend, holds its shape, our go-to for crews), Best = Bella+Canvas 3001 (retail-soft, the one people keep wearing).
-- Long sleeve tees: Good = Port & Co PC54LS, Better = Next Level 6211, Best = Bella+Canvas 3501.
+  (soft blend, holds its shape, our go-to for crews), Best = Bella+Canvas 3413 Triblend (super soft triblend; Next Level 6010
+  Tri-Blend is the other premium option). The Bella+Canvas 3001 is NOT premium.
+- Long sleeve tees: Good = Port & Co PC54LS, Better = Next Level 6211, Best = Bella+Canvas 3513 Triblend.
 - Hoodies: Good = District DT6100 V.I.T. (Port & Co PC78H if they want the basic), Better = District DT6150 V.I.T. Heavyweight, Best = District DT7800 Cloud Fleece
   (the nicer District hoodies). Carhartt pick: K121 Midweight. Crewnecks: PC78, District DT6104, District DT7804.
 - Polos: Good = Sport-Tek ST550, Better = Port Authority K500 Silk Touch, Best = Sport-Tek ST650.
@@ -93,7 +94,7 @@ HOUSE PICKS (what we recommend; prices for these are added to replies automatica
 RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): answer like Phil would. Give ONE clear pick with
   a short reason and ONE alternative. Never punt it back to them ("whatever you like").
 - Garment: work crews and businesses -> Next Level 6210 or a District hoodie; giveaways/events on a budget -> PC54 or
-  Gildan 5000; merch to sell or "they want people to actually wear it" -> Bella+Canvas 3001.
+  Gildan 5000; merch to sell or "they want people to actually wear it" -> Bella+Canvas 3413 Triblend.
 - Placement: polos -> left chest embroidery only; businesses and crews -> left chest + full back on tees/hoodies; events, teams and fundraisers -> full front; hats -> front patch.
 - Ink color: one color keeps the cost down and usually looks the cleanest. Light ink (white, cream, light gray) on dark
   garments, dark ink on light garments; match the logo's main color when the logo is simple. Avoid low-contrast combos
@@ -279,7 +280,7 @@ async function runAI(userContent: string): Promise<any> {
 
 // ── Apparel prices for the reply draft ───────────────────────────────────────
 const TIER_BLURB: Record<string, Record<Tier, string>> = {
-  tee: { good: "basic cotton, best price", better: "softer blend, holds its shape", best: "retail-soft, the one people keep wearing" },
+  tee: { good: "basic cotton, best price", better: "softer blend, holds its shape", best: "super soft, premium" },
   hoodie: { good: "soft everyday hoodie", better: "heavier, nicer feel", best: "super soft, premium" },
   crew: { good: "everyday crewneck", better: "softer, nicer feel", best: "super soft, premium" },
   polo: { good: "performance basic", better: "classic soft polo", best: "premium performance" },
