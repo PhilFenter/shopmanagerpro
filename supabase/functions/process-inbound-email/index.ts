@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, RANGE_ANCHORS, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,6 +68,8 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
+- Carhartt Rain Defender (e.g. CT100615) and other DWR / water-repellent coated garments: embroidery, left chest only (the coating).
+  The Carhartt K121 Midweight hoodie works for embroidery, DTF or screen print.
 - Polos get embroidery, left chest only. No DTF/full-color transfers on polos, and nothing on the back of a polo.
   Never recommend a t-shirt style (like the Next Level 6210) for polos.
 - CUSTOMER-SUPPLIED GARMENTS ("can I bring my own shirts/jackets in?"): HCD policy — we generally don't decorate garments
@@ -85,7 +87,7 @@ HOUSE PICKS (what we recommend; prices for these are added to replies automatica
   (soft blend, holds its shape, our go-to for crews), Best = Bella+Canvas 3001 (retail-soft, the one people keep wearing).
 - Long sleeve tees: Good = Port & Co PC54LS, Better = Next Level 6211, Best = Bella+Canvas 3501.
 - Hoodies: Good = District DT6100 V.I.T. (Port & Co PC78H if they want the basic), Better = District DT6150 V.I.T. Heavyweight, Best = District DT7800 Cloud Fleece
-  (the nicer District hoodies). Crewnecks: PC78, District DT6104, District DT7804.
+  (the nicer District hoodies). Carhartt pick: K121 Midweight. Crewnecks: PC78, District DT6104, District DT7804.
 - Polos: Good = Sport-Tek ST550, Better = Port Authority K500 Silk Touch, Best = Sport-Tek ST650.
 - Hats: Richardson 112 trucker is the go-to.
 RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): answer like Phil would. Give ONE clear pick with
@@ -97,6 +99,8 @@ RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): ans
   garments, dark ink on light garments; match the logo's main color when the logo is simple. Avoid low-contrast combos
   (navy on black, gray on heather gray, yellow on white). Thin lines and small text print better in a solid, high-contrast color.
 - Most customers say "screen print" but don't know methods. Don't make them choose a method — we recommend it.
+  On a first reply the print method is irrelevant: say "left chest print" and "back logo print", not screen print vs DTF.
+  If they give options ("screen print or embroidery", "patch or embroidery"), don't ask them to pick; it doesn't change the first price.
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
 - Apparel: what items, rough quantity, which decoration locations (e.g. left chest + back), artwork (or that it's coming), and roughly Good/Better/Best or a garment they like. Sizes and colors are needed before ordering, not before a first price.
@@ -157,7 +161,11 @@ Guidance:
       we'll put a mockup together."
     - One upsell is welcome when it fits ("we can do these as hoodies too", "a full back print really stands out").
     - If they asked what we recommend, answer it directly using HOUSE PICKS / RECOMMENDING.
-    - If quantity is unknown, ask for a rough quantity and mention what you'd recommend so they have something to react to.
+    - If quantity is unknown, prices are still added (hats at the 12 minimum; apparel as a Good-to-Carhartt range at the 12
+      minimum). Don't write minimums, prices or garment picks yourself. Ask for a rough quantity after the prices and offer
+      to price Good/Better/Best once they know what they like.
+    - No filler: never write "pricing depends on quantities and decoration" or restate what the prices already say.
+    - Hat sizes: WRONG "sizes and colors for the hoodies and hats". RIGHT "hoodie sizes and colors, and hat colors".
   ARTWORK: if the input says ARTWORK CHECK: low-res, ask naturally for the original logo file ("the original from your
     designer, a PDF or AI file, or a bigger PNG"). If they don't have one, that's no problem: we can convert it to
     print-ready art, usually a $${ART_CLEANUP_FEE} art fee, done once the order is approved. We send a quick preview
@@ -176,6 +184,7 @@ Guidance:
   Do not write prices yourself; hat prices and the shop footer are added automatically.
   EXAMPLES OF PHIL'S REAL EMAILS (match the tone, don't copy them):
     "Hi Paislie,\\n\\nWe don't love embroidering garments people bring in. There are a few reasons and first is every time someone brings in a unique piece it's an experiment for us and we are hoping for the best. On items that we source we have typically run them before and if something happens, we can get another. Some things work better than others.\\n\\nThe good news is we carry lots of great brands. Nike, Ogio, North Face, Eddie Bauer and other options. So folks can get things at a variety of budgets.\\n\\nWe do make exceptions if they are items we can't get or it's a huge order. We did 700 jackets for Clearwater Paper last year. They provided one for testing and understood if something happened during the process we would not replace the item.\\n\\nI hope that makes sense. Let me know if you would like a polo shirt guide to choose some items from.\\n\\nThank you\\n\\nPhil"
+    "Hi Kyle,\\n\\nThanks for reaching out. That's a clean new logo and we can help you out.\\n\\n(prices are added here automatically)\\n\\nWe'll test your new logo on a hat first. We can price the hoodies with a good, better, best option, just let me know what you like.\\n\\nLet me know what you're thinking and we can get a quote going.\\n\\nThank you\\n\\nPhil"
     "Hi Ian,\\n\\nOn the hats for embroidery, we have $45 digitizing fee to convert the logo for embroidery. That's a onetime fee. We can then change thread color and all that with our software. Half black and half white are no problem.\\n\\nOn the shirts what are we doing for print locations?\\n\\nThank you\\n\\nPhil"
     "Hi Kelly,\\n\\nWe will get a sample made of that on Monday. The hat we used was a Richardson 632. It comes in several colors. If you go to Richardsonsports.com and search 632 you can see the colors.\\n\\nI'll get a sample made and send a picture Monday afternoon.\\n\\nThank you\\n\\nPhil"
     "Hi Tina,\\n\\nAre you familiar with DTF or Direct to film transfers? I am thinking for your order due to time, and the fact that you have left chest, full back and both sleeves we will use that method instead of screen printing. It's a lot of screens and setups for that size order.\\n\\nWe have some Black Next Level 6210 shirts in stock that we could use for this unless you had another shirt you wanted to use.\\n\\nThank you\\n\\nPhil"
@@ -289,8 +298,18 @@ function decoPhrase(p: { method: string; colors?: number | null; where?: string 
 export function apparelPriceParas(pricing: any[], isFollowUp: boolean): string[] {
   const out: string[] = [];
   for (const p of pricing) {
-    if (p.hat || p.custom || !p.qty || !(p.suggestions?.length || p.requested)) continue;
     const word = ITEM_WORD[p.cat || ""] || "pieces";
+    if (p.range) {
+      const places = String(p.where || "").split("+").map((x: string) => x.trim()).filter(Boolean)
+        .map((x: string) => p.method === "embroidery" ? `a ${x.toLowerCase()} logo` : /back/i.test(x) ? "a back logo print" : `a ${x.toLowerCase()} print`);
+      const w = places.length ? ` With ${places.join(" and ")}, they` : " They";
+      const lo = p.range.lo, hi = p.range.hi;
+      let t = `For the ${word}, the minimum is ${p.qty}.${w} run about $${lo.unit_price.toFixed(2)} each on the ${shortName(lo.name)} up to about $${hi.unit_price.toFixed(2)} in a ${shortName(hi.name)}.`;
+      if (p.digitizing) t += ` Embroidery has a one-time $${DIGITIZING_FEE} digitizing fee.`;
+      out.push(t);
+      continue;
+    }
+    if (p.hat || p.custom || !p.qty || !(p.suggestions?.length || p.requested)) continue;
     const head = `For ${p.qty} ${word} with ${decoPhrase(p)}`;
     const lines: string[] = [];
     if (p.requested) {
@@ -457,6 +476,16 @@ Deno.serve(async (req) => {
     }
 
     const items: any[] = Array.isArray(ai.items) ? ai.items.slice(0, 10) : [];
+    // "Screen print or embroidery" / "patch or embroidery" comes back as two items: keep one, decoration open.
+    for (let i = items.length - 1; i > 0; i--) {
+      const a = items[i];
+      const key = (x: any) => `${categoryOf(x.item || x.garment)}|${String(x.garment || "").toLowerCase().trim()}|${Number(x.quantity) || 0}|${String(x.locations || "").toLowerCase().replace(/\s+/g, " ")}|${x.customer_supplied === true}`;
+      const j = items.findIndex((b, k) => k < i && key(b) === key(a));
+      if (j >= 0) {
+        if (String(items[j].decoration) !== String(a.decoration)) items[j].decoration = "unknown";
+        items.splice(i, 1);
+      }
+    }
     const totalQty: number | null = Number(ai.total_quantity) > 0 ? Math.round(Number(ai.total_quantity)) : null;
     const missing: string[] = Array.isArray(ai.missing) ? ai.missing.map(String).slice(0, 8) : [];
     const neededLater: string[] = (Array.isArray(ai.needed_later) ? ai.needed_later.map(String) : [])
@@ -488,7 +517,8 @@ Deno.serve(async (req) => {
     const tierHint = (["good", "better", "best"].includes(String(ai.tier_hint)) ? ai.tier_hint : "better") as Tier;
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
       next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean;
-      cat?: string | null; decoUnknown?: boolean; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[]; digitizing?: boolean };
+      cat?: string | null; decoUnknown?: boolean; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[]; digitizing?: boolean;
+      range?: { lo: Suggestion; hi: Suggestion } | null; qtyUnknown?: boolean };
     const pricing: Priced[] = [];
     const flags: string[] = [];
     for (const it of items) {
@@ -513,8 +543,34 @@ Deno.serve(async (req) => {
           it.locations = loc.split(/\+|,|&|\band\b/i).map((x) => x.trim()).filter((x) => x && !/\bback\b/i.test(x)).join(" + ") || "left chest";
         }
       }
+      // Carhartt Rain Defender / DWR-coated: embroidery, left chest only.
+      if (cat !== "hat" && /rain ?defender|ct100615|\bdwr\b|water[- ]?repellent/i.test(`${it.item || ""} ${it.garment || ""} ${it.notes || ""}`)) {
+        const asked = String(it.decoration || "unknown");
+        const loc = String(it.locations || "");
+        if ((asked !== "unknown" && asked !== "embroidery") || (/\bback\b/i.test(loc) && it.locations_assumed !== true)) {
+          flags.push(`Item ${items.indexOf(it) + 1}: Rain Defender / DWR coating — embroidery left chest only. Priced that way; tell the customer.`);
+        }
+        method = "embroidery"; it.decoration = "embroidery"; it.locations = "left chest";
+      }
       const colors = Number(it.print_colors) > 0 ? Math.round(Number(it.print_colors)) : null;
       const n = items.indexOf(it) + 1;
+      // Apparel with no quantity: price at the 12 minimum as a range (Good → Carhartt), print method left open.
+      if (cat && cat !== "hat" && qty === 0 && RANGE_ANCHORS[cat]) {
+        const m = method === "embroidery" || cat === "polo" ? "embroidery" : "dtf";
+        const pl = it.locations ? String(it.locations).split(/\+|,|&|\band\b/i).map((x) => x.trim()).filter((x) => x && !(m === "embroidery" && /\bback\b/i.test(x))) : ["left chest", "full back"];
+        const o = { colors, locations: Math.max(pl.length, 1), placements: pl };
+        try {
+          const [lo, hi] = await Promise.all(RANGE_ANCHORS[cat].map((st) => suggestRequested(db, st, m, SMALL_ORDER_UNDER, o)));
+          if (lo && hi) {
+            pricing.push({ suggestions: [], requested: null, qty: SMALL_ORDER_UNDER, method: m, cat, qtyUnknown: true, range: { lo, hi },
+              where: pl.join(" + "), digitizing: m === "embroidery",
+              assumptions: `quantity not given — priced at the ${SMALL_ORDER_UNDER} minimum, ${pl.join(" + ")}, range ${lo.style} $${lo.unit_price.toFixed(2)} to ${hi.style} $${hi.unit_price.toFixed(2)}${m === "embroidery" ? ", +$45 digitizing" : " (DTF pricing; method open)"}` });
+            continue;
+          }
+        } catch (e) {
+          console.error("range pricing failed:", e);
+        }
+      }
       const fees: string[] = [];
       if (cat !== "hat" && qty > 0 && qty < CUSTOM_QUOTE_QTY) {
         if (method === "screen_print" && qty < screenPrintMin(colors)) {
@@ -549,7 +605,7 @@ Deno.serve(async (req) => {
         const hp = hatPrice(hs, hq, { locations });
         const nq = hatNextTier(hq);
         pricing.push({
-          suggestions: [], requested: hp, qty: hq, method, hat: true, locations, decoUnknown: String(it.decoration || "unknown") === "unknown",
+          suggestions: [], requested: hp, qty: hq, method, hat: true, locations, qtyUnknown: qty === 0, decoUnknown: String(it.decoration || "unknown") === "unknown",
           next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
           assumptions: [
             "hat price list, shipping included",
@@ -708,6 +764,12 @@ Deno.serve(async (req) => {
         ].filter(Boolean).join(" · ")}`;
       }),
       ...pricing.flatMap((p, i) => p.custom ? ["", `Item ${i + 1}: ${p.qty} pcs — CUSTOM QUOTE (${CUSTOM_QUOTE_QTY}+ pieces). No auto price; price this one by hand.`] : []),
+      ...pricing.flatMap((p, i) => p.range ? [
+        "",
+        `Suggested price, item ${i + 1} (${p.assumptions}):`,
+        `  LOW: ${p.range.lo.name} — $${p.range.lo.unit_price.toFixed(2)} ea`,
+        `  HIGH: ${p.range.hi.name} — $${p.range.hi.unit_price.toFixed(2)} ea`,
+      ] : []),
       ...pricing.flatMap((p, i) => p.suggestions.length || p.requested ? [
         "",
         `Suggested price, item ${i + 1} (${p.qty} pcs, ${p.method.replace(/_/g, " ")}${p.assumptions ? `, ${p.assumptions}` : ""}):`,
@@ -717,10 +779,10 @@ Deno.serve(async (req) => {
         ...(p.next?.pick ? [`  NEXT BREAK: ${p.next.qty} pcs of ${p.next.pick.name} — $${p.next.pick.unit_price.toFixed(2)} ea`] : []),
         ...(p.hat ? [`  UPSELL: side flag +$${HAT_SIDE_FLAG.toFixed(2)} per hat`] : []),
       ] : []),
-      pricing.some((p) => !p.hat && (p.suggestions.length || p.requested)) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
+      pricing.some((p) => !p.hat && (p.suggestions.length || p.requested || p.range)) ? "  (SanMar list cost × Printavo markup + decoration. Check before sending.)" : "",
       pricing.some((p) => p.hat && p.requested) ? "  (Hat price list. Check before sending.)" : "",
       ...(flags.length ? ["", ...flags.map((f) => `⚠ ${f}`)] : []),
-      willDraft ? (pricing.some((p) => p.requested || p.suggestions.length)
+      willDraft ? (pricing.some((p) => p.requested || p.suggestions.length || p.range)
         ? "\nA reply draft is saved in Gmail with prices included — check them, then send."
         : "\nA reply draft is saved in Gmail (no prices in it) — check it, then send.") : "",
     ].filter((l) => l !== "");
@@ -799,14 +861,15 @@ Deno.serve(async (req) => {
     const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
       const r = p.requested!;
       const nm = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
-      let t = `For ${Math.max(p.qty, 12)} ${nm} with your logo, it's $${r.unit_price.toFixed(2)} each.`;
-      if (p.next?.pick) t += ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.`;
-      return t;
-    });
+      const nx = p.next?.pick ? ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.` : "";
+      if (p.qtyUnknown) return `The minimum on hats is 12. ${r.name.includes("not on hat list") ? "They" : `${r.name} hats`} run $${r.unit_price.toFixed(2)} each with your logo.${nx}`;
+      return `For ${Math.max(p.qty, 12)} ${nm} with your logo, it's $${r.unit_price.toFixed(2)} each.${nx}`;
+    }).filter((t, i, a) => a.indexOf(t) === i);
     const paras: string[] = [];
     if (hatLines.length) {
-      const emb = pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
-      const embMaybe = emb && pricing.every((p) => !p.hat || p.decoUnknown);
+      const open = pricing.some((p) => p.hat && p.decoUnknown && p.qty < 50);
+      const emb = open || pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
+      const embMaybe = open;
       // Follow-ups only restate the price; the sample/flag/turnaround details were in the first reply.
       paras.push(isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
@@ -819,7 +882,11 @@ Deno.serve(async (req) => {
     paras.push(...apparelPriceParas(pricing, isFollowUp));
     const priceable = ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification);
     if (paras.length && priceable) {
-      const para = paras.join("\n\n");
+      let para = paras.join("\n\n");
+      // The AI already explained the minimum (e.g. why hats are 12): don't say it twice.
+      if (replyDraft && /\bminimum\b/i.test(replyDraft)) {
+        para = para.replace(/The minimum on hats is 12\. /g, "").replace(/(For the \w+), the minimum is \d+\. With /g, "$1, with ").replace(/(For the \w+), the minimum is \d+\. They /g, "$1, they ");
+      }
       if (replyDraft) {
         // Put prices BEFORE the sign-off, whatever sign-off the AI used.
         const signOff = replyDraft.match(/\n\s*(?:thank you|thanks|best|regards|cheers)[ ,.!]*(?:so much)?[ ,.!]*\n+\s*phil\s*$/i)
