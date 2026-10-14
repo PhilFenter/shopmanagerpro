@@ -255,7 +255,7 @@ describe("garment cost = SanMar list price (Phil 2026-10-14)", () => {
 
   it("long sleeve tees use the long-sleeve picks", async () => {
     const p = await priceLine(db, line({ qty: 48, method: "screen_print", colors: 1, placements: ["Front"], sleeve: "long" }));
-    expect(p.tiers.map((t) => t.style)).toEqual(["PC54LS", "NL6211", "BC3501"]);
+    expect(p.tiers.map((t) => t.style)).toEqual(["PC54LS", "NL6211", "BC3513"]);
     expect(p.tiers[1].unit_price).toBe(17.23); // 8.46 × 1.80 + 2.00
   });
 });

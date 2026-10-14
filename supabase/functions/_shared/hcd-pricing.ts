@@ -120,12 +120,12 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
   tee: {
     good: { style: "PC54", name: "Port & Co PC54 Core Cotton", cost: 4.0, cost2xl: 5.96, msrp: 6.0 },
     better: { style: "NL6210", name: "Next Level 6210 CVC", cost: 5.19, cost2xl: 6.76, msrp: 8.38 },
-    best: { style: "BC3001", name: "Bella+Canvas 3001", cost: 5.8, cost2xl: 7.07, msrp: 9.6 },
+    best: { style: "BC3413", name: "Bella+Canvas 3413 Triblend", cost: 8.94, cost2xl: 10.21, msrp: 13.88 }, // Phil 2026-10-14: triblend is premium, not the 3001
   },
   longsleeve: {
     good: { style: "PC54LS", name: "Port & Co PC54LS Core Cotton Long Sleeve", cost: 6.89, cost2xl: 7.92, msrp: 9.98 },
     better: { style: "NL6211", name: "Next Level 6211 CVC Long Sleeve", cost: 8.46, cost2xl: 9.51, msrp: 12.68 },
-    best: { style: "BC3501", name: "Bella+Canvas 3501 Long Sleeve", cost: 9.69, cost2xl: 11.58, msrp: 14.0 },
+    best: { style: "BC3513", name: "Bella+Canvas 3513 Triblend Long Sleeve", cost: 11.62, cost2xl: 13.51, msrp: 19.24 },
   },
   hoodie: {
     good: { style: "DT6100", name: "District DT6100 V.I.T. Fleece Hoodie", cost: 14.41, cost2xl: 15.41, msrp: 24.82 },
@@ -151,6 +151,9 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
 
 // Other styles we know the cost of when a customer asks for them by name (same basis).
 export const KNOWN_STYLES: Pick[] = [
+  { style: "BC3001", name: "Bella+Canvas 3001", cost: 5.8, cost2xl: 7.07, msrp: 9.6 },
+  { style: "BC3501", name: "Bella+Canvas 3501 Long Sleeve", cost: 9.69, cost2xl: 11.58, msrp: 15.38 },
+  { style: "NL6010", name: "Next Level 6010 Tri-Blend", cost: 7.76, cost2xl: 9.34, msrp: 11.52 },
   { style: "5000", name: "Gildan 5000 Heavy Cotton", cost: 4.11, cost2xl: 6.01, msrp: 5.48 },
   { style: "64000", name: "Gildan Softstyle 64000", cost: 4.58, cost2xl: 6.18, msrp: 7.16 },
   { style: "5400", name: "Gildan 5400 Heavy Cotton Long Sleeve", cost: 6.89, cost2xl: 7.99, msrp: 9.98 },
@@ -169,8 +172,8 @@ export const KNOWN_STYLES: Pick[] = [
 // Quantity not given: the draft gives a range from a basic pick to the premium one, priced at the 12 minimum.
 export const RANGE_ANCHORS: Record<string, [string, string]> = {
   hoodie: ["PC78H", "CTK121"],
-  tee: ["PC54", "BC3001"],
-  longsleeve: ["PC54LS", "BC3501"],
+  tee: ["PC54", "BC3413"],
+  longsleeve: ["PC54LS", "BC3513"],
   crew: ["PC78", "DT7804"],
   polo: ["ST550", "ST650"],
 };
@@ -334,8 +337,8 @@ export function assumptionsFor(service: string, colors: number | null, placement
 /** Pull a style number out of what the customer wrote, e.g. "Richardson 112PT hats" → "112PT". */
 export function styleFromText(text: string | null | undefined): string | null {
   const m = String(text || "").toUpperCase().match(/\b([A-Z]{0,4}\d{2,6}[A-Z]{0,4})\b/g);
-  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "K121": "CTK121", "G500": "5000" };
-  const hit = m ? m.find((s) => !/^\d{4}$/.test(s) || ["5000", "8000", "2000", "1717", "3001", "6210", "3600"].includes(s)) ?? null : null;
+  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "3413": "BC3413", "3513": "BC3513", "3501": "BC3501", "6010": "NL6010", "K121": "CTK121", "G500": "5000" };
+  const hit = m ? m.find((s) => !/^\d{4}$/.test(s) || ["5000", "8000", "2000", "1717", "3001", "6210", "3600", "3413", "3513", "3501", "6010"].includes(s)) ?? null : null;
   return hit ? (ALIAS[hit] ?? hit) : null;
 }
 
