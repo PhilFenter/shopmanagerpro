@@ -167,6 +167,15 @@ export const KNOWN_STYLES: Pick[] = [
   { style: "CTK121", name: "Carhartt K121 Midweight", cost: 35.75, cost2xl: 35.75, msrp: 55, map: 55 },
 ];
 
+// Quantity not given: the draft gives a range from a basic pick to the premium one, priced at the 12 minimum.
+export const RANGE_ANCHORS: Record<string, [string, string]> = {
+  hoodie: ["PC78H", "CTK121"],
+  tee: ["PC54", "BC3001"],
+  longsleeve: ["PC54LS", "BC3501"],
+  crew: ["PC78", "DT7804"],
+  polo: ["ST550", "ST650"],
+};
+
 export function categoryOf(item: string | null | undefined): string | null {
   const s = String(item || "").toLowerCase();
   if (/hat|cap|beanie/.test(s)) return "hat";
