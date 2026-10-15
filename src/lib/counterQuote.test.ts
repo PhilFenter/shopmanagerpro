@@ -43,11 +43,11 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
     expect(p.suggestDtf).toBe(true);
   });
 
-  it("8 value hoodies, DTF 11x14 = $40.61 + $30 small order", async () => {
+  it("8 value hoodies, DTF 11x14 = $42.21 + $30 small order", async () => {
     const l = line({ item: "hoodie", qty: 8, method: "dtf", dtfFront: 2, placements: ["Front"], tier: "good" });
     const p = await priceLine(db, l);
-    expect(chosen(l, p)!.unit_price).toBe(40.61); // 14.41 × 2.00 + 11.79
-    expect(lineTotal(l, p)).toBeCloseTo(354.88, 2);
+    expect(chosen(l, p)!.unit_price).toBe(42.21); // 14.41 × 2.00 + 11.79 + 1.60 press
+    expect(lineTotal(l, p)).toBeCloseTo(367.68, 2);
   });
 
   it("12 mid-grade polos, left-chest embroidery = $39.08 + $45 digitizing", async () => {
@@ -81,24 +81,33 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
 
   it("DTF left chest is priced at 4x4", async () => {
     const l = line({ qty: 12, method: "dtf", placements: ["Left chest"], tier: "better" });
-    expect(chosen(l, await priceLine(db, l))!.unit_price).toBe(12.39); // 10.38 + 2.01
+    expect(chosen(l, await priceLine(db, l))!.unit_price).toBe(13.99); // 10.38 + 2.01 + 1.60 press
   });
 
   it("DTF left chest + 11x14 back", async () => {
     const l = line({ qty: 24, method: "dtf", placements: ["Left chest", "Back"], dtfBack: 2, tier: "better" });
     const p = await priceLine(db, l);
-    expect(chosen(l, p)!.unit_price).toBe(19.49); // 9.86 + 2.01 + 7.62
+    expect(chosen(l, p)!.unit_price).toBe(22.69); // 9.86 + (2.01 + 1.60) + (7.62 + 1.60)
     expect(describeLine(l, chosen(l, p))).toContain("Left chest 4 x 4 + Back 11 x 14");
+  });
+
+  it("DTF 12x22 back: Supacolor 100+ $9.52 + $1.60 press = $11.12 at 144+ (Phil 2026-10-15)", async () => {
+    const l = line({ qty: 200, method: "dtf", placements: ["Back"], dtfBack: 3, tier: "better" });
+    const p = await priceLine(db, l);
+    expect(chosen(l, p)!.decoration_cost).toBe(11.12);
+    expect(describeLine(l, chosen(l, p))).toContain("Back 12 x 22");
+    const s = line({ qty: 6, method: "dtf", placements: ["Front"], dtfFront: 3, tier: "better" });
+    expect(chosen(s, await priceLine(db, s))!.decoration_cost).toBe(17.37); // 15.77 + 1.60
   });
 
   it("DTF 11x5 front + 11x5 back", async () => {
     const l = line({ qty: 12, method: "dtf", placements: ["Front", "Back"], dtfFront: 1, dtfBack: 1, tier: "better" });
-    expect(chosen(l, await priceLine(db, l))!.unit_price).toBe(19.04); // 10.38 + 4.33 + 4.33
+    expect(chosen(l, await priceLine(db, l))!.unit_price).toBe(22.24); // 10.38 + (4.33 + 1.60) × 2
   });
 
   it("intake with no locations keeps the old default (11x5 + 4x4 extras)", async () => {
     const t = await suggestTiers(db, "tee", "dtf", 12, { locations: 2 });
-    expect(t.find((x) => x.tier === "better")!.unit_price).toBe(16.72); // 10.38 + 4.33 + 2.01
+    expect(t.find((x) => x.tier === "better")!.unit_price).toBe(19.92); // 10.38 + (4.33 + 1.60) + (2.01 + 1.60)
   });
 
   it("email/website: placements map chest/sleeve → 4x4, back → 11x14, front → 11x5", async () => {
@@ -106,7 +115,7 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
     expect(["Full Back", "back", "Upper back"].map(dtfColForPlacement)).toEqual([2, 2, 2]);
     expect(["Front", "Full Front", "center front", "back of neck"].map(dtfColForPlacement)).toEqual([1, 1, 1, 0]);
     const t = await suggestTiers(db, "tee", "dtf", 12, { locations: 2, placements: ["left chest", "full back"] });
-    expect(t.find((x) => x.tier === "better")!.unit_price).toBe(20.01); // 10.38 + 2.01 + 7.62
+    expect(t.find((x) => x.tier === "better")!.unit_price).toBe(23.21); // 10.38 + (2.01 + 1.60) + (7.62 + 1.60)
     expect(assumptionsFor("dtf", null, ["left chest", "full back"])).toContain("full back 11x14");
   });
 
@@ -236,8 +245,8 @@ describe("garment cost = SanMar list price (Phil 2026-10-14)", () => {
     const b = chosen(mk("PC850"), await priceLine(db, mk("PC850")))!;
     expect(a.garment_cost).toBe(14.63);
     expect(b.garment_cost).toBe(12.51);
-    expect(a.unit_price).toBe(38.89); // 14.63 × 2.00 + 2.01 + 7.62
-    expect(b.unit_price).toBe(34.65); // 12.51 × 2.00 + 2.01 + 7.62
+    expect(a.unit_price).toBe(42.09); // 14.63 × 2.00 + (2.01 + 1.60) + (7.62 + 1.60)
+    expect(b.unit_price).toBe(37.85); // 12.51 × 2.00 + (2.01 + 1.60) + (7.62 + 1.60)
   });
 
   it("old catalog rows (own price / stale) don't override the list table", async () => {
