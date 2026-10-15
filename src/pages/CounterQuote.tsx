@@ -559,9 +559,9 @@ export default function CounterQuote() {
                 return (
                   <div key={pl} className="flex flex-wrap items-center gap-3 pl-1">
                     <span className="w-28 text-lg font-medium">{pl} size</span>
-                    {[1, 2].map((i) => (
+                    {[1, 2, 3].map((i) => (
                       <Chip key={i} active={line[key] === i} onClick={() => update({ [key]: i } as Partial<CounterLine>)}>
-                        {DTF_SIZES[i]}<span className="ml-2 text-sm opacity-70">{i === 1 ? "standard" : "full size"}</span>
+                        {DTF_SIZES[i]}<span className="ml-2 text-sm opacity-70">{i === 1 ? "standard" : i === 2 ? "full size" : "12\" wide / tall"}</span>
                       </Chip>
                     ))}
                   </div>

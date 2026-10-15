@@ -65,8 +65,8 @@ export function placementsFor(item: Item, method: Method): string[] {
   return ["Front", "Back", "Left chest", "Sleeve"];
 }
 
-export const DTF_SIZES = ["4 x 4", "11 x 5", "11 x 14"];
-// DTF size by placement: left chest + sleeve are always 4x4; front and back pick 11x5 or 11x14.
+export const DTF_SIZES = ["4 x 4", "11 x 5", "11 x 14", "12 x 22"];
+// DTF size by placement: left chest + sleeve are always 4x4; front and back pick 11x5, 11x14 or 12x22.
 export const DTF_SIZED_PLACEMENTS = ["Front", "Back"];
 export function dtfColFor(line: CounterLine, placement: string): number {
   if (placement === "Front") return line.dtfFront;
@@ -86,8 +86,8 @@ export interface CounterLine {
   method: Method;
   colors: number; // screen print: default color count (used for any location not set below)
   colorsBy: Record<string, number>; // screen print: colors per location when designs differ
-  dtfFront: number; // 1 = 11x5, 2 = 11x14
-  dtfBack: number;  // 1 = 11x5, 2 = 11x14
+  dtfFront: number; // 1 = 11x5, 2 = 11x14, 3 = 12x22
+  dtfBack: number;  // 1 = 11x5, 2 = 11x14, 3 = 12x22
   placements: string[];
   hatStyle: string;
   tier: Tier;

@@ -16,6 +16,13 @@ import { richardsonCost } from "./richardson-2026.ts";
 type Row = { qty: number; prices: number[]; markup: number };
 type Matrix = { columns: string[]; rows: Row[] };
 
+// DTF pressing charge per print: $80/hr shop rate ÷ ~50 presses/hr (Phil 2026-10-15).
+export const DTF_SHOP_RATE = 80;
+export const DTF_PRESSES_PER_HOUR = 50;
+export const DTF_PRESS = Number((DTF_SHOP_RATE / DTF_PRESSES_PER_HOUR).toFixed(2)); // 1.60
+/** Supacolor transfer prices → HCD sell prices (transfer + pressing). */
+const dtfRow = (supacolor: number[]) => supacolor.map((c) => Number((c + DTF_PRESS).toFixed(2)));
+
 export const MATRICES: Record<string, Matrix> = {
   // New 2027 tables (Phil approved 2026-09-28): breaks 12/24/48/72/144/288/500, 700+ custom.
   // Upload the matching -NEW.csv files to Printavo so quotes and invoices agree.
@@ -30,19 +37,24 @@ export const MATRICES: Record<string, Matrix> = {
       { qty: 500, prices: [0.95, 1.45, 1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95], markup: 150 },
     ],
   },
-  // DTF priced at replacement cost (Supacolor 1–9 / 10–49 / 50–99 / 100+), Phil 2026-09-29:
-  // the back shop sells to HCD at market, in-house savings are margin.
+  // DTF = replacement cost + pressing (Phil 2026-10-15).
+  //   Transfer: Supacolor SupaDTF volume price (1–9 / 10–49 / 50–99 / 100+ → HCD 6 / 12–48 / 72 / 144+),
+  //   checked against Phil's Supacolor screenshots 2026-10-15. If the Hydra is down, HCD buys
+  //   the transfer and is still whole; printed in-house, the difference is margin.
+  //   Pressing: DTF_PRESS per print = $80/hr shop rate at ~50 presses/hr. Charged on EVERY print —
+  //   going from left chest to back means re-threading the shirt on the pallet, a full cycle.
+  //   12 x 22 added for 12"-wide and full-length prints (fits up to the 18" print area).
   dtf: {
-    columns: ["4 x 4", "11 x 5", "11 x 14"],
+    columns: ["4 x 4", "11 x 5", "11 x 14", "12 x 22"],
     rows: [
-      { qty: 6, prices: [3.04, 6.59, 11.79], markup: 200 },
-      { qty: 12, prices: [2.01, 4.33, 7.62], markup: 200 },
-      { qty: 24, prices: [2.01, 4.33, 7.62], markup: 190 },
-      { qty: 48, prices: [2.01, 4.33, 7.62], markup: 180 },
-      { qty: 72, prices: [1.7, 3.66, 6.49], markup: 170 },
-      { qty: 144, prices: [1.39, 2.99, 5.3], markup: 160 },
-      { qty: 288, prices: [1.39, 2.99, 5.3], markup: 150 },
-      { qty: 500, prices: [1.39, 2.99, 5.3], markup: 150 },
+      { qty: 6, prices: dtfRow([3.04, 6.59, 11.79, 15.77]), markup: 200 },
+      { qty: 12, prices: dtfRow([2.01, 4.33, 7.62, 12.78]), markup: 200 },
+      { qty: 24, prices: dtfRow([2.01, 4.33, 7.62, 12.78]), markup: 190 },
+      { qty: 48, prices: dtfRow([2.01, 4.33, 7.62, 12.78]), markup: 180 },
+      { qty: 72, prices: dtfRow([1.7, 3.66, 6.49, 11.14]), markup: 170 },
+      { qty: 144, prices: dtfRow([1.39, 2.99, 5.3, 9.52]), markup: 160 },
+      { qty: 288, prices: dtfRow([1.39, 2.99, 5.3, 9.52]), markup: 150 },
+      { qty: 500, prices: dtfRow([1.39, 2.99, 5.3, 9.52]), markup: 150 },
     ],
   },
   // Phil (2026-09-28): embroidery is mostly small batches, so keep it simple —
@@ -91,14 +103,14 @@ export const DIGITIZING_WAIVE_QTY = 50;
 //   back → 11x14. Quote the larger size on purpose: if the art is smaller the customer
 //         gets a lower final price; quoting small and raising it later is a worse conversation.
 //   anything else (front, full front, unknown) → 11x5
-export const DTF_COLS = { small: 0, standard: 1, large: 2 } as const;
+export const DTF_COLS = { small: 0, standard: 1, large: 2, xl: 3 } as const; // xl (12x22) is counter-screen only
 export function dtfColForPlacement(placement: string): number {
   const s = String(placement || "").toLowerCase();
   if (/\bback\b/.test(s) && !/back of (the )?(cap|hat)|\bneck\b|\bnape\b|\byoke\b/.test(s)) return DTF_COLS.large;
   if (/chest|pocket|sleeve|\bnape\b|\bneck\b|\byoke\b|4 ?x ?4/.test(s)) return DTF_COLS.small;
   return DTF_COLS.standard;
 }
-const DTF_SIZE_NAMES = ["4x4", "11x5", "11x14"];
+const DTF_SIZE_NAMES = ["4x4", "11x5", "11x14", "12x22"];
 
 export function screenPrintMin(colors: number | null | undefined): number {
   return SCREEN_MIN_BASE + SCREEN_MIN_PER_COLOR * (Math.max(colors || 1, 1) - 1);
@@ -291,7 +303,7 @@ export async function suggestTiers(
   service: string,
   qty: number,
   // DTF: price each placement at its own size. dtfCols (counter screen) = explicit columns
-  // (0 = 4x4, 1 = 11x5, 2 = 11x14); placements (email/website) = location names, mapped by
+  // (0 = 4x4, 1 = 11x5, 2 = 11x14, 3 = 12x22); placements (email/website) = location names, mapped by
   // dtfColForPlacement. Neither given → old rule (first location 11x5, extras 4x4).
   opts: PriceOpts = {},
 ): Promise<Suggestion[]> {

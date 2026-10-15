@@ -9,7 +9,7 @@ Customers never know stitch count. Build an estimate from their art:
 Until then, email intake assumes up to 10,000 stitches on apparel and up to 8,000 on hats (confirm after digitizing).
 
 ## DTF cost deep dive
-DTF is priced at replacement cost (Supacolor) for now. Work out what a transfer really costs in-house:
+DTF is priced at replacement cost (Supacolor) plus $1.60 pressing per print ($80/hr shop rate, 2026-10-15). Work out what a transfer really costs in-house:
 - Hydra 9-color 6-head: $1,000/mo lease, $300–700/mo supplies, $20/hr labor, 180–200 sq ft/hr.
 - Volume: about two 22" x 640' rolls a month (~2,350 sq ft).
 - Still needed: actual supply spend for the last 2–3 months, film usage per gang sheet, and pressing time per piece.
