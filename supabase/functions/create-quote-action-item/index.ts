@@ -5,6 +5,8 @@ import {
   SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, type Tier,
 } from "../_shared/hcd-pricing.ts";
 
+const HEALTH_CHECK_EMAIL = "systemcheck@hellscanyondesigns.com";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -694,6 +696,12 @@ Deno.serve(async (req) => {
     const email = customer_email?.trim().toLowerCase();
     const phone = customer_phone?.trim();
 
+    // The website's nightly health check (HCD-Website: health-check) submits a
+    // test quote through this exact path. It must exercise every write, but it
+    // should never page anyone or leave clutter behind — the health check
+    // itself emails Phil only when something fails.
+    const isHealthCheck = source === "nightly-health-check" || email === HEALTH_CHECK_EMAIL;
+
     if (email) {
       const { data: existing } = await serviceClient
         .from("customers")
@@ -908,7 +916,7 @@ Deno.serve(async (req) => {
     // no authenticated team member to attribute it to. fanout_action_item_new()
     // already treats a null created_by as "no specific owner" and notifies
     // everyone, so this is the value that trigger was designed for.
-    const { error: aiErr } = await serviceClient
+    const { data: aiRow, error: aiErr } = await serviceClient
       .from("action_items")
       .insert({
         title: actionTitle,
@@ -918,11 +926,34 @@ Deno.serve(async (req) => {
         customer_phone: phone || null,
         customer_id: customerId,
         quote_id: quote.id,
-        source: "website",
+        // "health-check" is not in the email trigger's source list, so the
+        // nightly test never sends a "Website Quote Request" alert.
+        source: isHealthCheck ? "health-check" : "website",
         priority: "high",
         status: "open",
         checklist: autoChecklist,
-      });
+      })
+      .select("id")
+      .single();
+
+    if (isHealthCheck) {
+      // Everything was written successfully (or not) — that's the test. Clean up
+      // and report; skip alerts and the customer confirmation email.
+      if (aiRow?.id) await serviceClient.from("action_items").delete().eq("id", aiRow.id);
+      await serviceClient.from("quote_line_items").delete().eq("quote_id", quote.id);
+      await serviceClient.from("quotes").delete().eq("id", quote.id);
+      if (aiErr) {
+        console.error("Health check: action item insert failed:", aiErr);
+        return new Response(
+          JSON.stringify({ error: "Action item failed to create", details: aiErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, health_check: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (aiErr) {
       console.error("Action item error:", aiErr);
