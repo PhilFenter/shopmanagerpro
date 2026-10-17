@@ -69,6 +69,8 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 - Asking about a product with no quantity ("do you have a polo catalog?"): still return that item with quantity 0 so it gets priced at the minimum.
 - AI-made artwork (ChatGPT etc.): the code adds the note about it not being print-ready and the $80 rebuild. Don't explain it yourself and don't promise to design anything.
 - Their own garments inside a bigger order: if they want something they already own decorated (an employee's chef coat, their own jackets), set customer_supplied: true on THAT item, even when the rest of the order is ours.
+- Customer-supplied items: never say we can do it or "definitely help" with it. Say we generally don't decorate garments we didn't supply, and exceptions need approval first.
+- Write as the shop ("we"). Never refer to Phil in the third person.
 - No filler. Never write lines like "however many you plan will help us nail the best method" or "let me know if you want me to explain those options".
 Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
@@ -552,6 +554,11 @@ Deno.serve(async (req) => {
       range?: { lo: Suggestion; hi: Suggestion } | null; qtyUnknown?: boolean; hatTiers?: Suggestion[] | null; pvc?: boolean };
     const pricing: Priced[] = [];
     const flags: string[] = [];
+    // "Can you embroider self-provided apparel?" — flag it even when the AI didn't list it as an item.
+    const ownAsk = /self[- ]provided|(?:our|my|their) own (?:shirts|apparel|garments|jackets|hats|clothes)|bring (?:in )?(?:our|my|their) own|provide (?:the|our own) (?:shirts|apparel|garments)/i.test(`${subject} ${body}`);
+    if (ownAsk && !(Array.isArray(ai.items) && ai.items.some((it: any) => it?.customer_supplied === true))) {
+      flags.push("Customer asked about decorating garments they bring their own — no auto price. Exceptions (can't source / large order) are new garments only and need a test piece, signed waiver, and your approval.");
+    }
     if (aiArt) flags.push(`Artwork looks AI-made — not print-ready. The draft offers the $${AI_ART_REBUILD_FEE} rebuild.`);
     for (const it of items) {
       if (it.customer_supplied === true) {
@@ -931,7 +938,8 @@ Deno.serve(async (req) => {
     }
     paras.push(...apparelPriceParas(pricing, isFollowUp));
     if (aiArt && !isFollowUp && paras.length) paras.push(AI_ART_NOTE);
-    const ownGarments = items.some((it) => it.customer_supplied === true);
+    // Brands line only when the whole ask is about their own garments (a chef coat inside a shirt order doesn't need it).
+    const ownGarments = items.length > 0 && items.every((it) => it.customer_supplied === true);
     if (ownGarments && !isFollowUp && !/nike|north face|eddie bauer/i.test(replyDraft || "")) paras.push(BRANDS_LINE);
     const priceable = ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification);
     if (paras.length && priceable) {

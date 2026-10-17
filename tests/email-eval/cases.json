@@ -275,7 +275,9 @@
         "draft": true,
         "not_contains_re": [
           "what sizes",
-          "size breakdown"
+          "size breakdown",
+          "definitely help with[^.]*chef coat",
+          "Phil will"
         ],
         "flags": [
           "bring their own|under the screen print minimum"
