@@ -348,12 +348,22 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   const secret = Deno.env.get("INBOUND_EMAIL_SECRET");
-  if (!secret || req.headers.get("x-intake-secret") !== secret) {
+  const evalSecret = Deno.env.get("EMAIL_EVAL_SECRET");
+  const intakeOk = Boolean(secret) && req.headers.get("x-intake-secret") === secret;
+  const evalOk = Boolean(evalSecret) && req.headers.get("x-eval-secret") === evalSecret;
+  if (!intakeOk && !evalOk) {
     return json({ error: "unauthorized" }, 401);
   }
 
   try {
     const p = await req.json();
+    // PREVIEW (dry_run: "draft"): real AI + real pricing + the full reply draft, but NOTHING is written —
+    // no customer, quote, line items, action item or alert. Used by the email regression tests (tests/email-eval).
+    // The eval secret only unlocks preview mode, never real intake.
+    const preview = p.dry_run === "draft";
+    if (evalOk && !intakeOk && !preview) return json({ error: "eval secret only allows dry_run: \"draft\"" }, 403);
+    // The test copy (process-inbound-email-eval) never does real intake, whatever secret it gets.
+    if (/-eval\/?$/.test(new URL(req.url).pathname) && !preview) return json({ error: "test copy: preview only" }, 403);
     const messageId = String(p.message_id || "").slice(0, 200);
     const threadId = String(p.thread_id || "").slice(0, 200);
     const mailbox = String(p.mailbox || "info").slice(0, 40);
@@ -376,7 +386,7 @@ Deno.serve(async (req) => {
     const marker = `gmail:${messageId}`;
 
     // 1. Duplicate check
-    if (!dryRun) {
+    if (!dryRun && !preview) {
       const { data: dup } = await db.from("action_items").select("id").ilike("notes", `%${marker}%`).limit(1).maybeSingle();
       if (dup) return json({ status: "duplicate", action_item_id: dup.id });
     }
@@ -466,7 +476,7 @@ Deno.serve(async (req) => {
     const company = customer?.company || ai.customer?.company || null;
     const phone = customer?.phone || ai.customer?.phone || null;
     let customerId = customer?.id ?? null;
-    if (!customerId) {
+    if (!customerId && !preview) {
       const { data: created, error } = await db
         .from("customers")
         .insert({ name, email: fromEmail, phone, company, source: "email" })
@@ -675,7 +685,7 @@ Deno.serve(async (req) => {
     if (existingQuote) {
       quoteId = existingQuote.id;
       quoteNumber = existingQuote.quote_number;
-    } else {
+    } else if (!preview) {
       const { data: quote, error } = await db
         .from("quotes")
         .insert({
@@ -726,9 +736,11 @@ Deno.serve(async (req) => {
         };
       });
       // On a reply, the AI returns the whole order so far, so replace the old lines.
-      if (attachToExisting) await db.from("quote_line_items").delete().eq("quote_id", quoteId);
-      const { error: liErr } = await db.from("quote_line_items").insert(rows);
-      if (liErr) console.error("line items insert failed:", liErr.message);
+      if (!preview) {
+        if (attachToExisting) await db.from("quote_line_items").delete().eq("quote_id", quoteId);
+        const { error: liErr } = await db.from("quote_line_items").insert(rows);
+        if (liErr) console.error("line items insert failed:", liErr.message);
+      }
     }
 
     // 6. Action item
@@ -840,7 +852,9 @@ Deno.serve(async (req) => {
       (actionFields as any).notes = `${openJob.notes || ""} ${marker}`.trim();
       (actionFields as any).description = `UPDATED from customer reply ${new Date().toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}\n${descLines.join("\n")}`;
     }
-    const { data: actionItem, error: aiErr } = openJob
+    const { data: actionItem, error: aiErr }: { data: any; error: any } = preview
+      ? { data: { id: null }, error: null }
+      : openJob
       ? await db.from("action_items").update(actionFields).eq("id", openJob.id).select("id").single()
       : await db.from("action_items").insert(actionFields).select("id").single();
     if (aiErr) {
@@ -850,7 +864,7 @@ Deno.serve(async (req) => {
     }
 
     // 7. Alert Phil (never blocks)
-    try {
+    if (!preview) try {
       await db.functions.invoke("notify-new-action-item", {
         body: { action_item: { title, description: descLines.join("\n"), customer_name: name, source: "email", priority: ready ? "high" : "normal" } },
       });
@@ -929,6 +943,7 @@ Deno.serve(async (req) => {
       quote_number: quoteNumber,
       reply_draft: replyDraft,
       reply_draft_html: replyDraftHtml,
+      ...(preview ? { preview: true, action_item_description: descLines.join("\n"), flags, ai } : {}),
     });
   } catch (err) {
     console.error("process-inbound-email error:", err);

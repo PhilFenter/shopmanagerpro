@@ -1,0 +1,82 @@
+# Email draft regression tests. Runs on every pull request that touches the email function,
+# the pricing file or the tests, and by hand from the Actions tab.
+#
+# It deploys the PR's version of process-inbound-email as a separate TEST copy
+# (process-inbound-email-eval, preview-only: it never writes anything), sends it the real
+# customer emails in tests/email-eval/cases.json, and checks every draft against the HCD
+# standard. The scorecard shows on the PR. A failing check means: don't merge until it's fixed.
+#
+# Secrets: only SUPABASE_ACCESS_TOKEN (already there for deploys). Each run makes a fresh random
+# EMAIL_EVAL_SECRET, stores it in Supabase, and uses it to call the test copy.
+name: Email draft tests
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/process-inbound-email/**"
+      - "supabase/functions/_shared/**"
+      - "tests/email-eval/**"
+      - ".github/workflows/email-eval.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: email-eval
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: fzkxeodjkaeqkwqhwcdv
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fresh test secret for this run
+        run: |
+          s=$(openssl rand -hex 24)
+          echo "::add-mask::$s"
+          echo "EMAIL_EVAL_SECRET=$s" >> "$GITHUB_ENV"
+          supabase secrets set "EMAIL_EVAL_SECRET=$s" --project-ref "$PROJECT_REF" > /dev/null
+
+      - name: Deploy this version as the test copy
+        run: |
+          cp -r supabase/functions/process-inbound-email supabase/functions/process-inbound-email-eval
+          supabase functions deploy process-inbound-email-eval --project-ref "$PROJECT_REF" --no-verify-jwt
+
+      - name: Run the email tests
+        env:
+          EMAIL_EVAL_URL: https://fzkxeodjkaeqkwqhwcdv.supabase.co/functions/v1/process-inbound-email-eval
+        run: |
+          set +e
+          node tests/email-eval/run.mjs --report report.md
+          code=$?
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          echo "code=$code" >> "$GITHUB_ENV"
+          exit 0
+
+      - name: Post the scorecard on the PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = require('fs').readFileSync('report.md', 'utf8');
+            const marker = '<!-- email-eval -->';
+            const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: context.issue.number });
+            const old = comments.find((c) => c.body.includes(marker));
+            const text = `${marker}\n${body}`;
+            if (old) await github.rest.issues.updateComment({ ...context.repo, comment_id: old.id, body: text });
+            else await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body: text });
+
+      - name: Pass or fail
+        run: exit ${{ env.code }}
