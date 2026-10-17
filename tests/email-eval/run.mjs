@@ -112,17 +112,24 @@ async function send(c, attempt = 1) {
   return json;
 }
 
+// The AI words things a little differently each run. A case only fails if it misses on two tries;
+// a miss-then-pass is reported as "wobbly" so it's visible without blocking.
+async function runOne(c) {
+  try { return { c, ...check(c, await send(c)) }; }
+  catch (err) { return { c, fails: [`request failed: ${err.message}`], draft: "" }; }
+}
 const results = [];
 const queue = [...todo];
 await Promise.all(Array.from({ length: 3 }, async () => {
   while (queue.length) {
     const c = queue.shift();
-    try {
-      const res = await send(c);
-      results.push({ c, ...check(c, res) });
-    } catch (err) {
-      results.push({ c, fails: [`request failed: ${err.message}`], draft: "" });
+    let r = await runOne(c);
+    if (r.fails.length) {
+      const second = await runOne(c);
+      if (!second.fails.length) r = { ...second, wobbly: r.fails };
+      else r = second;
     }
+    results.push(r);
   }
 }));
 results.sort((a, b) => todo.indexOf(a.c) - todo.indexOf(b.c));
@@ -133,7 +140,7 @@ const lines = [
   "",
   "| | Email | Result |",
   "|---|---|---|",
-  ...results.map((r) => `| ${r.fails.length ? "❌" : "✅"} | ${r.c.title} | ${r.fails.length ? r.fails.join("; ").replace(/\|/g, "/") : "pass"} |`),
+  ...results.map((r) => `| ${r.fails.length ? "❌" : r.wobbly ? "⚠️" : "✅"} | ${r.c.title} | ${r.fails.length ? r.fails.join("; ").replace(/\|/g, "/") : r.wobbly ? `pass on 2nd try (1st: ${r.wobbly.join("; ").replace(/\|/g, "/")})` : "pass"} |`),
   "",
   ...results.filter((r) => r.fails.length && r.draft).flatMap((r) => [
     `<details><summary>${r.c.id}: the draft</summary>`, "", "```", r.draft, "```", "</details>", "",

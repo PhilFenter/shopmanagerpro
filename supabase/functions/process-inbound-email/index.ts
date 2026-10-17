@@ -965,6 +965,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Backstop: hats are one size — strip any "hat sizes" ask the AI slipped in (unless fitted hats).
+    if (replyDraft && !fitted) replyDraft = replyDraft.replace(/,?\s*(?:and\s+)?(?:the\s+)?hat sizes\b/gi, "").replace(/\s+([,.?])/g, "$1");
     const replyDraftHtml = replyDraft ? draftHtml(replyDraft.trimEnd()) : null;
     if (replyDraft) replyDraft = `${replyDraft.trimEnd()}\n\n${REPLY_FOOTER}`;
 
