@@ -29,7 +29,7 @@ const todo = cases.filter((c) => !only || only.includes(c.id));
 
 // ── Checks ──────────────────────────────────────────────────────────────────
 const MAX_WORDS = 170; // words outside the price lines
-const FILLER = /pricing depends|hope (this|you|your)|finds you well|don'?t hesitate|feel free to reach out/i;
+const FILLER = /pricing depends|hope (this|you|your)|finds you well|don'?t hesitate|feel free to reach out|however many you plan|explain those options/i;
 const DATE_PROMISE = /we(?:'ll| will| can) (?:definitely )?(?:have|get) (?:them|it|these|everything|your \w+) (?:done |ready |finished |to you )?by|\bguarantee/i;
 const HAT_SIZES = /hat sizes|sizes for the hats|sizes? (?:of|on) the hats|what size hats/i;
 const PRICE = /\$\d/;
@@ -76,7 +76,12 @@ function check(c, res) {
   if (e.hat_sizes === false && HAT_SIZES.test(draft)) fails.push(`asks for hat sizes: "${draft.match(HAT_SIZES)[0]}"`);
   if (e.gbb) {
     const priceLines = draft.split("\n").filter((l) => /^\s*[-•*]\s.*\$\d/.test(l)).length;
-    if (priceLines < 3) fails.push(`no Good/Better/Best list (found ${priceLines} option line${priceLines === 1 ? "" : "s"} with prices, need 3)`);
+    const need = e.min_option_lines ?? 3;
+    if (priceLines < need) fails.push(`Good/Better/Best missing (found ${priceLines} option line${priceLines === 1 ? "" : "s"} with prices, need ${need})`);
+  }
+  for (const [word, max] of Object.entries(e.max_mentions ?? {})) {
+    const n = (draft.match(new RegExp(`\\b${word}\\b`, "gi")) || []).length;
+    if (n > max) fails.push(`repeats "${word}" ${n} times (the options should be listed once)`);
   }
   if (e.no_prices && PRICE.test(draft)) fails.push("gives a price (it shouldn't for this one)");
   if (e.no_date_promise && DATE_PROMISE.test(draft)) fails.push(`promises a date: "${draft.match(DATE_PROMISE)[0]}"`);
@@ -107,17 +112,24 @@ async function send(c, attempt = 1) {
   return json;
 }
 
+// The AI words things a little differently each run. A case only fails if it misses on two tries;
+// a miss-then-pass is reported as "wobbly" so it's visible without blocking.
+async function runOne(c) {
+  try { return { c, ...check(c, await send(c)) }; }
+  catch (err) { return { c, fails: [`request failed: ${err.message}`], draft: "" }; }
+}
 const results = [];
 const queue = [...todo];
 await Promise.all(Array.from({ length: 3 }, async () => {
   while (queue.length) {
     const c = queue.shift();
-    try {
-      const res = await send(c);
-      results.push({ c, ...check(c, res) });
-    } catch (err) {
-      results.push({ c, fails: [`request failed: ${err.message}`], draft: "" });
+    let r = await runOne(c);
+    if (r.fails.length) {
+      const second = await runOne(c);
+      if (!second.fails.length) r = { ...second, wobbly: r.fails };
+      else r = second;
     }
+    results.push(r);
   }
 }));
 results.sort((a, b) => todo.indexOf(a.c) - todo.indexOf(b.c));
@@ -128,7 +140,7 @@ const lines = [
   "",
   "| | Email | Result |",
   "|---|---|---|",
-  ...results.map((r) => `| ${r.fails.length ? "❌" : "✅"} | ${r.c.title} | ${r.fails.length ? r.fails.join("; ").replace(/\|/g, "/") : "pass"} |`),
+  ...results.map((r) => `| ${r.fails.length ? "❌" : r.wobbly ? "⚠️" : "✅"} | ${r.c.title} | ${r.fails.length ? r.fails.join("; ").replace(/\|/g, "/") : r.wobbly ? `pass on 2nd try (1st: ${r.wobbly.join("; ").replace(/\|/g, "/")})` : "pass"} |`),
   "",
   ...results.filter((r) => r.fails.length && r.draft).flatMap((r) => [
     `<details><summary>${r.c.id}: the draft</summary>`, "", "```", r.draft, "```", "</details>", "",

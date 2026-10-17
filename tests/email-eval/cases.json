@@ -2,104 +2,344 @@
   "_about": "Real HCD customer emails (Phil's Gmail, Sep–Oct 2026; contact details removed, addresses swapped for example.com) with what a correct draft must do under the Good/Better/Best standard (Phil 2026-10-17). Every price comes from the pricing code; these checks catch drift. To add a case: copy one, change the email, write the checks. Hat prices here are the 112 list: leatherette / sewn leather / UV = 25 / 27 / 29 at 12.",
   "cases": [
     {
-      "id": "kyle-hoodies-hats", "title": "Kyle, Prettyman Electric: hoodies + hats, new logo, no quantity",
-      "from_name": "Kyle Prettyman", "subject": "New logo — hoodies and hats",
+      "id": "kyle-hoodies-hats",
+      "title": "Kyle, Prettyman Electric: hoodies + hats, new logo, no quantity",
+      "from_name": "Kyle Prettyman",
+      "subject": "New logo — hoodies and hats",
       "body": "Phil, This is Kyle at Prettyman Electric. I'm updating our company logo this year and would like to get hoodies and hats made with it. Attached are the print-ready files: PDF (300 dpi, white background), PNG (2000x2000 at 300 dpi). The design is the orange triangle with the black silhouette and \"Prettyman Electric\" text. I'd like pricing and timing for both screen-printed or embroidered hoodies and leather-patch or embroidered hats. Let me know what quantities and options you recommend, and what you need from me to get a quote started.",
-      "attachments": [{ "name": "Prettyman_Logo.pdf", "type": "application/pdf", "size": 900000 }, { "name": "Prettyman_Logo.png", "type": "image/png", "size": 1800000 }],
-      "expect": { "draft": true, "contains": ["$27.00", "$29.00", "$25.00", "$45"], "hat_sizes": false, "gbb": true }
+      "attachments": [
+        {
+          "name": "Prettyman_Logo.pdf",
+          "type": "application/pdf",
+          "size": 900000
+        },
+        {
+          "name": "Prettyman_Logo.png",
+          "type": "image/png",
+          "size": 1800000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "contains": [
+          "$27.00",
+          "$29.00",
+          "$25.00",
+          "$45"
+        ],
+        "hat_sizes": false,
+        "gbb": true,
+        "min_option_lines": 6,
+        "max_mentions": {
+          "UV": 1
+        }
+      }
     },
     {
-      "id": "kyle-followup", "title": "Kyle follow-up: 4 Carhartt hoodies, cheap hi-vis tees, 12 hats",
-      "from_name": "Kyle Prettyman", "subject": "Re: New logo — hoodies and hats",
+      "id": "kyle-followup",
+      "title": "Kyle follow-up: 4 Carhartt hoodies, cheap hi-vis tees, 12 hats",
+      "from_name": "Kyle Prettyman",
+      "subject": "Re: New logo — hoodies and hats",
       "thread_context": "Phil (Oct 14): Hi Kyle, Thanks for reaching out. That's a clean new logo and we can help you out. For the hats the minimum is 12 for either the embroidered or patch hats. They run $27 each and we do need to get the new logo digitized again and that will run $45. For the hoodies we can do a left chest and a back print. We can price the hoodies with a good better best option. Thank you, Phil",
       "body": "I will come in to the shop and check out your different options for hoodies I definitely want to get some Carhartt hoodies for the crew so it would be four of them I will get you sizes and everything and then I need to get more high VIs t-shirts they don't have to be pocket tease they don't have to be expensive and I think I'll get 12 hats but I need to go through the colors and everything with you thank you for getting back to me",
-      "expect": { "draft": true, "followup": true, "not_contains": ["We'll have", "we will have"], "flags": ["minimum"] }
+      "expect": {
+        "draft": true,
+        "followup": true,
+        "not_contains": [
+          "We'll have",
+          "we will have"
+        ],
+        "flags": [
+          "minimum"
+        ]
+      }
     },
     {
-      "id": "justin-sample-hats", "title": "Justin: 1–2 sample hats, 112PT, leather patch",
-      "from_name": "Justin Hale", "subject": "Sample hats",
+      "id": "justin-sample-hats",
+      "title": "Justin: 1–2 sample hats, 112PT, leather patch",
+      "from_name": "Justin Hale",
+      "subject": "Sample hats",
       "body": "Hi, could I get 1 or 2 sample hats in Multicam and Black Multicam, something like the Richardson 112PT, with a leather patch of our logo? If they turn out good we'd place a bigger order. Logo attached.",
-      "attachments": [{ "name": "11901.png", "type": "image/png", "size": 1400000 }],
-      "expect": { "draft": true, "contains": ["12", "$29.00", "$31.00", "$27.00"], "contains_any": [["6 of each", "split"], ["vector"]], "not_contains": ["1 or 2 sample hats is fine"], "hat_sizes": false, "gbb": true }
+      "attachments": [
+        {
+          "name": "11901.png",
+          "type": "image/png",
+          "size": 1400000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "contains": [
+          "12",
+          "$29.00",
+          "$31.00",
+          "$27.00"
+        ],
+        "contains_any": [
+          [
+            "6 of each",
+            "split"
+          ],
+          [
+            "vector"
+          ]
+        ],
+        "not_contains": [
+          "1 or 2 sample hats is fine"
+        ],
+        "hat_sizes": false,
+        "gbb": true
+      }
     },
     {
-      "id": "christina-paperwork", "title": "Christina, TriState Health: payroll spreadsheet, wants an invoice",
-      "from_name": "Christina Cargill", "subject": "Pay later list",
+      "id": "christina-paperwork",
+      "title": "Christina, TriState Health: payroll spreadsheet, wants an invoice",
+      "from_name": "Christina Cargill",
+      "subject": "Pay later list",
       "body": "Here is the latest spreadsheet with those who chose to Pay later. Please send me over an invoice and I will get it to Accounts Payable.",
-      "attachments": [{ "name": "PayLater_Oct.xlsx", "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "size": 24000 }],
-      "expect": { "draft": false }
+      "attachments": [
+        {
+          "name": "PayLater_Oct.xlsx",
+          "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "size": 24000
+        }
+      ],
+      "expect": {
+        "draft": false
+      }
     },
     {
-      "id": "paislie-own-garments", "title": "Paislie, Debco: embroider their own apparel",
-      "from_name": "Paislie Robledo", "subject": "Board member apparel",
+      "id": "paislie-own-garments",
+      "title": "Paislie, Debco: embroider their own apparel",
+      "from_name": "Paislie Robledo",
+      "subject": "Board member apparel",
       "body": "Morning Phil, We are looking at options for Board Member apparel for purchase. What would be the cost of embroidery for self-provided apparel?",
-      "expect": { "draft": true, "contains_any": [["Nike", "North Face", "Eddie Bauer", "Port Authority", "OGIO"], ["guide"]], "no_prices": true, "flags": ["bring their own"] }
+      "expect": {
+        "draft": true,
+        "contains_any": [
+          [
+            "Nike",
+            "North Face",
+            "Eddie Bauer",
+            "Port Authority",
+            "OGIO"
+          ],
+          [
+            "guide"
+          ]
+        ],
+        "no_prices": true,
+        "flags": [
+          "bring their own"
+        ]
+      }
     },
     {
-      "id": "ian-hats-tees-uv", "title": "Ian: 30 embroidered 6006 hats, 30 NL3600 tees with sizes, UV patch question",
-      "from_name": "Ian Byrkit", "subject": "Quote request",
+      "id": "ian-hats-tees-uv",
+      "title": "Ian: 30 embroidered 6006 hats, 30 NL3600 tees with sizes, UV patch question",
+      "from_name": "Ian Byrkit",
+      "subject": "Quote request",
       "body": "Here is what I would like a quote on: 30 hats Yupoong Classics 6006 in a few different colors with the following embroidered on the hat (white embroidery on the black hats and black on the white hats). 30 Next Level T's 3600's (100% Cotton) Black with the white logo below. Would it change the price to have multiple T-Shirts colors? 10 Large, 12 XL, 5 XXL, 3 XXXL. Would also be interested in pricing and what a UV patch hat would look like with this logo (would probably put it on Richardson 258's in black and white roughly 15 quantity).",
-      "attachments": [{ "name": "byrkit_logo.png", "type": "image/png", "size": 650000 }],
-      "expect": { "draft": true, "contains": ["$45", "3600"], "not_contains_re": ["what sizes", "size breakdown"] }
+      "attachments": [
+        {
+          "name": "byrkit_logo.png",
+          "type": "image/png",
+          "size": 650000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "contains": [
+          "$45",
+          "3600"
+        ],
+        "not_contains_re": [
+          "what sizes",
+          "size breakdown"
+        ]
+      }
     },
     {
-      "id": "kelly-50-patch-hats", "title": "Kelly, Clearwater Paper: 50 leather patch hats, art attached",
-      "from_name": "Kelly James", "subject": "Leather patch hats",
+      "id": "kelly-50-patch-hats",
+      "title": "Kelly, Clearwater Paper: 50 leather patch hats, art attached",
+      "from_name": "Kelly James",
+      "subject": "Leather patch hats",
       "body": "Please see the attached and let me know if you are able to use this to make the leather patch for the hats. I would like to order 50 hats.",
-      "attachments": [{ "name": "CWP_logo.pdf", "type": "application/pdf", "size": 450000 }],
-      "expect": { "draft": true, "contains": ["$21.00", "$23.00", "$25.00"], "hat_sizes": false, "gbb": true }
+      "attachments": [
+        {
+          "name": "CWP_logo.pdf",
+          "type": "application/pdf",
+          "size": 450000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "contains": [
+          "$21.00",
+          "$23.00",
+          "$25.00"
+        ],
+        "hat_sizes": false,
+        "gbb": true
+      }
     },
     {
-      "id": "tina-4-locations", "title": "Tina: black tees, left chest + back + both sleeves, wants it by Oct 1",
-      "from_name": "Tina Huff", "subject": "Shirts for the club",
+      "id": "tina-4-locations",
+      "title": "Tina: black tees, left chest + back + both sleeves, wants it by Oct 1",
+      "from_name": "Tina Huff",
+      "subject": "Shirts for the club",
       "body": "Attached are the final designs and logos. The sleeves should include the Australian flag and the other the Firebird hood emblem. Tshirts will be all black with a goldish print. Not looking for anything glittery, just not bright yellow. Please let me know what your cost would be and if you can complete by Oct 1. We need about 30 shirts.",
-      "attachments": [{ "name": "firebird_back.pdf", "type": "application/pdf", "size": 1200000 }],
-      "expect": { "draft": true, "gbb": true, "no_date_promise": true }
+      "attachments": [
+        {
+          "name": "firebird_back.pdf",
+          "type": "application/pdf",
+          "size": 1200000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "gbb": true,
+        "no_date_promise": true
+      }
     },
     {
-      "id": "bobby-hats-45-shirts", "title": "Bobby, Inland Northwaste: embroidered hats + 45 shirts, most cost effective",
-      "from_name": "Bobby Davis", "subject": "Hats and shirts",
+      "id": "bobby-hats-45-shirts",
+      "title": "Bobby, Inland Northwaste: embroidered hats + 45 shirts, most cost effective",
+      "from_name": "Bobby Davis",
+      "subject": "Hats and shirts",
       "body": "For the hats, I'm looking for charcoal gray front black back with black embroidery on the front. For the shirts also a charcoal gray with black lettering cant be printed or embroidered whatever is most cost effective. smaller lettering on the front that says site services and then the back little bigger with a few more words. Estimate 45 shirts; these numbers are to get us started, and we will order more as needed.",
-      "expect": { "draft": true, "contains": ["$45"], "gbb": true, "hat_sizes": false }
+      "expect": {
+        "draft": true,
+        "contains": [
+          "$45"
+        ],
+        "gbb": true,
+        "hat_sizes": false
+      }
     },
     {
-      "id": "morgan-chatgpt-logo", "title": "Morgan, Ridgeline Drilling: ChatGPT logo attempt, about a dozen hats",
-      "from_name": "Morgan Gallagher", "subject": "Custom logo + hats",
+      "id": "morgan-chatgpt-logo",
+      "title": "Morgan, Ridgeline Drilling: ChatGPT logo attempt, about a dozen hats",
+      "from_name": "Morgan Gallagher",
+      "subject": "Custom logo + hats",
       "body": "We were wanting to get a custom logo designed. I had chat gpt try and design something for us, but it couldn't quite get it right. I attached that file just for reference. We are a drilling and blasting company and it couldn't get our tooling to look accurate. I also wanted the drill steel to completely replace the \"I\" in \"RIDGELINE\" and AI couldn't seem to understand that, haha. I was hoping to order a dozen or so hats and be able to reorder hats/apparel again soon if we like how they turn out!",
-      "attachments": [{ "name": "ChatGPT Image Sep 14, 2026.png", "type": "image/png", "size": 1900000 }],
-      "expect": { "draft": true, "contains": ["$27.00"], "contains_any_re": [["not print[- ]ready", "\\$80", "design fee", "art fee"]], "hat_sizes": false }
+      "attachments": [
+        {
+          "name": "ChatGPT Image Sep 14, 2026.png",
+          "type": "image/png",
+          "size": 1900000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "contains": [
+          "$27.00"
+        ],
+        "contains_any_re": [
+          [
+            "not print[- ]ready",
+            "\\$80",
+            "design fee",
+            "art fee"
+          ]
+        ],
+        "hat_sizes": false
+      }
     },
     {
-      "id": "abigail-parade-25", "title": "Abigail, CCI: about 25 parade shirts, Sept 12",
-      "from_name": "Abigail Duffield", "subject": "Parade shirts",
+      "id": "abigail-parade-25",
+      "title": "Abigail, CCI: about 25 parade shirts, Sept 12",
+      "from_name": "Abigail Duffield",
+      "subject": "Parade shirts",
       "body": "We are wanting to get some shirts made for the upcoming Lewiston Roundup Parade on September 12th. We do not have an exact quantity yet but think it will be around 25. Could you give us a quote for shirts with design below?",
-      "attachments": [{ "name": "parade_design.png", "type": "image/png", "size": 900000 }],
-      "expect": { "draft": true, "gbb": true, "no_date_promise": true }
+      "attachments": [
+        {
+          "name": "parade_design.png",
+          "type": "image/png",
+          "size": 900000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "gbb": true,
+        "no_date_promise": true
+      }
     },
     {
-      "id": "emily-small-reorder", "title": "Emily, Groundwork Brewing: 8-shirt reorder + a chef coat",
-      "from_name": "Emily", "subject": "Staff shirts reorder",
+      "id": "emily-small-reorder",
+      "title": "Emily, Groundwork Brewing: 8-shirt reorder + a chef coat",
+      "from_name": "Emily",
+      "subject": "Staff shirts reorder",
       "body": "I was wondering if I could order some more Staff shirts like the ones we ordered last time?? I also have a employee that has a chef coat they would like to get embroidered if that's available? Im going to need 2 4XL of the green Color with the GW logo on the back and Staff on the front pocket area, 2 4XL of Black with the same design, 2 Medium Green with the staff design explained above, 2 Medium of the tri grey with the same staff design.",
-      "expect": { "draft": true, "not_contains_re": ["what sizes", "size breakdown"], "flags": ["bring their own|under the screen print minimum"] }
+      "expect": {
+        "draft": true,
+        "not_contains_re": [
+          "what sizes",
+          "size breakdown",
+          "definitely help with[^.]*chef coat",
+          "Phil will"
+        ],
+        "flags": [
+          "bring their own|under the screen print minimum"
+        ]
+      }
     },
     {
-      "id": "donna-12-embroidered", "title": "Donna, Calibre: about 12 embroidered shirts, short + long sleeve, do I supply shirts?",
-      "from_name": "Donna Duffau", "subject": "Company shirts",
+      "id": "donna-12-embroidered",
+      "title": "Donna, Calibre: about 12 embroidered shirts, short + long sleeve, do I supply shirts?",
+      "from_name": "Donna Duffau",
+      "subject": "Company shirts",
       "body": "My name is Donna Duffau and my husband and I have a commercial Property inspection company. I am looking to get about 12 shirts made with our company logo on the front. We need both summer (short-sleeved) and winter (long-sleeved) shirts. Also, some are for my husband and some are for me. We need to choose the shirts and have them embroidered. Do I need to provide the shirts? We have a logo ready.",
-      "expect": { "draft": true, "contains": ["$45"], "contains_any_re": [["we (supply|carry|provide|stock)", "no need to (bring|provide)"]], "gbb": true }
+      "expect": {
+        "draft": true,
+        "contains": [
+          "$45"
+        ],
+        "contains_any_re": [
+          [
+            "we (supply|carry|provide|stock)",
+            "no need to (bring|provide)"
+          ]
+        ],
+        "gbb": true
+      }
     },
     {
-      "id": "nicholas-polo-catalog", "title": "Nicholas, US Navy: do you have a polo catalog?",
-      "from_name": "Nicholas Nielsen", "subject": "Polo shirts",
+      "id": "nicholas-polo-catalog",
+      "title": "Nicholas, US Navy: do you have a polo catalog?",
+      "from_name": "Nicholas Nielsen",
+      "subject": "Polo shirts",
       "body": "I was wondering if you guys have a catalog of shirt options you guys offer we were wanting to see about ordering polo style shirts.",
-      "expect": { "draft": true, "contains_any": [["ST550", "K500", "ST650"], ["left chest"]], "gbb": true }
+      "expect": {
+        "draft": true,
+        "contains_any": [
+          [
+            "ST550",
+            "K500",
+            "ST650"
+          ],
+          [
+            "left chest"
+          ]
+        ],
+        "gbb": true,
+        "contains": [
+          "$45"
+        ]
+      }
     },
     {
-      "id": "trina-beanies-followup", "title": "Trina, Weyerhaeuser follow-up: 30 beanies + 30 patch hats decided",
-      "from_name": "Trina Currence", "subject": "Re: Crew hats",
+      "id": "trina-beanies-followup",
+      "title": "Trina, Weyerhaeuser follow-up: 30 beanies + 30 patch hats decided",
+      "from_name": "Trina Currence",
+      "subject": "Re: Crew hats",
       "thread_context": "Phil (Aug 28): Hi Trina, Thanks for reaching out. We can do beanies embroidered and the Richardson 112 with a leather patch. Let me know quantities and colors. Thank you, Phil",
       "body": "So we are going to order 30 Gray Beanies, and 30 black Richardson hats with the leather patch on the bottom left side of hat. Horizontal log – for the black hats (and maybe beanies??) Vertical – for the beanies (embroidered). Let me know what all you need from me to get the order processed.",
-      "expect": { "draft": true, "followup": true, "hat_sizes": false }
+      "expect": {
+        "draft": true,
+        "followup": true,
+        "hat_sizes": false
+      }
     }
   ]
 }
