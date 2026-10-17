@@ -939,7 +939,7 @@ Deno.serve(async (req) => {
     paras.push(...apparelPriceParas(pricing, isFollowUp));
     if (aiArt && !isFollowUp && paras.length) paras.push(AI_ART_NOTE);
     // Brands line only when the whole ask is about their own garments (a chef coat inside a shirt order doesn't need it).
-    const ownGarments = items.length > 0 && items.every((it) => it.customer_supplied === true);
+    const ownGarments = ownAsk || (items.length > 0 && items.every((it) => it.customer_supplied === true));
     if (ownGarments && !isFollowUp && !/nike|north face|eddie bauer/i.test(replyDraft || "")) paras.push(BRANDS_LINE);
     const priceable = ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification);
     if (paras.length && priceable) {
