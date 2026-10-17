@@ -15,6 +15,7 @@ import {
   LIST_ROWS,
   matrixRow,
   hatPrice,
+  hatTiers,
   hatNextTier,
   matrixNextTier,
   screenPrintMin,
@@ -48,7 +49,7 @@ export const METHOD_LABELS: Record<Method, string> = {
   screen_print: "Screen Print",
   dtf: "Full-Color Print (DTF)",
   embroidery: "Embroidery",
-  patch: "Leather Patch",
+  patch: "Patch",
   hat_embroidery: "Embroidery",
 };
 
@@ -125,7 +126,7 @@ export function newLine(item: Item = "tee"): CounterLine {
 
 export interface Fee { label: string; amount: number }
 export interface Priced {
-  tiers: Suggestion[];       // 3 for garments, 1 for hats
+  tiers: Suggestion[];       // 3 for garments and patch hats, 1 for embroidered hats
   requested: Suggestion | null; // the customer's own pick (style box), if we found its cost
   requestedMissing: boolean;    // they typed a style we couldn't find
   billedQty: number;         // hats under 12 bill at 12
@@ -303,16 +304,20 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   if (line.item === "hat") {
     const s = hatPrice(line.hatStyle, qty, { locations: locs });
     if (!s) return out;
-    out.tiers = [s];
+    out.tiers = line.method === "patch" ? hatTiers(line.hatStyle, qty, { locations: locs }) : [s];
     out.billedQty = Math.max(qty, HAT_MIN);
     if (qty < HAT_MIN) out.notes.push(`Hats start at ${HAT_MIN}. You can split the 12 across hat colors.`);
     if (line.method === "hat_embroidery" && out.billedQty < DIGITIZING_WAIVE_QTY) out.fees.push(DIGITIZING);
-    out.notes.push(line.method === "patch" ? "Includes the hat, leather patch, and sewing." : "Includes the hat and embroidery up to 8,000 stitches.");
+    out.notes.push(line.method === "patch"
+      ? "Includes the hat and patch. Leather patches are sewn on; leatherette and full-color UV are heat pressed."
+      : "Includes the hat and embroidery up to 8,000 stitches.");
     if (!HAT_UPCHARGES[line.hatStyle.toUpperCase()]) out.notes.push("Style isn't on our hat list yet, so it's priced like a 112. We'll confirm.");
     const nq = hatNextTier(out.billedQty);
     if (nq) {
-      const ns = hatPrice(line.hatStyle, nq, { locations: locs });
-      if (ns && ns.unit_price < s.unit_price) out.nextBreak = { qty: nq, unit: ns.unit_price };
+      const cur = out.tiers.find((t) => t.tier === line.tier) ?? out.tiers[0];
+      const ns = (line.method === "patch" ? hatTiers(line.hatStyle, nq, { locations: locs }) : [hatPrice(line.hatStyle, nq, { locations: locs })])
+        .find((t) => t && t.tier === cur.tier) ?? null;
+      if (ns && ns.unit_price < cur.unit_price) out.nextBreak = { qty: nq, unit: ns.unit_price };
     }
     return out;
   }
@@ -368,7 +373,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
 
 export function chosen(line: CounterLine, p: Priced | undefined): Suggestion | undefined {
   if (!p) return undefined;
-  if (line.item === "hat") return p.tiers[0];
+  if (line.item === "hat") return p.tiers.length > 1 ? (p.tiers.find((t) => t.tier === line.tier) ?? p.tiers[0]) : p.tiers[0];
   if (line.usePick && p.requested) return p.requested;
   return p.tiers.find((t) => t.tier === line.tier);
 }
@@ -510,7 +515,7 @@ export async function saveCounterQuote(
         placements: l.placements,
         ...(l.method === "screen_print" ? { colors: screenColorsFor(l).reduce((a, c) => a + c, 0), colorsByLocation: Object.fromEntries(l.placements.map((pl, i) => [pl, screenColorsFor(l)[i]])) } : {}),
         ...(l.method === "dtf" ? { dtfSizes: Object.fromEntries(l.placements.map((pl) => [pl, DTF_SIZES[dtfColFor(l, pl)]])) } : {}),
-        ...(l.item === "hat" ? { hatStyle: l.hatStyle } : l.usePick && p?.requested ? { customerPick: l.style.trim().toUpperCase() } : { tier: l.tier }),
+        ...(l.item === "hat" ? { hatStyle: l.hatStyle, ...(l.method === "patch" ? { tier: l.tier } : {}) } : l.usePick && p?.requested ? { customerPick: l.style.trim().toUpperCase() } : { tier: l.tier }),
       },
       line_total: priceIt ? Number((s!.unit_price * qty).toFixed(2)) : 0,
       notes: [...(p?.notes ?? []), p?.blocker ?? "", p?.approval ? `MANAGER APPROVAL: ${p.approval}` : "",

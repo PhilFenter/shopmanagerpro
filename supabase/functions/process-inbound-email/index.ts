@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, RANGE_ANCHORS, styleFromText, hatPrice, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, RANGE_ANCHORS, styleFromText, hatPrice, hatTiers, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,7 +64,7 @@ const SHOP_RULES = `
 You work intake for Hells Canyon Designs (HCD), a small custom apparel shop in Lewiston, Idaho.
 Services: screen printing (10-color automatic press), DTF transfers, embroidery, and patch hats
 (laser leather, leatherette, UV flat and UV textured, and embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
-- When talking to customers about patches say "leather, UV flat and textured, or embroidered patches". Never mention PVC patches.
+- Patches on hats (Phil 2026-10-17): our standard is a real leather patch, sewn on. We also make full-color textured UV patches (premium) and leatherette patches (value option, including specialty colors and carbon fiber). Lead with these; they're made in house. PVC patches only if the customer asks: they're made overseas, add about 2 weeks, and the price gets confirmed separately. Never quote a PVC price.
 Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
 - Minimums: screen print 24 pieces for 1 color, plus 12 more per extra color (2 colors 36, 3 colors 48). Below that we use DTF. DTF and embroidery minimum is 6 pieces; under 12 has a $30 small order fee. Hats are 12 minimum. Never promise a price.
@@ -105,7 +105,7 @@ RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): ans
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
 - Apparel: what items, rough quantity, which decoration locations (e.g. left chest + back), artwork (or that it's coming), and roughly Good/Better/Best or a garment they like. Sizes and colors are needed before ordering, not before a first price.
-- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  HAT MINIMUM / SAMPLES: 12 hats minimum, even for "a sample" or "1 or 2 to try" (it's the time it takes to make the first\n  patch and burn it on the leather / set up the embroidery). Say why in a few words, then offer: split the 12 across colors\n  (e.g. 6 of each) and we send pictures of the patch on the actual hats before we make them all. Never offer 1-2 samples.\n  Leather patches: ask for the logo as a black and white vector file (PDF, AI or EPS) for best results.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch (leather, UV flat or textured)?"
+- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  HAT MINIMUM / SAMPLES: 12 hats minimum, even for "a sample" or "1 or 2 to try" (it's the time it takes to make the first\n  patch and burn it on the leather / set up the embroidery). Say why in a few words, then offer: split the 12 across colors\n  (e.g. 6 of each) and we send pictures of the patch on the actual hats before we make them all. Never offer 1-2 samples.\n  Leather patches: ask for the logo as a black and white vector file (PDF, AI or EPS) for best results.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch?" The draft lists the three patch options with prices automatically."
 - Deadline if they have one.
 `;
 
@@ -519,7 +519,7 @@ Deno.serve(async (req) => {
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
       next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean;
       cat?: string | null; decoUnknown?: boolean; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[]; digitizing?: boolean;
-      range?: { lo: Suggestion; hi: Suggestion } | null; qtyUnknown?: boolean };
+      range?: { lo: Suggestion; hi: Suggestion } | null; qtyUnknown?: boolean; hatTiers?: Suggestion[] | null; pvc?: boolean };
     const pricing: Priced[] = [];
     const flags: string[] = [];
     for (const it of items) {
@@ -605,8 +605,12 @@ Deno.serve(async (req) => {
         const hs = styleFromText(it.garment);
         const hp = hatPrice(hs, hq, { locations });
         const nq = hatNextTier(hq);
+        // Patch hats (or decoration not chosen yet) get Good/Better/Best: leatherette / sewn leather / full-color UV.
+        const deco = String(it.decoration || "unknown");
+        const patchTiers = method === "embroidery" || deco === "embroidery" ? null : hatTiers(hs, hq, { locations });
+        if (deco === "pvc_patch") flags.push(`Item ${items.indexOf(it) + 1}: asked for PVC patches — outsourced, about 2 extra weeks. Price PVC by hand.`);
         pricing.push({
-          suggestions: [], requested: hp, qty: hq, method, hat: true, locations, qtyUnknown: qty === 0, decoUnknown: String(it.decoration || "unknown") === "unknown",
+          suggestions: [], requested: hp, hatTiers: patchTiers, pvc: deco === "pvc_patch", qty: hq, method, hat: true, locations, qtyUnknown: qty === 0, decoUnknown: String(it.decoration || "unknown") === "unknown",
           next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
           assumptions: [
             "hat price list, shipping included",
@@ -861,6 +865,14 @@ Deno.serve(async (req) => {
     const isFollowUp = Boolean(openJob || threadContext);
     const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
       const r = p.requested!;
+      if (p.hatTiers?.length === 3) {
+        const [g, b, best] = p.hatTiers;
+        const hatName = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
+        const head = p.qtyUnknown ? `The minimum on hats is 12. For 12 ${hatName} with your logo:` : `For ${Math.max(p.qty, 12)} ${hatName} with your logo:`;
+        const nx = p.next?.qty ? `\nAt ${p.next.qty} hats, each option drops about $${(b.unit_price - (p.next.pick?.unit_price ?? b.unit_price)).toFixed(2)}.` : "";
+        const pvc = p.pvc ? "\nPVC patches are made overseas and add about 2 weeks; we'll confirm that price separately." : "";
+        return `${head}\n- Leather patch, sewn on (our standard): $${b.unit_price.toFixed(2)} each\n- Full-color textured UV patch: $${best.unit_price.toFixed(2)} each\n- Leatherette patch (value option): $${g.unit_price.toFixed(2)} each${nx}${pvc}`;
+      }
       const nm = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
       const nx = p.next?.pick ? ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.` : "";
       if (p.qtyUnknown) return `The minimum on hats is 12. ${r.name.includes("not on hat list") ? "They" : `${r.name} hats`} run $${r.unit_price.toFixed(2)} each with your logo.${nx}`;
@@ -875,7 +887,7 @@ Deno.serve(async (req) => {
       paras.push(isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
         "That includes a sample for approval and shipping in the lower 48.",
-        emb ? (embMaybe ? "Same price for a patch or embroidery; embroidery has a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
+        emb ? (embMaybe ? "Embroidery is the same as the leather patch price, plus a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
         "Turnaround is about 2-3 weeks after payment.",
       ].filter(Boolean).join(" "));

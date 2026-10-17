@@ -440,6 +440,27 @@ export function hatPrice(style: string | null, qty: number, opts: { locations?: 
   };
 }
 
+// Hat patch Good/Better/Best (Phil 2026-10-17). Sewn real leather is the standard (the price list above);
+// leatherette (pressed, incl. specialty colors / carbon fiber) is the value option at -$2; full-color textured
+// UV (pressed; sewn on request, no charge) is the premium at +$2. No sewing fee — sewn is how we do leather.
+// Embroidery prices like the standard (+ digitizing). PVC is on request only: outsourced, ~2 weeks, priced by hand.
+export const HAT_PATCH_TIERS: Record<Tier, { label: string; add: number }> = {
+  good: { label: "leatherette patch", add: -2 },
+  better: { label: "leather patch, sewn on", add: 0 },
+  best: { label: "full-color textured UV patch", add: 2 },
+};
+
+/** Good/Better/Best for patch hats on one hat style: leatherette / sewn leather / full-color UV. */
+export function hatTiers(style: string | null, qty: number, opts: { locations?: number } = {}): Suggestion[] {
+  const base = hatPrice(style, qty, opts);
+  if (!base) return [];
+  return (["good", "better", "best"] as Tier[]).map((t) => {
+    const unit = Number((base.unit_price + HAT_PATCH_TIERS[t].add).toFixed(2));
+    return { ...base, tier: t, name: `${base.name}, ${HAT_PATCH_TIERS[t].label}`, decoration_cost: unit, unit_price: unit,
+      total: Number((unit * Math.max(qty, HAT_MIN)).toFixed(2)) };
+  });
+}
+
 /** Next price break above qty for hats (null at the top tier). */
 export function hatNextTier(qty: number): number | null {
   const q = Math.max(qty, HAT_MIN);

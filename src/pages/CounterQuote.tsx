@@ -287,7 +287,7 @@ export default function CounterQuote() {
               Couldn't find {line.style.trim().toUpperCase()} at SanMar or S&amp;S. Check the style number, or pick one of our house options below.
             </div>
           )}
-          {line.item !== "hat" && p && p.tiers.length > 1 && (
+          {p && p.tiers.length > 1 && (
             <div className="grid grid-cols-3 items-stretch gap-3">
               {p.tiers.map((t) => (
                 <button
