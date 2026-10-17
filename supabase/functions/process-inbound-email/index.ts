@@ -65,7 +65,8 @@ You work intake for Hells Canyon Designs (HCD), a small custom apparel shop in L
 Services: screen printing (10-color automatic press), DTF transfers, embroidery, and patch hats
 (laser leather, leatherette, UV flat and UV textured, and embroidered patches) mostly on Richardson hats (112, 112PFP, etc.).
 - Patches on hats (Phil 2026-10-17): our standard is a real leather patch, sewn on. We also make full-color textured UV patches (premium) and leatherette patches (value option, including specialty colors and carbon fiber). Lead with these; they're made in house. PVC patches only if the customer asks: they're made overseas, add about 2 weeks, and the price gets confirmed separately. Never quote a PVC price.
-- PRICES AND OPTIONS ARE ADDED BY CODE (Phil 2026-10-17): every quote gets Good/Better/Best lists, including the three hat patch options and the fees. Never list, describe or repeat the patch options, garment tiers, fees or prices in your own words, and never write a price. Your part is the greeting, one friendly sentence about their project, and at most one short line asking what's needed next.
+- PRICES AND OPTIONS ARE ADDED BY CODE (Phil 2026-10-17): every quote gets Good/Better/Best lists, including the three hat patch options and the fees, inserted after your first paragraph. Never list, describe or repeat the patch options, garment tiers, fees or prices in your own words, never write a price, and never write a placeholder or note about prices being added. Your part: the greeting, one friendly sentence about their project, a one-sentence answer to any direct question they asked (e.g. "Do I need to provide the shirts?" → "No, we supply the shirts."), and at most one short line asking what's needed next.
+- Asking about a product with no quantity ("do you have a polo catalog?"): still return that item with quantity 0 so it gets priced at the minimum.
 - AI-made artwork (ChatGPT etc.): the code adds the note about it not being print-ready and the $80 rebuild. Don't explain it yourself and don't promise to design anything.
 - Their own garments inside a bigger order: if they want something they already own decorated (an employee's chef coat, their own jackets), set customer_supplied: true on THAT item, even when the rest of the order is ours.
 - No filler. Never write lines like "however many you plan will help us nail the best method" or "let me know if you want me to explain those options".
@@ -266,6 +267,7 @@ async function runAI(userContent: string): Promise<any> {
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
+      temperature: 0.2, // same email → nearly the same draft (consistent, predictable)
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -286,6 +288,9 @@ async function runAI(userContent: string): Promise<any> {
 const AI_ART_RE = /chat ?gpt|dall-?e|midjourney|firefly|gemini image|ai[- ]generated|\bai\b (?:art|logo|image|design|made)|made (?:it )?(?:with|in|by) ai\b/i;
 export const AI_ART_REBUILD_FEE = 80;
 const AI_ART_NOTE = `A quick note on the art: AI images look good on screen, but they aren't print-ready. If you have an original file from a designer, send it over. If not, we can rebuild it as clean, print-ready art for $${AI_ART_REBUILD_FEE}, and the file is yours to keep.`;
+
+// Customer-supplied garments policy (Phil 2026-10-06): the brands we carry, same words every time.
+const BRANDS_LINE = "We carry something for every budget: Port & Company, Gildan and Jerzees for value; Port Authority, Sport-Tek and OGIO in the middle; and Nike, The North Face, Eddie Bauer and Carhartt at the top. I'm happy to send a product guide.";
 
 // ── Apparel prices for the reply draft ───────────────────────────────────────
 const TIER_BLURB: Record<string, Record<Tier, string>> = {
@@ -892,6 +897,7 @@ Deno.serve(async (req) => {
     //    Hats: Phil's firm price list. Apparel: Good/Better/Best from the matrices, with what we assumed.
     //    Phil still reviews every draft before it's sent.
     let replyDraft: string | null = typeof ai.reply_draft === "string" && ai.reply_draft.trim() ? ai.reply_draft.trim() : null;
+    if (replyDraft) replyDraft = replyDraft.split("\n").filter((l) => !/^\s*[\[(]\s*(?:prices?|pricing)\b[^\n]{0,60}[\])]\s*$/i.test(l)).join("\n").replace(/\n{3,}/g, "\n\n").trim() || null;
     const isFollowUp = Boolean(openJob || threadContext);
     const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
       const r = p.requested!;
@@ -919,11 +925,14 @@ Deno.serve(async (req) => {
         "That includes a sample for approval and shipping in the lower 48.",
         emb ? (embMaybe ? "Embroidery is the same as the leather patch price, plus a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
+        art.status !== "vector" && pricing.some((p) => p.hat && p.hatTiers?.length) ? "For a leather patch, a black and white vector file (PDF, AI or EPS) works best." : "",
         "Turnaround is about 2-3 weeks after payment.",
       ].filter(Boolean).join(" "));
     }
     paras.push(...apparelPriceParas(pricing, isFollowUp));
     if (aiArt && !isFollowUp && paras.length) paras.push(AI_ART_NOTE);
+    const ownGarments = items.some((it) => it.customer_supplied === true);
+    if (ownGarments && !isFollowUp && !/nike|north face|eddie bauer/i.test(replyDraft || "")) paras.push(BRANDS_LINE);
     const priceable = ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification);
     if (paras.length && priceable) {
       let para = paras.join("\n\n");
