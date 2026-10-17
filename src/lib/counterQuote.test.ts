@@ -74,6 +74,18 @@ describe("counter quote pricing matches the email engine + counter guide", () =>
     expect(p.fees[0].amount).toBe(45);
   });
 
+  it("patch hats: Good/Better/Best = leatherette -$2 / sewn leather / full-color UV +$2", async () => {
+    const h = line({ item: "hat", qty: 12, method: "patch", hatStyle: "112", placements: ["Front"] });
+    const p = await priceLine(db, h);
+    expect(p.tiers.map((t) => [t.tier, t.unit_price])).toEqual([["good", 25], ["better", 27], ["best", 29]]);
+    expect(chosen(h, p)!.unit_price).toBe(27); // sewn leather is the default
+    expect(chosen({ ...h, tier: "good" }, p)!.unit_price).toBe(25);
+    const big = await priceLine(db, line({ item: "hat", qty: 500, method: "patch", hatStyle: "112", placements: ["Front"], tier: "good" }));
+    expect(big.tiers.map((t) => t.unit_price)).toEqual([17, 19, 21]); // matches the 500-hat leatherette job at $17
+    const emb = await priceLine(db, line({ item: "hat", qty: 12, method: "hat_embroidery", hatStyle: "112", placements: ["Front"] }));
+    expect(emb.tiers.map((t) => t.unit_price)).toEqual([27]); // embroidery stays one price
+  });
+
   it("700+ is a custom quote", async () => {
     const p = await priceLine(db, line({ qty: 700 }));
     expect(p.blocker).toMatch(/custom/);
