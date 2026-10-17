@@ -23,6 +23,8 @@ and write the checks:
 | `hat_sizes: false` | must not ask for hat sizes |
 | `followup: true` | a reply in an existing thread: no "Thanks for reaching out" |
 | `no_prices` / `no_date_promise` | as named |
+| `min_option_lines` | at least this many priced option lines (e.g. 6 for hats + hoodies) |
+| `max_mentions` | a word may appear at most N times (catches options repeated in the AI text) |
 | `flags` | the action item must carry a warning matching this |
 
 Every draft is also checked for: no PVC unless asked, no filler, no repeated sentences, under 170 words
