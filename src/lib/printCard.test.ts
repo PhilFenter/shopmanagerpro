@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   defaultChecklistMode, estimatePages, formatRevision, revisionDate, sopLink, LETTER_CONTENT_HEIGHT_PX,
+  toggleChecklistItem, checklistProgress,
 } from './printCard';
 
 describe('revisionDate', () => {
@@ -55,5 +56,45 @@ describe('estimatePages', () => {
     expect(estimatePages(LETTER_CONTENT_HEIGHT_PX)).toBe(1);
     expect(estimatePages(LETTER_CONTENT_HEIGHT_PX + 1)).toBe(2);
     expect(estimatePages(LETTER_CONTENT_HEIGHT_PX * 2.5)).toBe(3);
+  });
+});
+
+describe('toggleChecklistItem', () => {
+  const items = [
+    { text: 'A', required: true, done: false },
+    { text: 'B', required: false, done: true },
+  ];
+  const now = new Date('2026-10-18T19:00:00Z');
+
+  it('ticks one item and stays in progress', () => {
+    const r = toggleChecklistItem([{ ...items[0] }, { ...items[1], done: false }], 0, now);
+    expect(r.items.map(i => i.done)).toEqual([true, false]);
+    expect(r.status).toBe('in_progress');
+    expect(r.completed_at).toBeNull();
+  });
+
+  it('completes when the last item is ticked', () => {
+    const r = toggleChecklistItem(items, 0, now);
+    expect(r.status).toBe('completed');
+    expect(r.completed_at).toBe('2026-10-18T19:00:00.000Z');
+  });
+
+  it('reopens when an item is unticked', () => {
+    const r = toggleChecklistItem([{ ...items[0], done: true }, items[1]], 1, now);
+    expect(r.status).toBe('in_progress');
+    expect(r.completed_at).toBeNull();
+  });
+
+  it('does not change the original list', () => {
+    toggleChecklistItem(items, 0, now);
+    expect(items[0].done).toBe(false);
+  });
+});
+
+describe('checklistProgress', () => {
+  it('counts done items', () => {
+    expect(checklistProgress([{ done: true }, { done: false }, { done: true }, { done: false }]))
+      .toEqual({ done: 2, total: 4, percent: 50 });
+    expect(checklistProgress([])).toEqual({ done: 0, total: 0, percent: 0 });
   });
 });

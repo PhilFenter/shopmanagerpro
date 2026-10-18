@@ -81,6 +81,12 @@ const PrintSop = lazyWithReload(() => import("./pages/PrintCard").then((m) => ({
 const PrintChecklist = lazyWithReload(() =>
   import("./pages/PrintCard").then((m) => ({ default: m.PrintChecklist }))
 );
+const ChecklistView = lazyWithReload(() =>
+  import("./pages/ChecklistScreen").then((m) => ({ default: m.ChecklistView }))
+);
+const ChecklistRun = lazyWithReload(() =>
+  import("./pages/ChecklistScreen").then((m) => ({ default: m.ChecklistRun }))
+);
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
@@ -215,6 +221,23 @@ function App() {
                         <AppLayout>
                           <Integrations />
                         </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Full-screen checklists for the station iPads: no sidebar */}
+                  <Route
+                    path="/checklists/run/:id"
+                    element={
+                      <ProtectedRoute>
+                        <ChecklistRun />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/checklists/:id"
+                    element={
+                      <ProtectedRoute>
+                        <ChecklistView />
                       </ProtectedRoute>
                     }
                   />

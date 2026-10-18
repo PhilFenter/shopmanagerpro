@@ -16,7 +16,7 @@ import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
   FileText, Trash2, Edit, Eye, ChevronRight, ChevronLeft, AlertTriangle, Lightbulb,
   Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
-  ArrowUp, ArrowDown, PlusCircle, FolderOpen, Printer,
+  ArrowUp, ArrowDown, PlusCircle, FolderOpen, Printer, Expand,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1089,8 +1089,8 @@ function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onVie
 
         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
           <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
-          <Button size="sm" variant="ghost" title="Print station card" onClick={() => navigate(`/print/sop/${sop.id}`)}>
-            <Printer className="h-4 w-4" />
+          <Button size="sm" variant="outline" onClick={() => navigate(`/print/sop/${sop.id}`)}>
+            <Printer className="h-4 w-4 mr-1" /> Print
           </Button>
           <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
         </div>
@@ -1100,114 +1100,61 @@ function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onVie
 }
 
 // ─── Checklist Card with Hover Preview ───
+// Tapping the card opens the checklist full screen (/checklists/:id), which suits the station iPads.
 function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { template: ChecklistTemplate; onStart: () => void; onEdit: () => void; onDelete: () => void }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
 
   return (
-    <>
-      <Card
-        className="hover:shadow-md transition-all cursor-pointer"
-        onMouseEnter={() => { if (!isTouchDevice) setExpanded(true); }}
-        onMouseLeave={() => { if (!isTouchDevice) setExpanded(false); }}
-        onClick={() => setSheetOpen(true)}
-      >
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{template.title}</CardTitle>
-          {template.description && <CardDescription className="line-clamp-2">{template.description}</CardDescription>}
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-1 flex-wrap mb-2">
-            {template.department && <Badge variant="outline" className="text-xs">{template.department}</Badge>}
-            <Badge variant="outline" className="text-xs">{template.items.length} items</Badge>
-          </div>
+    <Card
+      className="hover:shadow-md transition-all cursor-pointer"
+      onMouseEnter={() => { if (!isTouchDevice) setExpanded(true); }}
+      onMouseLeave={() => { if (!isTouchDevice) setExpanded(false); }}
+      onClick={() => navigate(`/checklists/${template.id}`)}
+    >
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{template.title}</CardTitle>
+        {template.description && <CardDescription className="line-clamp-2">{template.description}</CardDescription>}
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-1 flex-wrap mb-2">
+          {template.department && <Badge variant="outline" className="text-xs">{template.department}</Badge>}
+          <Badge variant="outline" className="text-xs">{template.items.length} items</Badge>
+        </div>
 
-          {/* Hover preview of items */}
-          <div className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            expanded ? 'max-h-60 opacity-100 mb-3' : 'max-h-0 opacity-0'
-          )}>
-            {template.items.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">No items defined.</p>
-            ) : (
-              <div className="space-y-1 border-t pt-2 max-h-52 overflow-y-auto">
-                {template.items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className={cn("flex-1", item.required && "font-medium")}>{item.text}</span>
-                    {item.required && <Badge variant="outline" className="text-[10px] px-1 py-0">Required</Badge>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-            <Button size="sm" variant="default" onClick={onStart}>
-              <Play className="h-4 w-4 mr-1" /> Start
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
-            <Button size="sm" variant="ghost" title="Print checklist" onClick={() => navigate(`/print/checklist/${template.id}`)}>
-              <Printer className="h-4 w-4" />
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Full-height detail sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
-          <SheetHeader className="pb-4">
-            <SheetTitle>{template.title}</SheetTitle>
-            {template.description && (
-              <p className="text-sm text-muted-foreground">{template.description}</p>
-            )}
-            <div className="flex gap-1.5 flex-wrap pt-1">
-              {template.department && <Badge variant="outline">{template.department}</Badge>}
-              <Badge variant="outline">{template.items.length} items</Badge>
+        {/* Hover preview of items */}
+        <div className={cn(
+          'overflow-hidden transition-all duration-300 ease-in-out',
+          expanded ? 'max-h-60 opacity-100 mb-3' : 'max-h-0 opacity-0'
+        )}>
+          {template.items.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">No items defined.</p>
+          ) : (
+            <div className="space-y-1 border-t pt-2 max-h-52 overflow-y-auto">
+              {template.items.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className={cn("flex-1", item.required && "font-medium")}>{item.text}</span>
+                  {item.required && <Badge variant="outline" className="text-[10px] px-1 py-0">Required</Badge>}
+                </div>
+              ))}
             </div>
-          </SheetHeader>
-          <Separator />
-          <ScrollArea className="flex-1 py-4">
-            {template.items.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No items defined.</p>
-            ) : (
-              <div className="space-y-3 pr-4">
-                {template.items.map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                    <div className="mt-0.5">
-                      <Circle className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <p className={cn("text-sm", item.required && "font-semibold")}>{item.text}</p>
-                      {item.required && (
-                        <Badge variant="secondary" className="text-xs mt-1">Required</Badge>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground mt-0.5">#{i + 1}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-          <Separator />
-          <div className="flex gap-2 pt-4">
-            <Button className="flex-1" onClick={() => { setSheetOpen(false); onStart(); }}>
-              <Play className="h-4 w-4 mr-1" /> Start Checklist
-            </Button>
-            <Button variant="outline" onClick={() => { setSheetOpen(false); onEdit(); }}>
-              <Edit className="h-4 w-4 mr-1" /> Edit
-            </Button>
-            <Button variant="outline" onClick={() => navigate(`/print/checklist/${template.id}`)}>
-              <Printer className="h-4 w-4 mr-1" /> Print
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
+          )}
+        </div>
+
+        <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
+          <Button size="sm" variant="default" onClick={onStart}>
+            <Play className="h-4 w-4 mr-1" /> Start
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate(`/print/checklist/${template.id}`)}>
+            <Printer className="h-4 w-4 mr-1" /> Print
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+          <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1215,6 +1162,7 @@ export default function Knowledge() {
   const { sops, isLoading: sopsLoading, deleteSop } = useSOPs();
   const { templates, isLoading: templatesLoading, deleteTemplate } = useChecklistTemplates();
   const { instances, createInstance, updateInstance } = useChecklistInstances();
+  const navigate = useNavigate();
   const { plans, isLoading: plansLoading, deletePlan } = useTrainingPlans();
   const { assignments } = useTrainingAssignments();
   const { teamMembers } = useTeamMembers();
@@ -1439,7 +1387,7 @@ export default function Knowledge() {
                         return (
                           <Card key={inst.id} className="border-primary/30">
                             <CardHeader className="pb-2">
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between gap-2">
                                 <CardTitle className="text-base">{inst.title}</CardTitle>
                                 <Badge variant="secondary" className="text-xs">{doneItems}/{totalItems}</Badge>
                               </div>
@@ -1488,6 +1436,10 @@ export default function Knowledge() {
                                   }}
                                 >
                                   <ArrowDown className="h-3 w-3 mr-1 rotate-180" /> Reset All
+                                </Button>
+                                <div className="flex-1" />
+                                <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/checklists/run/${inst.id}`)}>
+                                  <Expand className="h-3 w-3 mr-1" /> Full screen
                                 </Button>
                               </div>
                             </CardContent>
@@ -1553,13 +1505,14 @@ export default function Knowledge() {
                           <ChecklistCardWithPreview
                             key={t.id}
                             template={t}
-                            onStart={() => {
-                              createInstance.mutateAsync({
+                            onStart={async () => {
+                              const created = await createInstance.mutateAsync({
                                 template_id: t.id,
                                 title: t.title,
                                 items: t.items.map(item => ({ ...item, done: false })),
                                 status: 'in_progress',
                               });
+                              navigate(`/checklists/run/${(created as { id: string }).id}`);
                             }}
                             onEdit={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}
                             onDelete={() => deleteTemplate.mutateAsync(t.id)}
