@@ -1102,7 +1102,8 @@ function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onVie
 
 // ─── Checklist Card with Hover Preview ───
 // Tapping the card opens the checklist full screen (/checklists/:id), which suits the station iPads.
-function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { template: ChecklistTemplate; onStart: () => void; onEdit: () => void; onDelete: () => void }) {
+// No delete button on purpose: checklists are kept; finished or unneeded runs get closed instead.
+function ChecklistCardWithPreview({ template, onStart, onEdit }: { template: ChecklistTemplate; onStart: () => void; onEdit: () => void }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
@@ -1152,7 +1153,6 @@ function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { tem
             <Printer className="h-4 w-4 mr-1" /> Print
           </Button>
           <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
-          <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
         </div>
       </CardContent>
     </Card>
@@ -1161,7 +1161,7 @@ function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { tem
 
 export default function Knowledge() {
   const { sops, isLoading: sopsLoading, deleteSop } = useSOPs();
-  const { templates, isLoading: templatesLoading, deleteTemplate } = useChecklistTemplates();
+  const { templates, isLoading: templatesLoading } = useChecklistTemplates();
   const { instances, createInstance, updateInstance } = useChecklistInstances();
   const navigate = useNavigate();
   const { plans, isLoading: plansLoading, deletePlan } = useTrainingPlans();
@@ -1493,7 +1493,9 @@ export default function Knowledge() {
                             sop={sop}
                             onView={() => setViewingSop(sop)}
                             onEdit={() => { setEditingSop(sop); setSopEditorOpen(true); }}
-                            onDelete={() => deleteSop.mutateAsync(sop.id)}
+                            onDelete={() => {
+                              if (window.confirm(`Delete the SOP "${sop.title}"? This can't be undone.`)) deleteSop.mutateAsync(sop.id);
+                            }}
                           />
                         ))}
                       </div>
@@ -1528,7 +1530,6 @@ export default function Knowledge() {
                               navigate(`/checklists/run/${(created as { id: string }).id}`);
                             }}
                             onEdit={() => { setEditingChecklist(t); setChecklistEditorOpen(true); }}
-                            onDelete={() => deleteTemplate.mutateAsync(t.id)}
                           />
                         ))}
                       </div>
