@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   defaultChecklistMode, estimatePages, formatRevision, revisionDate, sopLink, LETTER_CONTENT_HEIGHT_PX,
-  toggleChecklistItem, checklistProgress,
+  toggleChecklistItem, checklistProgress, isOpenRun,
 } from './printCard';
 
 describe('revisionDate', () => {
@@ -96,5 +96,14 @@ describe('checklistProgress', () => {
     expect(checklistProgress([{ done: true }, { done: false }, { done: true }, { done: false }]))
       .toEqual({ done: 2, total: 4, percent: 50 });
     expect(checklistProgress([])).toEqual({ done: 0, total: 0, percent: 0 });
+  });
+});
+
+describe('isOpenRun', () => {
+  it('treats completed and closed runs as done, everything else as open', () => {
+    expect(isOpenRun('in_progress')).toBe(true);
+    expect(isOpenRun(null)).toBe(true);
+    expect(isOpenRun('completed')).toBe(false);
+    expect(isOpenRun('closed')).toBe(false);
   });
 });

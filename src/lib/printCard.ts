@@ -69,3 +69,13 @@ export function checklistProgress(items: { done: boolean }[]) {
   const done = items.filter(i => i.done).length;
   return { done, total: items.length, percent: items.length ? Math.round((done / items.length) * 100) : 0 };
 }
+
+/**
+ * A run is "open" until it's completed or someone closes it.
+ * Closing keeps the record (status 'closed') so nothing is lost; it just leaves the active lists.
+ */
+export function isOpenRun(status: string | null | undefined): boolean {
+  return status !== 'completed' && status !== 'closed';
+}
+
+export const CLOSE_RUN_UPDATE = { status: 'closed' } as const;
