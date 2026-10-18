@@ -77,6 +77,10 @@ const Handoffs = lazyWithReload(() => import("./pages/Handoffs"));
 const Schedule = lazyWithReload(() => import("./pages/Schedule"));
 const CounterQuote = lazyWithReload(() => import("./pages/CounterQuote"));
 const ResetPassword = lazyWithReload(() => import("./pages/ResetPassword"));
+const PrintSop = lazyWithReload(() => import("./pages/PrintCard").then((m) => ({ default: m.PrintSop })));
+const PrintChecklist = lazyWithReload(() =>
+  import("./pages/PrintCard").then((m) => ({ default: m.PrintChecklist }))
+);
 
 const PageLoader = () => (
   <div className="flex h-screen items-center justify-center">
@@ -211,6 +215,23 @@ function App() {
                         <AppLayout>
                           <Integrations />
                         </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Printable SOP station cards and checklist sheets: no sidebar, so only the card prints */}
+                  <Route
+                    path="/print/sop/:id"
+                    element={
+                      <ProtectedRoute>
+                        <PrintSop />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/print/checklist/:id"
+                    element={
+                      <ProtectedRoute>
+                        <PrintChecklist />
                       </ProtectedRoute>
                     }
                   />

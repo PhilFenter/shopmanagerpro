@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSkills } from '@/hooks/useSkills';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
   FileText, Trash2, Edit, Eye, ChevronRight, ChevronLeft, AlertTriangle, Lightbulb,
   Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
-  ArrowUp, ArrowDown, PlusCircle, FolderOpen,
+  ArrowUp, ArrowDown, PlusCircle, FolderOpen, Printer,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -422,6 +423,7 @@ function StepEditor({
 // ─── SOP Viewer ───
 function SOPViewer({ sop, onClose }: { sop: Sop; onClose: () => void }) {
   const { steps, isLoading } = useSOPSteps(sop.id);
+  const navigate = useNavigate();
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
@@ -437,6 +439,10 @@ function SOPViewer({ sop, onClose }: { sop: Sop; onClose: () => void }) {
           {sop.department && <Badge variant="secondary">{sop.department}</Badge>}
           <Badge variant="outline">{sop.category}</Badge>
           <Badge className={sop.status === 'published' ? 'bg-green-100 text-green-800' : ''}>{sop.status}</Badge>
+          <div className="flex-1" />
+          <Button size="sm" variant="outline" onClick={() => navigate(`/print/sop/${sop.id}`)}>
+            <Printer className="h-4 w-4 mr-1" /> Print card
+          </Button>
         </div>
 
         {isLoading ? (
@@ -1032,6 +1038,7 @@ function TrainingPlanDetailSheet({
 
 // ─── SOP Card with Hover Preview ───
 function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const { steps, isLoading } = useSOPSteps(expanded ? sop.id : null);
   const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
@@ -1082,6 +1089,9 @@ function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onVie
 
         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
           <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+          <Button size="sm" variant="ghost" title="Print station card" onClick={() => navigate(`/print/sop/${sop.id}`)}>
+            <Printer className="h-4 w-4" />
+          </Button>
           <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
         </div>
       </CardContent>
@@ -1091,6 +1101,7 @@ function SOPCardWithPreview({ sop, onView, onEdit, onDelete }: { sop: Sop; onVie
 
 // ─── Checklist Card with Hover Preview ───
 function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { template: ChecklistTemplate; onStart: () => void; onEdit: () => void; onDelete: () => void }) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
@@ -1138,6 +1149,9 @@ function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { tem
               <Play className="h-4 w-4 mr-1" /> Start
             </Button>
             <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+            <Button size="sm" variant="ghost" title="Print checklist" onClick={() => navigate(`/print/checklist/${template.id}`)}>
+              <Printer className="h-4 w-4" />
+            </Button>
             <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
           </div>
         </CardContent>
@@ -1187,6 +1201,9 @@ function ChecklistCardWithPreview({ template, onStart, onEdit, onDelete }: { tem
             <Button variant="outline" onClick={() => { setSheetOpen(false); onEdit(); }}>
               <Edit className="h-4 w-4 mr-1" /> Edit
             </Button>
+            <Button variant="outline" onClick={() => navigate(`/print/checklist/${template.id}`)}>
+              <Printer className="h-4 w-4 mr-1" /> Print
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
@@ -1213,6 +1230,24 @@ export default function Knowledge() {
   const [trainingEditorOpen, setTrainingEditorOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<TrainingPlan | null>(null);
   const [viewingPlan, setViewingPlan] = useState<TrainingPlan | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedSopId = searchParams.get('sop');
+
+  // QR codes on printed station cards link to /knowledge?sop=<id>: open that SOP.
+  useEffect(() => {
+    if (!linkedSopId || sopsLoading) return;
+    const found = sops.find(s => s.id === linkedSopId);
+    if (found) setViewingSop(found);
+  }, [linkedSopId, sopsLoading, sops]);
+
+  const closeSopViewer = () => {
+    setViewingSop(null);
+    if (linkedSopId) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('sop');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const knowledgeCategories = useMemo(() => Array.from(new Set([
     ...CATEGORIES,
@@ -1595,7 +1630,7 @@ export default function Knowledge() {
 
       {/* Dialogs */}
       {sopEditorOpen && <SOPEditorDialog sop={editingSop} open={sopEditorOpen} onOpenChange={setSopEditorOpen} />}
-      {viewingSop && <SOPViewer sop={viewingSop} onClose={() => setViewingSop(null)} />}
+      {viewingSop && <SOPViewer sop={viewingSop} onClose={closeSopViewer} />}
       {checklistEditorOpen && <ChecklistEditorDialog template={editingChecklist} open={checklistEditorOpen} onOpenChange={setChecklistEditorOpen} />}
       {trainingEditorOpen && <TrainingPlanDialog plan={editingPlan} open={trainingEditorOpen} onOpenChange={setTrainingEditorOpen} />}
 
