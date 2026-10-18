@@ -49,3 +49,23 @@ export function estimatePages(contentHeightPx: number): number {
   if (contentHeightPx <= 0) return 1;
   return Math.max(1, Math.ceil(contentHeightPx / LETTER_CONTENT_HEIGHT_PX));
 }
+
+// ─── Running a checklist (full-screen view) ───
+
+export interface RunItem { text: string; required: boolean; done: boolean }
+
+/** Tick or untick one item; the checklist completes when every item is done. */
+export function toggleChecklistItem(items: RunItem[], index: number, now: Date = new Date()) {
+  const next = items.map((it, i) => (i === index ? { ...it, done: !it.done } : it));
+  const allDone = next.length > 0 && next.every(it => it.done);
+  return {
+    items: next,
+    status: allDone ? 'completed' : 'in_progress',
+    completed_at: allDone ? now.toISOString() : null,
+  };
+}
+
+export function checklistProgress(items: { done: boolean }[]) {
+  const done = items.filter(i => i.done).length;
+  return { done, total: items.length, percent: items.length ? Math.round((done / items.length) * 100) : 0 };
+}
