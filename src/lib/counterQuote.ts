@@ -91,6 +91,7 @@ export interface CounterLine {
   dtfBack: number;  // 1 = 11x5, 2 = 11x14, 3 = 12x22
   placements: string[];
   hatStyle: string;
+  puff: boolean;    // hat embroidery: 3D puff (+$3/hat)
   tier: Tier;
   style: string;    // customer's own pick, e.g. "PC55" (optional)
   usePick: boolean; // price their pick instead of a house tier
@@ -116,6 +117,7 @@ export function newLine(item: Item = "tee"): CounterLine {
     dtfBack: 2,
     placements: [placementsFor(item, methodsFor(item)[0])[0]],
     hatStyle: "112",
+    puff: false,
     tier: "better",
     style: "",
     usePick: true,
@@ -302,7 +304,8 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   }
 
   if (line.item === "hat") {
-    const s = hatPrice(line.hatStyle, qty, { locations: locs });
+    const puff = line.method === "hat_embroidery" && !!line.puff;
+    const s = hatPrice(line.hatStyle, qty, { locations: locs, puff });
     if (!s) return out;
     out.tiers = line.method === "patch" ? hatTiers(line.hatStyle, qty, { locations: locs }) : [s];
     out.billedQty = Math.max(qty, HAT_MIN);
@@ -310,12 +313,12 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
     if (line.method === "hat_embroidery" && out.billedQty < DIGITIZING_WAIVE_QTY) out.fees.push(DIGITIZING);
     out.notes.push(line.method === "patch"
       ? "Includes the hat and patch. Leather patches are sewn on; leatherette and full-color UV are heat pressed."
-      : "Includes the hat and embroidery up to 8,000 stitches.");
+      : `Includes the hat and embroidery up to 8,000 stitches${puff ? ", plus $3 a hat for 3D puff" : ""}.`);
     if (!HAT_UPCHARGES[line.hatStyle.toUpperCase()]) out.notes.push("Style isn't on our hat list yet, so it's priced like a 112. We'll confirm.");
     const nq = hatNextTier(out.billedQty);
     if (nq) {
       const cur = out.tiers.find((t) => t.tier === line.tier) ?? out.tiers[0];
-      const ns = (line.method === "patch" ? hatTiers(line.hatStyle, nq, { locations: locs }) : [hatPrice(line.hatStyle, nq, { locations: locs })])
+      const ns = (line.method === "patch" ? hatTiers(line.hatStyle, nq, { locations: locs }) : [hatPrice(line.hatStyle, nq, { locations: locs, puff })])
         .find((t) => t && t.tier === cur.tier) ?? null;
       if (ns && ns.unit_price < cur.unit_price) out.nextBreak = { qty: nq, unit: ns.unit_price };
     }
@@ -389,6 +392,7 @@ export function describeLine(line: CounterLine, s?: Suggestion): string {
   const deco =
     line.method === "screen_print" ? (line.placements.length > 1 ? `screen print (${screenSummary(line)})` : `${screenSummary(line)} screen print`) :
     line.method === "dtf" ? "DTF" :
+    line.method === "hat_embroidery" && line.puff ? "3D puff embroidery" :
     METHOD_LABELS[line.method];
   const where = line.method === "dtf" ? dtfSummary(line) : line.placements.join(" + ");
   return `${what} — ${deco}, ${where || "location TBD"}`;
@@ -515,7 +519,7 @@ export async function saveCounterQuote(
         placements: l.placements,
         ...(l.method === "screen_print" ? { colors: screenColorsFor(l).reduce((a, c) => a + c, 0), colorsByLocation: Object.fromEntries(l.placements.map((pl, i) => [pl, screenColorsFor(l)[i]])) } : {}),
         ...(l.method === "dtf" ? { dtfSizes: Object.fromEntries(l.placements.map((pl) => [pl, DTF_SIZES[dtfColFor(l, pl)]])) } : {}),
-        ...(l.item === "hat" ? { hatStyle: l.hatStyle, ...(l.method === "patch" ? { tier: l.tier } : {}) } : l.usePick && p?.requested ? { customerPick: l.style.trim().toUpperCase() } : { tier: l.tier }),
+        ...(l.item === "hat" ? { hatStyle: l.hatStyle, ...(l.method === "hat_embroidery" && l.puff ? { puff: true } : {}), ...(l.method === "patch" ? { tier: l.tier } : {}) } : l.usePick && p?.requested ? { customerPick: l.style.trim().toUpperCase() } : { tier: l.tier }),
       },
       line_total: priceIt ? Number((s!.unit_price * qty).toFixed(2)) : 0,
       notes: [...(p?.notes ?? []), p?.blocker ?? "", p?.approval ? `MANAGER APPROVAL: ${p.approval}` : "",

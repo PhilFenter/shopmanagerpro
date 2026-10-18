@@ -280,3 +280,14 @@ describe("garment cost = SanMar list price (Phil 2026-10-14)", () => {
     expect(p.tiers[1].unit_price).toBe(17.23); // 8.46 × 1.80 + 2.00
   });
 });
+
+describe("hat 3D puff", () => {
+  it("adds $3 a hat to embroidered hats only", async () => {
+    const base = { ...newLine("hat"), method: "hat_embroidery" as const, hatStyle: "112PFP", qty: 72 };
+    expect((await priceLine(db, { ...base, puff: false })).tiers[0].unit_price).toBe(22.5);
+    expect((await priceLine(db, { ...base, puff: true })).tiers[0].unit_price).toBe(25.5);
+    // Patch hats ignore the puff flag
+    const patch = { ...base, method: "patch" as const, puff: true };
+    expect((await priceLine(db, patch)).tiers.find((t) => t.tier === "better")!.unit_price).toBe(22.5);
+  });
+});

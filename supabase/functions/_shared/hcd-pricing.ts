@@ -424,17 +424,19 @@ export const HAT_STITCH_LIMIT = 8000;
 // Over 8,000 stitches: +$1.50 per 1,000, capped at +$6 (8–10k +$3, 10–21k +$6). Applied after digitizing.
 export const HAT_PER_1K_OVER = 1.5;
 export const HAT_STITCH_CAP = 6;
+// 3D puff embroidery: +$3 per hat (Phil 2026-10-18).
+export const HAT_PUFF = 3;
 
-export function hatPrice(style: string | null, qty: number, opts: { locations?: number } = {}): Suggestion | null {
+export function hatPrice(style: string | null, qty: number, opts: { locations?: number; puff?: boolean } = {}): Suggestion | null {
   if (qty <= 0) return null;
   const q = Math.max(qty, HAT_MIN);
   const tier = HAT_PRICE_TIERS.find((t) => q >= t.min)!;
   const key = (style || "112").toUpperCase();
   const known = HAT_UPCHARGES[key];
   const extraLocs = Math.min(Math.max((opts.locations || 1) - 1, 0), 2);
-  const unit = Number((tier.price + (known?.add ?? 0) + extraLocs * HAT_EXTRA_LOCATION).toFixed(2));
+  const unit = Number((tier.price + (known?.add ?? 0) + extraLocs * HAT_EXTRA_LOCATION + (opts.puff ? HAT_PUFF : 0)).toFixed(2));
   return {
-    tier: "better", style: key, name: known?.name ?? `${key} (not on hat list — priced as a 112, check it)`,
+    tier: "better", style: key, name: (known?.name ?? `${key} (not on hat list — priced as a 112, check it)`) + (opts.puff ? ", 3D puff" : ""),
     garment_cost: 0, markup_pct: 0, decoration_cost: unit, unit_price: unit,
     total: Number((unit * q).toFixed(2)), upcharge_2xl: 0,
   };

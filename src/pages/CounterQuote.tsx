@@ -542,6 +542,12 @@ export default function CounterQuote() {
                     </Chip>
                   ))}
                 </div>
+                {line.method === "hat_embroidery" && (
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <Chip active={!line.puff} onClick={() => update({ puff: false })}>Flat embroidery</Chip>
+                    <Chip active={!!line.puff} onClick={() => update({ puff: true })}>3D puff<span className="ml-2 text-sm opacity-70">+$3 a hat</span></Chip>
+                  </div>
+                )}
               </Section>
             )}
 
