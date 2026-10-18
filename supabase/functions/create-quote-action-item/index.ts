@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   suggestTiers, suggestRequested, styleFromText, hatPrice, hatNextTier, matrixNextTier, assumptionsFor,
-  screenPrintMin, screenFees, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY,
+  screenPrintMin, screenFees, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, HAT_STITCH_NOTE, CUSTOM_QUOTE_QTY, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY,
   SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, type Tier,
 } from "../_shared/hcd-pricing.ts";
 
@@ -199,7 +199,7 @@ async function websitePricingLines(
     const nq = hatNextTier(qty);
     const np = nq ? hatPrice(style, nq) : null;
     if (!hp) return [];
-    out.push(`💲 Suggested price (${qty} hats, hat price list, shipping included${embroidery ? `, up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches: +$3 to 10k, +$6 max to 21k` : ""}${embroidery && qty < 50 ? ", +$45 digitizing" : ""}${qty < 12 ? ", 12 minimum" : ""}):`);
+    out.push(`💲 Suggested price (${qty} hats, hat price list, shipping included${embroidery ? `, ${HAT_STITCH_NOTE}` : ""}${embroidery && qty < 50 ? ", +$45 digitizing" : ""}${qty < 12 ? ", 12 minimum" : ""}):`);
     out.push(`  ${hp.name}: $${hp.unit_price.toFixed(2)} ea / $${hp.total.toFixed(2)}`);
     if (np && nq) out.push(`  NEXT BREAK: ${nq} hats — $${np.unit_price.toFixed(2)} ea`);
     out.push(`  UPSELL: side flag +$${HAT_SIDE_FLAG.toFixed(2)} per hat. 2nd/3rd embroidered location +$8 each.`);
