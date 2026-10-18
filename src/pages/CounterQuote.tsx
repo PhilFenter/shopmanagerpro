@@ -542,6 +542,22 @@ export default function CounterQuote() {
                     </Chip>
                   ))}
                 </div>
+                {line.method === "hat_embroidery" && (
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <Chip active={!line.puff} onClick={() => update({ puff: false })}>Flat embroidery</Chip>
+                    <Chip active={!!line.puff} onClick={() => update({ puff: true })}>3D puff<span className="ml-2 text-sm opacity-70">+$3 a hat</span></Chip>
+                  </div>
+                )}
+                {line.method === "hat_embroidery" && (
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <span className="w-28 text-lg font-medium">Stitches</span>
+                    {["Up to 8k", "8–12k", "12–16k", "Over 16k"].map((lbl, i) => (
+                      <Chip key={lbl} active={(line.stitchTier ?? 0) === i} onClick={() => update({ stitchTier: i })}>
+                        {lbl}<span className="ml-2 text-sm opacity-70">{["included", "+$1 a hat", "+$2 a hat", "quote per job"][i]}</span>
+                      </Chip>
+                    ))}
+                  </div>
+                )}
               </Section>
             )}
 

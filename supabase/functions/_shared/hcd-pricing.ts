@@ -421,20 +421,33 @@ export const CUSTOM_QUOTE_QTY = 700;
 export const HAT_EXTRA_LOCATION = 8;
 export const HAT_SIDE_FLAG = 5;
 export const HAT_STITCH_LIMIT = 8000;
-// Over 8,000 stitches: +$1.50 per 1,000, capped at +$6 (8–10k +$3, 10–21k +$6). Applied after digitizing.
-export const HAT_PER_1K_OVER = 1.5;
-export const HAT_STITCH_CAP = 6;
+// Hat stitch tiers (Phil 2026-10-18): up to 8k included, 8–12k +$1, 12–16k +$2, over 16k is quoted per job.
+// Stacks with 3D puff. Patch hats and the $45 digitizing aren't affected.
+export const HAT_STITCH_TIERS = [
+  { id: 0, label: "Up to 8k", max: 8000, add: 0 },
+  { id: 1, label: "8–12k", max: 12000, add: 1 },
+  { id: 2, label: "12–16k", max: 16000, add: 2 },
+] as const;
+export const HAT_STITCH_QUOTE_OVER = 16000;
+export const HAT_STITCH_NOTE = "up to 8,000 stitches included; 8–12k +$1, 12–16k +$2, over 16k quoted per job";
+/** Per-hat stitch add-on for a stitch count; null = over 16k, quote per job. */
+export function hatStitchAdd(stitches: number): number | null {
+  const t = HAT_STITCH_TIERS.find((x) => stitches <= x.max);
+  return t ? t.add : null;
+}
+// 3D puff embroidery: +$3 per hat (Phil 2026-10-18).
+export const HAT_PUFF = 3;
 
-export function hatPrice(style: string | null, qty: number, opts: { locations?: number } = {}): Suggestion | null {
+export function hatPrice(style: string | null, qty: number, opts: { locations?: number; puff?: boolean; stitchAdd?: number } = {}): Suggestion | null {
   if (qty <= 0) return null;
   const q = Math.max(qty, HAT_MIN);
   const tier = HAT_PRICE_TIERS.find((t) => q >= t.min)!;
   const key = (style || "112").toUpperCase();
   const known = HAT_UPCHARGES[key];
   const extraLocs = Math.min(Math.max((opts.locations || 1) - 1, 0), 2);
-  const unit = Number((tier.price + (known?.add ?? 0) + extraLocs * HAT_EXTRA_LOCATION).toFixed(2));
+  const unit = Number((tier.price + (known?.add ?? 0) + extraLocs * HAT_EXTRA_LOCATION + (opts.puff ? HAT_PUFF : 0) + (opts.stitchAdd ?? 0)).toFixed(2));
   return {
-    tier: "better", style: key, name: known?.name ?? `${key} (not on hat list — priced as a 112, check it)`,
+    tier: "better", style: key, name: (known?.name ?? `${key} (not on hat list — priced as a 112, check it)`) + (opts.puff ? ", 3D puff" : ""),
     garment_cost: 0, markup_pct: 0, decoration_cost: unit, unit_price: unit,
     total: Number((unit * q).toFixed(2)), upcharge_2xl: 0,
   };

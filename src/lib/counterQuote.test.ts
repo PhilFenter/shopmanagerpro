@@ -280,3 +280,31 @@ describe("garment cost = SanMar list price (Phil 2026-10-14)", () => {
     expect(p.tiers[1].unit_price).toBe(17.23); // 8.46 × 1.80 + 2.00
   });
 });
+
+describe("hat 3D puff", () => {
+  it("adds $3 a hat to embroidered hats only", async () => {
+    const base = { ...newLine("hat"), method: "hat_embroidery" as const, hatStyle: "112PFP", qty: 72 };
+    expect((await priceLine(db, { ...base, puff: false })).tiers[0].unit_price).toBe(22.5);
+    expect((await priceLine(db, { ...base, puff: true })).tiers[0].unit_price).toBe(25.5);
+    // Patch hats ignore the puff flag
+    const patch = { ...base, method: "patch" as const, puff: true };
+    expect((await priceLine(db, patch)).tiers.find((t) => t.tier === "better")!.unit_price).toBe(22.5);
+  });
+});
+
+describe("hat stitch tiers", () => {
+  const base = { ...newLine("hat"), method: "hat_embroidery" as const, hatStyle: "112PFP", qty: 80 };
+  it("adds $0 / $1 / $2 and stacks with puff", async () => {
+    expect((await priceLine(db, { ...base, stitchTier: 0, puff: true })).tiers[0].unit_price).toBe(25.5);
+    expect((await priceLine(db, { ...base, stitchTier: 1 })).tiers[0].unit_price).toBe(23.5);
+    expect((await priceLine(db, { ...base, stitchTier: 2, puff: true })).tiers[0].unit_price).toBe(27.5);
+  });
+  it("over 16k is a quote per job", async () => {
+    const p = await priceLine(db, { ...base, stitchTier: 3 });
+    expect(p.blocker).toMatch(/16,000/);
+  });
+  it("patch hats ignore stitch tier", async () => {
+    const p = await priceLine(db, { ...base, method: "patch", stitchTier: 2 });
+    expect(p.tiers.find((t) => t.tier === "better")!.unit_price).toBe(22.5);
+  });
+});

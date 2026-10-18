@@ -24,7 +24,7 @@
 //   AI_MODEL               optional — defaults to google/gemini-3-flash-preview
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { categoryOf, suggestTiers, suggestRequested, RANGE_ANCHORS, styleFromText, hatPrice, hatTiers, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
+import { categoryOf, suggestTiers, suggestRequested, RANGE_ANCHORS, styleFromText, hatPrice, hatTiers, hatNextTier, matrixNextTier, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, HAT_STITCH_NOTE, CUSTOM_QUOTE_QTY, screenPrintMin, screenFees, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY, SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, assumptionsFor, type Suggestion, type Tier } from "../_shared/hcd-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -652,7 +652,7 @@ Deno.serve(async (req) => {
           next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
           assumptions: [
             "hat price list, shipping included",
-            method === "embroidery" ? `up to ${HAT_STITCH_LIMIT.toLocaleString()} stitches (over that: +$3 to 10k, +$6 max to 21k — confirm after digitizing)` : "",
+            method === "embroidery" ? `${HAT_STITCH_NOTE} (confirm after digitizing)` : "",
             method === "embroidery" && qty < 50 ? "+$45 digitizing" : "",
             String(it.decoration || "unknown") === "unknown" ? "decoration not chosen yet (same price for patch or embroidery)" : "",
             locations > 1 ? `${Math.min(locations, 3)} locations (+$8 each extra)` : "",
