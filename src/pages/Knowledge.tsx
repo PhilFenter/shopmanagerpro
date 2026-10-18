@@ -16,7 +16,7 @@ import {
   Plus, Search, BookOpen, CheckSquare, GraduationCap,
   FileText, Trash2, Edit, Eye, ChevronRight, ChevronLeft, AlertTriangle, Lightbulb,
   Video, Image as ImageIcon, Camera, Upload, Loader2, Play, CheckCircle2, Circle,
-  ArrowUp, ArrowDown, PlusCircle, FolderOpen, Printer, Expand,
+  ArrowUp, ArrowDown, PlusCircle, FolderOpen, Printer, Expand, X,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +30,7 @@ import {
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { cn } from '@/lib/utils';
 import { AIGenerateDialog } from '@/components/knowledge/AIGenerateDialog';
+import { isOpenRun, CLOSE_RUN_UPDATE } from '@/lib/printCard';
 import { Sparkles } from 'lucide-react';
 
 // ─── SOP Editor Dialog ───
@@ -1369,7 +1370,7 @@ export default function Knowledge() {
               {/* Active Checklists for this category */}
               {(() => {
                 const activeCategoryInstances = instances.filter(i => {
-                  if (i.status === 'completed') return false;
+                  if (!isOpenRun(i.status)) return false;
                   const tmpl = templates.find(t => t.id === i.template_id);
                   return tmpl && (tmpl.category || tmpl.department || 'Uncategorized') === selectedCategory;
                 });
@@ -1436,6 +1437,18 @@ export default function Knowledge() {
                                   }}
                                 >
                                   <ArrowDown className="h-3 w-3 mr-1 rotate-180" /> Reset All
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs text-destructive"
+                                  onClick={() => {
+                                    if (window.confirm(`Close "${inst.title}"? It leaves the active list; ticks so far are kept.`)) {
+                                      updateInstance.mutateAsync({ id: inst.id, ...CLOSE_RUN_UPDATE });
+                                    }
+                                  }}
+                                >
+                                  <X className="h-3 w-3 mr-1" /> Close
                                 </Button>
                                 <div className="flex-1" />
                                 <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/checklists/run/${inst.id}`)}>

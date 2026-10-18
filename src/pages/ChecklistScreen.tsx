@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, BookOpen, CheckCircle2, Circle, Expand, Loader2, Play, Printer, RotateCcw, Shrink,
+  ArrowLeft, BookOpen, CheckCircle2, Circle, Expand, Loader2, Play, Printer, RotateCcw, Shrink, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useChecklistInstances, useChecklistTemplates, useSOPs } from '@/hooks/useKnowledge';
-import { checklistProgress, toggleChecklistItem, type RunItem } from '@/lib/printCard';
+import { CLOSE_RUN_UPDATE, checklistProgress, isOpenRun, toggleChecklistItem, type RunItem } from '@/lib/printCard';
 import { cn } from '@/lib/utils';
 
 // Full-screen checklist views for iPads at the stations (no sidebar).
@@ -82,7 +82,7 @@ export function ChecklistView() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { templates, isLoading } = useChecklistTemplates();
-  const { instances, createInstance } = useChecklistInstances();
+  const { instances, createInstance, updateInstance } = useChecklistInstances();
   const { sops } = useSOPs();
   const [starting, setStarting] = useState(false);
   const template = templates.find(t => t.id === id);
@@ -90,7 +90,20 @@ export function ChecklistView() {
   if (isLoading) return <Spinner />;
   if (!template) return <Missing what="checklist" />;
 
-  const open = instances.filter(i => i.template_id === template.id && i.status !== 'completed');
+  const open = instances.filter(i => i.template_id === template.id && isOpenRun(i.status));
+
+  const closeRuns = (ids: string[]) => {
+    const msg = ids.length === 1
+      ? 'Close this run? It leaves the in-progress list; ticks so far are kept.'
+      : `Close all ${ids.length} runs? They leave the in-progress list; ticks so far are kept.`;
+    if (!window.confirm(msg)) return;
+    for (const runId of ids) {
+      updateInstance.mutate(
+        { id: runId, ...CLOSE_RUN_UPDATE },
+        { onError: (e) => toast({ title: "Couldn't close it", description: String((e as Error)?.message ?? e), variant: 'destructive' }) },
+      );
+    }
+  };
   const linkedSop = template.sop_id ? sops.find(s => s.id === template.sop_id) : undefined;
 
   const start = async () => {
@@ -142,19 +155,35 @@ export function ChecklistView() {
 
         {open.length > 0 && (
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-muted-foreground">In progress</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-muted-foreground">In progress ({open.length})</p>
+              {open.length > 1 && (
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => closeRuns(open.map(i => i.id))}>
+                  <X className="mr-1 h-4 w-4" /> Close all
+                </Button>
+              )}
+            </div>
             {open.map(inst => {
               const p = checklistProgress(inst.items);
               return (
-                <Button
-                  key={inst.id}
-                  variant="outline"
-                  className="h-14 w-full justify-between text-base"
-                  onClick={() => navigate(`/checklists/run/${inst.id}`)}
-                >
-                  <span>Resume · started {new Date(inst.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-                  <Badge variant="secondary" className="text-sm">{p.done}/{p.total}</Badge>
-                </Button>
+                <div key={inst.id} className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-14 flex-1 justify-between text-base"
+                    onClick={() => navigate(`/checklists/run/${inst.id}`)}
+                  >
+                    <span>Resume · started {new Date(inst.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                    <Badge variant="secondary" className="text-sm">{p.done}/{p.total}</Badge>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-14 w-14 shrink-0 text-destructive"
+                    title="Close this run"
+                    onClick={() => closeRuns([inst.id])}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
               );
             })}
           </div>
@@ -178,6 +207,7 @@ export function ChecklistView() {
 // ─── A running checklist ───
 export function ChecklistRun() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { instances, isLoading, updateInstance } = useChecklistInstances();
   const instance = instances.find(i => i.id === id);
@@ -271,14 +301,41 @@ export function ChecklistRun() {
           ))}
         </ul>
 
-        <div className="flex justify-between gap-3 pt-2">
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => save({ items: items.map(it => ({ ...it, done: false })), status: 'in_progress', completed_at: null })}
-          >
-            <RotateCcw className="mr-2 h-5 w-5" /> Reset all
-          </Button>
+        {instance.status === 'closed' && (
+          <p className="rounded-xl border bg-muted/40 p-4 text-muted-foreground">
+            This run was closed. Ticking an item reopens it.
+          </p>
+        )}
+
+        <div className="flex flex-wrap justify-between gap-3 pt-2">
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={() => save({ items: items.map(it => ({ ...it, done: false })), status: 'in_progress', completed_at: null })}
+            >
+              <RotateCcw className="mr-2 h-5 w-5" /> Reset all
+            </Button>
+            {!complete && isOpenRun(instance.status) && (
+              <Button
+                variant="ghost"
+                size="lg"
+                className="text-destructive"
+                onClick={() => {
+                  if (!window.confirm('Close this checklist? It leaves the active list; ticks so far are kept.')) return;
+                  updateInstance.mutate(
+                    { id: instance.id, ...CLOSE_RUN_UPDATE },
+                    {
+                      onSuccess: () => navigate(instance.template_id ? `/checklists/${instance.template_id}` : '/knowledge'),
+                      onError: (e) => toast({ title: "Couldn't close it", description: String((e as Error)?.message ?? e), variant: 'destructive' }),
+                    },
+                  );
+                }}
+              >
+                <X className="mr-2 h-5 w-5" /> Close checklist
+              </Button>
+            )}
+          </div>
           <Button size="lg" variant={complete ? 'default' : 'outline'} asChild>
             <Link to="/knowledge">{complete ? 'Done' : 'Finish later'}</Link>
           </Button>
