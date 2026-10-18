@@ -19,6 +19,13 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+/** Only in-app paths such as "/handoffs" may be opened from a push. */
+function safeLink(link: unknown): string {
+  if (typeof link !== "string") return "/";
+  if (!link.startsWith("/") || link.startsWith("//") || link.startsWith("/\\")) return "/";
+  return link;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -63,7 +70,7 @@ Deno.serve(async (req) => {
       userId = notification.user_id;
       title = notification.title;
       body = notification.body ?? "";
-      link = notification.link ?? "/";
+      link = safeLink(notification.link);
       data = notification.data ?? {};
     } else {
       const callerId = await getUserId(req);
@@ -79,7 +86,7 @@ Deno.serve(async (req) => {
       userId = callerId;
       title = requestBody.title;
       body = requestBody.body ?? "";
-      link = requestBody.link ?? "/";
+      link = safeLink(requestBody.link);
       data = requestBody.data ?? {};
     }
 

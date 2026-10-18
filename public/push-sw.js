@@ -1,4 +1,15 @@
 /* Push notifications service worker — handles incoming push events */
+
+/** Only open pages on this site. Anything else falls back to the home page. */
+function safeLink(link) {
+  try {
+    const url = new URL(link || "/", self.location.origin);
+    return url.origin === self.location.origin ? url.href : self.location.origin + "/";
+  } catch (e) {
+    return self.location.origin + "/";
+  }
+}
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
@@ -31,7 +42,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const link = event.notification.data?.link || "/";
+  const link = safeLink(event.notification.data?.link);
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {

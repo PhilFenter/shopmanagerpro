@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, CreditCard, Loader2, AlertTriangle } from 'lucide-react';
+import { computeQuoteTotals } from '@/lib/quote-totals';
 
 interface LineItem {
   id: string;
@@ -161,13 +162,12 @@ export default function QuoteApproval() {
     }
   };
 
-  const { subtotal, taxAmount, grandTotal } = useMemo(() => {
-    if (!quote) return { subtotal: 0, taxAmount: 0, grandTotal: 0 };
-    const sub = quote.total_price || 0;
-    const rate = quote.apply_sales_tax ? (quote.tax_rate || 6) : 0;
-    const tax = sub * (rate / 100);
-    return { subtotal: sub, taxAmount: tax, grandTotal: sub + tax };
-  }, [quote]);
+  // Derive totals from the line items. total_price already includes tax,
+  // so adding tax to it would charge the customer twice.
+  const { subtotal, taxRate, taxAmount, grandTotal } = useMemo(
+    () => computeQuoteTotals(quote?.quote_line_items, quote ?? { apply_sales_tax: false, is_nonprofit: false, tax_rate: 0 }),
+    [quote],
+  );
 
   if (loading) {
     return (
@@ -451,7 +451,7 @@ export default function QuoteApproval() {
                 </div>
                 {taxAmount > 0 && (
                   <div className="flex justify-between text-sm py-1">
-                    <span className="text-gray-500">Sales Tax ({quote.tax_rate}%)</span>
+                    <span className="text-gray-500">Sales Tax ({taxRate}%)</span>
                     <span className="font-medium tabular-nums">${taxAmount.toFixed(2)}</span>
                   </div>
                 )}

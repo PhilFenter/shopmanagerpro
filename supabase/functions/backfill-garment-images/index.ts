@@ -8,33 +8,40 @@ const corsHeaders = {
 
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
+/** Only signed-in admins may run this function. Returns an error response, or null when allowed. */
+async function requireAdmin(req: Request): Promise<Response | null> {
+  const deny = (error: string, status: number) =>
+    new Response(JSON.stringify({ error }), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
+  if (!token) return deny("Unauthorized", 401);
+
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: { user }, error } = await admin.auth.getUser(token);
+  if (error || !user) return deny("Unauthorized", 401);
+
+  const { data: roles, error: roleError } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .limit(1);
+  if (roleError || !roles?.length) return deny("Forbidden: admin role required", 403);
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Verify user is authenticated
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: authError } = await anonClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const denied = await requireAdmin(req);
+    if (denied) return denied;
 
     const printavoEmail = Deno.env.get("PRINTAVO_API_EMAIL");
     const printavoToken = Deno.env.get("PRINTAVO_API_TOKEN");

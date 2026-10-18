@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { QUOTE_STATUS_CONFIG } from '@/hooks/useQuotes';
 import { cn } from '@/lib/utils';
+import { computeQuoteTotals } from '@/lib/quote-totals';
 import { ImprintCard } from '@/components/quotes/ImprintCard';
 import { SizeColumnManager, DEFAULT_VISIBLE_SIZES } from '@/components/quotes/SizeColumnManager';
 import {
@@ -309,11 +310,12 @@ export default function QuoteDetail() {
     });
   };
 
-  // Calculate totals
-  const subtotal = lineItems.reduce((s, li) => s + (li.line_total || 0), 0);
-  const taxRate = quote?.apply_sales_tax && !quote?.is_nonprofit ? (quote?.tax_rate || 0) : 0;
-  const taxAmount = subtotal * (taxRate / 100);
-  const grandTotal = subtotal + taxAmount;
+  // Calculate totals. total_price is saved as the grand total, tax included.
+  const { subtotal, taxRate, taxAmount, grandTotal } = computeQuoteTotals(lineItems, {
+    apply_sales_tax: quote?.apply_sales_tax,
+    is_nonprofit: quote?.is_nonprofit,
+    tax_rate: quote?.tax_rate,
+  });
 
   const handleSave = async () => {
     if (!quote) return;

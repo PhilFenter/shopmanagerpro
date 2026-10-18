@@ -484,7 +484,7 @@ function buildConfirmationEmail(p: EmailParams): string {
 
         <!-- Body -->
         <tr><td style="background:#ffffff;padding:40px;">
-          <h1 style="margin:0 0 8px 0;font-size:22px;color:#1a1a2e;">Hey ${p.customerName.split(" ")[0]}! 👋</h1>
+          <h1 style="margin:0 0 8px 0;font-size:22px;color:#1a1a2e;">Hey ${escapeHtml(p.customerName.split(" ")[0])}! 👋</h1>
           <p style="margin:0 0 24px 0;color:#555;font-size:15px;line-height:1.6;">
             We got your quote request and we're on it. Here's a summary of what you asked for:
           </p>
@@ -543,15 +543,97 @@ function buildConfirmationEmail(p: EmailParams): string {
 </html>`;
 }
 
+/** One summary row. Values come from the public form, so they are always escaped. */
 function row(label: string, value: string): string {
   return `<tr>
-    <td style="padding:12px 16px;font-size:13px;color:#888;border-bottom:1px solid #f0f0f3;width:40%;">${label}</td>
-    <td style="padding:12px 16px;font-size:14px;color:#1a1a2e;font-weight:500;border-bottom:1px solid #f0f0f3;">${value}</td>
+    <td style="padding:12px 16px;font-size:13px;color:#888;border-bottom:1px solid #f0f0f3;width:40%;">${escapeHtml(label)}</td>
+    <td style="padding:12px 16px;font-size:14px;color:#1a1a2e;font-weight:500;border-bottom:1px solid #f0f0f3;">${escapeHtml(value)}</td>
   </tr>`;
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// ── Input safety ──────────────────────────────────────
+// This endpoint is the public website quote form, so every value in the
+// request is untrusted.
+
+const MAX_MONEY = 1_000_000;
+const MAX_MARKUP_PCT = 1_000;
+const DEFAULT_MARKUP_PCT = 200;
+const DEFAULT_TAX_RATE = 6.0;
+const QUOTE_ARTWORK_PATH = "/storage/v1/object/public/quote-artwork/";
+
+// Conservative email shape. It also rules out "%" and "*", which PostgREST
+// would treat as wildcards in an ilike filter.
+const EMAIL_RE =
+  /^[A-Za-z0-9.!#$&'+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
+/** Escape LIKE metacharacters so the value matches literally in .ilike(). */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/** Website sources ("website", "website-crew-team") pass through; anything else becomes "website". */
+function websiteSource(value: unknown): string {
+  return typeof value === "string" && /^website(-[a-z0-9-]{1,40})?$/.test(value) ? value : "website";
+}
+
+/** Non-negative number capped at max and rounded to cents. Returns fallback when missing or invalid. */
+function toAmount(value: unknown, max: number, fallback: number): number {
+  if (value === null || value === undefined || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.round(Math.min(n, max) * 100) / 100;
+}
+
+/** Whole quantity from 1 to 100,000. */
+function toQuantity(value: unknown): number {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 100_000) : 1;
+}
+
+function toPlainObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/** The website's price range, or null unless it is two sane numbers. */
+function parseEstimate(value: unknown): { low: number; high: number } | null {
+  const raw = toPlainObject(value);
+  const low = toAmount(raw.low, MAX_MONEY, NaN);
+  const high = toAmount(raw.high, MAX_MONEY, NaN);
+  return Number.isNaN(low) || Number.isNaN(high) ? null : { low, high };
+}
+
+/** An http(s) link that is safe to store for display, or null. */
+function toHttpUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 2000) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True only for files in this project's public quote-artwork bucket. The server fetches nothing else. */
+function isQuoteArtworkUrl(value: string | null): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const projectOrigin = new URL(Deno.env.get("SUPABASE_URL")!).origin;
+    return url.origin === projectOrigin && url.pathname.startsWith(QUOTE_ARTWORK_PATH);
+  } catch {
+    return false;
+  }
 }
 
 // ── Main handler ──────────────────────────────────────
@@ -594,13 +676,17 @@ Deno.serve(async (req) => {
       details,
       timeline,
       artworkNotes,
-      artworkUrl,
-      estimate,
+      artworkUrl: rawArtworkUrl,
+      estimate: rawEstimate,
     } = payload;
 
     const resolvedCompany = company || customer_company || null;
+    // Only http(s) links are stored, and the estimate must be two real numbers:
+    // both end up in the customer email and the staff UI.
+    const artworkUrl = toHttpUrl(rawArtworkUrl);
+    const estimate = parseEstimate(rawEstimate);
 
-    if (!customer_name) {
+    if (typeof customer_name !== "string" || !customer_name.trim()) {
       return new Response(
         JSON.stringify({ error: "customer_name is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -620,11 +706,14 @@ Deno.serve(async (req) => {
     const oversized = Object.entries({
       customer_name, customer_email, customer_phone, company: resolvedCompany,
       address_line1, address_line2, city, state, zip, notes, details,
-      timeline, artworkNotes, artworkUrl, shipping_address,
+      timeline, artworkNotes, artworkUrl: rawArtworkUrl, shipping_address,
     }).find(([, value]) => typeof value === "string" && value.length > 2000);
     if (oversized) return bad(`${oversized[0]} exceeds the maximum length`);
 
-    if (customer_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(customer_email).trim())) {
+    // The email is matched against existing customers with ilike, so it must
+    // not contain wildcards. "%@%.%" used to match every customer on file.
+    const email = typeof customer_email === "string" ? customer_email.trim().toLowerCase() : "";
+    if (customer_email && !EMAIL_RE.test(email)) {
       return bad("Invalid customer_email");
     }
 
@@ -661,14 +750,14 @@ Deno.serve(async (req) => {
 
     // ── Duplicate / double-submit guard ────────────────────
     // If the same email submitted a quote in the last 60 seconds, return it
-    // instead of creating a duplicate.
-    const dedupeEmail = (customer_email || "").trim().toLowerCase();
+    // instead of creating a duplicate. escapeLike makes the match exact.
+    const dedupeEmail = email;
     if (dedupeEmail) {
       const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
       const { data: recentQuote } = await serviceClient
         .from("quotes")
         .select("id, quote_number")
-        .ilike("customer_email", dedupeEmail)
+        .ilike("customer_email", escapeLike(dedupeEmail))
         .gte("created_at", sixtySecondsAgo)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -691,14 +780,13 @@ Deno.serve(async (req) => {
 
     // 1. Find or create customer
     let customerId: string | null = null;
-    const email = customer_email?.trim().toLowerCase();
-    const phone = customer_phone?.trim();
+    const phone = typeof customer_phone === "string" ? customer_phone.trim() : "";
 
     if (email) {
       const { data: existing } = await serviceClient
         .from("customers")
         .select("id")
-        .ilike("email", email)
+        .ilike("email", escapeLike(email))
         .limit(1)
         .maybeSingle();
       if (existing) customerId = existing.id;
@@ -727,7 +815,7 @@ Deno.serve(async (req) => {
           city: city || null,
           state: state || null,
           zip: zip || null,
-          source: source || "website",
+          source: websiteSource(source),
         })
         .select("id")
         .single();
@@ -735,7 +823,7 @@ Deno.serve(async (req) => {
       if (custErr) {
         console.error("Customer create error:", custErr);
         return new Response(
-          JSON.stringify({ error: "Failed to create customer", details: custErr.message }),
+          JSON.stringify({ error: "Failed to create customer" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -771,9 +859,11 @@ Deno.serve(async (req) => {
         shipping_address: shipping_address || null,
         requested_date: requested_date || null,
         notes: fullNotes || null,
-        is_nonprofit: is_nonprofit ?? false,
-        apply_sales_tax: apply_sales_tax ?? true,
-        tax_rate: tax_rate ?? 6.0,
+        // Nonprofit is the customer's own claim, confirmed by staff before the
+        // quote goes out. Tax settings are never taken from the public form.
+        is_nonprofit: is_nonprofit === true || is_nonprofit === "true",
+        apply_sales_tax: true,
+        tax_rate: DEFAULT_TAX_RATE,
         status: "draft",
       })
       .select("id, quote_number")
@@ -782,7 +872,7 @@ Deno.serve(async (req) => {
     if (quoteErr) {
       console.error("Quote create error:", quoteErr);
       return new Response(
-        JSON.stringify({ error: "Failed to create quote", details: quoteErr.message }),
+        JSON.stringify({ error: "Failed to create quote" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -797,24 +887,29 @@ Deno.serve(async (req) => {
     }
 
     if (Array.isArray(resolvedLineItems) && resolvedLineItems.length > 0) {
-      const rows = resolvedLineItems.map((item: any, idx: number) => ({
-        quote_id: quote.id,
-        service_type: item.service_type || "other",
-        description: item.description || null,
-        quantity: item.quantity || 1,
-        sizes: item.sizes || {},
-        style_number: item.style_number || null,
-        color: item.color || null,
-        placement: item.placement || null,
-        garment_cost: item.garment_cost ?? 0,
-        garment_markup_pct: item.garment_markup_pct ?? 200,
-        decoration_cost: item.decoration_cost ?? 0,
-        decoration_params: item.decoration_params || {},
-        image_url: item.image_url || null,
-        line_total: item.line_total ?? 0,
-        notes: item.notes || null,
-        sort_order: idx,
-      }));
+      // Prices from the website are only a starting estimate for staff to
+      // review. Clamp every number to a sane, non-negative value.
+      const rows = resolvedLineItems.map((raw: unknown, idx: number) => {
+        const item = toPlainObject(raw);
+        return {
+          quote_id: quote.id,
+          service_type: typeof item.service_type === "string" && item.service_type ? item.service_type : "other",
+          description: item.description || null,
+          quantity: toQuantity(item.quantity),
+          sizes: toPlainObject(item.sizes),
+          style_number: item.style_number || null,
+          color: item.color || null,
+          placement: item.placement || null,
+          garment_cost: toAmount(item.garment_cost, MAX_MONEY, 0),
+          garment_markup_pct: toAmount(item.garment_markup_pct, MAX_MARKUP_PCT, DEFAULT_MARKUP_PCT),
+          decoration_cost: toAmount(item.decoration_cost, MAX_MONEY, 0),
+          decoration_params: toPlainObject(item.decoration_params),
+          image_url: toHttpUrl(item.image_url),
+          line_total: toAmount(item.line_total, MAX_MONEY, 0),
+          notes: item.notes || null,
+          sort_order: idx,
+        };
+      });
 
       const { error: liErr } = await serviceClient
         .from("quote_line_items")
@@ -824,17 +919,21 @@ Deno.serve(async (req) => {
         console.error("Line items error:", liErr);
       }
 
-      // Auto-sync artwork to Dropbox (fire and forget)
+      // Auto-sync artwork to Dropbox (fire and forget).
+      // Only files in this project's quote-artwork bucket are fetched, so the
+      // form can't make the server download arbitrary URLs.
       const dropboxToken = Deno.env.get("DROPBOX_ACCESS_TOKEN");
       if (dropboxToken) {
         for (const row of rows) {
-          if (row.image_url && typeof row.image_url === "string" && row.image_url.includes("/storage/v1/object/public/quote-artwork/")) {
+          if (isQuoteArtworkUrl(row.image_url)) {
             try {
-              const artFilename = decodeURIComponent(row.image_url.split("/").pop() || "artwork");
+              const artUrl = new URL(row.image_url);
+              const artFilename =
+                decodeURIComponent(artUrl.pathname.split("/").pop() || "").replace(/[\\/]/g, "_") || "artwork";
               const safeName = customer_name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "Unknown";
               const dropboxPath = `/${safeName}/${artFilename}`;
 
-              const fileRes = await fetch(row.image_url);
+              const fileRes = await fetch(artUrl.href, { redirect: "error" });
               if (fileRes.ok) {
                 const fileBuffer = await fileRes.arrayBuffer();
                 const dbxRes = await fetch("https://content.dropboxapi.com/2/files/upload", {
@@ -1032,7 +1131,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("create-quote-action-item error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: "Something went wrong submitting your quote. Please try again." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

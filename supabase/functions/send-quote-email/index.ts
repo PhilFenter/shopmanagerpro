@@ -14,6 +14,47 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// BEGIN quote-totals (keep in sync, see src/lib/quote-totals.ts)
+export interface QuoteTaxSettings {
+  apply_sales_tax: boolean | null | undefined;
+  is_nonprofit: boolean | null | undefined;
+  tax_rate: number | string | null | undefined;
+}
+
+export interface QuoteTotals {
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  grandTotal: number;
+}
+
+/** Sales tax percentage that actually applies to a quote. Nonprofits pay no tax. */
+export function getEffectiveTaxRate(settings: QuoteTaxSettings): number {
+  if (!settings.apply_sales_tax || settings.is_nonprofit) return 0;
+  const rate = Number(settings.tax_rate);
+  return Number.isFinite(rate) && rate > 0 ? rate : 0;
+}
+
+/** Totals in dollars, computed in whole cents so every consumer agrees to the penny. */
+export function computeQuoteTotals(
+  lineItems: ReadonlyArray<{ line_total?: number | string | null }> | null | undefined,
+  settings: QuoteTaxSettings,
+): QuoteTotals {
+  const subtotalCents = (lineItems ?? []).reduce(
+    (sum, item) => sum + Math.round((Number(item.line_total) || 0) * 100),
+    0,
+  );
+  const taxRate = getEffectiveTaxRate(settings);
+  const taxCents = Math.round((subtotalCents * taxRate) / 100);
+  return {
+    subtotal: subtotalCents / 100,
+    taxRate,
+    taxAmount: taxCents / 100,
+    grandTotal: (subtotalCents + taxCents) / 100,
+  };
+}
+// END quote-totals
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,16 +76,18 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // supabase-js 2.49.1 (pinned above) has no auth.getClaims, which made every
+    // call fail. getUser validates the token with the auth server instead.
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: authError } = await authClient.auth.getClaims(token);
-    if (authError || !claimsData?.claims?.sub) {
+    const { data: userData, error: authError } = await authClient.auth.getUser(token);
+    if (authError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = userData.user.id;
     // --- END AUTH CHECK ---
 
     // --- ROLE CHECK ---
@@ -117,11 +160,9 @@ Deno.serve(async (req) => {
     const appUrl = "https://shopmanagerpro.lovable.app";
     const approvalUrl = `${appUrl}/quote/approve/${approvalToken}`;
 
-    // Calculate totals
-    const subtotal = quote.total_price || 0;
-    const taxRate = quote.apply_sales_tax ? (quote.tax_rate || 6) : 0;
-    const taxAmount = subtotal * (taxRate / 100);
-    const grandTotal = subtotal + taxAmount;
+    // Calculate totals from the line items. total_price already includes tax,
+    // so it must never be used as the subtotal.
+    const { subtotal, taxRate, taxAmount, grandTotal } = computeQuoteTotals(quote.quote_line_items, quote);
 
     // Sanitize all interpolated values
     const safeCustomerName = escapeHtml(quote.customer_name || "");
@@ -271,12 +312,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update quote status
+    // Update quote status, and store the exact total the customer was emailed
     await supabase
       .from("quotes")
       .update({
         status: "sent",
         quote_sent_at: new Date().toISOString(),
+        total_price: grandTotal,
       })
       .eq("id", quoteId);
 
