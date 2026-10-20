@@ -35,7 +35,7 @@ import {
   type Tier,
 } from "../../supabase/functions/_shared/hcd-pricing.ts";
 
-export type Item = "tee" | "hoodie" | "crew" | "polo" | "hat";
+export type Item = "tee" | "hoodie" | "crew" | "polo" | "jacket" | "hat";
 export type Method = "screen_print" | "dtf" | "embroidery" | "patch" | "hat_embroidery";
 
 export const ITEMS: { id: Item; label: string }[] = [
@@ -43,6 +43,7 @@ export const ITEMS: { id: Item; label: string }[] = [
   { id: "hoodie", label: "Hoodies" },
   { id: "crew", label: "Crewnecks" },
   { id: "polo", label: "Polos" },
+  { id: "jacket", label: "Jackets" },
   { id: "hat", label: "Hats" },
 ];
 
@@ -57,12 +58,14 @@ export const METHOD_LABELS: Record<Method, string> = {
 export function methodsFor(item: Item): Method[] {
   if (item === "hat") return ["patch", "hat_embroidery"];
   if (item === "polo") return ["embroidery"]; // polos: left-chest embroidery only
+  if (item === "jacket") return ["embroidery", "dtf"]; // jackets: embroidery ($20 jacket column) or DTF
   return ["screen_print", "dtf", "embroidery"];
 }
 
 export function placementsFor(item: Item, method: Method): string[] {
   if (item === "hat") return ["Front", "Side", "Back"];
   if (item === "polo") return ["Left chest"];
+  if (item === "jacket") return method === "embroidery" ? ["Left chest", "Right chest", "Sleeve"] : ["Left chest", "Back", "Sleeve"];
   if (method === "embroidery") return ["Left chest", "Center front", "Sleeve"]; // no back embroidery
   return ["Front", "Back", "Left chest", "Sleeve"];
 }
@@ -339,6 +342,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   const opts = {
     colors: line.colors,
     locations: locs,
+    jacket: line.item === "jacket",
     screenColors: line.method === "screen_print" ? screenColorsFor(line) : undefined,
     dtfCols: line.method === "dtf" ? line.placements.map((pl) => dtfColFor(line, pl)) : undefined,
   };
@@ -368,7 +372,8 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
     if (qty < SCREEN_FEE_WAIVE_QTY) out.notes.push(`Screen setup is waived at ${SCREEN_FEE_WAIVE_QTY}+ pieces.`);
   } else {
     if (qty < SMALL_MIN) out.blocker = `${METHOD_LABELS[line.method]} starts at ${SMALL_MIN} pieces.`;
-    if (line.method === "embroidery") out.notes.push("Embroidery up to 10,000 stitches (most logos). We confirm after digitizing.");
+    if (line.method === "embroidery") out.notes.push(line.item === "jacket" ? "Jacket embroidery up to 10,000 stitches (most logos). We confirm after digitizing." : "Embroidery up to 10,000 stitches (most logos). We confirm after digitizing.");
+    if (line.item === "jacket" && line.tier === "best" && !line.usePick) out.notes.push("Carhartt is priced at Carhartt's retail price plus decoration.");
     if (line.method === "dtf") out.notes.push(`Full-color print: ${dtfSummary(line)}. No screen fees.`);
   }
 

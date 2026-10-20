@@ -159,6 +159,13 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
     better: { style: "112", name: "Richardson 112 Trucker", cost: 8.75, cost2xl: 8.75, msrp: 13.5 },
     best: { style: "168", name: "Richardson 168 7-Panel", cost: 9.5, cost2xl: 9.5, msrp: 15 },
   },
+  // Jackets (Phil 2026-10-19): picks from HCD's own jacket sales history. SanMar list, checked 2026-10-19.
+  // Carhartt has MAP pricing: garment sells at Carhartt retail ($139.99) + decoration, like the K121.
+  jacket: {
+    good: { style: "J317", name: "Port Authority J317 Core Soft Shell", cost: 30.64, cost2xl: 31.64, msrp: 0 },
+    better: { style: "J850", name: "Port Authority J850 Packable Puffy", cost: 37.24, cost2xl: 38.24, msrp: 0 },
+    best: { style: "CT104050", name: "Carhartt CT104050 Washed Duck Active Jac", cost: 94.77, cost2xl: 94.77, msrp: 139.99, map: 139.99 },
+  },
 };
 
 // Other styles we know the cost of when a customer asks for them by name (same basis).
@@ -193,7 +200,8 @@ export const RANGE_ANCHORS: Record<string, [string, string]> = {
 export function categoryOf(item: string | null | undefined): string | null {
   const s = String(item || "").toLowerCase();
   if (/hat|cap|beanie/.test(s)) return "hat";
-  if (/hood/.test(s)) return "hoodie";
+  if (/hood/.test(s)) return "hoodie"; // "hooded jacket" / zip hoodies stay hoodies (shirt embroidery price)
+  if (/jacket|\bcoats?\b|\bvests?\b|soft ?shell|parka|puffy|puffer|outerwear|active jac/.test(s)) return "jacket";
   if (/crew ?neck|sweatshirt|\bcrews?\b(?! ?members?)|sweats?\b/.test(s)) return "crew";
   if (/polo/.test(s)) return "polo";
   if (/long ?sleeve|\bl\/s\b|\bls\b/.test(s)) return "longsleeve";

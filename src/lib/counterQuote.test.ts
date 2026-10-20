@@ -308,3 +308,22 @@ describe("hat stitch tiers", () => {
     expect(p.tiers.find((t) => t.tier === "better")!.unit_price).toBe(22.5);
   });
 });
+
+describe("jackets", () => {
+  it("embroidery uses the $20 jacket column; Carhartt at MAP", async () => {
+    const l = { ...newLine("tee"), item: "jacket" as const, method: "embroidery" as const, placements: ["Left chest"], qty: 12 };
+    const p = await priceLine(db, l);
+    const by = Object.fromEntries(p.tiers.map((t) => [t.tier, t.unit_price]));
+    expect(p.tiers[0].decoration_cost).toBe(20);
+    expect(by.good).toBe(81.28);   // 30.64 × 2 + 20
+    expect(by.better).toBe(94.48); // 37.24 × 2 + 20
+    expect(by.best).toBe(159.99);  // Carhartt retail 139.99 + 20
+  });
+  it("email items map to the jacket category", async () => {
+    const { categoryOf } = await import("../../supabase/functions/_shared/hcd-pricing.ts");
+    expect(categoryOf("jackets")).toBe("jacket");
+    expect(categoryOf("soft shell")).toBe("jacket");
+    expect(categoryOf("hoodies")).toBe("hoodie");
+    expect(categoryOf("hooded jacket")).toBe("hoodie");
+  });
+});
