@@ -186,6 +186,9 @@ export const KNOWN_STYLES: Pick[] = [
   { style: "PC90H", name: "Port & Co PC90H Essential Fleece", cost: 18.5, cost2xl: 21.97, msrp: 29.0 },
   // Carhartt has a $55 MAP; priced at MAP + decoration.
   { style: "CTK121", name: "Carhartt K121 Midweight", cost: 39.75, cost2xl: 39.75, msrp: 55, map: 55 },
+  // Extra jacket options (Phil 2026-10-19). Carhartt Detroit at Carhartt retail + decoration, like the CT104050.
+  { style: "J787", name: "Port Authority J787 Hybrid Soft Shell", cost: 39.76, cost2xl: 40.76, msrp: 0 },
+  { style: "CT103828", name: "Carhartt CT103828 Duck Detroit Jacket", cost: 94.5, cost2xl: 94.5, msrp: 139.99, map: 139.99 },
 ];
 
 // Quantity not given: the draft gives a range from a basic pick to the premium one, priced at the 12 minimum.
@@ -357,7 +360,7 @@ export function assumptionsFor(service: string, colors: number | null, placement
 /** Pull a style number out of what the customer wrote, e.g. "Richardson 112PT hats" → "112PT". */
 export function styleFromText(text: string | null | undefined): string | null {
   const m = String(text || "").toUpperCase().match(/\b([A-Z]{0,4}\d{2,6}[A-Z]{0,4})\b/g);
-  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "3413": "BC3413", "3513": "BC3513", "3501": "BC3501", "6010": "NL6010", "K121": "CTK121", "G500": "5000" };
+  const ALIAS: Record<string, string> = { "6210": "NL6210", "3600": "NL3600", "3001": "BC3001", "3413": "BC3413", "3513": "BC3513", "3501": "BC3501", "6010": "NL6010", "K121": "CTK121", "G500": "5000", "103828": "CT103828", "104050": "CT104050" };
   const hit = m ? m.find((s) => !/^\d{4}$/.test(s) || ["5000", "8000", "2000", "1717", "3001", "6210", "3600", "3413", "3513", "3501", "6010"].includes(s)) ?? null : null;
   return hit ? (ALIAS[hit] ?? hit) : null;
 }

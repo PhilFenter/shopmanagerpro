@@ -327,3 +327,12 @@ describe("jackets", () => {
     expect(categoryOf("hooded jacket")).toBe("hoodie");
   });
 });
+
+describe("extra jacket options", () => {
+  const base = { ...newLine("tee"), item: "jacket" as const, method: "embroidery" as const, placements: ["Left chest"], qty: 12, usePick: true };
+  it("J787 at list × 2 + $20; Carhartt Detroit at retail + $20", async () => {
+    const offline = { ...db, functions: undefined };
+    expect((await priceLine(offline, { ...base, style: "J787" })).requested?.unit_price).toBe(99.52);
+    expect((await priceLine(offline, { ...base, style: "CT103828" })).requested?.unit_price).toBe(159.99);
+  });
+});

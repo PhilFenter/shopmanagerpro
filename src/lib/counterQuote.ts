@@ -70,6 +70,14 @@ export function placementsFor(item: Item, method: Method): string[] {
   return ["Front", "Back", "Left chest", "Sleeve"];
 }
 
+/** Quick-pick styles shown under "Have a specific one in mind?" (fills the style box). */
+export const MORE_STYLES: Partial<Record<Item, { style: string; label: string }[]>> = {
+  jacket: [
+    { style: "J787", label: "J787 Hybrid Soft Shell" },
+    { style: "CT103828", label: "Carhartt Detroit" },
+  ],
+};
+
 export const DTF_SIZES = ["4 x 4", "11 x 5", "11 x 14", "12 x 22"];
 // DTF size by placement: left chest + sleeve are always 4x4; front and back pick 11x5, 11x14 or 12x22.
 export const DTF_SIZED_PLACEMENTS = ["Front", "Back"];
@@ -373,7 +381,8 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   } else {
     if (qty < SMALL_MIN) out.blocker = `${METHOD_LABELS[line.method]} starts at ${SMALL_MIN} pieces.`;
     if (line.method === "embroidery") out.notes.push(line.item === "jacket" ? "Jacket embroidery up to 10,000 stitches (most logos). We confirm after digitizing." : "Embroidery up to 10,000 stitches (most logos). We confirm after digitizing.");
-    if (line.item === "jacket" && line.tier === "best" && !line.usePick) out.notes.push("Carhartt is priced at Carhartt's retail price plus decoration.");
+    const carhartt = line.usePick && out.requested ? /^CT/.test(out.requested.style) : line.tier === "best";
+    if (line.item === "jacket" && carhartt) out.notes.push("Carhartt is priced at Carhartt's retail price plus decoration.");
     if (line.method === "dtf") out.notes.push(`Full-color print: ${dtfSummary(line)}. No screen fees.`);
   }
 

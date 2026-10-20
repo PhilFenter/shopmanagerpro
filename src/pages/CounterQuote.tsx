@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import {
   ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary, screenColorsFor, screenSummary, itemLabel,
-  methodsFor, placementsFor, newLine, priceLine, chosen, lineTotal, money,
+  methodsFor, placementsFor,
+  MORE_STYLES, newLine, priceLine, chosen, lineTotal, money,
   saveCounterQuote, saveQuickNote, findCustomer, pushToPrintavo,
   type CounterLine, type Priced, type Item, type Method, type CounterContact, type CounterExtras,
 } from "@/lib/counterQuote";
@@ -506,6 +507,13 @@ export default function CounterQuote() {
                   value={line.style}
                   onChange={(e) => update({ style: e.target.value.replace(/\s+/g, ""), usePick: true })}
                 />
+                {MORE_STYLES[line.item] && (
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    {MORE_STYLES[line.item]!.map((m) => (
+                      <Chip key={m.style} active={line.style.toUpperCase() === m.style} onClick={() => update({ style: m.style, usePick: true })}>{m.label}</Chip>
+                    ))}
+                  </div>
+                )}
               </Section>
             )}
 
