@@ -101,7 +101,7 @@ export function GlobalJobSearch({ open, onOpenChange }: Props) {
         .or(
           `customer_name.ilike.${pattern},order_number.ilike.${pattern},invoice_number.ilike.${pattern}`
         )
-        .order('order_number', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
         .limit(25);
       if (cancelled) return;
       if (!error && data) setResults(data as SearchResult[]);
