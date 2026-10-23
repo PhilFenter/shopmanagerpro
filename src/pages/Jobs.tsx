@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { pushRecentJob } from '@/components/search/GlobalJobSearch';
 import { cn } from '@/lib/utils';
+import { compareOrderNumberDesc } from '@/lib/orderNumber';
 import { useJobs, Job, ServiceType, hasFinancialAccess } from '@/hooks/useJobs';
 import { useAuth } from '@/hooks/useAuth';
 import { JobStage, STAGE_ORDER, STAGE_LABELS, useAdvanceStage } from '@/hooks/useJobStages';
@@ -138,6 +139,14 @@ export default function Jobs() {
   const activeJobs = filteredJobs.filter((job) => !isCompletedJob(job));
   const completedJobs = filteredJobs.filter(isCompletedJob);
 
+  // Completed jobs split by source, highest order number on top.
+  // Printavo and Shopify numbering overlap, so they're listed separately.
+  const completedPrintavo = completedJobs.filter((j) => j.source === 'printavo').sort(compareOrderNumberDesc);
+  const completedShopify = completedJobs.filter((j) => j.source === 'shopify').sort(compareOrderNumberDesc);
+  const completedOther = completedJobs
+    .filter((j) => j.source !== 'printavo' && j.source !== 'shopify')
+    .sort(compareOrderNumberDesc);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -241,7 +250,34 @@ export default function Jobs() {
           {completedJobs.length === 0 ? (
             <EmptyState message="No completed jobs yet." />
           ) : (
-            <JobGrid jobs={completedJobs} onSelect={(job) => setSelectedJobId(job.id)} />
+            <Tabs defaultValue="printavo" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="printavo">Printavo ({completedPrintavo.length})</TabsTrigger>
+                <TabsTrigger value="shopify">Shopify ({completedShopify.length})</TabsTrigger>
+                {completedOther.length > 0 && (
+                  <TabsTrigger value="other">Other ({completedOther.length})</TabsTrigger>
+                )}
+              </TabsList>
+              <TabsContent value="printavo">
+                {completedPrintavo.length === 0 ? (
+                  <p className="py-8 text-center text-muted-foreground">No completed Printavo jobs.</p>
+                ) : (
+                  <JobGrid jobs={completedPrintavo} onSelect={(job) => setSelectedJobId(job.id)} />
+                )}
+              </TabsContent>
+              <TabsContent value="shopify">
+                {completedShopify.length === 0 ? (
+                  <p className="py-8 text-center text-muted-foreground">No completed Shopify jobs.</p>
+                ) : (
+                  <JobGrid jobs={completedShopify} onSelect={(job) => setSelectedJobId(job.id)} />
+                )}
+              </TabsContent>
+              {completedOther.length > 0 && (
+                <TabsContent value="other">
+                  <JobGrid jobs={completedOther} onSelect={(job) => setSelectedJobId(job.id)} />
+                </TabsContent>
+              )}
+            </Tabs>
           )}
         </TabsContent>
       </Tabs>

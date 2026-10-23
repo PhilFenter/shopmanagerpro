@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import type { JobStage } from './useJobStages';
+import { compareJobsNewestFirst } from '@/lib/orderNumber';
 
 export type ServiceType = 'embroidery' | 'screen_print' | 'dtf' | 'leather_patch' | 'laser_engraving' | 'uv_patch' | 'heat_press_patch' | 'woven_patch' | 'pvc_patch' | 'mixed' | 'other';
 
@@ -75,7 +76,7 @@ export function useJobs() {
         const { data, error } = await supabase
           .from('jobs')
           .select('*')
-          .order('order_number', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: true })
           .range(from, from + pageSize - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
@@ -83,7 +84,8 @@ export function useJobs() {
         if (data.length < pageSize) break;
         from += pageSize;
       }
-      return allJobs;
+      // Sort numerically client-side; order_number is TEXT in the DB and Printavo/Shopify numbers overlap.
+      return allJobs.sort(compareJobsNewestFirst);
     },
     enabled: !!user,
   });
