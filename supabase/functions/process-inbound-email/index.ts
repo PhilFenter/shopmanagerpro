@@ -81,7 +81,8 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 - If part of the ask is something we don't usually do (a garment they supply, back embroidery), say that once and never
   also write "we can help with" / "we can add" that same thing elsewhere in the draft.
 - SAMPLES / APPROVAL (Phil 2026-10-24): we NEVER make a separate sample or test piece before an order. Once an order is
-  paid, we make the first production piece and send it for final approval before running the rest. Never offer a
+  paid, we make the first production piece and send the customer a PHOTO of it for final approval before running
+  the rest. We never mail or ship a piece for approval. Never offer a
   sample, a "sample for approval", a test hat or a sew-out before payment. A mockup of the art is fine to mention.
 - Don't claim history you weren't told ("we've ordered those before", "we've used that before"). You may say a brand is
   one we carry if it's in these rules.
@@ -1063,7 +1064,7 @@ Deno.serve(async (req) => {
         ...hatLines,
         (hatTotal > 0 && hatTotal < 12) || /\b(?:1|2|one|two|a couple)\b[^.]{0,20}sample/i.test(body)
           ? "You can split the 12 between colors or designs, like 6 of each." : "",
-        "That includes shipping in the lower 48. Once the order is paid, we make the first piece and send it to you for final approval before we run the rest.",
+        "That includes shipping in the lower 48. Once the order is paid, we make the first piece and send you a photo of it for final approval before we run the rest.",
         emb ? (embMaybe ? "Embroidery is the same as the leather patch price, plus a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
         art.status !== "vector" && pricing.some((p) => p.hat && p.hatTiers?.length) ? "For a leather patch, a black and white vector file (PDF, AI or EPS) works best." : "",
