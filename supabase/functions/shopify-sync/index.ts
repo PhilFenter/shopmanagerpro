@@ -454,7 +454,9 @@ Deno.serve(async (req) => {
 
       // First pass: match against existing catalog, collect unmatched
       const unmatchedStyles = new Set<string>();
-      const jobIdsForCost = [...allJobMap.values()];
+      // Only the orders fetched in THIS run. This used to be every Shopify job ever, so old completed
+      // orders with an unpriced item (40 oz tumblers, 112P hats) were re-flagged every morning.
+      const jobIdsForCost = [...new Set(jobIdsToSync)];
 
       for (let i = 0; i < jobIdsForCost.length; i += 50) {
         const batch = jobIdsForCost.slice(i, i + 50);
