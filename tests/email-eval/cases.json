@@ -340,6 +340,193 @@
         "followup": true,
         "hat_sizes": false
       }
+    },
+    {
+      "id": "angie-come-by",
+      "title": "Angie: wants to come by about hats, Z-Rock Sock shirts, embroidery",
+      "from_name": "Angie",
+      "subject": "Re: Z-Rock Sock",
+      "thread_context": "Angie (Oct 13): Hi Phil, we're doing the Z-Rock Sock again, about 120 t-shirts, plus a dozen hats from a gift certificate, and we have some Costco jackets we'd like embroidered. Would love to sit down with you and go over it.\n\nPhil (Oct 13): Next week works. I am out of town this week. Thank you, Phil\n\nAngie (Oct 14): Sounds good, I'll reach out on Monday to set up a time.",
+      "body": "Hey there! Hope your vacation was fantastic! Let me know if you have a few minutes you can set aside later this week and Lee and I can come see you about Hats, Z-Rock Sock t-shirts and embroidery. Thanks!",
+      "expect": {
+        "draft": true,
+        "followup": true,
+        "no_prices": true,
+        "max_words": 45
+      }
+    },
+    {
+      "id": "angie-time",
+      "title": "Angie: suggests a time to come by",
+      "from_name": "Angie",
+      "subject": "Re: Z-Rock Sock",
+      "thread_context": "Angie (Oct 13): Hi Phil, we're doing the Z-Rock Sock again, about 120 t-shirts, plus a dozen hats from a gift certificate, and we have some Costco jackets we'd like embroidered. Would love to sit down with you and go over it.\n\nPhil (Oct 13): Next week works. I am out of town this week. Thank you, Phil\n\nAngie (Oct 14): Sounds good, I'll reach out on Monday to set up a time.\n\nAngie (Oct 20): Let me know if you have a few minutes later this week and Lee and I can come see you about Hats, Z-Rock Sock t-shirts and embroidery.\n\nPhil (Oct 20): Yes. What works for you guys? Afternoons are better for me.",
+      "body": "How about tomorrow at like 3:00?",
+      "expect": {
+        "draft_optional": true,
+        "followup": true,
+        "no_prices": true,
+        "max_words": 30
+      }
+    },
+    {
+      "id": "justin-confirm-received",
+      "title": "Justin: just checking we got his Bantams email",
+      "from_name": "Justin",
+      "subject": "Re: Bantam Basketball gear",
+      "thread_context": "Justin (Oct 15): Hi Phil, for the Bantams we need practice jerseys printed both sides with the logo and a number; black travel tops with the logo upper left chest and \"BLIND FAITH\" on the right sleeve; and bottoms with the logo upper left and \"BANTAMS\" on the lower right leg. New logo attached with \"Bantam Basketball\". Thanks, Justin",
+      "body": "Hello - Haven't heard back, so just wanted to confirm you received this. Thanks",
+      "expect": {
+        "draft": true,
+        "followup": true,
+        "no_prices": true,
+        "max_words": 50,
+        "contains_any_re": [
+          [
+            "\\byes\\b",
+            "got it",
+            "received",
+            "did get"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "justin-thanks",
+      "title": "Justin: \"Perfect – thank you!\" (nothing to answer)",
+      "from_name": "Justin",
+      "subject": "Re: Bantam Basketball gear",
+      "thread_context": "Justin (Oct 15): Hi Phil, for the Bantams we need practice jerseys printed both sides with the logo and a number; black travel tops with the logo upper left chest and \"BLIND FAITH\" on the right sleeve; and bottoms with the logo upper left and \"BANTAMS\" on the lower right leg. New logo attached with \"Bantam Basketball\". Thanks, Justin\n\nJustin (Oct 20): Hello - Haven't heard back, so just wanted to confirm you received this. Thanks\n\nPhil (Oct 20): Yes sorry I did. Probably focus on this next week.",
+      "body": "Perfect – thank you!",
+      "expect": {
+        "draft": false
+      }
+    },
+    {
+      "id": "kelly-pocket-logo",
+      "title": "Kelly: sends the pocket logo",
+      "from_name": "Kelly",
+      "subject": "Re: Shirts",
+      "thread_context": "Phil (Oct 18): Hi Kelly, we can work with this art. Did we get a front logo too? The District items will work. Want me to call you Monday? Thank you, Phil",
+      "body": "Here is the pocket logo.",
+      "attachments": [
+        {
+          "name": "pocket-logo.png",
+          "type": "image/png",
+          "size": 240000
+        }
+      ],
+      "expect": {
+        "draft_optional": true,
+        "followup": true,
+        "no_prices": true,
+        "max_words": 35
+      }
+    },
+    {
+      "id": "hayden-sporttek",
+      "title": "Hayden: order spreadsheet + asks about Sport-Tek sweatshirts",
+      "from_name": "Hayden",
+      "subject": "Re: Lodge merch",
+      "thread_context": "Hayden (Oct 12): Here's the design for the Lodge merch. I made it with AI, and I'm worried the lines are too fine for DTF.",
+      "body": "Hi Phil, attached is our spreadsheet (10.19.26 Order.xlsx) with the new hotel uniforms for Kamiah, the Lodge merch and a few misc items. I was also looking at these Sport-Tek sweatshirts for the uniforms. Have you ordered them before? Thanks, Hayden",
+      "attachments": [
+        {
+          "name": "10.19.26 Order.xlsx",
+          "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "size": 30000
+        }
+      ],
+      "expect": {
+        "draft": true,
+        "followup": true,
+        "no_prices": true,
+        "max_words": 70,
+        "contains": [
+          "Sport-Tek"
+        ],
+        "not_contains_re": [
+          "we(?:'ve| have) (?:ordered|used|done)"
+        ]
+      }
+    },
+    {
+      "id": "cyndie-beanies",
+      "title": "Cyndie: 350 beanies, leather or leatherette patch, colors",
+      "from_name": "Cyndie",
+      "subject": "Re: Beanies for Town Halls",
+      "thread_context": "Cyndie (Oct 15): We need beanies for our November Town Halls, one thin enough to go under hardhats and one normal thickness, with our logo on a leather patch. Can you send options and colors?\n\nPhil (Oct 16): Ok you got it. So we have cuffed beanies and non cuffed one. How does that sound?\n\nCyndie (Oct 16): Can you send me pics and colors?",
+      "body": "Sorry, I just saw the bottom part of your email. Which leather patch do you put on our hats? The leatherette or leather? We need 350 total. So 175 of each one. What colors do they come in?",
+      "expect": {
+        "draft": true,
+        "followup": true,
+        "no_prices": true,
+        "not_contains": [
+          "Richardson 112",
+          "Trucker"
+        ],
+        "flags": [
+          "beanie"
+        ]
+      }
+    },
+    {
+      "id": "jess-pvc-hats",
+      "title": "Jess: 70 Richardson 112s, PVC + embroidered patches, split colors",
+      "from_name": "Jess",
+      "subject": "Hat Order",
+      "attachments": [
+        {
+          "name": "Logo-PVC.ai",
+          "type": "application/postscript",
+          "size": 800000
+        },
+        {
+          "name": "Logo-Embroidered.ai",
+          "type": "application/postscript",
+          "size": 800000
+        }
+      ],
+      "body": "Hi Phil, here's our hat order. 70 Richardson 112 hats total.\nPVC patch:\n15 Charcoal/Black\n10 All Black\n10 Charcoal/Black\n15 All Black\nEmbroidered patch:\nMac Red patch - 5 Charcoal/Black and 5 Black\nMac Gold patch - 10 Chocolate Chip & Birch\nAlso my husband will be picking up the Mad Hatter shirts. Thanks! Jess",
+      "expect": {
+        "draft": true,
+        "contains": [
+          "$25.00",
+          "70"
+        ],
+        "max_mentions": {
+          "PVC": 2
+        },
+        "not_contains": [
+          "Leatherette",
+          "Leather patch, sewn on"
+        ],
+        "not_contains_re": [
+          "For 12 Richardson"
+        ]
+      }
+    },
+    {
+      "id": "grace-bounce",
+      "title": "Bounce notice (mailer-daemon) — never a customer",
+      "from_name": "Mail Delivery Subsystem",
+      "from_email": "mailer-daemon@googlemail.com",
+      "subject": "Delivery Status Notification (Failure)",
+      "body": "Address not found\n\nYour message wasn't delivered to alerts@mail.hellscanyondesigns.com because the address couldn't be found, or is unable to receive mail.",
+      "expect": {
+        "draft": false
+      }
+    },
+    {
+      "id": "donna-yes-thanks",
+      "title": "Donna: \"yes, thank you\" to a meeting time",
+      "from_name": "Donna",
+      "subject": "Re: Shirts",
+      "thread_context": "Donna (Oct 21): Are you going to be there? I need to do this face to face.\n\nPhil (Oct 21): Hi Donna. Getting ready to grab some lunch. Does 1:30 work?",
+      "body": "yes, thank you.",
+      "expect": {
+        "draft": false
+      }
     }
   ]
 }

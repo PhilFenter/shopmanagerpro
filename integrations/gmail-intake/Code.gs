@@ -31,6 +31,11 @@ var LABELS = {
 var OWN_DOMAINS = ['hellscanyondesigns.com', 'hellscanyonartglass.com'];
 // Never send these to intake: Printavo customer messages are already tracked in Printavo.
 var SKIP_DOMAINS = ['printavo.com', 'messages.printavo.com'];
+// Bounce notices are never customers (a mailer-daemon bounce became a fake customer, Oct 2026).
+var BOUNCE_FROM = /^(mailer-daemon|postmaster|mail-daemon)@/i;
+var BOUNCE_SUBJECT = /^(delivery status notification|undeliverable|undelivered mail|mail delivery (failed|subsystem|failure)|returned mail|delivery failure|failure notice)/i;
+// Only drafts this script made carry this footer line (Phil's own drafts sign "Phil Fenter / Owner").
+var SYSTEM_DRAFT_MARKER = 'Company Online Stores \u00b7 Screen Printing';
 
 // ── Main job (runs on the timer) ─────────────────────────────────────────────
 function processInbox() {
@@ -64,6 +69,11 @@ function processInbox() {
     var from = parseFrom_(msg.getFrom());
     var domain = from.email.split('@')[1] || '';
     if (SKIP_DOMAINS.some(function (d) { return domain === d || domain.slice(-(d.length + 1)) === '.' + d; })) {
+      seen[id] = Date.now();
+      continue;
+    }
+    if (BOUNCE_FROM.test(from.email) || BOUNCE_SUBJECT.test(String(msg.getSubject() || '').replace(/^(re|fw|fwd):\s*/i, ''))) {
+      thread.addLabel(label_(LABELS.ignored));
       seen[id] = Date.now();
       continue;
     }
@@ -103,6 +113,10 @@ function processInbox() {
       var out = JSON.parse(res.getContentText() || '{}');
 
       if (code !== 200) throw new Error('HTTP ' + code + ': ' + res.getContentText().slice(0, 300));
+
+      // A newer customer message makes any earlier system draft in this thread stale: remove it so
+      // there's only ever one draft per thread.
+      if (out.status !== 'duplicate') deleteSystemDrafts_(thread.getId());
 
       if (out.status === 'ignored') {
         thread.addLabel(label_(LABELS.ignored));
@@ -175,6 +189,20 @@ function testDryRun() {
 }
 
 // ── Internals ─────────────────────────────────────────────────────────────
+/** Deletes drafts in this thread that this script created (footer marker). Leaves Phil's own drafts alone. */
+function deleteSystemDrafts_(threadId) {
+  try {
+    GmailApp.getDrafts().forEach(function (d) {
+      var m = d.getMessage();
+      if (m.getThread().getId() !== threadId) return;
+      if (String(m.getPlainBody() || '').indexOf(SYSTEM_DRAFT_MARKER) === -1 && String(m.getBody() || '').indexOf('Company Online Stores') === -1) return;
+      d.deleteDraft();
+    });
+  } catch (e) {
+    console.error('Could not clean old drafts for ' + threadId + ': ' + e);
+  }
+}
+
 function parseFrom_(raw) {
   var m = String(raw).match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
   if (m) return { name: m[1].trim(), email: m[2].trim().toLowerCase() };
