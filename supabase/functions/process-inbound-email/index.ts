@@ -384,8 +384,9 @@ export function buildTemplateReply(o: {
         : "Happy to help. About how many do you need, and what kind of shirts or hats are you thinking?");
       break;
     }
-    case "got_it": lines.push(ans ? `Got it. ${ans}` : "Got it."); break;
-    case "received": lines.push(ans ? `Yes, we got it. ${ans}` : "Yes, we got it. We're working through it and will get back to you."); break;
+    // The AI's short answer is already in Phil's voice; use it as is so we don't say "Got it. Got the logo."
+    case "got_it": lines.push(ans || "Got it."); break;
+    case "received": lines.push(ans ? (/^(?:yes|we got|got|we received|received)\b/i.test(ans) ? ans : `Yes, we got it. ${ans}`) : "Yes, we got it. We're working through it and will get back to you."); break;
     case "schedule": lines.push(ans || "Yes. What day and time work for you?"); break;
     case "schedule_confirm": lines.push("Ok sounds good. See you then."); break;
     case "answer": if (!ans) return null; lines.push(ans); break;
@@ -1182,7 +1183,7 @@ Deno.serve(async (req) => {
     const priceBlock = paras.length && priceable && wantsPrices && !noReply ? paras.join("\n\n") : "";
     let tpl: TemplateId = (TEMPLATE_IDS as readonly string[]).includes(ai.template) ? ai.template : (priceBlock ? "price" : "none");
     if (noReply) tpl = "none";
-    else if (priceBlock && !["beanies", "customer_garments", "polite_no"].includes(tpl)) tpl = "price";
+    else if (priceBlock) tpl = "price"; // a computed price always wins: the customer asked something we can price
     else if (tpl === "price" && !priceBlock) tpl = Array.isArray(ai.missing) && ai.missing.length ? "need_details" : (ai.short_answer ? "answer" : "none");
     if (!priceable && !["schedule", "schedule_confirm", "got_it", "received", "answer"].includes(tpl)) tpl = "none";
     const signer = String(p.signer || "").trim().slice(0, 40) || "Phil";
