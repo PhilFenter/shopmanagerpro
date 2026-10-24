@@ -94,7 +94,27 @@ function check(c, res) {
   if (e.no_date_promise && DATE_PROMISE.test(draft)) fails.push(`promises a date: "${draft.match(DATE_PROMISE)[0]}"`);
   const flags = Array.isArray(res.flags) ? res.flags : [];
   for (const r of e.flags ?? []) if (!flags.some((f) => new RegExp(r, "i").test(f))) fails.push(`action item should flag /${r}/ (flags: ${flags.length ? flags.join(" | ") : "none"})`);
-  return { fails, draft, words, items: res.ai?.items };
+  const t = checkTemplate(c, res);
+  fails.push(...t.fails);
+  return { fails, draft, words, items: res.ai?.items, template: t.draft, templateId: res.template_id };
+}
+
+// The office (info@) template reply. Same safety rules; only the price numbers are checked from "contains".
+function checkTemplate(c, res) {
+  const e = c.expect ?? {};
+  const fails = [];
+  const draft = typeof res.template_draft === "string" ? textOf(res.template_draft) : "";
+  const id = res.template_id;
+  if (e.template && !(Array.isArray(e.template) ? e.template : [e.template]).includes(id)) fails.push(`template: picked "${id}", expected ${[].concat(e.template).join(" / ")}`);
+  if (e.draft === false) { if (draft) fails.push("template: should be no reply, but got one"); return { fails, draft }; }
+  if (!draft) { if (e.draft && !e.draft_optional && !e.template_optional) fails.push(`template: no reply (picked "${id}")`); return { fails, draft }; }
+  if (PROMISE.test(draft)) fails.push(`template: makes a promise: "${draft.match(PROMISE)[0]}"`);
+  if (e.no_prices && PRICE.test(draft)) fails.push("template: gives a price (it shouldn't for this one)");
+  for (const s of (e.contains ?? []).filter((x) => x.startsWith("$"))) if (!draft.includes(s)) fails.push(`template: missing "${s}"`);
+  for (const s of e.not_contains ?? []) if (draft.toLowerCase().includes(s.toLowerCase())) fails.push(`template: should not say "${s}"`);
+  for (const r of e.not_contains_re ?? []) if (new RegExp(r, "i").test(draft)) fails.push(`template: should not say /${r}/`);
+  if (e.hat_sizes === false && HAT_SIZES.test(draft)) fails.push(`template: asks for hat sizes`);
+  return { fails, draft };
 }
 
 // ── Run ─────────────────────────────────────────────────────────────────────
@@ -156,6 +176,9 @@ const lines = [
   ...(results.some((r) => !r.fails.length && r.draft) ? [
     "<details><summary>All passing drafts</summary>", "",
     ...results.filter((r) => !r.fails.length).flatMap((r) => [`**${r.c.id}**`, "", "```", r.draft || "(no draft)", "```", ""]),
+    "</details>", "",
+    "<details><summary>Office template replies (info@)</summary>", "",
+    ...results.flatMap((r) => [`**${r.c.id}** — ${r.templateId ?? "?"}`, "", "```", r.template || "(no reply)", "```", ""]),
     "</details>", "",
   ] : []),
 ];
