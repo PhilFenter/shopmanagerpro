@@ -32,7 +32,10 @@
         "min_option_lines": 6,
         "max_mentions": {
           "UV": 1
-        }
+        },
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -51,6 +54,9 @@
         ],
         "flags": [
           "minimum"
+        ],
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ]
       }
     },
@@ -88,7 +94,10 @@
           "1 or 2 sample hats is fine"
         ],
         "hat_sizes": false,
-        "gbb": true
+        "gbb": true,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -131,6 +140,9 @@
         "no_prices": true,
         "flags": [
           "bring their own"
+        ],
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ]
       }
     },
@@ -155,7 +167,8 @@
         ],
         "not_contains_re": [
           "what sizes",
-          "size breakdown"
+          "size breakdown",
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ]
       }
     },
@@ -180,7 +193,10 @@
           "$25.00"
         ],
         "hat_sizes": false,
-        "gbb": true
+        "gbb": true,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -199,7 +215,10 @@
       "expect": {
         "draft": true,
         "gbb": true,
-        "no_date_promise": true
+        "no_date_promise": true,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -214,7 +233,10 @@
           "$45"
         ],
         "gbb": true,
-        "hat_sizes": false
+        "hat_sizes": false,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -243,7 +265,10 @@
             "art fee"
           ]
         ],
-        "hat_sizes": false
+        "hat_sizes": false,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -262,7 +287,10 @@
       "expect": {
         "draft": true,
         "gbb": true,
-        "no_date_promise": true
+        "no_date_promise": true,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -277,7 +305,8 @@
           "what sizes",
           "size breakdown",
           "definitely help with[^.]*chef coat",
-          "Phil will"
+          "Phil will",
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ],
         "flags": [
           "bring their own|under the screen print minimum"
@@ -301,7 +330,10 @@
             "no need to (bring|provide)"
           ]
         ],
-        "gbb": true
+        "gbb": true,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -325,6 +357,9 @@
         "gbb": true,
         "contains": [
           "$45"
+        ],
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ]
       }
     },
@@ -338,7 +373,10 @@
       "expect": {
         "draft": true,
         "followup": true,
-        "hat_sizes": false
+        "hat_sizes": false,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -352,7 +390,10 @@
         "draft": true,
         "followup": true,
         "no_prices": true,
-        "max_words": 45
+        "max_words": 45,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -366,7 +407,10 @@
         "draft_optional": true,
         "followup": true,
         "no_prices": true,
-        "max_words": 30
+        "max_words": 30,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -388,6 +432,9 @@
             "received",
             "did get"
           ]
+        ],
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ]
       }
     },
@@ -420,7 +467,10 @@
         "draft_optional": true,
         "followup": true,
         "no_prices": true,
-        "max_words": 35
+        "max_words": 35,
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ]
       }
     },
     {
@@ -447,7 +497,8 @@
         ],
         "not_contains_re": [
           "we(?:'ve| have) (?:ordered|used|done)",
-          "(?:don'?t|do not) carry"
+          "(?:don'?t|do not) carry",
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ]
       }
     },
@@ -468,6 +519,9 @@
         ],
         "flags": [
           "beanie"
+        ],
+        "not_contains_re": [
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ]
       }
     },
@@ -504,7 +558,8 @@
         ],
         "not_contains_re": [
           "For 12 Richardson",
-          "embroidered patch(?:es)? in[- ]house|in[- ]house[^.]{0,40}embroidered patch"
+          "embroidered patch(?:es)? in[- ]house|in[- ]house[^.]{0,40}embroidered patch",
+          "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
         ],
         "contains_any_re": [
           [

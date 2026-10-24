@@ -80,6 +80,9 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
   the breakdown lines only. Never put the grand total on a line as well.
 - If part of the ask is something we don't usually do (a garment they supply, back embroidery), say that once and never
   also write "we can help with" / "we can add" that same thing elsewhere in the draft.
+- SAMPLES / APPROVAL (Phil 2026-10-24): we NEVER make a separate sample or test piece before an order. Once an order is
+  paid, we make the first production piece and send it for final approval before running the rest. Never offer a
+  sample, a "sample for approval", a test hat or a sew-out before payment. A mockup of the art is fine to mention.
 - Don't claim history you weren't told ("we've ordered those before", "we've used that before"). You may say a brand is
   one we carry if it's in these rules.
 - BEANIES are not on our hat price list. We carry cuffed and uncuffed beanies (YP Classics 1500KC / 1501KC are the go-to);
@@ -127,7 +130,7 @@ RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): ans
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
 - Apparel: what items, rough quantity, which decoration locations (e.g. left chest + back), artwork (or that it's coming), and roughly Good/Better/Best or a garment they like. Sizes and colors are needed before ordering, not before a first price.
-- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  HAT MINIMUM / SAMPLES: 12 hats minimum, even for "a sample" or "1 or 2 to try" (it's the time it takes to make the first\n  patch and burn it on the leather / set up the embroidery). Say why in a few words, then offer: split the 12 across colors\n  (e.g. 6 of each) and we send pictures of the patch on the actual hats before we make them all. Never offer 1-2 samples.\n  Leather patches: ask for the logo as a black and white vector file (PDF, AI or EPS) for best results.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch?" The draft lists the three patch options with prices automatically."
+- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  HAT MINIMUM / SAMPLES: 12 hats minimum, even for "a sample" or "1 or 2 to try" (it's the time it takes to make the first\n  patch and burn it on the leather / set up the embroidery). Say why in a few words, then offer: split the 12 across colors\n  (e.g. 6 of each). Never offer 1-2 samples.\n  Leather patches: ask for the logo as a black and white vector file (PDF, AI or EPS) for best results.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch?" The draft lists the three patch options with prices automatically."
 - Deadline if they have one.
 `;
 
@@ -223,7 +226,6 @@ Guidance:
     "Hi Paislie,\\n\\nWe don't love embroidering garments people bring in. There are a few reasons and first is every time someone brings in a unique piece it's an experiment for us and we are hoping for the best. On items that we source we have typically run them before and if something happens, we can get another. Some things work better than others.\\n\\nThe good news is we carry lots of great brands. Nike, Ogio, North Face, Eddie Bauer and other options. So folks can get things at a variety of budgets.\\n\\nWe do make exceptions if they are items we can't get or it's a huge order. We did 700 jackets for Clearwater Paper last year. They provided one for testing and understood if something happened during the process we would not replace the item.\\n\\nI hope that makes sense. Let me know if you would like a polo shirt guide to choose some items from.\\n\\nThank you\\n\\nPhil"
     "Hi Kyle,\\n\\nThanks for reaching out. That's a clean new logo and we can help you out.\\n\\n(prices are added here automatically)\\n\\nWe'll test your new logo on a hat first. We can price the hoodies with a good, better, best option, just let me know what you like.\\n\\nLet me know what you're thinking and we can get a quote going.\\n\\nThank you\\n\\nPhil"
     "Hi Ian,\\n\\nOn the hats for embroidery, we have $45 digitizing fee to convert the logo for embroidery. That's a onetime fee. We can then change thread color and all that with our software. Half black and half white are no problem.\\n\\nOn the shirts what are we doing for print locations?\\n\\nThank you\\n\\nPhil"
-    "Hi Kelly,\\n\\nWe will get a sample made of that on Monday. The hat we used was a Richardson 632. It comes in several colors. If you go to Richardsonsports.com and search 632 you can see the colors.\\n\\nI'll get a sample made and send a picture Monday afternoon.\\n\\nThank you\\n\\nPhil"
     "Hi Tina,\\n\\nAre you familiar with DTF or Direct to film transfers? I am thinking for your order due to time, and the fact that you have left chest, full back and both sleeves we will use that method instead of screen printing. It's a lot of screens and setups for that size order.\\n\\nWe have some Black Next Level 6210 shirts in stock that we could use for this unless you had another shirt you wanted to use.\\n\\nThank you\\n\\nPhil"
 `;
 
@@ -306,7 +308,7 @@ export function isBeanie(it: any): boolean {
 // Sentences where the AI promises something only Phil can decide (calls, photos, dates).
 const PROMISE_RE = /\b(?:I|we)(?:'ll| will| can| am going to| are going to)\s+(?:also\s+)?(?:give you a (?:ring|call)|call you|reach out|get back to you|follow up|send (?:you\s+)?(?:over\s+)?(?:some\s+|the\s+|a few\s+)?(?:pictures|photos|pics|samples?|a mockup|mockups|spec sheets?|the colors|colors|color options|options)|have (?:them|it|these|those|the \w+|everything) (?:ready|done|finished)|(?:put|get|make) (?:you )?(?:a |the )?mockups? (?:together|made|over|done|up))|\bshortly\b|\bby (?:monday|tuesday|wednesday|thursday|friday|tomorrow|end of (?:the )?(?:day|week))\b/i;
 // Wrong or off-voice claims: "we don't carry Sport-Tek", "Phil will need to approve it".
-const NEVER_SAY_RE = /\bwe (?:don'?t|do not|no longer) (?:carry|stock|sell|offer) (?:sport-?tek|port authority|port & co|district|ogio|nike|carhartt|the north face|eddie bauer|gildan|jerzees|bella|next level)|\bPhil (?:will|would|needs|has to|can|should|is going to|must)\b/i;
+const NEVER_SAY_RE = /\b(?:sample|test (?:piece|hat|shirt)) for (?:your )?approval\b|\b(?:make|send|do|get) (?:you )?(?:a |one |some )?(?:quick )?samples?\b(?!.*\b(?:paid|payment)\b)|\bwe (?:don'?t|do not|no longer) (?:carry|stock|sell|offer) (?:sport-?tek|port authority|port & co|district|ogio|nike|carhartt|the north face|eddie bauer|gildan|jerzees|bella|next level)|\bPhil (?:will|would|needs|has to|can|should|is going to|must)\b/i;
 const THANKS_OPENER_RE = /^(?:thanks|thank you)(?: so much)? for (?:confirming|following up|the follow[- ]up|sending|letting (?:me|us) know|the update|reaching out|getting back|checking in|your (?:email|message|patience|follow[- ]up)|the (?:logo|info|information|file|files|spreadsheet|details|reply))[^.!?\n]*[.!?]\s*/i;
 
 function splitSentences(t: string): string[] {
@@ -1061,7 +1063,7 @@ Deno.serve(async (req) => {
         ...hatLines,
         (hatTotal > 0 && hatTotal < 12) || /\b(?:1|2|one|two|a couple)\b[^.]{0,20}sample/i.test(body)
           ? "You can split the 12 between colors or designs, like 6 of each." : "",
-        "That includes a sample for approval and shipping in the lower 48.",
+        "That includes shipping in the lower 48. Once the order is paid, we make the first piece and send it to you for final approval before we run the rest.",
         emb ? (embMaybe ? "Embroidery is the same as the leather patch price, plus a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
         art.status !== "vector" && pricing.some((p) => p.hat && p.hatTiers?.length) ? "For a leather patch, a black and white vector file (PDF, AI or EPS) works best." : "",
