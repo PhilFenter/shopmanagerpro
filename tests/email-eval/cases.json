@@ -393,7 +393,8 @@
         "max_words": 45,
         "not_contains_re": [
           "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
-        ]
+        ],
+        "template": "schedule"
       }
     },
     {
@@ -410,6 +411,11 @@
         "max_words": 30,
         "not_contains_re": [
           "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ],
+        "template": [
+          "schedule",
+          "schedule_confirm",
+          "none"
         ]
       }
     },
@@ -435,7 +441,8 @@
         ],
         "not_contains_re": [
           "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
-        ]
+        ],
+        "template": "received"
       }
     },
     {
@@ -446,7 +453,8 @@
       "thread_context": "Justin (Oct 15): Hi Phil, for the Bantams we need practice jerseys printed both sides with the logo and a number; black travel tops with the logo upper left chest and \"BLIND FAITH\" on the right sleeve; and bottoms with the logo upper left and \"BANTAMS\" on the lower right leg. New logo attached with \"Bantam Basketball\". Thanks, Justin\n\nJustin (Oct 20): Hello - Haven't heard back, so just wanted to confirm you received this. Thanks\n\nPhil (Oct 20): Yes sorry I did. Probably focus on this next week.",
       "body": "Perfect – thank you!",
       "expect": {
-        "draft": false
+        "draft": false,
+        "template": "none"
       }
     },
     {
@@ -470,6 +478,11 @@
         "max_words": 35,
         "not_contains_re": [
           "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ],
+        "template": [
+          "got_it",
+          "none",
+          "answer"
         ]
       }
     },
@@ -499,6 +512,10 @@
           "we(?:'ve| have) (?:ordered|used|done)",
           "(?:don'?t|do not) carry",
           "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
+        ],
+        "template": [
+          "answer",
+          "got_it"
         ]
       }
     },
@@ -522,7 +539,8 @@
         ],
         "not_contains_re": [
           "sample for (?:your )?approval|(?:make|send) (?:you )?(?:a |some )?samples?\\b"
-        ]
+        ],
+        "template": "beanies"
       }
     },
     {
@@ -565,7 +583,8 @@
           [
             "PVC and embroidered patches"
           ]
-        ]
+        ],
+        "template": "price"
       }
     },
     {
@@ -587,7 +606,8 @@
       "thread_context": "Donna (Oct 21): Are you going to be there? I need to do this face to face.\n\nPhil (Oct 21): Hi Donna. Getting ready to grab some lunch. Does 1:30 work?",
       "body": "yes, thank you.",
       "expect": {
-        "draft": false
+        "draft": false,
+        "template": "none"
       }
     }
   ]

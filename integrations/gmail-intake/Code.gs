@@ -6,8 +6,10 @@
  *
  * Every 5 minutes it looks at recent inbox mail, sends each new customer
  * email to the `process-inbound-email` Supabase function, labels the thread,
- * and — when info is missing — saves a reply DRAFT in the thread for Phil to
- * review. It never sends email by itself.
+ * and saves a reply DRAFT in the thread for review. It never sends a reply by itself.
+ * info@: drafts use the shop's reply templates (REPLY_STYLE template).
+ * phil@: drafts are AI-written (REPLY_STYLE ai), and customer emails are also forwarded to
+ * FORWARD_TO (info@) with the template reply ready, so the office can answer from info@.
  */
 
 // ── Settings ───────────────────────────────────────────────────────────────
@@ -16,6 +18,9 @@
 //   INTAKE_SECRET same value as the INBOUND_EMAIL_SECRET Supabase secret
 //   MAILBOX       info   (use "phil" if installed in phil@hellscanyondesigns.com)
 //   CREATE_DRAFTS true   (set to false to only create action items)
+//   REPLY_STYLE   template  (info@ default) or ai (phil@ default)
+//   SIGN_AS       name the drafts are signed with, e.g. Jillian (default Phil)
+//   FORWARD_TO    phil@ only: info@hellscanyondesigns.com to send customer emails to the office
 //   ONLY_NEW_THREADS true  (use in phil@: only brand-new conversations, plus replies in threads
 //                           the system already started; ongoing back-and-forth is left alone)
 // Promotions/Social are NOT excluded: Gmail files real customer emails (e.g. from AOL)
@@ -36,6 +41,11 @@ var BOUNCE_FROM = /^(mailer-daemon|postmaster|mail-daemon)@/i;
 var BOUNCE_SUBJECT = /^(delivery status notification|undeliverable|undelivered mail|mail delivery (failed|subsystem|failure)|returned mail|delivery failure|failure notice)/i;
 // Only drafts this script made carry this footer line (Phil's own drafts sign "Phil Fenter / Owner").
 var SYSTEM_DRAFT_MARKER = 'Company Online Stores \u00b7 Screen Printing';
+// Forwards from phil@ to info@ carry these markers so info@ can build the reply draft.
+var FWD_MARK = '[HCD-FWD]';
+var FWD_START = '=== SUGGESTED REPLY ===';
+var FWD_END = '=== END SUGGESTED REPLY ===';
+var CUSTOMER_TYPES = ['new_quote_request', 'quote_follow_up', 'existing_customer_order'];
 
 // ── Main job (runs on the timer) ─────────────────────────────────────────────
 function processInbox() {
@@ -45,6 +55,9 @@ function processInbox() {
   var mailbox = props.getProperty('MAILBOX') || 'info';
   var createDrafts = String(props.getProperty('CREATE_DRAFTS') || 'true').trim().toLowerCase() !== 'false';
   var onlyNew = String(props.getProperty('ONLY_NEW_THREADS') || 'false').trim().toLowerCase() === 'true';
+  var replyStyle = String(props.getProperty('REPLY_STYLE') || (mailbox === 'info' ? 'template' : 'ai')).trim().toLowerCase();
+  var signAs = String(props.getProperty('SIGN_AS') || '').trim();
+  var forwardTo = String(props.getProperty('FORWARD_TO') || '').trim();
   if (!url || !secret) throw new Error('Set FUNCTION_URL and INTAKE_SECRET in Script properties');
 
   var seen = loadSeen_();
@@ -77,6 +90,16 @@ function processInbox() {
       seen[id] = Date.now();
       continue;
     }
+    // info@: a customer email forwarded from phil@ — save the suggested reply as a draft (it goes to the customer).
+    if (OWN_DOMAINS.indexOf(domain) !== -1 && String(msg.getPlainBody() || '').indexOf(FWD_MARK) !== -1) {
+      var sugg = extractSuggested_(msg.getPlainBody());
+      if (createDrafts && sugg) msg.createDraftReply(sugg, { htmlBody: textToHtml_(sugg) });
+      thread.addLabel(label_(LABELS.processed));
+      console.log(msg.getSubject() + ' → forwarded from phil@' + (sugg ? ', draft saved' : ', no suggested reply'));
+      seen[id] = Date.now();
+      saveSeen_(seen);
+      continue;
+    }
     if (OWN_DOMAINS.indexOf(domain) !== -1) {
       seen[id] = Date.now(); // our own reply is the newest — nothing to do
       continue;
@@ -86,6 +109,7 @@ function processInbox() {
       message_id: id,
       thread_id: thread.getId(),
       mailbox: mailbox,
+      signer: signAs,
       from_email: from.email,
       from_name: from.name,
       subject: msg.getSubject(),
@@ -124,10 +148,17 @@ function processInbox() {
       } else if (out.status === 'created' || out.status === 'duplicate') {
         thread.addLabel(label_(LABELS.processed));
         if (out.status === 'created' && !out.ready_to_price) thread.addLabel(label_(LABELS.needsInfo));
-        if (createDrafts && out.reply_draft) msg.createDraftReply(out.reply_draft, out.reply_draft_html ? { htmlBody: out.reply_draft_html } : {});
+        var draftText = replyStyle === 'template' ? out.template_draft : out.reply_draft;
+        var draftHtml = replyStyle === 'template' ? out.template_draft_html : out.reply_draft_html;
+        if (createDrafts && draftText) msg.createDraftReply(draftText, draftHtml ? { htmlBody: draftHtml } : {});
+        var forwarded = false;
+        if (forwardTo && out.status === 'created' && CUSTOMER_TYPES.indexOf(out.classification) !== -1) {
+          forwarded = forwardToOffice_(msg, from, out, forwardTo);
+        }
         console.log(msg.getSubject() + ' → ' + out.status + ' (' + (out.classification || '') + ')' +
           (out.quote_number ? ', quote ' + out.quote_number : '') +
-          (out.reply_draft ? (createDrafts ? ', draft saved' : ', draft skipped (CREATE_DRAFTS)') : ', no draft'));
+          (draftText ? (createDrafts ? ', ' + replyStyle + ' draft saved' : ', draft skipped (CREATE_DRAFTS)') : ', no draft') +
+          (forwarded ? ', forwarded to ' + forwardTo : ''));
       }
       seen[id] = Date.now();
     } catch (e) {
@@ -201,6 +232,53 @@ function deleteSystemDrafts_(threadId) {
   } catch (e) {
     console.error('Could not clean old drafts for ' + threadId + ': ' + e);
   }
+}
+
+/** Sends a customer email on to the office inbox. Reply-To is the customer, so "Reply" in info@ answers them. */
+function forwardToOffice_(msg, from, out, forwardTo) {
+  try {
+    var who = (from.name ? from.name + ' <' + from.email + '>' : from.email);
+    var head = [
+      FWD_MARK + ' Customer email forwarded from phil@. Replying goes to ' + who + '.',
+      'Suggested reply: ' + (out.template_label || 'none') + (out.quote_number ? '   Quote: ' + out.quote_number : ''),
+      'Phil may also have a draft for this in phil@. Only one of you should send.',
+    ].join('\n');
+    var sugg = out.template_draft ? [FWD_START, out.template_draft, FWD_END].join('\n') : '';
+    var orig = ['---------- Original message ----------', 'From: ' + who, 'Date: ' + msg.getDate(), 'Subject: ' + msg.getSubject(), '', msg.getPlainBody()].join('\n');
+    var plain = [head, sugg, orig].filter(String).join('\n\n');
+    var atts = [];
+    var total = 0;
+    msg.getAttachments().forEach(function (a) {
+      if (total + a.getSize() < 20 * 1024 * 1024) { atts.push(a.copyBlob().setName(a.getName())); total += a.getSize(); }
+    });
+    GmailApp.sendEmail(forwardTo, msg.getSubject() || '(no subject)', plain, {
+      replyTo: from.email,
+      name: (from.name || from.email) + ' via Phil',
+      htmlBody: textToHtml_(head) + (sugg ? '<pre style="font-family:inherit;white-space:pre-wrap;background:#f5f5f5;padding:8px;">' + esc_(sugg) + '</pre>' : '') +
+        '<hr>' + textToHtml_(orig.split('\n').slice(0, 5).join('\n')) + '<br>' + (msg.getBody() || ''),
+      attachments: atts,
+    });
+    return true;
+  } catch (e) {
+    console.error('Forward to ' + forwardTo + ' failed: ' + e);
+    return false;
+  }
+}
+
+function extractSuggested_(plain) {
+  var t = String(plain || '');
+  var a = t.indexOf(FWD_START);
+  var b = t.indexOf(FWD_END);
+  if (a === -1 || b === -1 || b <= a) return '';
+  return t.slice(a + FWD_START.length, b).trim();
+}
+
+function esc_(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function textToHtml_(t) {
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;">' + esc_(t).replace(/\n/g, '<br>') + '</div>';
 }
 
 function parseFrom_(raw) {

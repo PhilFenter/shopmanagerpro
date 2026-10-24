@@ -157,6 +157,9 @@ Read the email (and any earlier thread context) and return ONLY a JSON object wi
   "ready_to_price": boolean,
   "reply_type": "quote" | "short" | "none",
   "price_request": boolean,
+  "template": "price" | "need_details" | "got_it" | "received" | "schedule" | "schedule_confirm" | "answer" | "beanies" | "outsourced_patch" | "product_guide" | "customer_garments" | "polite_no" | "none",
+  "short_answer": string|null,
+  "decline_reason": string|null,
   "reply_draft": string|null
 }
 Guidance:
@@ -189,6 +192,20 @@ Guidance:
     already set. reply_draft null.
 - price_request: true only when THIS message asks for prices/a quote or changes quantities/items. False for scheduling,
   thank-yous, files, and questions about products.
+- template: which shop reply template fits THIS message (Phil 2026-10-24; the office replies from templates):
+  "price" = we can give a price now (first reply with items + rough quantity, or a follow-up that changes the order).
+  "need_details" = a request we can't price yet; we need what's in "missing".
+  "got_it" = they sent files, a logo, sizes or info and nothing needs answering.
+  "received" = "did you get my email?" / checking on a quote.
+  "schedule" = they want to meet, call or come by, or suggest a time. "schedule_confirm" = they agreed to a time we offered.
+  "answer" = a direct question about products, process or an order that doesn't fit the others.
+  "beanies" = asking about beanies. "outsourced_patch" = asking about PVC or embroidered patches with no hat quantity.
+  "product_guide" = asking what we carry or for a catalog. "customer_garments" = only wants their own garments decorated.
+  "polite_no" = something we don't do (designing art from scratch, selling blank transfers...). "none" = nothing to answer.
+- short_answer: for schedule / answer / beanies / received / got_it, one or two short plain sentences that answer THIS
+  message the way Phil would ("Tomorrow at 3:00 works." / "We carry Sport-Tek, and those will work for the uniforms.").
+  No greeting, no sign-off, no prices, no promises of dates, calls or photos. null when nothing specific to say.
+- decline_reason: for polite_no only, a short plain reason ("custom artwork from scratch isn't our strong suit").
 - reply_draft: write one whenever classification is new_quote_request, quote_follow_up or existing_customer_order and
   reply_type is not "none".
   GOAL: give them a price in the FIRST reply and keep back-and-forth to a minimum. When we know items and a rough
@@ -332,6 +349,62 @@ export function cleanAiDraft(draft: string, isFollowUp: boolean, opts: { dropPvc
     if (t) out.push(t.charAt(0).toUpperCase() + t.slice(1));
   }
   return out.join("\n\n").trim();
+}
+
+// ── Template replies (Phil 2026-10-24) ──────────────────────────────────────
+// The office (info@) replies from fixed templates in Phil's voice; the AI only picks one and fills small blanks.
+export const TEMPLATE_IDS = ["price", "need_details", "got_it", "received", "schedule", "schedule_confirm", "answer", "beanies",
+  "outsourced_patch", "product_guide", "customer_garments", "polite_no", "none"] as const;
+export type TemplateId = typeof TEMPLATE_IDS[number];
+export const TEMPLATE_LABEL: Record<TemplateId, string> = {
+  price: "Price", need_details: "Need a few details", got_it: "Got it", received: "Yes, we got your email",
+  schedule: "Setting a time", schedule_confirm: "See you then", answer: "Quick answer", beanies: "Beanies",
+  outsourced_patch: "PVC / embroidered patches", product_guide: "Product guide", customer_garments: "Customer's own garments",
+  polite_no: "Polite no", none: "No reply needed",
+};
+
+export function buildTemplateReply(o: {
+  template: TemplateId; first: string; signer: string; isFollowUp: boolean; priceBlock: string; hasHats: boolean;
+  missing: string[]; shortAnswer: string; declineReason: string; patchKinds: string;
+}): string | null {
+  const ans = o.shortAnswer.trim();
+  const lines: string[] = [];
+  switch (o.template) {
+    case "none": return null;
+    case "price":
+      if (!o.priceBlock) return null;
+      lines.push(o.isFollowUp ? o.priceBlock : `Thanks for reaching out. ${o.priceBlock}`);
+      lines.push(o.hasHats && !/\b(shirts|hoodies|crewnecks|polos|jackets|pieces)\b/.test(o.priceBlock)
+        ? "If that works, let us know the hat colors and send over your logo file, and we'll get a quote put together."
+        : "If that works, send over sizes and colors and we'll get a quote put together.");
+      break;
+    case "need_details": {
+      const m = o.missing.filter(Boolean).slice(0, 4);
+      lines.push(m.length ? `Happy to help. To get you a price, can you let me know:\n${m.map((x) => `- ${x}`).join("\n")}`
+        : "Happy to help. About how many do you need, and what kind of shirts or hats are you thinking?");
+      break;
+    }
+    case "got_it": lines.push(ans ? `Got it. ${ans}` : "Got it."); break;
+    case "received": lines.push(ans ? `Yes, we got it. ${ans}` : "Yes, we got it. We're working through it and will get back to you."); break;
+    case "schedule": lines.push(ans || "Yes. What day and time work for you?"); break;
+    case "schedule_confirm": lines.push("Ok sounds good. See you then."); break;
+    case "answer": if (!ans) return null; lines.push(ans); break;
+    case "beanies":
+      if (ans) lines.push(ans);
+      lines.push("We have cuffed and non-cuffed beanies. Let me know which style and colors you like, and we'll get you a price.");
+      break;
+    case "outsourced_patch": {
+      const k = o.patchKinds || "PVC";
+      lines.push(`Did you want real ${k} patches, or our UV patches? We buy ${k} patches from an outside patch maker, which adds about 2 weeks, so we price those separately. We make the full-color textured UV patches here.`);
+      break;
+    }
+    case "product_guide": lines.push("Sure thing, here's our product guide. Let me know which styles you like and we'll price them out."); break;
+    case "customer_garments": lines.push(`We generally don't decorate garments customers bring in, since every outside garment is an experiment and we can't replace what we didn't supply. ${BRANDS_LINE}`); break;
+    case "polite_no": lines.push(`Thanks for thinking of us. Unfortunately ${(o.declineReason || "that isn't something we do").replace(/[.\s]+$/, "")}.`); break;
+  }
+  const bodyText = lines.filter(Boolean).join("\n\n").trim();
+  if (!bodyText) return null;
+  return `Hi ${o.first || "there"},\n\n${bodyText}\n\nThank you\n\n${o.signer || "Phil"}`;
 }
 
 async function runAI(userContent: string): Promise<any> {
@@ -1105,6 +1178,29 @@ Deno.serve(async (req) => {
     const replyDraftHtml = replyDraft ? draftHtml(replyDraft.trimEnd()) : null;
     if (replyDraft) replyDraft = `${replyDraft.trimEnd()}\n\n${REPLY_FOOTER}`;
 
+    // Template reply for the office (info@, and phil@ emails forwarded there).
+    const priceBlock = paras.length && priceable && wantsPrices && !noReply ? paras.join("\n\n") : "";
+    let tpl: TemplateId = (TEMPLATE_IDS as readonly string[]).includes(ai.template) ? ai.template : (priceBlock ? "price" : "none");
+    if (noReply) tpl = "none";
+    else if (priceBlock && !["beanies", "customer_garments", "polite_no"].includes(tpl)) tpl = "price";
+    else if (tpl === "price" && !priceBlock) tpl = Array.isArray(ai.missing) && ai.missing.length ? "need_details" : (ai.short_answer ? "answer" : "none");
+    if (!priceable && !["schedule", "schedule_confirm", "got_it", "received", "answer"].includes(tpl)) tpl = "none";
+    const signer = String(p.signer || "").trim().slice(0, 40) || "Phil";
+    const firstName = String(name || "").split(/\s|@/)[0] || "there";
+    const cleanShort = ai.short_answer ? cleanAiDraft(String(ai.short_answer), true) : "";
+    let templateDraft = buildTemplateReply({
+      template: tpl, first: firstName, signer, isFollowUp, priceBlock, hasHats: hatLines.length > 0,
+      missing: Array.isArray(ai.missing) ? ai.missing.map(String) : [], shortAnswer: cleanShort,
+      declineReason: String(ai.decline_reason || ""),
+      patchKinds: [/\bPVC\b/i.test(body) ? "PVC" : "", /embroider(?:ed|y) patch/i.test(body) ? "embroidered" : ""].filter(Boolean).join(" or "),
+    });
+    if (templateDraft && !fitted) templateDraft = templateDraft.replace(/,?\s*(?:and\s+)?(?:the\s+)?(?:hat sizes|sizes for the hats)\b/gi, "").replace(/\s+([,.?])/g, "$1");
+    const templateDraftHtml = templateDraft ? draftHtml(templateDraft) : null;
+    if (templateDraft) templateDraft = `${templateDraft}\n\n${REPLY_FOOTER}`;
+    if (actionItem?.id) {
+      await db.from("action_items").update({ description: `${(actionFields as any).description}\n\nSuggested reply: ${TEMPLATE_LABEL[tpl]}${templateDraft ? " (draft is in Gmail)" : ""}` }).eq("id", actionItem.id);
+    }
+
     return json({
       status: "created",
       updated_existing: Boolean(openJob),
@@ -1114,6 +1210,10 @@ Deno.serve(async (req) => {
       quote_number: quoteNumber,
       reply_draft: replyDraft,
       reply_draft_html: replyDraftHtml,
+      template_id: tpl,
+      template_label: TEMPLATE_LABEL[tpl],
+      template_draft: templateDraft,
+      template_draft_html: templateDraftHtml,
       ...(preview ? { preview: true, action_item_description: descLines.join("\n"), flags, ai } : {}),
     });
   } catch (err) {
