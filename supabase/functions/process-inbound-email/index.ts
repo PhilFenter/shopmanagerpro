@@ -78,6 +78,8 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
   Bauer, Carhartt, New Era and more. NEVER tell a customer we don't carry a brand they named; say we carry it.
 - When the email gives a grand total AND a breakdown ("70 hats total" then 15 / 10 / 10 ...), the item quantities are
   the breakdown lines only. Never put the grand total on a line as well.
+- If part of the ask is something we don't usually do (a garment they supply, back embroidery), say that once and never
+  also write "we can help with" / "we can add" that same thing elsewhere in the draft.
 - Don't claim history you weren't told ("we've ordered those before", "we've used that before"). You may say a brand is
   one we carry if it's in these rules.
 - BEANIES are not on our hat price list. We carry cuffed and uncuffed beanies (YP Classics 1500KC / 1501KC are the go-to);
