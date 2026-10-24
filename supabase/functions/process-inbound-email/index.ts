@@ -76,6 +76,8 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
   they asked for pictures or colors, say what we have in plain words and leave the sending to Phil.
 - We carry every SanMar brand: Sport-Tek, Port Authority, Port & Company, District, OGIO, Nike, The North Face, Eddie
   Bauer, Carhartt, New Era and more. NEVER tell a customer we don't carry a brand they named; say we carry it.
+- When the email gives a grand total AND a breakdown ("70 hats total" then 15 / 10 / 10 ...), the item quantities are
+  the breakdown lines only. Never put the grand total on a line as well.
 - Don't claim history you weren't told ("we've ordered those before", "we've used that before"). You may say a brand is
   one we carry if it's in these rules.
 - BEANIES are not on our hat price list. We carry cuffed and uncuffed beanies (YP Classics 1500KC / 1501KC are the go-to);
@@ -640,10 +642,19 @@ Deno.serve(async (req) => {
     if (/\bbeanies?\b/i.test(`${subject} ${body}`) && !items.some((it) => isBeanie(it) && categoryOf(it.item || it.garment) === "hat" && it.customer_supplied !== true))
       flags.push("Beanies asked about — not on the hat price list. Price by hand (cuffed / uncuffed, e.g. YP Classics 1500KC / 1501KC).");
     const hatItems = items.filter((it) => it.customer_supplied !== true && categoryOf(it.item || it.garment) === "hat" && !isBeanie(it));
-    const hatTotal = hatItems.reduce((n, it) => n + (Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : 0), 0);
+    let hatTotal = hatItems.reduce((n, it) => n + (Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : 0), 0);
+    // "70 hats total" then a breakdown: the AI sometimes puts the 70 on one line AND adds the breakdown (came out 90).
+    const statedM = body.match(/\b(\d{2,4})\s+(?:[\w/&+-]+\s+){0,4}(?:hats?|caps?)\s+total\b|\btotal(?:\s+of)?\s+(\d{2,4})\s+(?:[\w/&+-]+\s+){0,3}(?:hats?|caps?)\b/i);
+    const statedHats = statedM ? Number(statedM[1] || statedM[2]) : 0;
+    const hatsOverStated = statedHats > 0 && hatTotal > statedHats;
+    if (hatsOverStated) {
+      flags.push(`Hat lines add up to ${hatTotal} but the email says ${statedHats} total — priced at ${statedHats}. Check the line quantities.`);
+      hatTotal = statedHats;
+    }
     const styleKey = (it: any) => styleFromText(it.garment) || "112";
     const hatStyleQty = new Map<string, number>();
     for (const it of hatItems) hatStyleQty.set(styleKey(it), (hatStyleQty.get(styleKey(it)) || 0) + (Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : 0));
+    if (hatsOverStated) for (const [k, v] of hatStyleQty) hatStyleQty.set(k, Math.min(v, statedHats));
     for (const it of items) {
       if (it.customer_supplied === true) {
         // Their own garments: no auto price — the draft steers them to garments we carry.
