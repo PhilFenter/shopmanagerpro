@@ -153,6 +153,11 @@ const lines = [
     `<details><summary>${r.c.id}: the draft</summary>`, "", "```", r.draft, "```",
     ...(r.items ? ["AI items:", "```json", JSON.stringify(r.items.map((it) => ({ item: it.item, garment: it.garment, quantity: it.quantity, decoration: it.decoration, notes: it.notes })), null, 0), "```"] : []), "</details>", "",
   ]),
+  ...(results.some((r) => !r.fails.length && r.draft) ? [
+    "<details><summary>All passing drafts</summary>", "",
+    ...results.filter((r) => !r.fails.length).flatMap((r) => [`**${r.c.id}**`, "", "```", r.draft || "(no draft)", "```", ""]),
+    "</details>", "",
+  ] : []),
 ];
 const report = lines.join("\n");
 console.log(report);
