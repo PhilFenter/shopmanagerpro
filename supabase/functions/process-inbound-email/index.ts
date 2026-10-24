@@ -71,6 +71,25 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 - Their own garments inside a bigger order: if they want something they already own decorated (an employee's chef coat, their own jackets), set customer_supplied: true on THAT item, even when the rest of the order is ours.
 - Customer-supplied items: never say we can do it or "definitely help" with it. Say we generally don't decorate garments we didn't supply, and exceptions need approval first.
 - Write as the shop ("we"). Never refer to Phil in the third person.
+- NEVER PROMISE ACTIONS OR TIMES (Phil 2026-10-24): never write that we'll call, "give you a ring", send pictures/photos/
+  spec sheets/colors/mockups, have something ready, or do anything "shortly", "today" or "on Monday". Phil decides that. If
+  they asked for pictures or colors, say what we have in plain words and leave the sending to Phil.
+- We carry every SanMar brand: Sport-Tek, Port Authority, Port & Company, District, OGIO, Nike, The North Face, Eddie
+  Bauer, Carhartt, New Era and more. NEVER tell a customer we don't carry a brand they named; say we carry it.
+- When the email gives a grand total AND a breakdown ("70 hats total" then 15 / 10 / 10 ...), the item quantities are
+  the breakdown lines only. Never put the grand total on a line as well.
+- If part of the ask is something we don't usually do (a garment they supply, back embroidery), say that once and never
+  also write "we can help with" / "we can add" that same thing elsewhere in the draft.
+- SAMPLES / APPROVAL (Phil 2026-10-24): we NEVER make a separate sample or test piece before an order. Once an order is
+  paid, we make the first production piece and send the customer a PHOTO of it for final approval before running
+  the rest. We never mail or ship a piece for approval. Never offer a
+  sample, a "sample for approval", a test hat or a sew-out before payment. A mockup of the art is fine to mention.
+- Don't claim history you weren't told ("we've ordered those before", "we've used that before"). You may say a brand is
+  one we carry if it's in these rules.
+- BEANIES are not on our hat price list. We carry cuffed and uncuffed beanies (YP Classics 1500KC / 1501KC are the go-to);
+  Phil prices them by hand. Never call a beanie a trucker hat or a Richardson 112, and don't write a beanie price.
+- "Embroidered patch" (a patch made separately and sewn/pressed on) is NOT embroidery on the hat: set decoration
+  "woven_patch". Like PVC, those come from an outside patch maker; the code adds that note and our in-house UV option.
 - No filler. Never write lines like "however many you plan will help us nail the best method" or "let me know if you want me to explain those options".
 Rules of thumb:
 - HCD does not do back embroidery (full backs, jacket backs). If someone wants embroidery on the back, suggest screen print or DTF for the back and embroidery on the front/left chest. Never offer back embroidery.
@@ -112,7 +131,7 @@ RECOMMENDING (when they ask "what do you recommend?" or "what looks best?"): ans
 - "People love hot dogs. No one really wants to know how a hot dog is made." Ask customers only what we need, in plain language.
 What we need to price a job:
 - Apparel: what items, rough quantity, which decoration locations (e.g. left chest + back), artwork (or that it's coming), and roughly Good/Better/Best or a garment they like. Sizes and colors are needed before ordering, not before a first price.
-- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  HAT MINIMUM / SAMPLES: 12 hats minimum, even for "a sample" or "1 or 2 to try" (it's the time it takes to make the first\n  patch and burn it on the leather / set up the embroidery). Say why in a few words, then offer: split the 12 across colors\n  (e.g. 6 of each) and we send pictures of the patch on the actual hats before we make them all. Never offer 1-2 samples.\n  Leather patches: ask for the logo as a black and white vector file (PDF, AI or EPS) for best results.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch?" The draft lists the three patch options with prices automatically."
+- Hats: rough quantity, hat style or "like the Richardson 112", decoration type (patch / embroidery) and artwork.\n  Hat embroidery is the same price as a patch up to 8,000 stitches — never ask customers for stitch counts.\n  Hat prices are added to the reply automatically; do not write prices yourself.\n  HAT MINIMUM / SAMPLES: 12 hats minimum, even for "a sample" or "1 or 2 to try" (it's the time it takes to make the first\n  patch and burn it on the leather / set up the embroidery). Say why in a few words, then offer: split the 12 across colors\n  (e.g. 6 of each). Never offer 1-2 samples.\n  Leather patches: ask for the logo as a black and white vector file (PDF, AI or EPS) for best results.\n  Hats are one size (snapbacks/adjustables) — NEVER ask for hat sizes unless they asked for fitted or Flexfit hats.\n  Decoration type never blocks a hat price (same price for patch or embroidery). If they didn't say, ask in ONE short\n  line, e.g. "Do you want them embroidered, or a patch?" The draft lists the three patch options with prices automatically."
 - Deadline if they have one.
 `;
 
@@ -136,6 +155,8 @@ Read the email (and any earlier thread context) and return ONLY a JSON object wi
   "missing": [ short plain-language things that BLOCK a first price (usually only quantity, or what items) ],
   "needed_later": [ short plain-language things needed before ordering, not before a price: sizes, garment color, logo/ink colors, artwork, deadline ],
   "ready_to_price": boolean,
+  "reply_type": "quote" | "short" | "none",
+  "price_request": boolean,
   "reply_draft": string|null
 }
 Guidance:
@@ -157,7 +178,19 @@ Guidance:
 - missing / needed_later: if PREVIOUSLY MISSING items are listed in the input, reuse their exact wording for anything
   still open (in whichever list fits) and leave out anything the customer has now answered.
 - items: describe the WHOLE order as known so far across the whole thread (not just this message), so the quote stays complete.
-- reply_draft: write one whenever classification is new_quote_request, quote_follow_up or existing_customer_order.
+- reply_type (Phil 2026-10-24 — most follow-ups are NOT quotes; his real replies are one to three short lines):
+  "quote" = the FIRST reply to a request, or a follow-up where THIS message asks for a price/quote or gives new
+    quantities/items/decoration that change the price.
+  "short" = a follow-up that needs an answer but no prices: setting a time to meet, call or come by; "did you get this?";
+    answering a question; acknowledging files, a logo or info they sent. Write 1-3 short sentences, like Phil:
+    "Yes. What works for you guys? Afternoons are better for me." / "Ok, sounds good. See you then." / "Got it, thank you."
+    No "Thanks for confirming/following up/sending", no recap of the job, no list of what we still need unless they asked.
+  "none" = nothing to answer: "thanks", "perfect", "sounds good", "yes, thank you", or they're just confirming a time Phil
+    already set. reply_draft null.
+- price_request: true only when THIS message asks for prices/a quote or changes quantities/items. False for scheduling,
+  thank-yous, files, and questions about products.
+- reply_draft: write one whenever classification is new_quote_request, quote_follow_up or existing_customer_order and
+  reply_type is not "none".
   GOAL: give them a price in the FIRST reply and keep back-and-forth to a minimum. When we know items and a rough
     quantity, prices (Good/Better/Best, with what we assumed) are added right after your text automatically, so don't
     write prices, don't list options we already price, and don't say you'll send pricing later. Then:
@@ -194,7 +227,6 @@ Guidance:
     "Hi Paislie,\\n\\nWe don't love embroidering garments people bring in. There are a few reasons and first is every time someone brings in a unique piece it's an experiment for us and we are hoping for the best. On items that we source we have typically run them before and if something happens, we can get another. Some things work better than others.\\n\\nThe good news is we carry lots of great brands. Nike, Ogio, North Face, Eddie Bauer and other options. So folks can get things at a variety of budgets.\\n\\nWe do make exceptions if they are items we can't get or it's a huge order. We did 700 jackets for Clearwater Paper last year. They provided one for testing and understood if something happened during the process we would not replace the item.\\n\\nI hope that makes sense. Let me know if you would like a polo shirt guide to choose some items from.\\n\\nThank you\\n\\nPhil"
     "Hi Kyle,\\n\\nThanks for reaching out. That's a clean new logo and we can help you out.\\n\\n(prices are added here automatically)\\n\\nWe'll test your new logo on a hat first. We can price the hoodies with a good, better, best option, just let me know what you like.\\n\\nLet me know what you're thinking and we can get a quote going.\\n\\nThank you\\n\\nPhil"
     "Hi Ian,\\n\\nOn the hats for embroidery, we have $45 digitizing fee to convert the logo for embroidery. That's a onetime fee. We can then change thread color and all that with our software. Half black and half white are no problem.\\n\\nOn the shirts what are we doing for print locations?\\n\\nThank you\\n\\nPhil"
-    "Hi Kelly,\\n\\nWe will get a sample made of that on Monday. The hat we used was a Richardson 632. It comes in several colors. If you go to Richardsonsports.com and search 632 you can see the colors.\\n\\nI'll get a sample made and send a picture Monday afternoon.\\n\\nThank you\\n\\nPhil"
     "Hi Tina,\\n\\nAre you familiar with DTF or Direct to film transfers? I am thinking for your order due to time, and the fact that you have left chest, full back and both sleeves we will use that method instead of screen printing. It's a lot of screens and setups for that size order.\\n\\nWe have some Black Next Level 6210 shirts in stock that we could use for this unless you had another shirt you wanted to use.\\n\\nThank you\\n\\nPhil"
 `;
 
@@ -258,6 +290,50 @@ export function artCheck(meta: AttachMeta[]): ArtCheck {
   return { status: "check", note: `? Art: ${f.name} (${kb(f)}) — give it a quick look before mocking up.` };
 }
 
+export function isBounce(fromEmail: string, subject: string): boolean {
+  return /^(?:mailer-daemon|postmaster|mail-daemon)@/i.test(fromEmail.trim())
+    || /^(?:delivery status notification|undeliverable|undelivered mail|mail delivery (?:failed|subsystem|failure)|returned mail|delivery failure|failure notice)\b/i.test(subject.replace(/^(?:re|fw|fwd):\s*/i, "").trim());
+}
+
+/** "Perfect – thank you!", "yes, thank you.", "Sounds good, thanks" — nothing to answer. */
+export function thanksOnly(body: string): boolean {
+  const first = String(body || "").split(/\n\s*(?:on .{5,80} wrote:|-{2,}|_{3,}|from:|sent from)/i)[0].trim();
+  if (first.split(/\s+/).length > 10 || /\?/.test(first)) return false;
+  return /^(?:(?:ok(?:ay)?|perfect|great|awesome|sounds good|yes|yep|will do|got it|excellent|wonderful)[\s,.!–—-]*)*(?:thanks?|thank you|ty)?(?: so much| very much| again)?[\s,.!–—-]*(?:[A-Z][a-z]+)?[\s.!]*$/i.test(first) && first.length > 0;
+}
+
+export function isBeanie(it: any): boolean {
+  return /beanie|\bknit\b|toque|\b150[01]KC?\b|\bCP90\b|\bCP91\b/i.test(`${it?.item || ""} ${it?.garment || ""} ${it?.notes || ""}`);
+}
+
+// Sentences where the AI promises something only Phil can decide (calls, photos, dates).
+const PROMISE_RE = /\b(?:I|we)(?:'ll| will| can| am going to| are going to)\s+(?:also\s+)?(?:give you a (?:ring|call)|call you|reach out|get back to you|follow up|send (?:you\s+)?(?:over\s+)?(?:some\s+|the\s+|a few\s+)?(?:pictures|photos|pics|samples?|a mockup|mockups|spec sheets?|the colors|colors|color options|options)|have (?:them|it|these|those|the \w+|everything) (?:ready|done|finished)|(?:put|get|make) (?:you )?(?:a |the )?mockups? (?:together|made|over|done|up))|\bshortly\b|\bby (?:monday|tuesday|wednesday|thursday|friday|tomorrow|end of (?:the )?(?:day|week))\b/i;
+// Wrong or off-voice claims: "we don't carry Sport-Tek", "Phil will need to approve it".
+const NEVER_SAY_RE = /\b(?:sample|test (?:piece|hat|shirt)) for (?:your )?approval\b|\b(?:make|send|do|get) (?:you )?(?:a |one |some )?(?:quick )?samples?\b(?!.*\b(?:paid|payment)\b)|\bwe (?:don'?t|do not|no longer) (?:carry|stock|sell|offer) (?:sport-?tek|port authority|port & co|district|ogio|nike|carhartt|the north face|eddie bauer|gildan|jerzees|bella|next level)|\bPhil (?:will|would|needs|has to|can|should|is going to|must)\b/i;
+const THANKS_OPENER_RE = /^(?:thanks|thank you)(?: so much)? for (?:confirming|following up|the follow[- ]up|sending|letting (?:me|us) know|the update|reaching out|getting back|checking in|your (?:email|message|patience|follow[- ]up)|the (?:logo|info|information|file|files|spreadsheet|details|reply))[^.!?\n]*[.!?]\s*/i;
+
+function splitSentences(t: string): string[] {
+  return t.match(/[^.!?]+(?:[.!?]+["')]?|$)\s*/g) || [t];
+}
+
+/** Drop promise sentences; on follow-ups also drop a "Thanks for …" opener. Leaves greeting/sign-off alone. */
+export function cleanAiDraft(draft: string, isFollowUp: boolean, opts: { dropPvc?: boolean } = {}): string {
+  const paras = draft.split(/\n\s*\n/);
+  const out: string[] = [];
+  for (let i = 0; i < paras.length; i++) {
+    let para = paras[i];
+    const isGreeting = /^(hi|hello|hey)\b[^\n]{0,40},?$/i.test(para.trim());
+    const isSign = /^(?:thank you|thanks|best|regards|cheers)?[ ,.!]*(?:\n\s*)?phil\s*$/i.test(para.trim()) || /^(?:thank you|thanks)[ ,.!]*$/i.test(para.trim());
+    if (isGreeting || isSign) { out.push(para); continue; }
+    if (isFollowUp && out.every((x) => /^(hi|hello|hey)\b/i.test(x.trim()))) para = para.replace(THANKS_OPENER_RE, "");
+    const kept = para.split("\n").map((line) => /^\s*[-•*]/.test(line) ? line
+      : splitSentences(line).filter((sn) => !PROMISE_RE.test(sn) && !NEVER_SAY_RE.test(sn) && !(opts.dropPvc && /\bPVC\b|embroider(?:ed|y) patch/i.test(sn))).join("").trim()).filter((l) => l.trim());
+    const t = kept.join("\n").trim();
+    if (t) out.push(t.charAt(0).toUpperCase() + t.slice(1));
+  }
+  return out.join("\n\n").trim();
+}
+
 async function runAI(userContent: string): Promise<any> {
   const apiKey = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("AI_API_KEY (or LOVABLE_API_KEY) is not configured");
@@ -301,7 +377,7 @@ const TIER_BLURB: Record<string, Record<Tier, string>> = {
   crew: { good: "everyday crewneck", better: "softer, nicer feel", best: "super soft, premium" },
   polo: { good: "performance basic", better: "classic soft polo", best: "premium performance" },
 };
-const ITEM_WORD: Record<string, string> = { tee: "shirts", hoodie: "hoodies", crew: "crewnecks", polo: "polos" };
+const ITEM_WORD: Record<string, string> = { tee: "shirts", hoodie: "hoodies", crew: "crewnecks", polo: "polos", longsleeve: "long sleeve shirts", jacket: "jackets" };
 const shortName = (n: string) => n.replace(/^Port & Co /, "Port & Co ").replace(/ (Core Cotton|CVC|Core Fleece Hoodie|Core Fleece Crew)$/, "");
 
 function decoPhrase(p: { method: string; colors?: number | null; where?: string | null }): string {
@@ -329,7 +405,7 @@ export function apparelPriceParas(pricing: any[], isFollowUp: boolean): string[]
     if (p.hat || p.custom || !p.qty || !(p.suggestions?.length || p.requested)) continue;
     const spots = String(p.where || "").split("+").map((x: string) => x.trim()).filter(Boolean)
       .map((x: string) => p.method === "embroidery" ? `a ${x.toLowerCase()} logo` : /back/i.test(x) ? "a back logo print" : `a ${x.toLowerCase()} print`);
-    const head = p.qtyUnknown
+    const head = p.qtyUnknown || p.belowMin
       ? `For the ${word} (the minimum is ${p.qty}), with ${spots.join(" and ") || decoPhrase(p)}`
       : `For ${p.qty} ${word} with ${decoPhrase(p)}`;
     const lines: string[] = [];
@@ -398,11 +474,14 @@ Deno.serve(async (req) => {
       : attachmentNames.map((n) => ({ name: n }));
     const art = artCheck(attachMeta);
     // AI-made art (ChatGPT etc.) isn't print-ready: the draft says so and offers the $80 rebuild.
-    const aiArt = AI_ART_RE.test(`${attachmentNames.join(" ")} ${subject} ${body}`);
+    // File extensions out first: "Logo.ai" is an Illustrator (vector) file, not AI-made art.
+    const aiArt = AI_ART_RE.test(`${attachmentNames.map((n: string) => String(n).replace(/\.[a-z0-9]{1,5}$/i, "")).join(" ; ")} ${subject} ${body}`);
     const dryRun = p.dry_run === true;
 
     if (!messageId || !fromEmail) return json({ error: "message_id and from_email are required" }, 400);
     if (OWN_DOMAINS.includes(emailDomain(fromEmail))) return json({ status: "ignored", reason: "from our own domain" });
+    // Bounces (Phil 2026-10-24: a mailer-daemon bounce became "Grace Way", Q-1315). Never a customer.
+    if (isBounce(fromEmail, subject)) return json({ status: "ignored", classification: "bounce", reason: "delivery failure notice" });
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const marker = `gmail:${messageId}`;
@@ -551,7 +630,8 @@ Deno.serve(async (req) => {
     type Priced = { suggestions: Suggestion[]; requested: Suggestion | null; qty: number; method: string; assumptions: string;
       next?: { qty: number; pick: Suggestion | null } | null; hat?: boolean; locations?: number; custom?: boolean;
       cat?: string | null; decoUnknown?: boolean; colors?: number | null; where?: string | null; assumedWhere?: boolean; setup?: number; fees?: string[]; digitizing?: boolean;
-      range?: { lo: Suggestion; hi: Suggestion } | null; qtyUnknown?: boolean; hatTiers?: Suggestion[] | null; pvc?: boolean };
+      range?: { lo: Suggestion; hi: Suggestion } | null; qtyUnknown?: boolean; hatTiers?: Suggestion[] | null; pvc?: boolean;
+      outsourced?: "pvc" | "woven" | null; uv?: Suggestion | null; styleQty?: number; belowMin?: boolean };
     const pricing: Priced[] = [];
     const flags: string[] = [];
     // "Can you embroider self-provided apparel?" — flag it even when the AI didn't list it as an item.
@@ -560,6 +640,26 @@ Deno.serve(async (req) => {
       flags.push("Customer asked about decorating garments they bring their own — no auto price. Exceptions (can't source / large order) are new garments only and need a test piece, signed waiver, and your approval.");
     }
     if (aiArt) flags.push(`Artwork looks AI-made — not print-ready. The draft offers the $${AI_ART_REBUILD_FEE} rebuild.`);
+    // "Embroidered patch" in the email = an outside-made patch, not embroidery on the hat.
+    if (/embroider(?:ed|y) patch/i.test(`${subject} ${body}`)) {
+      for (const it of items) if (categoryOf(it.item || it.garment) === "hat" && ["embroidery", "unknown"].includes(String(it.decoration)) && !isBeanie(it)) it.decoration = "woven_patch";
+    }
+    if (/\bbeanies?\b/i.test(`${subject} ${body}`) && !items.some((it) => isBeanie(it) && categoryOf(it.item || it.garment) === "hat" && it.customer_supplied !== true))
+      flags.push("Beanies asked about — not on the hat price list. Price by hand (cuffed / uncuffed, e.g. YP Classics 1500KC / 1501KC).");
+    const hatItems = items.filter((it) => it.customer_supplied !== true && categoryOf(it.item || it.garment) === "hat" && !isBeanie(it));
+    let hatTotal = hatItems.reduce((n, it) => n + (Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : 0), 0);
+    // "70 hats total" then a breakdown: the AI sometimes puts the 70 on one line AND adds the breakdown (came out 90).
+    const statedM = body.match(/\b(\d{2,4})\s+(?:[\w/&+-]+\s+){0,4}(?:hats?|caps?)\s+total\b|\btotal(?:\s+of)?\s+(\d{2,4})\s+(?:[\w/&+-]+\s+){0,3}(?:hats?|caps?)\b/i);
+    const statedHats = statedM ? Number(statedM[1] || statedM[2]) : 0;
+    const hatsOverStated = statedHats > 0 && hatTotal > statedHats;
+    if (hatsOverStated) {
+      flags.push(`Hat lines add up to ${hatTotal} but the email says ${statedHats} total — priced at ${statedHats}. Check the line quantities.`);
+      hatTotal = statedHats;
+    }
+    const styleKey = (it: any) => styleFromText(it.garment) || "112";
+    const hatStyleQty = new Map<string, number>();
+    for (const it of hatItems) hatStyleQty.set(styleKey(it), (hatStyleQty.get(styleKey(it)) || 0) + (Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : 0));
+    if (hatsOverStated) for (const [k, v] of hatStyleQty) hatStyleQty.set(k, Math.min(v, statedHats));
     for (const it of items) {
       if (it.customer_supplied === true) {
         // Their own garments: no auto price — the draft steers them to garments we carry.
@@ -611,13 +711,16 @@ Deno.serve(async (req) => {
         }
       }
       const fees: string[] = [];
+      let belowMin = false;
       if (cat !== "hat" && qty > 0 && qty < CUSTOM_QUOTE_QTY) {
         if (method === "screen_print" && qty < screenPrintMin(colors)) {
           flags.push(`Item ${n}: ${qty} pcs is under the screen print minimum (${screenPrintMin(colors)} for ${colors || 1} color) — quoted as DTF.`);
           method = "dtf";
         }
         if ((method === "dtf" || method === "embroidery") && qty < SMALL_MIN) {
-          flags.push(`Item ${n}: ${qty} pcs is under our ${SMALL_MIN}-piece minimum.`);
+          flags.push(`Item ${n}: ${qty} pcs is under our ${SMALL_MIN}-piece minimum — priced at ${SMALL_MIN}.`);
+          belowMin = true;
+          fees.push(`+$${SMALL_ORDER_FEE} small order fee (under ${SMALL_ORDER_UNDER})`);
         } else if ((method === "dtf" || method === "embroidery") && qty < SMALL_ORDER_UNDER) {
           fees.push(`+$${SMALL_ORDER_FEE} small order fee (under ${SMALL_ORDER_UNDER})`);
         }
@@ -635,9 +738,16 @@ Deno.serve(async (req) => {
         pricing.push({ suggestions: [], requested: null, qty, method, custom: true, assumptions: "" });
         continue;
       }
+      if (cat === "hat" && isBeanie(it)) {
+        // Beanies aren't on the hat price list (Phil prices them by hand) — never price them as a 112.
+        flags.push(`Item ${items.indexOf(it) + 1}: beanies — not on the hat price list. Price by hand (cuffed / uncuffed, e.g. YP Classics 1500KC / 1501KC).`);
+        pricing.push({ suggestions: [], requested: null, qty, method: "unknown", cat, custom: true, assumptions: "beanie — priced by hand" });
+        continue;
+      }
       if (cat === "hat") {
-        // Quantity unknown or "1 or 2 samples": price at the 12 minimum so the customer still gets a number.
-        const hq = Math.max(qty, 12);
+        // Hat price breaks use the whole hat order (Phil: the 12 minimum can be split across colors/designs),
+        // so 15 + 10 + 5 hats are priced at 30, not each line on its own.
+        const hq = Math.max(hatTotal || qty, 12);
         // Hats use Phil's flat price list (same as the website), not the markup formula.
         // Embroidery = patch price up to 8,000 stitches; 2nd/3rd locations +$8 each.
         const hs = styleFromText(it.garment);
@@ -645,10 +755,13 @@ Deno.serve(async (req) => {
         const nq = hatNextTier(hq);
         // Patch hats (or decoration not chosen yet) get Good/Better/Best: leatherette / sewn leather / full-color UV.
         const deco = String(it.decoration || "unknown");
+        const outsourced = deco === "pvc_patch" || deco === "woven_patch";
         const patchTiers = method === "embroidery" || deco === "embroidery" ? null : hatTiers(hs, hq, { locations });
         if (deco === "pvc_patch") flags.push(`Item ${items.indexOf(it) + 1}: asked for PVC patches — outsourced, about 2 extra weeks. Price PVC by hand.`);
+        if (deco === "woven_patch") flags.push(`Item ${items.indexOf(it) + 1}: asked for embroidered patches — outside patch maker, about 2 extra weeks. Price by hand.`);
         pricing.push({
-          suggestions: [], requested: hp, hatTiers: patchTiers, pvc: deco === "pvc_patch", qty: hq, method, hat: true, locations, qtyUnknown: qty === 0, decoUnknown: String(it.decoration || "unknown") === "unknown",
+          suggestions: [], requested: hp, hatTiers: outsourced ? null : patchTiers, outsourced: outsourced ? (deco === "pvc_patch" ? "pvc" : "woven") : null,
+          uv: outsourced ? (hatTiers(hs, hq, { locations })[2] ?? null) : null, styleQty: hatStyleQty.get(styleKey(it)) || qty, pvc: deco === "pvc_patch", qty: hq, method, hat: true, locations, qtyUnknown: qty === 0, decoUnknown: String(it.decoration || "unknown") === "unknown",
           next: nq ? { qty: nq, pick: hatPrice(hs, nq, { locations }) } : null,
           assumptions: [
             "hat price list, shipping included",
@@ -657,14 +770,17 @@ Deno.serve(async (req) => {
             String(it.decoration || "unknown") === "unknown" ? "decoration not chosen yet (same price for patch or embroidery)" : "",
             locations > 1 ? `${Math.min(locations, 3)} locations (+$8 each extra)` : "",
             locations > 3 ? "MORE THAN 3 LOCATIONS — price by hand" : "",
-            qty < 12 ? (qty > 0 ? `asked for ${qty} — priced at the 12 minimum` : "quantity not given — priced at the 12 minimum") : "",
+            hatTotal > qty && hatItems.length > 1 ? `priced at the ${hq}-hat break (all hats on the order combined)` : "",
+            hq === 12 && qty < 12 ? (qty > 0 ? `asked for ${qty} — priced at the 12 minimum` : "quantity not given — priced at the 12 minimum") : "",
           ].filter(Boolean).join(", "),
         });
         continue;
       }
+      // Under the 6-piece minimum: quote the minimum (Phil 2026-10-24 — no more "For 1 polos").
+      const pq = belowMin ? SMALL_MIN : qty;
       if (cat && qty > 0 && method !== "unknown") {
         try {
-          suggestions = await suggestTiers(db, cat, method, qty, { colors, locations, jacket, placements: placeList });
+          suggestions = await suggestTiers(db, cat, method, pq, { colors, locations, jacket, placements: placeList });
         } catch (e) {
           console.error("pricing failed:", e);
         }
@@ -672,16 +788,16 @@ Deno.serve(async (req) => {
       // Customer named a specific garment (e.g. "112PT") → price that exact style too
       let requested: Suggestion | null = null;
       const style = styleFromText(it.garment);
-      if (style && qty > 0 && method !== "unknown") {
+      if (style && pq > 0 && method !== "unknown") {
         try {
-          requested = await suggestRequested(db, style, method, qty, { colors, locations, jacket, placements: placeList });
+          requested = await suggestRequested(db, style, method, pq, { colors, locations, jacket, placements: placeList });
         } catch (e) {
           console.error("requested-style pricing failed:", e);
         }
       }
       // Always show the next price break too (e.g. asked for 12 → also show 24)
       let next: Priced["next"] = null;
-      const nq = method !== "unknown" ? matrixNextTier(method, qty) : null;
+      const nq = method !== "unknown" ? matrixNextTier(method, pq) : null;
       if (nq && cat) {
         try {
           const ns = style ? await suggestRequested(db, style, method, nq, { colors, locations, jacket, placements: placeList }) : null;
@@ -698,7 +814,7 @@ Deno.serve(async (req) => {
         fees.push(sf ? `+$${sf} screen fees ($${SCREEN_FEE} per color per location, waived at ${SCREEN_FEE_WAIVE_QTY}+)` : "screen fees waived");
       }
       const setup = method === "screen_print" ? screenFees(colors, locations, qty) : 0;
-      pricing.push({ suggestions, requested, qty, method, assumptions: [assumptionsFor(method, colors, placeList), ...fees].join(", "), next,
+      pricing.push({ suggestions, requested, qty: pq, belowMin, method, assumptions: [assumptionsFor(method, colors, placeList), ...fees].join(", "), next,
         cat, colors, where: it.locations ? String(it.locations) : null, assumedWhere: it.locations_assumed === true, setup,
         fees: fees.filter((f) => /small order/.test(f)), digitizing });
     }
@@ -780,8 +896,13 @@ Deno.serve(async (req) => {
       : "Email quote";
     const title = `${ready ? "✅" : "❓"} ${kind}: ${name}${company ? ` (${company})` : ""} — ${itemSummary}`.slice(0, 200);
 
-    const willDraft = Boolean(ai.reply_draft) || (pricing.some((p) => (p.hat && p.requested) || (!p.hat && !p.custom && (p.suggestions.length || p.requested))) &&
-      ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification));
+    const isFollowUpEarly = Boolean(openJob || threadContext);
+    const replyType: "quote" | "short" | "none" = ["quote", "short", "none"].includes(ai.reply_type) ? ai.reply_type : "quote";
+    // Prices only go in a first reply, or a follow-up that asks for a price / changes the order (Phil 2026-10-24).
+    const wantsPrices = !isFollowUpEarly || replyType === "quote" || ai.price_request === true;
+    const noReply = isFollowUpEarly && ai.price_request !== true && (replyType === "none" || thanksOnly(body));
+    const willDraft = !noReply && (Boolean(ai.reply_draft) || (wantsPrices && pricing.some((p) => (p.hat && p.requested) || (!p.hat && !p.custom && (p.suggestions.length || p.requested))) &&
+      ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification)));
     const descLines = [
       ready ? "READY TO PRICE" : `NEEDS INFO: ${missing.join("; ") || "see email"}`,
       ...pricing.flatMap((p, i) => p.assumedWhere ? [`(Item ${i + 1} locations assumed: ${p.where} — the draft tells the customer)`] : []),
@@ -905,16 +1026,22 @@ Deno.serve(async (req) => {
     //    Phil still reviews every draft before it's sent.
     let replyDraft: string | null = typeof ai.reply_draft === "string" && ai.reply_draft.trim() ? ai.reply_draft.trim() : null;
     if (replyDraft) replyDraft = replyDraft.split("\n").filter((l) => !/^\s*[\[(]\s*(?:prices?|pricing)\b[^\n]{0,60}[\])]\s*$/i.test(l)).join("\n").replace(/\n{3,}/g, "\n\n").trim() || null;
-    const isFollowUp = Boolean(openJob || threadContext);
+    const isFollowUp = isFollowUpEarly;
+    if (noReply) replyDraft = null;
+    const outsourcedKinds = new Set(pricing.filter((p) => p.hat && p.outsourced).map((p) => p.outsourced));
+    if (replyDraft) replyDraft = cleanAiDraft(replyDraft, isFollowUp, { dropPvc: outsourcedKinds.size > 0 && wantsPrices }) || null;
     const hatLines = pricing.filter((p) => p.hat && p.requested).map((p) => {
       const r = p.requested!;
       if (p.hatTiers?.length === 3) {
         const [g, b, best] = p.hatTiers;
         const hatName = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
-        const head = p.qtyUnknown ? `The minimum on hats is 12. For 12 ${hatName} with your logo:` : `For ${Math.max(p.qty, 12)} ${hatName} with your logo:`;
+        const head = p.qtyUnknown ? `The minimum on hats is 12. For 12 ${hatName} with your logo:` : `For ${Math.max(p.styleQty || p.qty, 12)} ${hatName} with your logo:`;
         const nx = p.next?.qty ? `\nAt ${p.next.qty} hats, each option drops about $${(b.unit_price - (p.next.pick?.unit_price ?? b.unit_price)).toFixed(2)}.` : "";
-        const pvc = p.pvc ? "\nPVC patches are made overseas and add about 2 weeks; we'll confirm that price separately." : "";
-        return `${head}\n- Leather patch, sewn on (our standard): $${b.unit_price.toFixed(2)} each\n- Full-color textured UV patch: $${best.unit_price.toFixed(2)} each\n- Leatherette patch (value option): $${g.unit_price.toFixed(2)} each${nx}${pvc}`;
+        return `${head}\n- Leather patch, sewn on (our standard): $${b.unit_price.toFixed(2)} each\n- Full-color textured UV patch: $${best.unit_price.toFixed(2)} each\n- Leatherette patch (value option): $${g.unit_price.toFixed(2)} each${nx}`;
+      }
+      if (p.outsourced && p.uv) {
+        const hatName = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
+        return `For ${Math.max(p.styleQty || p.qty, 12)} ${hatName}, our full-color textured UV patch is made here and runs $${p.uv.unit_price.toFixed(2)} each.`;
       }
       const nm = r.name.includes("not on hat list") ? "hats" : `${r.name} hats`;
       const nx = p.next?.pick ? ` If you go to ${p.next.qty}, it drops to $${p.next.pick.unit_price.toFixed(2)} each.` : "";
@@ -922,14 +1049,22 @@ Deno.serve(async (req) => {
       return `For ${Math.max(p.qty, 12)} ${nm} with your logo, it's $${r.unit_price.toFixed(2)} each.${nx}`;
     }).filter((t, i, a) => a.indexOf(t) === i);
     const paras: string[] = [];
+    if (outsourcedKinds.size && /\bPVC\b/i.test(body)) outsourcedKinds.add("pvc");
+    if (outsourcedKinds.size && /embroider(?:ed|y) patch/i.test(body)) outsourcedKinds.add("woven");
+    if (hatLines.length && outsourcedKinds.size) {
+      const kinds = [outsourcedKinds.has("pvc") ? "PVC" : "", outsourcedKinds.has("woven") ? "embroidered" : ""].filter(Boolean).join(" and ");
+      hatLines.push(`${kinds} patches are made by an outside patch maker and add about 2 weeks, so we price those separately.`);
+    }
     if (hatLines.length) {
       const open = pricing.some((p) => p.hat && p.qty < 50 && (p.decoUnknown || p.hatTiers?.length));
-      const emb = open || pricing.some((p) => p.hat && p.method === "embroidery" && p.qty < 50);
+      const emb = open || pricing.some((p) => p.hat && !p.outsourced && p.method === "embroidery" && p.qty < 50);
       const embMaybe = open;
       // Follow-ups only restate the price; the sample/flag/turnaround details were in the first reply.
       paras.push(isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
-        "That includes a sample for approval and shipping in the lower 48.",
+        (hatTotal > 0 && hatTotal < 12) || /\b(?:1|2|one|two|a couple)\b[^.]{0,20}sample/i.test(body)
+          ? "You can split the 12 between colors or designs, like 6 of each." : "",
+        "That includes shipping in the lower 48. Once the order is paid, we make the first piece and send you a photo of it for final approval before we run the rest.",
         emb ? (embMaybe ? "Embroidery is the same as the leather patch price, plus a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
         art.status !== "vector" && pricing.some((p) => p.hat && p.hatTiers?.length) ? "For a leather patch, a black and white vector file (PDF, AI or EPS) works best." : "",
@@ -942,7 +1077,7 @@ Deno.serve(async (req) => {
     const ownGarments = ownAsk || (items.length > 0 && items.every((it) => it.customer_supplied === true));
     if (ownGarments && !isFollowUp && !/nike|north face|eddie bauer/i.test(replyDraft || "")) paras.push(BRANDS_LINE);
     const priceable = ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification);
-    if (paras.length && priceable) {
+    if (paras.length && priceable && wantsPrices && !noReply) {
       let para = paras.join("\n\n");
       // The AI already explained the minimum (e.g. why hats are 12): don't say it twice.
       if (replyDraft && /\bminimum\b/i.test(replyDraft)) {
@@ -966,7 +1101,7 @@ Deno.serve(async (req) => {
     }
 
     // Backstop: hats are one size — strip any "hat sizes" ask the AI slipped in (unless fitted hats).
-    if (replyDraft && !fitted) replyDraft = replyDraft.replace(/,?\s*(?:and\s+)?(?:the\s+)?hat sizes\b/gi, "").replace(/\s+([,.?])/g, "$1");
+    if (replyDraft && !fitted) replyDraft = replyDraft.replace(/,?\s*(?:and\s+)?(?:the\s+)?(?:hat sizes|sizes for the hats)\b/gi, "").replace(/\s+([,.?])/g, "$1");
     const replyDraftHtml = replyDraft ? draftHtml(replyDraft.trimEnd()) : null;
     if (replyDraft) replyDraft = `${replyDraft.trimEnd()}\n\n${REPLY_FOOTER}`;
 

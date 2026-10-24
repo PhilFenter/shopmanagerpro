@@ -33,6 +33,9 @@ const FILLER = /pricing depends|hope (this|you|your)|finds you well|don'?t hesit
 const DATE_PROMISE = /we(?:'ll| will| can) (?:definitely )?(?:have|get) (?:them|it|these|everything|your \w+) (?:done |ready |finished |to you )?by|\bguarantee/i;
 const HAT_SIZES = /hat sizes|sizes for the hats|sizes? (?:of|on) the hats|what size hats/i;
 const PRICE = /\$\d/;
+// Phil decides calls, photos, samples and dates — the draft never promises them (2026-10-24).
+const PROMISE = /\b(?:I|we)(?:'ll| will| can)\s+(?:also\s+)?(?:give you a (?:ring|call)|call you|send (?:you\s+)?(?:over\s+)?(?:some\s+|the\s+|a few\s+)?(?:pictures|photos|pics|samples?|a mockup|mockups|spec sheets?|the colors|colors))|\bshortly\b/i;
+const THANKS_OPENER = /^(?:hi|hello|hey)\b[^\n]*\n+\s*(?:thanks|thank you)(?: so much)? for (?:confirming|following up|the follow|sending|letting|the update|getting back|checking in)/i;
 
 function textOf(draft) {
   const cut = draft.indexOf("\n--\n");
@@ -50,6 +53,7 @@ function check(c, res) {
     if (draft) fails.push(`should get NO draft (paperwork/vendor), but got one`);
     return { fails, draft };
   }
+  if (!draft && e.draft_optional) return { fails, draft };
   if (!draft) { fails.push(`no draft came back (status: ${res.status}${res.classification ? `, ${res.classification}` : ""})`); return { fails, draft }; }
 
   const email = `${c.subject} ${c.body}`;
@@ -61,6 +65,9 @@ function check(c, res) {
   if (dup) fails.push(`repeats a sentence: "${dup.slice(0, 70)}…"`);
   const words = draft.split("\n").filter((l) => !PRICE.test(l)).join(" ").split(/\s+/).filter(Boolean).length;
   if (words > MAX_WORDS) fails.push(`too long: ${words} words outside the price lines (max ${MAX_WORDS})`);
+  if (e.max_words && words > e.max_words) fails.push(`too long for a quick reply: ${words} words (max ${e.max_words})`);
+  if (PROMISE.test(draft)) fails.push(`makes a promise for Phil: "${draft.match(PROMISE)[0]}"`);
+  if (e.followup && THANKS_OPENER.test(draft)) fails.push(`follow-up opens with "Thanks for…"`);
   if (e.followup) {
     if (/thanks for reaching out/i.test(draft)) fails.push(`follow-up repeats "Thanks for reaching out"`);
   } else if (PRICE.test(draft) && draft.includes("?") && draft.indexOf("?") < draft.search(PRICE)) {
@@ -87,7 +94,7 @@ function check(c, res) {
   if (e.no_date_promise && DATE_PROMISE.test(draft)) fails.push(`promises a date: "${draft.match(DATE_PROMISE)[0]}"`);
   const flags = Array.isArray(res.flags) ? res.flags : [];
   for (const r of e.flags ?? []) if (!flags.some((f) => new RegExp(r, "i").test(f))) fails.push(`action item should flag /${r}/ (flags: ${flags.length ? flags.join(" | ") : "none"})`);
-  return { fails, draft, words };
+  return { fails, draft, words, items: res.ai?.items };
 }
 
 // ── Run ─────────────────────────────────────────────────────────────────────
@@ -97,7 +104,7 @@ async function send(c, attempt = 1) {
     message_id: `eval-${c.id}-${Date.now()}`,
     thread_id: `eval-thread-${c.id}`,
     mailbox: "phil",
-    from_email: `eval+${c.id}@example.com`,
+    from_email: c.from_email ?? `eval+${c.id}@example.com`,
     from_name: c.from_name,
     subject: c.subject,
     body: c.body,
@@ -143,8 +150,14 @@ const lines = [
   ...results.map((r) => `| ${r.fails.length ? "❌" : r.wobbly ? "⚠️" : "✅"} | ${r.c.title} | ${r.fails.length ? r.fails.join("; ").replace(/\|/g, "/") : r.wobbly ? `pass on 2nd try (1st: ${r.wobbly.join("; ").replace(/\|/g, "/")})` : "pass"} |`),
   "",
   ...results.filter((r) => r.fails.length && r.draft).flatMap((r) => [
-    `<details><summary>${r.c.id}: the draft</summary>`, "", "```", r.draft, "```", "</details>", "",
+    `<details><summary>${r.c.id}: the draft</summary>`, "", "```", r.draft, "```",
+    ...(r.items ? ["AI items:", "```json", JSON.stringify(r.items.map((it) => ({ item: it.item, garment: it.garment, quantity: it.quantity, decoration: it.decoration, notes: it.notes })), null, 0), "```"] : []), "</details>", "",
   ]),
+  ...(results.some((r) => !r.fails.length && r.draft) ? [
+    "<details><summary>All passing drafts</summary>", "",
+    ...results.filter((r) => !r.fails.length).flatMap((r) => [`**${r.c.id}**`, "", "```", r.draft || "(no draft)", "```", ""]),
+    "</details>", "",
+  ] : []),
 ];
 const report = lines.join("\n");
 console.log(report);
