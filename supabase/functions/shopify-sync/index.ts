@@ -454,7 +454,9 @@ Deno.serve(async (req) => {
 
       // First pass: match against existing catalog, collect unmatched
       const unmatchedStyles = new Set<string>();
-      const jobIdsForCost = [...allJobMap.values()];
+      // Only the orders fetched in THIS run. This used to be every Shopify job ever, so old completed
+      // orders with an unpriced item (40 oz tumblers, 112P hats) were re-flagged every morning.
+      const jobIdsForCost = [...new Set(jobIdsToSync)];
 
       for (let i = 0; i < jobIdsForCost.length; i += 50) {
         const batch = jobIdsForCost.slice(i, i + 50);
@@ -635,17 +637,23 @@ Deno.serve(async (req) => {
         // Create action items for unmatched styles
         if (finalUnmatched.size > 0) {
           console.log(`Creating action items for ${finalUnmatched.size} unmatched styles: ${[...finalUnmatched].join(", ")}`);
-          for (const style of finalUnmatched) {
-            // Check if an open action item already exists for this style
-            const { data: existing } = await serviceClient
-              .from("action_items")
-              .select("id")
-              .eq("source", "shopify-sync")
-              .eq("status", "open")
-              .ilike("title", `%${style}%`)
-              .limit(1);
+          // Flag each style once, ever. The old check only looked for an *open*
+          // action item, so deleting or closing one meant it came back (and
+          // re-emailed) on the next 6am sync for as long as the price was blank.
+          const { data: alreadyFlagged } = await serviceClient
+            .from("shopify_flagged_styles")
+            .select("style")
+            .in("style", [...finalUnmatched]);
+          const flaggedSet = new Set((alreadyFlagged || []).map((r: { style: string }) => r.style));
 
-            if (existing && existing.length > 0) continue;
+          for (const style of finalUnmatched) {
+            if (flaggedSet.has(style)) continue;
+
+            // Claim the style first; if another run beat us to it, skip.
+            const { error: claimErr } = await serviceClient
+              .from("shopify_flagged_styles")
+              .insert({ style });
+            if (claimErr) continue;
 
             await serviceClient.from("action_items").insert({
               title: `Missing price: ${style}`,
