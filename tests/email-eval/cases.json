@@ -446,7 +446,8 @@
           "Sport-Tek"
         ],
         "not_contains_re": [
-          "we(?:'ve| have) (?:ordered|used|done)"
+          "we(?:'ve| have) (?:ordered|used|done)",
+          "(?:don'?t|do not) carry"
         ]
       }
     },
@@ -502,7 +503,13 @@
           "Leather patch, sewn on"
         ],
         "not_contains_re": [
-          "For 12 Richardson"
+          "For 12 Richardson",
+          "embroidered patch(?:es)? in[- ]house|in[- ]house[^.]{0,40}embroidered patch"
+        ],
+        "contains_any_re": [
+          [
+            "PVC and embroidered patches"
+          ]
         ]
       }
     },

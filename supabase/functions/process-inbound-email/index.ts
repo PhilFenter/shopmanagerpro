@@ -74,6 +74,8 @@ Services: screen printing (10-color automatic press), DTF transfers, embroidery,
 - NEVER PROMISE ACTIONS OR TIMES (Phil 2026-10-24): never write that we'll call, "give you a ring", send pictures/photos/
   spec sheets/colors/mockups, have something ready, or do anything "shortly", "today" or "on Monday". Phil decides that. If
   they asked for pictures or colors, say what we have in plain words and leave the sending to Phil.
+- We carry every SanMar brand: Sport-Tek, Port Authority, Port & Company, District, OGIO, Nike, The North Face, Eddie
+  Bauer, Carhartt, New Era and more. NEVER tell a customer we don't carry a brand they named; say we carry it.
 - Don't claim history you weren't told ("we've ordered those before", "we've used that before"). You may say a brand is
   one we carry if it's in these rules.
 - BEANIES are not on our hat price list. We carry cuffed and uncuffed beanies (YP Classics 1500KC / 1501KC are the go-to);
@@ -299,6 +301,8 @@ export function isBeanie(it: any): boolean {
 
 // Sentences where the AI promises something only Phil can decide (calls, photos, dates).
 const PROMISE_RE = /\b(?:I|we)(?:'ll| will| can| am going to| are going to)\s+(?:also\s+)?(?:give you a (?:ring|call)|call you|reach out|get back to you|follow up|send (?:you\s+)?(?:over\s+)?(?:some\s+|the\s+|a few\s+)?(?:pictures|photos|pics|samples?|a mockup|mockups|spec sheets?|the colors|colors|color options|options)|have (?:them|it|these|those|the \w+|everything) (?:ready|done|finished)|(?:put|get|make) (?:you )?(?:a |the )?mockups? (?:together|made|over|done|up))|\bshortly\b|\bby (?:monday|tuesday|wednesday|thursday|friday|tomorrow|end of (?:the )?(?:day|week))\b/i;
+// Wrong or off-voice claims: "we don't carry Sport-Tek", "Phil will need to approve it".
+const NEVER_SAY_RE = /\bwe (?:don'?t|do not|no longer) (?:carry|stock|sell|offer) (?:sport-?tek|port authority|port & co|district|ogio|nike|carhartt|the north face|eddie bauer|gildan|jerzees|bella|next level)|\bPhil (?:will|would|needs|has to|can|should|is going to|must)\b/i;
 const THANKS_OPENER_RE = /^(?:thanks|thank you)(?: so much)? for (?:confirming|following up|the follow[- ]up|sending|letting (?:me|us) know|the update|reaching out|getting back|checking in|your (?:email|message|patience|follow[- ]up)|the (?:logo|info|information|file|files|spreadsheet|details|reply))[^.!?\n]*[.!?]\s*/i;
 
 function splitSentences(t: string): string[] {
@@ -316,7 +320,7 @@ export function cleanAiDraft(draft: string, isFollowUp: boolean, opts: { dropPvc
     if (isGreeting || isSign) { out.push(para); continue; }
     if (isFollowUp && out.every((x) => /^(hi|hello|hey)\b/i.test(x.trim()))) para = para.replace(THANKS_OPENER_RE, "");
     const kept = para.split("\n").map((line) => /^\s*[-•*]/.test(line) ? line
-      : splitSentences(line).filter((sn) => !PROMISE_RE.test(sn) && !(opts.dropPvc && /\bPVC\b/i.test(sn))).join("").trim()).filter((l) => l.trim());
+      : splitSentences(line).filter((sn) => !PROMISE_RE.test(sn) && !NEVER_SAY_RE.test(sn) && !(opts.dropPvc && /\bPVC\b|embroider(?:ed|y) patch/i.test(sn))).join("").trim()).filter((l) => l.trim());
     const t = kept.join("\n").trim();
     if (t) out.push(t.charAt(0).toUpperCase() + t.slice(1));
   }
@@ -631,7 +635,7 @@ Deno.serve(async (req) => {
     if (aiArt) flags.push(`Artwork looks AI-made — not print-ready. The draft offers the $${AI_ART_REBUILD_FEE} rebuild.`);
     // "Embroidered patch" in the email = an outside-made patch, not embroidery on the hat.
     if (/embroider(?:ed|y) patch/i.test(`${subject} ${body}`)) {
-      for (const it of items) if (categoryOf(it.item || it.garment) === "hat" && String(it.decoration) === "embroidery" && !isBeanie(it)) it.decoration = "woven_patch";
+      for (const it of items) if (categoryOf(it.item || it.garment) === "hat" && ["embroidery", "unknown"].includes(String(it.decoration)) && !isBeanie(it)) it.decoration = "woven_patch";
     }
     if (/\bbeanies?\b/i.test(`${subject} ${body}`) && !items.some((it) => isBeanie(it) && categoryOf(it.item || it.garment) === "hat" && it.customer_supplied !== true))
       flags.push("Beanies asked about — not on the hat price list. Price by hand (cuffed / uncuffed, e.g. YP Classics 1500KC / 1501KC).");
@@ -1029,6 +1033,8 @@ Deno.serve(async (req) => {
       return `For ${Math.max(p.qty, 12)} ${nm} with your logo, it's $${r.unit_price.toFixed(2)} each.${nx}`;
     }).filter((t, i, a) => a.indexOf(t) === i);
     const paras: string[] = [];
+    if (outsourcedKinds.size && /\bPVC\b/i.test(body)) outsourcedKinds.add("pvc");
+    if (outsourcedKinds.size && /embroider(?:ed|y) patch/i.test(body)) outsourcedKinds.add("woven");
     if (hatLines.length && outsourcedKinds.size) {
       const kinds = [outsourcedKinds.has("pvc") ? "PVC" : "", outsourcedKinds.has("woven") ? "embroidered" : ""].filter(Boolean).join(" and ");
       hatLines.push(`${kinds} patches are made by an outside patch maker and add about 2 weeks, so we price those separately.`);
