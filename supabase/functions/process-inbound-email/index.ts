@@ -286,12 +286,19 @@ export function isBounce(fromEmail: string, subject: string): boolean {
     || /^(?:delivery status notification|undeliverable|undelivered mail|mail delivery (?:failed|subsystem|failure)|returned mail|delivery failure|failure notice)\b/i.test(subject.replace(/^(?:re|fw|fwd):\s*/i, "").trim());
 }
 
+/** "Perfect – thank you!", "yes, thank you.", "Sounds good, thanks" — nothing to answer. */
+export function thanksOnly(body: string): boolean {
+  const first = String(body || "").split(/\n\s*(?:on .{5,80} wrote:|-{2,}|_{3,}|from:|sent from)/i)[0].trim();
+  if (first.split(/\s+/).length > 10 || /\?/.test(first)) return false;
+  return /^(?:(?:ok(?:ay)?|perfect|great|awesome|sounds good|yes|yep|will do|got it|excellent|wonderful)[\s,.!–—-]*)*(?:thanks?|thank you|ty)?(?: so much| very much| again)?[\s,.!–—-]*(?:[A-Z][a-z]+)?[\s.!]*$/i.test(first) && first.length > 0;
+}
+
 export function isBeanie(it: any): boolean {
   return /beanie|\bknit\b|toque|\b150[01]KC?\b|\bCP90\b|\bCP91\b/i.test(`${it?.item || ""} ${it?.garment || ""} ${it?.notes || ""}`);
 }
 
 // Sentences where the AI promises something only Phil can decide (calls, photos, dates).
-const PROMISE_RE = /\b(?:I|we)(?:'ll| will| can| am going to| are going to)\s+(?:also\s+)?(?:give you a (?:ring|call)|call you|reach out|get back to you|follow up|send (?:you\s+)?(?:over\s+)?(?:some\s+|the\s+|a few\s+)?(?:pictures|photos|pics|samples?|a mockup|mockups|spec sheets?|the colors|colors|color options|options)|have (?:them|it|these|those|the \w+|everything) (?:ready|done|finished))|\bshortly\b|\bby (?:monday|tuesday|wednesday|thursday|friday|tomorrow|end of (?:the )?(?:day|week))\b/i;
+const PROMISE_RE = /\b(?:I|we)(?:'ll| will| can| am going to| are going to)\s+(?:also\s+)?(?:give you a (?:ring|call)|call you|reach out|get back to you|follow up|send (?:you\s+)?(?:over\s+)?(?:some\s+|the\s+|a few\s+)?(?:pictures|photos|pics|samples?|a mockup|mockups|spec sheets?|the colors|colors|color options|options)|have (?:them|it|these|those|the \w+|everything) (?:ready|done|finished)|(?:put|get|make) (?:you )?(?:a |the )?mockups? (?:together|made|over|done|up))|\bshortly\b|\bby (?:monday|tuesday|wednesday|thursday|friday|tomorrow|end of (?:the )?(?:day|week))\b/i;
 const THANKS_OPENER_RE = /^(?:thanks|thank you)(?: so much)? for (?:confirming|following up|the follow[- ]up|sending|letting (?:me|us) know|the update|reaching out|getting back|checking in|your (?:email|message|patience|follow[- ]up)|the (?:logo|info|information|file|files|spreadsheet|details|reply))[^.!?\n]*[.!?]\s*/i;
 
 function splitSentences(t: string): string[] {
@@ -456,7 +463,8 @@ Deno.serve(async (req) => {
       : attachmentNames.map((n) => ({ name: n }));
     const art = artCheck(attachMeta);
     // AI-made art (ChatGPT etc.) isn't print-ready: the draft says so and offers the $80 rebuild.
-    const aiArt = AI_ART_RE.test(`${attachmentNames.join(" ")} ${subject} ${body}`);
+    // File extensions out first: "Logo.ai" is an Illustrator (vector) file, not AI-made art.
+    const aiArt = AI_ART_RE.test(`${attachmentNames.map((n: string) => String(n).replace(/\.[a-z0-9]{1,5}$/i, "")).join(" ; ")} ${subject} ${body}`);
     const dryRun = p.dry_run === true;
 
     if (!messageId || !fromEmail) return json({ error: "message_id and from_email are required" }, 400);
@@ -625,6 +633,8 @@ Deno.serve(async (req) => {
     if (/embroider(?:ed|y) patch/i.test(`${subject} ${body}`)) {
       for (const it of items) if (categoryOf(it.item || it.garment) === "hat" && String(it.decoration) === "embroidery" && !isBeanie(it)) it.decoration = "woven_patch";
     }
+    if (/\bbeanies?\b/i.test(`${subject} ${body}`) && !items.some((it) => isBeanie(it)))
+      flags.push("Beanies asked about — not on the hat price list. Price by hand (cuffed / uncuffed, e.g. YP Classics 1500KC / 1501KC).");
     const hatItems = items.filter((it) => it.customer_supplied !== true && categoryOf(it.item || it.garment) === "hat" && !isBeanie(it));
     const hatTotal = hatItems.reduce((n, it) => n + (Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : 0), 0);
     const styleKey = (it: any) => styleFromText(it.garment) || "112";
@@ -870,7 +880,7 @@ Deno.serve(async (req) => {
     const replyType: "quote" | "short" | "none" = ["quote", "short", "none"].includes(ai.reply_type) ? ai.reply_type : "quote";
     // Prices only go in a first reply, or a follow-up that asks for a price / changes the order (Phil 2026-10-24).
     const wantsPrices = !isFollowUpEarly || replyType === "quote" || ai.price_request === true;
-    const noReply = isFollowUpEarly && replyType === "none" && ai.price_request !== true;
+    const noReply = isFollowUpEarly && ai.price_request !== true && (replyType === "none" || thanksOnly(body));
     const willDraft = !noReply && (Boolean(ai.reply_draft) || (wantsPrices && pricing.some((p) => (p.hat && p.requested) || (!p.hat && !p.custom && (p.suggestions.length || p.requested))) &&
       ["new_quote_request", "quote_follow_up", "existing_customer_order"].includes(classification)));
     const descLines = [
@@ -1030,6 +1040,8 @@ Deno.serve(async (req) => {
       // Follow-ups only restate the price; the sample/flag/turnaround details were in the first reply.
       paras.push(isFollowUp ? hatLines.join(" ") : [
         ...hatLines,
+        (hatTotal > 0 && hatTotal < 12) || /\b(?:1|2|one|two|a couple)\b[^.]{0,20}sample/i.test(body)
+          ? "You can split the 12 between colors or designs, like 6 of each." : "",
         "That includes a sample for approval and shipping in the lower 48.",
         emb ? (embMaybe ? "Embroidery is the same as the leather patch price, plus a one-time $45 digitizing fee." : "Embroidery has a one-time $45 digitizing fee.") : "",
         `We can also add a flag on the side for $${HAT_SIDE_FLAG} more per hat.`,
@@ -1067,7 +1079,7 @@ Deno.serve(async (req) => {
     }
 
     // Backstop: hats are one size — strip any "hat sizes" ask the AI slipped in (unless fitted hats).
-    if (replyDraft && !fitted) replyDraft = replyDraft.replace(/,?\s*(?:and\s+)?(?:the\s+)?hat sizes\b/gi, "").replace(/\s+([,.?])/g, "$1");
+    if (replyDraft && !fitted) replyDraft = replyDraft.replace(/,?\s*(?:and\s+)?(?:the\s+)?(?:hat sizes|sizes for the hats)\b/gi, "").replace(/\s+([,.?])/g, "$1");
     const replyDraftHtml = replyDraft ? draftHtml(replyDraft.trimEnd()) : null;
     if (replyDraft) replyDraft = `${replyDraft.trimEnd()}\n\n${REPLY_FOOTER}`;
 

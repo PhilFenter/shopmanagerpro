@@ -94,7 +94,7 @@ function check(c, res) {
   if (e.no_date_promise && DATE_PROMISE.test(draft)) fails.push(`promises a date: "${draft.match(DATE_PROMISE)[0]}"`);
   const flags = Array.isArray(res.flags) ? res.flags : [];
   for (const r of e.flags ?? []) if (!flags.some((f) => new RegExp(r, "i").test(f))) fails.push(`action item should flag /${r}/ (flags: ${flags.length ? flags.join(" | ") : "none"})`);
-  return { fails, draft, words };
+  return { fails, draft, words, items: res.ai?.items };
 }
 
 // ── Run ─────────────────────────────────────────────────────────────────────
@@ -150,7 +150,8 @@ const lines = [
   ...results.map((r) => `| ${r.fails.length ? "❌" : r.wobbly ? "⚠️" : "✅"} | ${r.c.title} | ${r.fails.length ? r.fails.join("; ").replace(/\|/g, "/") : r.wobbly ? `pass on 2nd try (1st: ${r.wobbly.join("; ").replace(/\|/g, "/")})` : "pass"} |`),
   "",
   ...results.filter((r) => r.fails.length && r.draft).flatMap((r) => [
-    `<details><summary>${r.c.id}: the draft</summary>`, "", "```", r.draft, "```", "</details>", "",
+    `<details><summary>${r.c.id}: the draft</summary>`, "", "```", r.draft, "```",
+    ...(r.items ? ["AI items:", "```json", JSON.stringify(r.items.map((it) => ({ item: it.item, garment: it.garment, quantity: it.quantity, decoration: it.decoration, notes: it.notes })), null, 0), "```"] : []), "</details>", "",
   ]),
 ];
 const report = lines.join("\n");
