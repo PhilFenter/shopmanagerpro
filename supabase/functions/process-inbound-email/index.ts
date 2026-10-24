@@ -633,7 +633,7 @@ Deno.serve(async (req) => {
     if (/embroider(?:ed|y) patch/i.test(`${subject} ${body}`)) {
       for (const it of items) if (categoryOf(it.item || it.garment) === "hat" && String(it.decoration) === "embroidery" && !isBeanie(it)) it.decoration = "woven_patch";
     }
-    if (/\bbeanies?\b/i.test(`${subject} ${body}`) && !items.some((it) => isBeanie(it)))
+    if (/\bbeanies?\b/i.test(`${subject} ${body}`) && !items.some((it) => isBeanie(it) && categoryOf(it.item || it.garment) === "hat" && it.customer_supplied !== true))
       flags.push("Beanies asked about — not on the hat price list. Price by hand (cuffed / uncuffed, e.g. YP Classics 1500KC / 1501KC).");
     const hatItems = items.filter((it) => it.customer_supplied !== true && categoryOf(it.item || it.garment) === "hat" && !isBeanie(it));
     const hatTotal = hatItems.reduce((n, it) => n + (Number(it.quantity) > 0 ? Math.round(Number(it.quantity)) : 0), 0);
