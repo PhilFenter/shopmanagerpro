@@ -27,6 +27,28 @@ the end. This screen shows the price first, contact info comes second, and nothi
 
 ---
 
+## Garment labels and scan stations (paperless production Phase 2)
+**Date:** 2026-10-25
+**What:** Approving an InkSoft order creates one `prod_garments` row per physical piece and one
+`prod_tasks` row per decoration. Each piece gets a 2×2 label with a QR link (`/g/<random code>`).
+Station computers (DTF, embroidery, shipping & receiving) scan with keyboard-mode scanners into `/scan`.
+Shipping & receiving assigns numbered table spots (blue tape) and does the final check. Pickup orders get a
+4×6 label (`/p/<random code>`); ship orders are marked shipped.
+
+**Why:** Phil asked for this on Oct 25 2026: 2×2 labels on a shoulder or sleeve, three scanner stations,
+about 20 tape spots on glacier days, and a pickup label with name, order number and department only if the
+order has one. Stations use ordinary team logins, because the shop is all internal and doesn't need
+per-person tracking yet.
+
+**Don't:**
+- Put names, order numbers or anything personal inside the QR. The random code is looked up in the database.
+- Delete or renumber garments when an order changes. Void them, so printed labels keep meaning the same piece.
+- Let a scan complete a task at a different station, or put a piece with an open task into a spot.
+- Require a pickup label for ship orders, or add carrier/postage integration here.
+- Remove `client_scan_id`. It's what makes a double-fired scan harmless.
+
+---
+
 ## InkSoft work-order import: read the PDF in the browser, approve before anything is produced
 **Date:** 2026-10-25
 **What:** `/production/imports` reads InkSoft work-order PDFs with pdf.js in the browser (no AI, no

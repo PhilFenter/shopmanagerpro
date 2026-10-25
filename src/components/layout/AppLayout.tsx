@@ -38,6 +38,8 @@ import {
   Inbox,
   Search,
   Store,
+  ScanLine,
+  ClipboardList,
 } from 'lucide-react';
 import { useHandoffs } from '@/hooks/useHandoffs';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +70,8 @@ const navigation = [
       { name: 'Embroidery', href: '/embroidery', icon: Shirt },
       { name: 'Screen Print', href: '/screen-print', icon: Printer },
       { name: 'DTF', href: '/dtf', icon: Flame },
+      { name: 'Scan Station', href: '/scan', icon: ScanLine },
+      { name: 'Production Board', href: '/production/orders', icon: ClipboardList },
       { name: 'DTF Transfers', href: '/production/transfers', icon: Flame },
       { name: 'Leather', href: '/leather', icon: Scissors },
     ],

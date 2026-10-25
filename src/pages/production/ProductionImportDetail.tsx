@@ -204,9 +204,16 @@ function OrderCard({
   const [dialog, setDialog] = useState<null | 'reopen' | 'ack' | 'dismiss'>(null);
   const editable = isManager && o.status === 'review';
 
-  const approve = useProdAction<{ p_order_id: string; p_expected_revision: number }, { ok: boolean; already?: boolean; blockers?: string[] }>(
+  const approve = useProdAction<{ p_order_id: string; p_expected_revision: number }, { ok: boolean; already?: boolean; blockers?: string[]; garments?: { added: number; voided: number } }>(
     'prod_approve_order',
-    (r) => (r.ok ? `Order ${o.order_number} approved` : null),
+    (r) => {
+      if (!r.ok) return null;
+      const g = r.garments;
+      const extra = g && (g.added || g.voided)
+        ? ` · ${g.added ? `${g.added} new label${g.added === 1 ? '' : 's'} to print` : ''}${g.added && g.voided ? ', ' : ''}${g.voided ? `${g.voided} piece${g.voided === 1 ? '' : 's'} removed` : ''}`
+        : '';
+      return `Order ${o.order_number} approved${extra}`;
+    },
   );
   const reopen = useProdAction('prod_reopen_order', `Order ${o.order_number} is back in review`);
   const ack = useProdAction('prod_acknowledge_flags', 'Noted');
@@ -312,6 +319,11 @@ function OrderCard({
                   </Button>
                 )}
                 <div className="flex-1" />
+                {o.status === 'approved' && (
+                  <Button size="sm" asChild>
+                    <Link to={`/production/orders/${o.id}`}>Garment labels &amp; production</Link>
+                  </Button>
+                )}
                 {o.status === 'review' && (
                   <Button onClick={doApprove} disabled={approve.isPending || blocks.length > 0}>
                     <CheckCircle2 className="mr-2 h-4 w-4" /> Approve order {o.order_number}
