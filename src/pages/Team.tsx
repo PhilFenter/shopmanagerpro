@@ -18,6 +18,7 @@ import {
 import { WorkerCard } from '@/components/team/WorkerCard';
 import { OverheadSection } from '@/components/team/OverheadSection';
 import { CostDashboard } from '@/components/team/CostDashboard';
+import { AccessSection } from '@/components/team/AccessSection';
 
 export default function Team() {
   const { role, loading } = useAuth();
@@ -63,6 +64,7 @@ export default function Team() {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="team">Team Members</TabsTrigger>
           <TabsTrigger value="overhead">Overhead</TabsTrigger>
+          <TabsTrigger value="access">Logins & Access</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -136,6 +138,10 @@ export default function Team() {
 
         <TabsContent value="overhead">
           <OverheadSection />
+        </TabsContent>
+
+        <TabsContent value="access">
+          <AccessSection />
         </TabsContent>
       </Tabs>
     </div>
