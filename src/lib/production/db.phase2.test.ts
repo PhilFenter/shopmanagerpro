@@ -260,6 +260,12 @@ describe('Phase 2: garments, labels, scanning, spots', () => {
     expect(await scan('ABCDEFGHJKMN', 'assembly')).toMatchObject({ ok: false, kind: 'unknown' });
   });
 
+  it('the check query in the docs returns 5 | 1 | 0', async () => {
+    const doc = read('docs/PAPERLESS-PRODUCTION.md');
+    const sql = doc.split('Check query')[1].split('```sql')[1].split('```')[0];
+    expect((await db.query(sql)).rows[0]).toEqual({ tables: 5, settings_rows: 1, missing_functions: 0 });
+  });
+
   it('rollback: Phase 2 then Phase 1 leave nothing behind', async () => {
     await db.exec(rollback2);
     expect((await db.query(`SELECT 1 FROM pg_tables WHERE tablename IN ('prod_garments','prod_tasks','prod_scans')`)).rows).toHaveLength(0);
