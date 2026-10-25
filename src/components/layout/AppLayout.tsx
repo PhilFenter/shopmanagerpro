@@ -68,6 +68,7 @@ const navigation = [
       { name: 'Embroidery', href: '/embroidery', icon: Shirt },
       { name: 'Screen Print', href: '/screen-print', icon: Printer },
       { name: 'DTF', href: '/dtf', icon: Flame },
+      { name: 'DTF Transfers', href: '/production/transfers', icon: Flame },
       { name: 'Leather', href: '/leather', icon: Scissors },
     ],
   },
@@ -82,6 +83,7 @@ const adminNavigation = [
 const financialNavigation = [
   { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Purchase Orders', href: '/purchase-orders', icon: Package },
+  { name: 'InkSoft Imports', href: '/production/imports', icon: FileText },
   { name: 'Customers', href: '/customers', icon: UserCheck },
   { name: 'Messages', href: '/messages', icon: MessagesSquare },
   { name: 'Financials', href: '/financials', icon: DollarSign },
