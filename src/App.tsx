@@ -87,6 +87,21 @@ const ProductionTransfers = lazyWithReload(() => import("./pages/production/Prod
 const ProductionTransfersPrint = lazyWithReload(() =>
   import("./pages/production/ProductionTransfers").then((m) => ({ default: m.ProductionTransfersPrint }))
 );
+const ProductionBoard = lazyWithReload(() => import("./pages/production/ProductionBoard"));
+const ProductionOrderFloor = lazyWithReload(() => import("./pages/production/ProductionOrderFloor"));
+const ScanStation = lazyWithReload(() => import("./pages/production/ScanStation"));
+const ScanLookupG = lazyWithReload(() =>
+  import("./pages/production/ScanStation").then((m) => ({ default: () => <m.ScanLookup kind="g" /> }))
+);
+const ScanLookupP = lazyWithReload(() =>
+  import("./pages/production/ScanStation").then((m) => ({ default: () => <m.ScanLookup kind="p" /> }))
+);
+const PrintGarmentLabels = lazyWithReload(() =>
+  import("./pages/production/ProductionPrintLabels").then((m) => ({ default: m.PrintGarmentLabels }))
+);
+const PrintPickupLabel = lazyWithReload(() =>
+  import("./pages/production/ProductionPrintLabels").then((m) => ({ default: m.PrintPickupLabel }))
+);
 const ChecklistView = lazyWithReload(() =>
   import("./pages/ChecklistScreen").then((m) => ({ default: m.ChecklistView }))
 );
@@ -399,6 +414,72 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <ProductionTransfersPrint />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/production/orders"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProductionBoard />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/production/orders/:orderId"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProductionOrderFloor />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/scan"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ScanStation />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/g/:token"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ScanLookupG />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/p/:token"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ScanLookupP />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/print/labels"
+                    element={
+                      <ProtectedRoute>
+                        <PrintGarmentLabels />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/print/pickup/:orderId"
+                    element={
+                      <ProtectedRoute>
+                        <PrintPickupLabel />
                       </ProtectedRoute>
                     }
                   />
