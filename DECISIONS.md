@@ -5,6 +5,22 @@ Short entries on non-obvious calls made in this app, so nobody (including future
 
 ---
 
+## Team & Costs → Logins & Access: admins set Team / Manager / Admin in the app
+**Date:** 2026-10-25
+**What:** A "Logins & Access" tab on the admin-only Team page lists everyone with a login (name from
+`profiles`) and lets an admin change their role. It writes `user_roles` directly; the existing RLS
+already allows only admins to read all roles and change them, so there's no database change.
+
+**Why:** Until now, roles could only be changed in SQL, so access drifted: people had admin who
+shouldn't. Phil wants to set access himself.
+
+**Don't:**
+- Let someone change their own role. The screen blocks it, so the last admin can't lock everyone out.
+- Treat signing someone out as removing access. Access is the role; the next sign-in uses whatever
+  role is saved.
+
+---
+
 ## Counter Quote screen is customer-facing on purpose
 **Date:** 2026-10
 **What:** `/counter` is a full-screen walk-in quote page with no sidebar. It's meant to be used with
