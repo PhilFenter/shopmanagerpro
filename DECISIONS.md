@@ -27,6 +27,34 @@ the end. This screen shows the price first, contact info comes second, and nothi
 
 ---
 
+## InkSoft work-order import: read the PDF in the browser, approve before anything is produced
+**Date:** 2026-10-25
+**What:** `/production/imports` reads InkSoft work-order PDFs with pdf.js in the browser (no AI, no
+server parsing), stores the original PDF untouched in the private `production-imports` bucket, and
+saves orders as `prod_*` rows in **review** status. A manager approves each order before it counts
+for anything (transfer list now, labels and scanning later). The Orders CSV is optional and only adds
+pickup location and Department / Department Number. `/production/transfers` lists DTF transfers
+for approved orders. Design: `docs/PAPERLESS-PRODUCTION.md`.
+
+**Why:** InkSoft is the source of truth and we can't change it. We needed the work orders as data
+without retyping, and without trusting a parser blindly. A missing page, a cut-off SKU or a total
+that doesn't add up blocks approval instead of being guessed.
+
+**Don't:**
+- Write to `prod_*` tables directly. Every change goes through a `prod_*` RPC that checks the role,
+  logs a `prod_events` row and refuses to edit approved orders.
+- Treat preview images as production art. They are low-res copies from the PDF
+  (`production_ready` is CHECK-constrained false). Never send them to DTF or embroidery.
+- Overwrite InkSoft's decoration method. `method_inksoft` stays verbatim. `method_production` is
+  HCD's call: for now `ScreenPrint`→DTF and `DigitalPrint`→DTF via `prod_method_rules`. Staff
+  changes need a reason.
+- Let a re-uploaded file make duplicates. The same file (sha256) opens the earlier import. The
+  same order with the same content is "unchanged". A changed copy of an approved order waits as a
+  pending revision until a manager applies or dismisses it.
+- Put customer details in a QR code (later phases): only an opaque ID.
+
+---
+
 ## Time Tracking gated to Admin/Manager only
 **Date:** 2026-07
 **What:** The Time Tracking block (`JobTimer`, `TimeEntryForm`, `TimeEntriesList`) on the

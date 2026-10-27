@@ -81,6 +81,12 @@ const PrintSop = lazyWithReload(() => import("./pages/PrintCard").then((m) => ({
 const PrintChecklist = lazyWithReload(() =>
   import("./pages/PrintCard").then((m) => ({ default: m.PrintChecklist }))
 );
+const ProductionImports = lazyWithReload(() => import("./pages/production/ProductionImports"));
+const ProductionImportDetail = lazyWithReload(() => import("./pages/production/ProductionImportDetail"));
+const ProductionTransfers = lazyWithReload(() => import("./pages/production/ProductionTransfers"));
+const ProductionTransfersPrint = lazyWithReload(() =>
+  import("./pages/production/ProductionTransfers").then((m) => ({ default: m.ProductionTransfersPrint }))
+);
 const ChecklistView = lazyWithReload(() =>
   import("./pages/ChecklistScreen").then((m) => ({ default: m.ChecklistView }))
 );
@@ -354,6 +360,45 @@ function App() {
                         <AppLayout>
                           <Handoffs />
                         </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Paperless production: InkSoft work-order import/review and DTF transfer list */}
+                  <Route
+                    path="/production/imports"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProductionImports />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/production/imports/:batchId"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProductionImportDetail />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/production/transfers"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProductionTransfers />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/print/transfers"
+                    element={
+                      <ProtectedRoute>
+                        <ProductionTransfersPrint />
                       </ProtectedRoute>
                     }
                   />
