@@ -57,6 +57,7 @@ export function reviewIssues(o: DbOrder, items: DbItem[]): Issue[] {
     if (it.prod_item_decorations.length === 0) out.push({ level: 'block', message: `${p}: no decoration` });
     const sizesEdited = it.prod_item_sizes.some((s) => s.edited_at);
     for (const f of it.flags) {
+      if (f.code === 'truncated_sku' || f.code === 'truncated_design') continue; // older imports; not production info
       const sizeFlag = ['total_mismatch', 'missing_total', 'no_size_grid'].includes(f.code);
       const level = f.level === 'block' && sizeFlag && (sizesEdited || o.flags_ack_at) ? 'check' : f.level;
       out.push({ level, message: `${p}: ${f.message}` });

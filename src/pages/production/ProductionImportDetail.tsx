@@ -15,7 +15,7 @@ import { useImportBatch, usePreviewUrls, useProdAction, type BatchOrder } from '
 import { blocking, orderCounts, reviewIssues, type DbDecoration, type DbItem, type DbOrder } from '@/lib/production/review';
 import { METHOD_LABELS, type ProductionMethod } from '@/lib/production/methods';
 import { signedUrl } from '@/lib/production/db';
-import { attachCsv, readCsvFile } from '@/lib/production/importFile';
+import { attachCsv, csvToast, readCsvFile } from '@/lib/production/importFile';
 import { fmtDate, PreviewThumb, ReasonDialog, useIsProdManager } from '@/components/production/ProdShared';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,10 @@ const STATUS: Record<DbOrder['status'], { label: string; className: string }> = 
   approved: { label: 'Approved', className: 'bg-green-100 text-green-900' },
   on_hold: { label: 'On hold', className: 'bg-neutral-200 text-neutral-900' },
   cancelled: { label: 'Cancelled', className: 'bg-neutral-200 text-neutral-900' },
+};
+
+const TRUNC_NAME: Record<string, string> = {
+  mfgSku: 'the SKU', inksoftSku: 'the InkSoft SKU', color: 'the color', productName: 'the product name', designName: 'the design name',
 };
 
 export default function ProductionImportDetail() {
@@ -94,13 +98,15 @@ export default function ProductionImportDetail() {
 
   const onCsv = async (f: File | undefined) => {
     if (!f) return;
+    const t = toast.loading(`Reading ${f.name}…`);
     try {
       const csv = await readCsvFile(f);
       const r = await attachCsv(batch.id, f, csv);
       qc.invalidateQueries({ queryKey: ['prod'] });
-      toast.success(`Orders CSV added: ${r.matched} order${r.matched === 1 ? '' : 's'} matched${r.unmatched.length ? `; not in any import: ${r.unmatched.join(', ')}` : ''}`);
+      toast.dismiss(t);
+      csvToast(r);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Orders CSV not added: ${(e as Error).message}`, { id: t, duration: 15000 });
     }
   };
 
@@ -380,7 +386,11 @@ function ItemRow({ item: it, urls, editable }: { item: DbItem; urls: Record<stri
           <div className="text-sm text-muted-foreground">
             Design: {it.design_name ?? '—'}{it.design_id && ` (#${it.design_id})`}
             {it.inksoft_sku && ` · InkSoft SKU ${it.inksoft_sku}`}
-            {it.truncated.length > 0 && <span className="ml-1 text-amber-700">(cut off in the PDF)</span>}
+            {it.truncated.length > 0 && (
+              <span className="ml-1 text-xs" title="InkSoft shortens long text with … when it makes the PDF. The full text isn't in the file. Production uses the SKU, color, sizes and design ID, which are complete.">
+                (InkSoft shortened {it.truncated.map((k) => TRUNC_NAME[k] ?? k).join(', ')} in the PDF)
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {it.prod_item_sizes.map((s) => (

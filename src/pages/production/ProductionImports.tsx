@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useImportBatches } from '@/hooks/useProductionImports';
-import { importWorkOrderPdf, type ImportStep } from '@/lib/production/importFile';
+import { csvToast, importCsvOnly, importWorkOrderPdf, type ImportStep } from '@/lib/production/importFile';
 import { useIsProdManager } from '@/components/production/ProdShared';
 
 const STEP_LABEL: Record<ImportStep, string> = {
@@ -33,8 +33,24 @@ export default function ProductionImports() {
   const qc = useQueryClient();
 
   const run = async () => {
-    if (!pdf) return;
+    if (!pdf && !csv) return;
     setError(null);
+    if (!pdf && csv) {
+      setStep('saving');
+      try {
+        const r = await importCsvOnly(csv);
+        qc.invalidateQueries({ queryKey: ['prod'] });
+        csvToast(r.result);
+        setCsv(null);
+        navigate(`/production/imports/${r.batchId}`);
+      } catch (e) {
+        setError(`Orders CSV not added: ${(e as Error).message}`);
+      } finally {
+        setStep(null);
+      }
+      return;
+    }
+    if (!pdf) return;
     try {
       const r = await importWorkOrderPdf(pdf, csv, setStep);
       qc.invalidateQueries({ queryKey: ['prod'] });
@@ -63,7 +79,7 @@ export default function ProductionImports() {
       <div>
         <h1 className="text-2xl font-bold">InkSoft Work Orders</h1>
         <p className="text-sm text-muted-foreground">
-          Upload the work-order PDF from InkSoft. Adding the Orders CSV for the same orders fills in pickup location and department.
+          Upload the work-order PDF from InkSoft. The Orders CSV fills in pickup or ship and department. Add it with the PDF, or on its own any time after the PDF is imported.
           Nothing goes to production until a manager approves each order.
         </p>
       </div>
@@ -107,9 +123,9 @@ export default function ProductionImports() {
               </div>
             )}
             <div className="flex items-center gap-3">
-              <Button onClick={run} disabled={!pdf || !!step}>
+              <Button onClick={run} disabled={(!pdf && !csv) || !!step}>
                 {step ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {step ? STEP_LABEL[step] : 'Import'}
+                {step ? STEP_LABEL[step] : pdf ? 'Import' : 'Add CSV to imported orders'}
               </Button>
               {(pdf || csv) && !step && (
                 <Button variant="ghost" onClick={() => { setPdf(null); setCsv(null); setError(null); }}>Clear</Button>

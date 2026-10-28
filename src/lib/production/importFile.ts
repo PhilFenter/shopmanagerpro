@@ -1,4 +1,5 @@
 // Browser-side import: hash → duplicate check → keep the original → read → save for review.
+import { toast } from 'sonner';
 import { extractPdf, imageToPngBlob, sha256File } from './pdfExtract';
 import { parseWorkOrders, type ParsedBatch } from './inksoftParser';
 import { parseInkSoftOrdersCsv, type CsvOrder } from './inksoftCsv';
@@ -131,4 +132,21 @@ async function uploadPreviews(doc: any, parsed: ParsedBatch): Promise<ImportPayl
     seen.set(r.hash, { hash: r.hash, kind: r.kind, storage_path: path, width_px: r.pw, height_px: r.ph });
   }
   return [...seen.values()];
+}
+
+/** Toast for a CSV that was applied: how many orders matched, and which CSV orders aren't imported yet. */
+export function csvToast(r: { matched: number; unmatched: string[] }) {
+  const tail = r.unmatched.length ? ` Not imported yet: ${r.unmatched.slice(0, 8).join(', ')}${r.unmatched.length > 8 ? '…' : ''}.` : '';
+  if (r.matched === 0) toast.warning(`Orders CSV saved, but none of its orders have been imported yet.${tail} Import their work-order PDF, then add the CSV again.`, { duration: 15000 });
+  else toast.success(`Orders CSV added: pickup/ship and department filled in for ${r.matched} order${r.matched === 1 ? '' : 's'}.${tail}`, { duration: 8000 });
+}
+
+/** CSV on its own (no PDF): apply it to orders already imported, recorded on the newest import. */
+export async function importCsvOnly(file: File) {
+  const csv = await readCsvFile(file);
+  const { data, error } = await prodDb.from('prod_import_batches').select('id').order('created_at', { ascending: false }).limit(1);
+  if (error) throw new Error(error.message);
+  const batchId = (data as { id: string }[] | null)?.[0]?.id;
+  if (!batchId) throw new Error('Import a work-order PDF first. The CSV only fills in orders that are already imported.');
+  return { batchId, result: await attachCsv(batchId, file, csv) };
 }

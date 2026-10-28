@@ -49,10 +49,11 @@ describe('InkSoft work-order parser: Test A (order 1002714)', () => {
     expect(bk.artwork?.hash).toBeTruthy();
     expect(f.artwork?.hash).not.toBe(bk.artwork?.hash);
   });
-  it('only a cut-off SKU is flagged; nothing blocks', () => {
+  it('a shortened InkSoft SKU is noted on the item but not flagged; nothing blocks', () => {
     const flags = allOrderFlags(o);
     expect(hasBlocking(flags)).toBe(false);
-    expect(flags.map((f) => f.code)).toEqual(['truncated_sku']);
+    expect(flags).toEqual([]);
+    expect(o.items.some((i) => i.truncated.includes('inksoftSku'))).toBe(true);
   });
 });
 
@@ -92,11 +93,13 @@ describe('InkSoft work-order parser: Test B (5 orders)', () => {
     const d = b.orders[4].items.map((i) => [i.color, i.designId, i.decorations[0].colorway]);
     expect(d).toEqual([['Jet Black', '16655756', 'Colorway 1'], ['True Celadon', '16655756', 'Colorway 3']]);
   });
-  it('nothing blocks; cut-off names are flagged for checking', () => {
+  it('nothing blocks; names InkSoft shortened are noted, not flagged (SKU and color are whole)', () => {
     for (const o of b.orders) expect(hasBlocking(allOrderFlags(o))).toBe(false);
     const codes = b.orders.flatMap((o) => allOrderFlags(o).map((f) => f.code));
-    expect(codes.filter((c) => c === 'truncated_design')).toHaveLength(2);
-    expect(codes.filter((c) => c === 'truncated_sku')).toHaveLength(1);
+    expect(codes.filter((c) => c.startsWith('truncated'))).toEqual([]);
+    const items = b.orders.flatMap((o) => o.items);
+    expect(items.filter((i) => i.truncated.includes('designName'))).toHaveLength(2);
+    expect(items.filter((i) => i.truncated.includes('mfgSku') || i.truncated.includes('color'))).toHaveLength(0);
   });
 });
 

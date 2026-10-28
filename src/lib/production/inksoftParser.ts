@@ -198,10 +198,12 @@ function parseItem(p: PageData, seg: TextItem[], label: TextItem, y1: number, im
   if (!item.mfgSku) flags.push({ level: 'block', code: 'missing_mfg_sku', message: 'Manufacturer SKU not found' });
   if (!item.color) flags.push({ level: 'block', code: 'missing_color', message: 'Garment color not found' });
   if (!item.designId) flags.push({ level: 'check', code: 'missing_design_id', message: 'Design ID not found' });
-  if (item.truncated.includes('inksoftSku'))
-    flags.push({ level: 'check', code: 'truncated_sku', message: 'InkSoft SKU is cut off in the PDF' });
-  if (item.truncated.includes('designName'))
-    flags.push({ level: 'check', code: 'truncated_design', message: 'Design name is cut off in the PDF' });
+  // InkSoft shortens long text with "…" in the PDF. The InkSoft SKU, product name and design name aren't
+  // needed for production (the design ID is always whole), so only the manufacturer SKU and color are flagged.
+  if (item.truncated.includes('mfgSku'))
+    flags.push({ level: 'check', code: 'truncated_mfg_sku', message: 'Manufacturer SKU is shortened in the PDF. Check it' });
+  if (item.truncated.includes('color'))
+    flags.push({ level: 'check', code: 'truncated_color', message: 'Color is shortened in the PDF. Check it' });
 
   // size grid: rows in the SIZE column between the SIZE header and TOTAL; quantities in the QTY column
   const sz = L('SIZE');
