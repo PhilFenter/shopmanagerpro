@@ -52,6 +52,7 @@ interface AppLayoutProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'InkSoft Imports', href: '/production/imports', icon: FileText },
   { name: 'Scan Station', href: '/scan', icon: ScanLine },
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
   { name: 'Counter Quote', href: '/counter', icon: Store },
@@ -61,7 +62,6 @@ const navigation = [
   { name: 'Artwork', href: '/artwork', icon: Palette },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
-  { name: 'InkSoft Imports', href: '/production/imports', icon: FileText },
   { name: 'Handoffs', href: '/handoffs', icon: Inbox },
   { name: 'Schedule', href: '/schedule', icon: CalendarDays },
   
