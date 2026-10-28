@@ -336,3 +336,22 @@ describe("extra jacket options", () => {
     expect((await priceLine(offline, { ...base, style: "CT103828" })).requested?.unit_price).toBe(159.99);
   });
 });
+
+describe("vests", () => {
+  it("embroidery only at the jacket price; Carhartt Gilliam at retail", async () => {
+    const { methodsFor } = await import("./counterQuote");
+    expect(methodsFor("vest")).toEqual(["embroidery"]);
+    const l = { ...newLine("tee"), item: "vest" as const, method: "embroidery" as const, placements: ["Left chest"], qty: 12 };
+    const p = await priceLine(db, l);
+    const by = Object.fromEntries(p.tiers.map((t) => [t.tier, t.unit_price]));
+    expect(by.good).toBe(57.82);   // 18.91 × 2 + 20
+    expect(by.better).toBe(74.88); // 27.44 × 2 + 20
+    expect(by.best).toBe(119.99);  // 99.99 + 20
+  });
+  it("email vests map to vests, safety vests don't", async () => {
+    const { categoryOf } = await import("../../supabase/functions/_shared/hcd-pricing.ts");
+    expect(categoryOf("fleece vests")).toBe("vest");
+    expect(categoryOf("ANSI safety vest")).toBe(null);
+    expect(categoryOf("soft shell jacket")).toBe("jacket");
+  });
+});

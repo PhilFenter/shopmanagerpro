@@ -166,6 +166,14 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
     better: { style: "J850", name: "Port Authority J850 Packable Puffy", cost: 37.24, cost2xl: 38.24, msrp: 0 },
     best: { style: "CT104050", name: "Carhartt CT104050 Washed Duck Active Jac", cost: 94.77, cost2xl: 94.77, msrp: 139.99, map: 139.99 },
   },
+  // Vests (Phil 2026-10-28): embroidery only, jacket embroidery price. Picks from the 2026 SanMar Outerwear
+  // Navigator + HCD's vest history (F219/L219 and J325/L325 are the most-sold). SanMar list checked 2026-10-28.
+  // Carhartt Gilliam at Carhartt retail ($99.99) + decoration, like the other Carhartts.
+  vest: {
+    good: { style: "F219", name: "Port Authority F219 Value Fleece Vest", cost: 18.91, cost2xl: 19.91, msrp: 0 },
+    better: { style: "J325", name: "Port Authority J325 Core Soft Shell Vest", cost: 27.44, cost2xl: 28.44, msrp: 0 },
+    best: { style: "CT102286", name: "Carhartt CT102286 Gilliam Vest", cost: 64, cost2xl: 64, msrp: 99.99, map: 99.99 },
+  },
 };
 
 // Other styles we know the cost of when a customer asks for them by name (same basis).
@@ -204,7 +212,8 @@ export function categoryOf(item: string | null | undefined): string | null {
   const s = String(item || "").toLowerCase();
   if (/hat|cap|beanie/.test(s)) return "hat";
   if (/hood/.test(s)) return "hoodie"; // "hooded jacket" / zip hoodies stay hoodies (shirt embroidery price)
-  if (/jacket|\bcoats?\b|\bvests?\b|soft ?shell|parka|puffy|puffer|outerwear|active jac/.test(s)) return "jacket";
+  if (/\bvests?\b/.test(s)) return /safety|ansi|hi-?vis|high.?vis|reflective|mesh/.test(s) ? null : "vest";
+  if (/jacket|\bcoats?\b|soft ?shell|parka|puffy|puffer|outerwear|active jac/.test(s)) return "jacket";
   if (/crew ?neck|sweatshirt|\bcrews?\b(?! ?members?)|sweats?\b/.test(s)) return "crew";
   if (/polo/.test(s)) return "polo";
   if (/long ?sleeve|\bl\/s\b|\bls\b/.test(s)) return "longsleeve";
@@ -321,6 +330,8 @@ export async function suggestTiers(
   const picks = PICKS[category];
   const row = matrixRow(service, qty);
   if (!picks || !row || qty <= 0) return [];
+  // Jackets and vests embroider at the jacket price ($20 up to 10k).
+  if (category === "jacket" || category === "vest") opts = { ...opts, jacket: true };
   const deco = decoPrice(row, service, opts);
   const out: Suggestion[] = [];
   for (const tier of ["good", "better", "best"] as Tier[]) {
