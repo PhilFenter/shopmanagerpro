@@ -32,7 +32,24 @@ export default function ProductionImports() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const run = async () => {
+  const [dragging, setDragging] = useState(false);
+  const anyRef = useRef<HTMLInputElement>(null);
+
+  /** Drop or pick both files at once: sort them by type and start the import right away. */
+  const takeFiles = (list: FileList | null) => {
+    const files = Array.from(list ?? []);
+    const p = files.find((f) => /\.pdf$/i.test(f.name) || f.type === 'application/pdf') ?? null;
+    const c = files.find((f) => /\.csv$/i.test(f.name) || f.type === 'text/csv') ?? null;
+    if (!p && !c) {
+      setError('Those files aren’t a work-order PDF or an Orders CSV.');
+      return;
+    }
+    setPdf(p);
+    setCsv(c);
+    void run(p, c);
+  };
+
+  const run = async (pdf: File | null, csv: File | null) => {
     if (!pdf && !csv) return;
     setError(null);
     if (!pdf && csv) {
@@ -91,6 +108,22 @@ export default function ProductionImports() {
             <CardDescription>The original files are kept. Uploading the same file again opens the earlier import instead of creating duplicates.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => { e.preventDefault(); setDragging(false); if (!step) takeFiles(e.dataTransfer.files); }}
+              onClick={() => !step && anyRef.current?.click()}
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors ${dragging ? 'border-primary bg-primary/10' : 'hover:bg-accent'}`}
+            >
+              <Upload className="h-10 w-10 text-primary" />
+              <div className="text-lg font-semibold">Drop the work-order PDF and the Orders CSV here</div>
+              <div className="text-sm text-muted-foreground">
+                Drag both from your Downloads at once (or click to pick them together). The import starts on its own. Either file alone works too.
+              </div>
+              <input ref={anyRef} type="file" multiple accept="application/pdf,.pdf,.csv,text/csv" className="hidden"
+                onChange={(e) => { takeFiles(e.target.files); e.target.value = ''; }} />
+            </div>
+            <div className="text-xs text-muted-foreground">Or choose them one at a time:</div>
             <div className="grid gap-3 md:grid-cols-2">
               <button
                 type="button"
@@ -123,7 +156,7 @@ export default function ProductionImports() {
               </div>
             )}
             <div className="flex items-center gap-3">
-              <Button onClick={run} disabled={(!pdf && !csv) || !!step}>
+              <Button onClick={() => run(pdf, csv)} disabled={(!pdf && !csv) || !!step}>
                 {step ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 {step ? STEP_LABEL[step] : pdf ? 'Import' : 'Add CSV to imported orders'}
               </Button>
