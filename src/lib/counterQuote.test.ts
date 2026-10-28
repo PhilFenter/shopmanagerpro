@@ -316,8 +316,8 @@ describe("jackets", () => {
     const by = Object.fromEntries(p.tiers.map((t) => [t.tier, t.unit_price]));
     expect(p.tiers[0].decoration_cost).toBe(20);
     expect(by.good).toBe(81.28);   // 30.64 × 2 + 20
-    expect(by.better).toBe(94.48); // 37.24 × 2 + 20
-    expect(by.best).toBe(159.99);  // Carhartt retail 139.99 + 20
+    expect(by.better).toBe(117.4); // EB544 48.70 × 2 + 20
+    expect(by.best).toBe(149.99);  // Crowley at Carhartt retail 129.99 + 20
   });
   it("email items map to the jacket category", async () => {
     const { categoryOf } = await import("../../supabase/functions/_shared/hcd-pricing.ts");
@@ -334,5 +334,65 @@ describe("extra jacket options", () => {
     const offline = { ...db, functions: undefined };
     expect((await priceLine(offline, { ...base, style: "J787" })).requested?.unit_price).toBe(99.52);
     expect((await priceLine(offline, { ...base, style: "CT103828" })).requested?.unit_price).toBe(159.99);
+  });
+});
+
+describe("vests", () => {
+  it("embroidery only at the jacket price; Carhartt Gilliam at retail", async () => {
+    const { methodsFor } = await import("./counterQuote");
+    expect(methodsFor("vest")).toEqual(["embroidery"]);
+    const l = { ...newLine("tee"), item: "vest" as const, method: "embroidery" as const, placements: ["Left chest"], qty: 12 };
+    const p = await priceLine(db, l);
+    const by = Object.fromEntries(p.tiers.map((t) => [t.tier, t.unit_price]));
+    expect(by.good).toBe(57.82);   // 18.91 × 2 + 20
+    expect(by.better).toBe(74.88); // 27.44 × 2 + 20
+    expect(by.best).toBe(119.99);  // 99.99 + 20
+  });
+  it("email vests map to vests, safety vests don't", async () => {
+    const { categoryOf } = await import("../../supabase/functions/_shared/hcd-pricing.ts");
+    expect(categoryOf("fleece vests")).toBe("vest");
+    expect(categoryOf("ANSI safety vest")).toBe(null);
+    expect(categoryOf("soft shell jacket")).toBe("jacket");
+  });
+});
+
+describe("jacket types", () => {
+  const base = { ...newLine("tee"), item: "jacket" as const, method: "embroidery" as const, placements: ["Left chest"], qty: 12 };
+  it("each type climbs good < better < best", async () => {
+    for (const jacketType of ["softshell", "puffer", "insulated", "fleece", "rain"] as const) {
+      const p = await priceLine(db, { ...base, jacketType });
+      const u = p.tiers.map((t) => t.unit_price);
+      expect(u.length).toBe(3);
+      expect(u[0]).toBeLessThan(u[1]);
+      expect(u[1]).toBeLessThan(u[2]);
+    }
+  });
+  it("email words pick the type", async () => {
+    const { categoryOf } = await import("../../supabase/functions/_shared/hcd-pricing.ts");
+    expect(categoryOf("puffy jacket")).toBe("jacket_puffer");
+    expect(categoryOf("rain jackets")).toBe("jacket_rain");
+    expect(categoryOf("fleece jacket")).toBe("jacket_fleece");
+    expect(categoryOf("insulated coat")).toBe("jacket_insulated");
+  });
+});
+
+describe("rush", () => {
+  it("2–3 days = 100%, under 7 days = 50%", async () => {
+    const { rushForDate } = await import("./counterQuote");
+    const today = new Date(2026, 9, 28);
+    expect(rushForDate("2026-10-30", today)).toBe(100);
+    expect(rushForDate("2026-10-31", today)).toBe(100);
+    expect(rushForDate("2026-11-01", today)).toBe(50);
+    expect(rushForDate("2026-11-03", today)).toBe(50);
+    expect(rushForDate("2026-11-04", today)).toBe(0);
+    expect(rushForDate("", today)).toBe(0);
+  });
+  it("applies to products, not one-time fees", async () => {
+    const { rushBase, rushAmount } = await import("./counterQuote");
+    const l = { ...newLine("tee"), item: "vest" as const, method: "embroidery" as const, placements: ["Left chest"], qty: 12, tier: "good" as const };
+    const p = await priceLine(db, l);
+    const base = rushBase([l], { [l.id]: p });
+    expect(base).toBeCloseTo(57.82 * 12, 2);
+    expect(rushAmount(base, 50)).toBeCloseTo(346.92, 2);
   });
 });

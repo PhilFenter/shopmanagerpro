@@ -35,7 +35,7 @@ import {
   type Tier,
 } from "../../supabase/functions/_shared/hcd-pricing.ts";
 
-export type Item = "tee" | "hoodie" | "crew" | "polo" | "jacket" | "hat";
+export type Item = "tee" | "hoodie" | "crew" | "polo" | "jacket" | "vest" | "hat";
 export type Method = "screen_print" | "dtf" | "embroidery" | "patch" | "hat_embroidery";
 
 export const ITEMS: { id: Item; label: string }[] = [
@@ -44,6 +44,7 @@ export const ITEMS: { id: Item; label: string }[] = [
   { id: "crew", label: "Crewnecks" },
   { id: "polo", label: "Polos" },
   { id: "jacket", label: "Jackets" },
+  { id: "vest", label: "Vests" },
   { id: "hat", label: "Hats" },
 ];
 
@@ -58,6 +59,7 @@ export const METHOD_LABELS: Record<Method, string> = {
 export function methodsFor(item: Item): Method[] {
   if (item === "hat") return ["patch", "hat_embroidery"];
   if (item === "polo") return ["embroidery"]; // polos: left-chest embroidery only
+  if (item === "vest") return ["embroidery"]; // vests: embroidery only (Phil 2026-10-28)
   if (item === "jacket") return ["embroidery", "dtf"]; // jackets: embroidery ($20 jacket column) or DTF
   return ["screen_print", "dtf", "embroidery"];
 }
@@ -65,6 +67,7 @@ export function methodsFor(item: Item): Method[] {
 export function placementsFor(item: Item, method: Method): string[] {
   if (item === "hat") return ["Front", "Side", "Back"];
   if (item === "polo") return ["Left chest"];
+  if (item === "vest") return ["Left chest", "Right chest"];
   if (item === "jacket") return method === "embroidery" ? ["Left chest", "Right chest", "Sleeve"] : ["Left chest", "Back", "Sleeve"];
   if (method === "embroidery") return ["Left chest", "Center front", "Sleeve"]; // no back embroidery
   return ["Front", "Back", "Left chest", "Sleeve"];
@@ -75,6 +78,12 @@ export const MORE_STYLES: Partial<Record<Item, { style: string; label: string }[
   jacket: [
     { style: "J787", label: "J787 Hybrid Soft Shell" },
     { style: "CT103828", label: "Carhartt Detroit" },
+    { style: "CT104050", label: "Carhartt Washed Duck Active Jac" },
+  ],
+  vest: [
+    { style: "L219", label: "L219 Women's Fleece" },
+    { style: "L325", label: "L325 Women's Soft Shell" },
+    { style: "J709", label: "J709 Puffy" },
   ],
 };
 
@@ -110,13 +119,27 @@ export interface CounterLine {
   usePick: boolean; // price their pick instead of a house tier
   color: string; // garment color, free text
   sleeve: "short" | "long"; // T-shirts only
+  jacketType: JacketType;   // Jackets only
 }
 
+export type JacketType = "softshell" | "puffer" | "insulated" | "fleece" | "rain";
+export const JACKET_TYPES: { id: JacketType; label: string }[] = [
+  { id: "softshell", label: "Soft shell" },
+  { id: "puffer", label: "Puffer" },
+  { id: "insulated", label: "Insulated" },
+  { id: "fleece", label: "Fleece" },
+  { id: "rain", label: "Rain" },
+];
+
 /** Pricing category: T-shirts split into short and long sleeve. */
-export const categoryFor = (line: Pick<CounterLine, "item" | "sleeve">) =>
-  line.item === "tee" && line.sleeve === "long" ? "longsleeve" : line.item;
-export const itemLabel = (line: Pick<CounterLine, "item" | "sleeve">) =>
-  line.item === "tee" && line.sleeve === "long" ? "Long Sleeve Tees" : ITEMS.find((i) => i.id === line.item)!.label;
+export const categoryFor = (line: Pick<CounterLine, "item" | "sleeve"> & { jacketType?: JacketType }) =>
+  line.item === "tee" && line.sleeve === "long" ? "longsleeve"
+  : line.item === "jacket" && line.jacketType && line.jacketType !== "softshell" ? `jacket_${line.jacketType}`
+  : line.item;
+export const itemLabel = (line: Pick<CounterLine, "item" | "sleeve"> & { jacketType?: JacketType }) =>
+  line.item === "tee" && line.sleeve === "long" ? "Long Sleeve Tees"
+  : line.item === "jacket" ? `${JACKET_TYPES.find((t) => t.id === (line.jacketType ?? "softshell"))!.label} Jackets`
+  : ITEMS.find((i) => i.id === line.item)!.label;
 
 export function newLine(item: Item = "tee"): CounterLine {
   return {
@@ -137,6 +160,7 @@ export function newLine(item: Item = "tee"): CounterLine {
     usePick: true,
     color: "",
     sleeve: "short",
+    jacketType: "softshell",
   };
 }
 
@@ -350,7 +374,7 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
   const opts = {
     colors: line.colors,
     locations: locs,
-    jacket: line.item === "jacket",
+    jacket: line.item === "jacket" || line.item === "vest",
     screenColors: line.method === "screen_print" ? screenColorsFor(line) : undefined,
     dtfCols: line.method === "dtf" ? line.placements.map((pl) => dtfColFor(line, pl)) : undefined,
   };
@@ -380,9 +404,9 @@ export async function priceLine(db: unknown, line: CounterLine): Promise<Priced>
     if (qty < SCREEN_FEE_WAIVE_QTY) out.notes.push(`Screen setup is waived at ${SCREEN_FEE_WAIVE_QTY}+ pieces.`);
   } else {
     if (qty < SMALL_MIN) out.blocker = `${METHOD_LABELS[line.method]} starts at ${SMALL_MIN} pieces.`;
-    if (line.method === "embroidery") out.notes.push(line.item === "jacket" ? "Jacket embroidery up to 10,000 stitches (most logos). We confirm after digitizing." : "Embroidery up to 10,000 stitches (most logos). We confirm after digitizing.");
+    if (line.method === "embroidery") out.notes.push(line.item === "jacket" || line.item === "vest" ? `${line.item === "vest" ? "Vest" : "Jacket"} embroidery up to 10,000 stitches (most logos). We confirm after digitizing.` : "Embroidery up to 10,000 stitches (most logos). We confirm after digitizing.");
     const carhartt = line.usePick && out.requested ? /^CT/.test(out.requested.style) : line.tier === "best";
-    if (line.item === "jacket" && carhartt) out.notes.push("Carhartt is priced at Carhartt's retail price plus decoration.");
+    if ((line.item === "jacket" || line.item === "vest") && carhartt) out.notes.push("Carhartt is priced at Carhartt's retail price plus decoration.");
     if (line.method === "dtf") out.notes.push(`Full-color print: ${dtfSummary(line)}. No screen fees.`);
   }
 
@@ -427,8 +451,41 @@ export const money = (n: number) => n.toLocaleString("en-US", { style: "currency
 // ── Save ───────────────────────────────────────────────────────────────
 
 export interface CounterContact { name: string; phone: string; email: string; company: string }
+// ── Rush (Phil 2026-10-28): 2–3 days = +100%, under 7 days = +50% ──
+// Charged on the products (garments + decoration), not on one-time fees like digitizing or screens.
+export type Rush = 0 | 50 | 100;
+export const RUSH_OPTIONS: { pct: Rush; label: string; hint: string }[] = [
+  { pct: 0, label: "Standard", hint: "no rush" },
+  { pct: 50, label: "Under 7 days", hint: "+50%" },
+  { pct: 100, label: "2–3 days", hint: "+100%" },
+];
+/** Calendar days from today to a yyyy-mm-dd due date (local time). */
+export function daysUntil(due: string, today = new Date()): number {
+  const [y, m, d] = due.split("-").map(Number);
+  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return Math.round((new Date(y, m - 1, d).getTime() - t0) / 86400000);
+}
+/** Rush level a due date calls for: 3 days or less = 100%, under 7 days = 50%. */
+export function rushForDate(due: string, today = new Date()): Rush {
+  if (!due) return 0;
+  const n = daysUntil(due, today);
+  return n <= 3 ? 100 : n < 7 ? 50 : 0;
+}
+/** Product subtotal the rush applies to (unit price × billed qty; one-time fees excluded). */
+export function rushBase(lines: CounterLine[], priced: Record<string, Priced | undefined>): number {
+  return lines.reduce((a, l) => {
+    const p = priced[l.id];
+    const s = chosen(l, p);
+    return !s || !p || p.blocker || l.qty <= 0 ? a : a + s.unit_price * p.billedQty;
+  }, 0);
+}
+export const rushAmount = (base: number, rush: Rush) => Number(((base * rush) / 100).toFixed(2));
+export const rushLabel = (rush: Rush) =>
+  rush === 100 ? "Rush charge (2–3 days, +100%)" : rush === 50 ? "Rush charge (under 7 days, +50%)" : "";
+
 export interface CounterExtras {
   dueDate: string;            // yyyy-mm-dd or ""
+  rush: Rush;                 // rush charge %, set at the counter (suggested from the due date)
   notes: string;
   needsArtHelp: boolean;
   shipping: boolean;
@@ -486,6 +543,7 @@ export async function saveCounterQuote(
 
   const considerations = [
     extras.ownGarments && "Customer wants to bring their own garments. Needs management approval before quoting.",
+    (extras.rush ?? 0) > 0 && `RUSH: ${rushLabel(extras.rush)}${extras.dueDate ? `, due ${extras.dueDate}` : ""}. Confirm the schedule before taking it.`,
     extras.needsArtHelp && "Needs help with artwork.",
     extras.shipping && "Wants it shipped.",
     extras.nonprofit && "Nonprofit / tax exempt. Get the certificate.",
@@ -493,7 +551,8 @@ export async function saveCounterQuote(
   ].filter(Boolean) as string[];
 
   const usable = lines.filter((l) => l.qty > 0);
-  const grand = extras.ownGarments ? 0 : usable.reduce((a, l) => a + lineTotal(l, priced[l.id]), 0);
+  const rush = extras.ownGarments ? 0 : rushAmount(rushBase(usable, priced), extras.rush ?? 0);
+  const grand = extras.ownGarments ? 0 : usable.reduce((a, l) => a + lineTotal(l, priced[l.id]), 0) + rush;
 
   const { data: quote, error: qErr } = await db
     .from("quotes")
@@ -556,6 +615,12 @@ export async function saveCounterQuote(
       });
     }
   }
+  if (rush > 0) {
+    rows.push({
+      quote_id: quote.id, service_type: "other", description: rushLabel(extras.rush), quantity: 1, sizes: {},
+      garment_cost: 0, garment_markup_pct: 0, decoration_cost: rush, line_total: rush, notes: null,
+    });
+  }
   if (rows.length) {
     const { error } = await db.from("quote_line_items").insert(rows.map((r, i) => ({ ...r, sort_order: i })));
     if (error) throw error;
@@ -587,6 +652,7 @@ export async function saveCounterQuote(
       description: [
         `Walk-in quote ${quote.quote_number || ""} — quoted at the counter${extras.dueDate ? `, needed by ${extras.dueDate}` : ""}.`,
         ...priceLines,
+        rush > 0 ? `• ${rushLabel(extras.rush)}: ${money(rush)}` : "",
         !extras.ownGarments && grand > 0 ? `Estimated total: ${money(grand)} + tax` : "",
         ...considerations.map((c) => `⚠️ ${c}`),
       ].filter(Boolean).join("\n"),

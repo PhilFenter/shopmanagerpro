@@ -21,14 +21,14 @@ import {
 import {
   ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary, screenColorsFor, screenSummary, itemLabel,
   methodsFor, placementsFor,
-  MORE_STYLES, newLine, priceLine, chosen, lineTotal, money,
+  MORE_STYLES, JACKET_TYPES, RUSH_OPTIONS, rushForDate, rushBase, rushAmount, rushLabel, type Rush, newLine, priceLine, chosen, lineTotal, money,
   saveCounterQuote, saveQuickNote, findCustomer, pushToPrintavo,
   type CounterLine, type Priced, type Item, type Method, type CounterContact, type CounterExtras,
 } from "@/lib/counterQuote";
 
 const QTY_CHIPS = [12, 24, 48, 72, 144];
 const emptyContact: CounterContact = { name: "", phone: "", email: "", company: "" };
-const emptyExtras: CounterExtras = { dueDate: "", notes: "", needsArtHelp: false, shipping: false, nonprofit: false, ownGarments: false };
+const emptyExtras: CounterExtras = { dueDate: "", rush: 0, notes: "", needsArtHelp: false, shipping: false, nonprofit: false, ownGarments: false };
 
 function Chip({ active, onClick, children, className }: { active?: boolean; onClick: () => void; children: React.ReactNode; className?: string }) {
   return (
@@ -154,10 +154,15 @@ export default function CounterQuote() {
     });
   };
 
-  const grand = useMemo(
-    () => (extras.ownGarments ? 0 : lines.reduce((a, l) => a + lineTotal(l, priced[l.id]), 0)),
-    [lines, priced, extras.ownGarments],
+  const rushCharge = useMemo(
+    () => (extras.ownGarments ? 0 : rushAmount(rushBase(lines, priced), extras.rush)),
+    [lines, priced, extras.ownGarments, extras.rush],
   );
+  const grand = useMemo(
+    () => (extras.ownGarments ? 0 : lines.reduce((a, l) => a + lineTotal(l, priced[l.id]), 0) + rushCharge),
+    [lines, priced, extras.ownGarments, rushCharge],
+  );
+  const setDue = (dueDate: string) => setExtras((x) => ({ ...x, dueDate, rush: rushForDate(dueDate) }));
 
   const lookup = async () => {
     try {
@@ -333,7 +338,26 @@ export default function CounterQuote() {
         <div className="text-lg text-muted-foreground">Pick a quantity to see a price.</div>
       )}
 
-      {lines.length > 1 && !extras.ownGarments && (
+      {!extras.ownGarments && (
+        <div className="space-y-2 border-t pt-4">
+          <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">How fast?</div>
+          <div className="flex flex-wrap gap-2">
+            {RUSH_OPTIONS.map((r) => (
+              <Chip key={r.pct} active={extras.rush === r.pct} onClick={() => setExtras((x) => ({ ...x, rush: r.pct as Rush }))}>
+                {r.label}<span className="ml-2 text-sm opacity-70">{r.hint}</span>
+              </Chip>
+            ))}
+          </div>
+          {rushCharge > 0 && (
+            <div className="flex items-baseline justify-between text-lg">
+              <span>{rushLabel(extras.rush)}</span>
+              <span className="font-semibold">{money(rushCharge)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(lines.length > 1 || rushCharge > 0) && !extras.ownGarments && (
         <div className="flex items-baseline justify-between rounded-2xl bg-primary/10 px-5 py-4">
           <span className="text-lg">Whole order, about</span>
           <span className="text-3xl font-bold">{money(grand)}</span>
@@ -365,6 +389,11 @@ export default function CounterQuote() {
           </div>
         );
       })}
+      {rushCharge > 0 && (
+        <div className="flex items-baseline justify-between text-xl font-semibold">
+          <span>{rushLabel(extras.rush)}</span><span>{money(rushCharge)}</span>
+        </div>
+      )}
       {!extras.ownGarments && grand > 0 && (
         <div className="flex items-baseline justify-between rounded-2xl bg-primary/10 px-5 py-4">
           <span className="text-lg">Estimated total</span>
@@ -495,6 +524,13 @@ export default function CounterQuote() {
                 <div className="flex flex-wrap items-center gap-3">
                   <Chip active={line.sleeve !== "long"} onClick={() => update({ sleeve: "short" })}>Short sleeve</Chip>
                   <Chip active={line.sleeve === "long"} onClick={() => update({ sleeve: "long" })}>Long sleeve</Chip>
+                </div>
+              )}
+              {line.item === "jacket" && (
+                <div className="flex flex-wrap items-center gap-3">
+                  {JACKET_TYPES.map((t) => (
+                    <Chip key={t.id} active={(line.jacketType ?? "softshell") === t.id} onClick={() => update({ jacketType: t.id })}>{t.label}</Chip>
+                  ))}
                 </div>
               )}
             </Section>
@@ -635,11 +671,13 @@ export default function CounterQuote() {
 
             <Section title="When do you need it?">
               <div className="flex flex-wrap items-center gap-3">
-                <Chip active={extras.dueDate === addDays(14)} onClick={() => setExtras({ ...extras, dueDate: addDays(14) })}>Standard (2 weeks)</Chip>
-                <Chip active={!extras.dueDate} onClick={() => setExtras({ ...extras, dueDate: "" })}>No rush</Chip>
-                <Input type="date" className="h-14 w-56 text-lg md:text-lg" value={extras.dueDate} min={addDays(1)} onChange={(e) => setExtras({ ...extras, dueDate: e.target.value })} />
+                <Chip active={extras.dueDate === addDays(14)} onClick={() => setDue(addDays(14))}>Standard (2 weeks)</Chip>
+                <Chip active={!extras.dueDate} onClick={() => setDue("")}>No rush</Chip>
+                <Input type="date" className="h-14 w-56 text-lg md:text-lg" value={extras.dueDate} min={addDays(1)} onChange={(e) => setDue(e.target.value)} />
               </div>
-              {extras.dueDate && extras.dueDate < addDays(10) && (
+              {extras.rush > 0 ? (
+                <div className="text-lg text-amber-600">{extras.rush === 100 ? "2–3 day rush: +100% on the order." : "Under 7 days: +50% rush on the order."} We'll confirm we can hit it.</div>
+              ) : extras.dueDate && extras.dueDate < addDays(10) && (
                 <div className="text-lg text-amber-600">That's a quick turnaround. We'll confirm we can hit it.</div>
               )}
             </Section>
