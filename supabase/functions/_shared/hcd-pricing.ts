@@ -159,12 +159,32 @@ export const PICKS: Record<string, Record<Tier, Pick>> = {
     better: { style: "112", name: "Richardson 112 Trucker", cost: 8.75, cost2xl: 8.75, msrp: 13.5 },
     best: { style: "168", name: "Richardson 168 7-Panel", cost: 9.5, cost2xl: 9.5, msrp: 15 },
   },
-  // Jackets (Phil 2026-10-19): picks from HCD's own jacket sales history. SanMar list, checked 2026-10-19.
-  // Carhartt has MAP pricing: garment sells at Carhartt retail ($139.99) + decoration, like the K121.
-  jacket: {
+  // Jackets by type (Phil 2026-10-28), picked from the 2026 SanMar Outerwear Navigator good/better/best rows.
+  // SanMar list checked 2026-10-28. Carhartt has MAP pricing: garment sells at Carhartt's regular retail + decoration.
+  jacket: { // soft shell (default)
     good: { style: "J317", name: "Port Authority J317 Core Soft Shell", cost: 30.64, cost2xl: 31.64, msrp: 0 },
-    better: { style: "J850", name: "Port Authority J850 Packable Puffy", cost: 37.24, cost2xl: 38.24, msrp: 0 },
-    best: { style: "CT104050", name: "Carhartt CT104050 Washed Duck Active Jac", cost: 94.77, cost2xl: 94.77, msrp: 139.99, map: 139.99 },
+    better: { style: "EB544", name: "Eddie Bauer EB544 Stretch Soft Shell", cost: 48.7, cost2xl: 49.7, msrp: 0 },
+    best: { style: "CT102199", name: "Carhartt CT102199 Crowley Soft Shell", cost: 94.77, cost2xl: 94.77, msrp: 129.99, map: 129.99 },
+  },
+  jacket_puffer: {
+    good: { style: "J850", name: "Port Authority J850 Packable Puffy", cost: 37.24, cost2xl: 38.24, msrp: 0 },
+    better: { style: "EB514", name: "Eddie Bauer EB514 Packable Quilted", cost: 48.7, cost2xl: 49.7, msrp: 0 },
+    best: { style: "CT102208", name: "Carhartt CT102208 Gilliam Jacket", cost: 70, cost2xl: 70, msrp: 109.99, map: 109.99 },
+  },
+  jacket_insulated: {
+    good: { style: "J754", name: "Port Authority J754 Challenger", cost: 36.4, cost2xl: 37.4, msrp: 0 },
+    better: { style: "J331", name: "Port Authority J331 All-Conditions Jacket", cost: 43.11, cost2xl: 44.11, msrp: 0 },
+    best: { style: "CT106677", name: "Carhartt CT106677 Quilted-Flannel-Lined Duck Active Jac", cost: 81.7, cost2xl: 81.7, msrp: 139.99, map: 139.99 },
+  },
+  jacket_fleece: {
+    good: { style: "F217", name: "Port Authority F217 Value Fleece Jacket", cost: 21.05, cost2xl: 22.05, msrp: 0 },
+    better: { style: "F232", name: "Port Authority F232 Sweater Fleece Jacket", cost: 33.05, cost2xl: 34.05, msrp: 0 },
+    best: { style: "CT106416", name: "Carhartt CT106416 Textured Full-Zip Fleece", cost: 65.75, cost2xl: 65.75, msrp: 94.99, map: 94.99 },
+  },
+  jacket_rain: {
+    good: { style: "J407", name: "Port Authority J407 Essential Rain Jacket", cost: 32.49, cost2xl: 33.49, msrp: 0 },
+    better: { style: "J406", name: "Port Authority J406 Tech Rain Jacket", cost: 50.94, cost2xl: 51.94, msrp: 0 },
+    best: { style: "CT104670", name: "Carhartt CT104670 Storm Defender Shoreline", cost: 111.72, cost2xl: 111.72, msrp: 149.99, map: 149.99 },
   },
   // Vests (Phil 2026-10-28): embroidery only, jacket embroidery price. Picks from the 2026 SanMar Outerwear
   // Navigator + HCD's vest history (F219/L219 and J325/L325 are the most-sold). SanMar list checked 2026-10-28.
@@ -195,6 +215,7 @@ export const KNOWN_STYLES: Pick[] = [
   // Carhartt has a $55 MAP; priced at MAP + decoration.
   { style: "CTK121", name: "Carhartt K121 Midweight", cost: 39.75, cost2xl: 39.75, msrp: 55, map: 55 },
   // Extra jacket options (Phil 2026-10-19). Carhartt Detroit at Carhartt retail + decoration, like the CT104050.
+  { style: "CT104050", name: "Carhartt CT104050 Washed Duck Active Jac", cost: 94.77, cost2xl: 94.77, msrp: 139.99, map: 139.99 },
   { style: "J787", name: "Port Authority J787 Hybrid Soft Shell", cost: 39.76, cost2xl: 40.76, msrp: 0 },
   { style: "CT103828", name: "Carhartt CT103828 Duck Detroit Jacket", cost: 94.5, cost2xl: 94.5, msrp: 139.99, map: 139.99 },
 ];
@@ -213,7 +234,13 @@ export function categoryOf(item: string | null | undefined): string | null {
   if (/hat|cap|beanie/.test(s)) return "hat";
   if (/hood/.test(s)) return "hoodie"; // "hooded jacket" / zip hoodies stay hoodies (shirt embroidery price)
   if (/\bvests?\b/.test(s)) return /safety|ansi|hi-?vis|high.?vis|reflective|mesh/.test(s) ? null : "vest";
-  if (/jacket|\bcoats?\b|soft ?shell|parka|puffy|puffer|outerwear|active jac/.test(s)) return "jacket";
+  if (/jacket|\bcoats?\b|soft ?shell|parka|puffy|puffer|outerwear|active jac|rain ?wear/.test(s)) {
+    if (/puff|quilt|down\b/.test(s)) return "jacket_puffer";
+    if (/rain|waterproof|storm/.test(s)) return "jacket_rain";
+    if (/fleece/.test(s)) return "jacket_fleece";
+    if (/insulated|\bcoats?\b|parka|active jac|duck|winter|3-in-1/.test(s)) return "jacket_insulated";
+    return "jacket";
+  }
   if (/crew ?neck|sweatshirt|\bcrews?\b(?! ?members?)|sweats?\b/.test(s)) return "crew";
   if (/polo/.test(s)) return "polo";
   if (/long ?sleeve|\bl\/s\b|\bls\b/.test(s)) return "longsleeve";
@@ -331,7 +358,7 @@ export async function suggestTiers(
   const row = matrixRow(service, qty);
   if (!picks || !row || qty <= 0) return [];
   // Jackets and vests embroider at the jacket price ($20 up to 10k).
-  if (category === "jacket" || category === "vest") opts = { ...opts, jacket: true };
+  if (category.startsWith("jacket") || category === "vest") opts = { ...opts, jacket: true };
   const deco = decoPrice(row, service, opts);
   const out: Suggestion[] = [];
   for (const tier of ["good", "better", "best"] as Tier[]) {
