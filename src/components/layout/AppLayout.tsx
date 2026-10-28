@@ -52,6 +52,7 @@ interface AppLayoutProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Scan Station', href: '/scan', icon: ScanLine },
   { name: 'Action Items', href: '/action-items', icon: ListTodo },
   { name: 'Counter Quote', href: '/counter', icon: Store },
   { name: 'Knowledge', href: '/knowledge', icon: BookOpen },
@@ -60,6 +61,7 @@ const navigation = [
   { name: 'Artwork', href: '/artwork', icon: Palette },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
+  { name: 'InkSoft Imports', href: '/production/imports', icon: FileText },
   { name: 'Handoffs', href: '/handoffs', icon: Inbox },
   { name: 'Schedule', href: '/schedule', icon: CalendarDays },
   
@@ -70,7 +72,6 @@ const navigation = [
       { name: 'Embroidery', href: '/embroidery', icon: Shirt },
       { name: 'Screen Print', href: '/screen-print', icon: Printer },
       { name: 'DTF', href: '/dtf', icon: Flame },
-      { name: 'Scan Station', href: '/scan', icon: ScanLine },
       { name: 'Production Board', href: '/production/orders', icon: ClipboardList },
       { name: 'DTF Transfers', href: '/production/transfers', icon: Flame },
       { name: 'Leather', href: '/leather', icon: Scissors },
@@ -87,7 +88,6 @@ const adminNavigation = [
 const financialNavigation = [
   { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Purchase Orders', href: '/purchase-orders', icon: Package },
-  { name: 'InkSoft Imports', href: '/production/imports', icon: FileText },
   { name: 'Customers', href: '/customers', icon: UserCheck },
   { name: 'Messages', href: '/messages', icon: MessagesSquare },
   { name: 'Financials', href: '/financials', icon: DollarSign },
@@ -98,10 +98,12 @@ const financialNavigation = [
 export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [productionExpanded, setProductionExpanded] = useState(false);
   const { user, signOut, role } = useAuth();
   const { isPreviewingAsTeam, togglePreview } = useRolePreview();
   const location = useLocation();
+  const [productionExpanded, setProductionExpanded] = useState(() =>
+    ['/embroidery', '/screen-print', '/dtf', '/leather', '/production/orders', '/production/transfers'].some((p) => location.pathname.startsWith(p)),
+  );
   const navigate = useNavigate();
   const { handoffs } = useHandoffs();
   const unreadHandoffs = handoffs.filter(h => h.status !== 'completed').length;
