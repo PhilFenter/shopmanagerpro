@@ -162,3 +162,52 @@ export function orderStage(o: FloorOrderFull) {
   else stage = 'Labeled';
   return { pieces: g.length, tasks: tasks.length, done, printed, inSpot, stage };
 }
+
+export interface WorkDecoration {
+  id: string;
+  seq: number;
+  location: string | null;
+  method_inksoft: string | null;
+  method_production: string | null;
+  colorway: string | null;
+  color_count: string | null;
+  width_in: number | null;
+  height_in: number | null;
+  thread_colors: string[];
+  artwork_hash: string | null;
+  mockup_hash: string | null;
+}
+export interface GarmentWork {
+  item: {
+    id: string; mfg_sku: string | null; color: string | null; product_name: string | null;
+    design_name: string | null; design_id: string | null; mockup_hash: string | null;
+    prod_item_decorations: WorkDecoration[];
+  } | null;
+  tasks: { id: string; decoration_id: string | null; location: string; method: string; status: string }[];
+}
+
+/** What goes on one scanned piece: its product line, decorations (with preview images) and task status. */
+export function useGarmentWork(garmentId: string | undefined) {
+  return useQuery({
+    queryKey: ['prod', 'garment-work', garmentId],
+    enabled: !!garmentId,
+    queryFn: async (): Promise<GarmentWork> => {
+      const { data: g, error: e1 } = await prodDb.from('prod_garments').select('item_id').eq('id', garmentId).single();
+      if (e1) throw new Error(e1.message);
+      const itemId = (g as { item_id: string | null }).item_id;
+      const [{ data: item, error: e2 }, { data: tasks, error: e3 }] = await Promise.all([
+        itemId
+          ? prodDb.from('prod_order_items')
+            .select('id, mfg_sku, color, product_name, design_name, design_id, mockup_hash, prod_item_decorations(id, seq, location, method_inksoft, method_production, colorway, color_count, width_in, height_in, thread_colors, artwork_hash, mockup_hash)')
+            .eq('id', itemId).single()
+          : Promise.resolve({ data: null, error: null }),
+        prodDb.from('prod_tasks').select('id, decoration_id, location, method, status').eq('garment_id', garmentId).neq('status', 'voided'),
+      ]);
+      if (e2) throw new Error(e2.message);
+      if (e3) throw new Error(e3.message);
+      const it = item as GarmentWork['item'];
+      if (it) it.prod_item_decorations.sort((a, b) => a.seq - b.seq);
+      return { item: it, tasks: (tasks ?? []) as GarmentWork['tasks'] };
+    },
+  });
+}
