@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { usePreviewUrls, useProdAction, useTransferRows } from '@/hooks/useProductionImports';
+import { useImportBatches, usePreviewUrls, useProdAction, useTransferRows } from '@/hooks/useProductionImports';
 import { buildTransferList, type TransferLine } from '@/lib/production/transfers';
 import { PreviewThumb } from '@/components/production/ProdShared';
 import { cn } from '@/lib/utils';
 
 // DTF transfers needed for approved orders. A list only — print the transfers in the usual DTF software.
 // /production/transfers (in the app) and /print/transfers (paper copy, no menus).
+// ?batch=ID shows only the orders from one import (the batch view for the RIP computer).
 
 const PRINT_CSS = `
 @page { size: letter portrait; margin: 0.4in; }
@@ -22,7 +23,17 @@ const PRINT_CSS = `
 type Show = 'open' | 'all';
 
 export default function ProductionTransfers({ printMode = false }: { printMode?: boolean }) {
-  const { data: rows, isLoading, error } = useTransferRows();
+  const [params, setParams] = useSearchParams();
+  const batchId = params.get('batch');
+  const { data: batches } = useImportBatches();
+  const { data: rows, isLoading, error } = useTransferRows(batchId);
+  const batchName = batches?.find((b) => b.id === batchId)?.file_name;
+  const setBatch = (v: string) => {
+    const next = new URLSearchParams(params);
+    if (v === 'all') next.delete('batch');
+    else next.set('batch', v);
+    setParams(next, { replace: true });
+  };
   const [show, setShow] = useState<Show>('open');
   const [store, setStore] = useState<string>('all');
   const mark = useProdAction<{ p_decoration_ids: string[]; p_printed: boolean }>('prod_set_transfers_printed');
@@ -40,6 +51,15 @@ export default function ProductionTransfers({ printMode = false }: { printMode?:
 
   const controls = (
     <div className="flex flex-wrap items-center gap-2 print:hidden">
+      <Select value={batchId ?? 'all'} onValueChange={setBatch}>
+        <SelectTrigger className="h-8 w-64"><SelectValue placeholder="All approved orders" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All approved orders</SelectItem>
+          {(batches ?? []).filter((b) => b.status === 'parsed').map((b) => (
+            <SelectItem key={b.id} value={b.id}>{b.file_name} · {new Date(b.created_at).toLocaleDateString()}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Select value={show} onValueChange={(v) => setShow(v as Show)}>
         <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
         <SelectContent>
@@ -58,7 +78,7 @@ export default function ProductionTransfers({ printMode = false }: { printMode?:
         <Button size="sm" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" /> Print</Button>
       ) : (
         <Button size="sm" variant="outline" asChild>
-          <Link to="/print/transfers" target="_blank"><Printer className="mr-1 h-4 w-4" /> Printable list</Link>
+          <Link to={`/print/transfers${batchId ? `?batch=${batchId}` : ''}`} target="_blank"><Printer className="mr-1 h-4 w-4" /> Printable list</Link>
         </Button>
       )}
     </div>
@@ -89,13 +109,14 @@ export default function ProductionTransfers({ printMode = false }: { printMode?:
                 />
               )}
               {printMode && <div className="mt-1 h-5 w-5 shrink-0 rounded border-2 border-black" />}
-              <PreviewThumb url={l.artwork_hash ? urls?.[l.artwork_hash] : null} size={64} label={l.design_name ?? 'Artwork'} />
+              <PreviewThumb url={l.artwork_hash ? urls?.[l.artwork_hash] : null} size={printMode ? 64 : 112} label={l.design_name ?? 'Artwork'} />
               <div className="min-w-0 flex-1 text-sm">
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <span className="text-2xl font-bold tabular-nums">{done ? l.quantity : left}×</span>
                   <span className="font-semibold">{l.design_name ?? 'Design name missing'}</span>
                   <span>{l.colorway ?? '—'}</span>
                   <span className="font-semibold">{l.location ?? 'Location missing'}</span>
+                  {l.print_sizes.length > 0 && <span className="rounded bg-neutral-100 px-1.5 font-semibold">{l.print_sizes.join(' / ')}</span>}
                   {l.printed_quantity > 0 && !done && <span className="text-muted-foreground">({l.printed_quantity} already printed)</span>}
                   {done && <span className="text-muted-foreground">printed</span>}
                 </div>
@@ -120,7 +141,7 @@ export default function ProductionTransfers({ printMode = false }: { printMode?:
       <div className="min-h-screen bg-white p-6 text-black">
         <style>{PRINT_CSS}</style>
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <h1 className="flex-1 text-xl font-bold">DTF transfers to print — {totalOpen} total · {new Date().toLocaleDateString()}</h1>
+          <h1 className="flex-1 text-xl font-bold">DTF transfers to print — {totalOpen} total{batchName ? ` · ${batchName}` : ''} · {new Date().toLocaleDateString()}</h1>
           {controls}
         </div>
         {body}
@@ -137,7 +158,8 @@ export default function ProductionTransfers({ printMode = false }: { printMode?:
         <div className="flex-1">
           <h1 className="text-2xl font-bold">DTF Transfers</h1>
           <p className="text-sm text-muted-foreground">
-            Transfers needed for approved InkSoft orders, grouped by design, color and location. {totalOpen} still to print.
+            {batchName ? <>Import <b>{batchName}</b>. </> : 'All approved InkSoft orders. '}
+            Grouped by design, color and location, so matching prints from different orders show as one line. {totalOpen} still to print. Updates every 30 seconds.
           </p>
         </div>
         {controls}

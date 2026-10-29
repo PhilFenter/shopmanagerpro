@@ -114,6 +114,23 @@ export function useFloorOrder(orderId: string | undefined) {
   });
 }
 
+/** Approved orders from one import batch, with their garments (for printing a whole batch of labels). */
+export function useBatchFloorOrders(batchId: string | undefined) {
+  return useQuery({
+    queryKey: ['prod', 'batch-floor', batchId],
+    enabled: !!batchId,
+    queryFn: async () => {
+      const { data: src, error: e0 } = await prodDb.from('prod_order_sources').select('order_id').eq('batch_id', batchId);
+      if (e0) throw new Error(e0.message);
+      const ids = [...new Set((src ?? []).map((s) => s.order_id as string))];
+      const { data, error } = await prodDb.from('prod_orders').select(ORDER_COLS).eq('status', 'approved').in('id', ids.length ? ids : NONE);
+      if (error) throw new Error(error.message);
+      const full = await loadFull((data ?? []) as FloorOrder[]);
+      return full.sort((a, b) => a.order_number.localeCompare(b.order_number));
+    },
+  });
+}
+
 export function useSpotCount() {
   return useQuery({
     queryKey: ['prod', 'settings'],

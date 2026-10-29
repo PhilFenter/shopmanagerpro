@@ -106,14 +106,25 @@ export function usePreviewUrls(hashes: string[]) {
   });
 }
 
-export function useTransferRows() {
+/** Order ids that came in with an import batch. */
+export async function batchOrderIds(batchId: string) {
+  const { data, error } = await prodDb.from('prod_order_sources').select('order_id').eq('batch_id', batchId);
+  if (error) throw new Error(error.message);
+  return [...new Set((data ?? []).map((s) => s.order_id as string))];
+}
+
+/** DTF decorations on approved orders. With batchId, only orders from that import. */
+export function useTransferRows(batchId?: string | null) {
   return useQuery({
-    queryKey: ['prod', 'transfers'],
+    queryKey: ['prod', 'transfers', batchId ?? 'all'],
+    refetchInterval: 30_000,
     queryFn: async () => {
-      const { data: orders, error: e1 } = await prodDb
-        .from('prod_orders')
-        .select('id, order_number, store_name, due_date')
-        .eq('status', 'approved');
+      let q = prodDb.from('prod_orders').select('id, order_number, store_name, due_date').eq('status', 'approved');
+      if (batchId) {
+        const only = await batchOrderIds(batchId);
+        q = q.in('id', only.length ? only : ['00000000-0000-0000-0000-000000000000']);
+      }
+      const { data: orders, error: e1 } = await q;
       if (e1) throw new Error(e1.message);
       const ids = (orders ?? []).map((o) => o.id as string);
       if (ids.length === 0) return [] as (TransferSourceDecoration & { due_date: string | null })[];
@@ -138,6 +149,8 @@ export function useTransferRows() {
             method_inksoft: d.method_inksoft,
             artwork_hash: d.artwork_hash,
             transfer_printed_at: d.transfer_printed_at,
+            width_in: d.width_in,
+            height_in: d.height_in,
             sizes: it.prod_item_sizes.map((s) => ({ size: s.size, quantity: s.quantity })),
           });
         }

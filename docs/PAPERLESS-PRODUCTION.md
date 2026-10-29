@@ -128,3 +128,13 @@ Order when going live: **SQL first, then merge, then Lovable Publish.**
 garment and task creation, the back-fill, permissions, label printing, station scans and duplicate scans,
 assembly refusals, spot assignment and full spots, final check, pack, ship, corrections after printing,
 undo, unknown labels, and rollback.
+
+## Batch tools (per import)
+
+Each import page has a "Whole batch" row:
+
+- **Print all labels** — `/print/labels?batch=ID&which=unprinted`. Every unprinted 2×2 label for the batch's approved orders, sorted by order number, in one print job. Marks them printed the same way the per-order page does.
+- **Blank garment order** — `/print/po/:batchId`. Blank garments combined by style, color and size across the batch's approved orders (optionally including orders still in review), with a printable sheet and a CSV (Style, Color, Size, Quantity, Description, Orders). A list only; nothing is sent to SanMar or any vendor. Lines missing a style or color are marked for checking, not guessed.
+- **DTF prints for this batch** — `/production/transfers?batch=ID`. The DTF transfer list filtered to one import, with larger previews, print sizes when the work order lists them, and a 30-second refresh. Meant to stay open at the RIP computer.
+
+No database changes.

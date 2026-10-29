@@ -6,10 +6,11 @@ import { ArrowLeft, Loader2, Printer } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { rpc } from '@/lib/production/db';
-import { liveGarments, liveTasks, METHOD_LABEL, shortCode, useFloorOrder, type ProdGarment } from '@/hooks/useProductionFloor';
+import { liveGarments, liveTasks, METHOD_LABEL, shortCode, useBatchFloorOrders, useFloorOrder, type ProdGarment } from '@/hooks/useProductionFloor';
 
 // Print pages for the two Rollo printers. No app menus; the toolbar hides when printing.
 //   /print/labels?order=ID&which=unprinted|all   2×2 garment labels, one per page
+//   /print/labels?batch=ID&which=unprinted|all   same, for every approved order in an import batch
 //   /print/pickup/:orderId                       4×6 pickup label
 // QR codes hold only a link with a random code. No names or order details are inside the QR.
 
@@ -44,11 +45,11 @@ function useQr(texts: string[]) {
   return urls;
 }
 
-function Toolbar({ back, children, onPrint, disabled, note }: { back: string; children?: React.ReactNode; onPrint: () => void; disabled?: boolean; note: React.ReactNode }) {
+function Toolbar({ back, backLabel = 'Back to order', children, onPrint, disabled, note }: { back: string; backLabel?: string; children?: React.ReactNode; onPrint: () => void; disabled?: boolean; note: React.ReactNode }) {
   return (
     <div className="print:hidden sticky top-0 z-10 border-b bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-4 py-3">
-        <Button variant="ghost" size="sm" asChild><Link to={back}><ArrowLeft className="mr-1 h-4 w-4" />Back to order</Link></Button>
+        <Button variant="ghost" size="sm" asChild><Link to={back}><ArrowLeft className="mr-1 h-4 w-4" />{backLabel}</Link></Button>
         <div className="flex-1" />
         {children}
         <Button size="sm" onClick={onPrint} disabled={disabled}><Printer className="mr-1 h-4 w-4" />Print</Button>
@@ -86,6 +87,72 @@ export function GarmentLabel({ orderNumber, customerName, g, qr }: { orderNumber
 }
 
 export function PrintGarmentLabels() {
+  const [params] = useSearchParams();
+  if (params.get('batch')) return <PrintBatchLabels batchId={params.get('batch')!} which={params.get('which') === 'all' ? 'all' : 'unprinted'} />;
+  return <PrintOrderLabels />;
+}
+
+/** Every label for the approved orders in one import, in order-number order, as one print job. */
+function PrintBatchLabels({ batchId, which }: { batchId: string; which: 'all' | 'unprinted' }) {
+  const { data: orders, isLoading, error } = useBatchFloorOrders(batchId);
+  const qc = useQueryClient();
+  const rows = useMemo(
+    () => (orders ?? []).flatMap((o) =>
+      liveGarments(o.garments).filter((g) => which === 'all' || !g.label_printed_at).map((g) => ({ o, g }))),
+    [orders, which],
+  );
+  const qr = useQr(rows.map(({ g }) => `${origin()}/g/${g.token}`));
+  const orderCount = new Set(rows.map((r) => r.o.id)).size;
+
+  useEffect(() => {
+    const prev = document.title;
+    document.title = 'Labels for import';
+    return () => { document.title = prev; };
+  }, []);
+
+  const print = async () => {
+    try {
+      await rpc('prod_mark_labels_printed', { p_garment_ids: rows.map(({ g }) => g.id) });
+      qc.invalidateQueries({ queryKey: ['prod'] });
+    } catch (e) {
+      toast.error(`Couldn't record the print: ${(e as Error).message}`);
+    }
+    window.print();
+  };
+
+  if (isLoading) return <div className="p-6"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (error) return <div className="p-6 text-red-700">{(error as Error).message}</div>;
+
+  return (
+    <div className="min-h-screen bg-neutral-200 text-black print:bg-white">
+      <style>{LABEL_CSS}</style>
+      <Toolbar
+        back={`/production/imports/${batchId}`}
+        backLabel="Back to import"
+        onPrint={print}
+        disabled={rows.length === 0 || Object.keys(qr).length < rows.length}
+        note={<>In the print window pick the <b>2×2 Rollo</b>, paper size <b>2 × 2 in</b>, margins <b>None</b>, scale <b>100%</b>. {rows.length} label{rows.length === 1 ? '' : 's'} for {orderCount} approved order{orderCount === 1 ? '' : 's'}, sorted by order number. Orders still in review aren’t included.</>}
+      >
+        <span className="text-sm">{which === 'all' ? 'All labels' : 'Labels not printed yet'}</span>
+      </Toolbar>
+      {rows.length === 0 ? (
+        <div className="p-8 text-center">
+          {(orders ?? []).length === 0
+            ? 'No approved orders in this import yet. Approve them on the import page first.'
+            : 'Every label for the approved orders in this import has been printed. Use “Reprint all” on an order’s page if you need them again.'}
+        </div>
+      ) : (
+        <div className="mx-auto flex max-w-3xl flex-wrap gap-4 p-6 print:block print:max-w-none print:gap-0 print:p-0">
+          {rows.map(({ o, g }) => (
+            <GarmentLabel key={g.id} orderNumber={o.order_number} customerName={o.customer_name} g={g} qr={qr[`${origin()}/g/${g.token}`]} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrintOrderLabels() {
   const [params] = useSearchParams();
   const orderId = params.get('order') ?? undefined;
   const which = params.get('which') === 'all' ? 'all' : 'unprinted';
