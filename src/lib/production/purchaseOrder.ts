@@ -76,3 +76,43 @@ export function purchaseOrderCsv(po: PurchaseOrder) {
       rows.push([l.mfg_sku ?? '', l.color ?? '', size, String(l.bySize[size]), l.product_name ?? '', l.orders.join(' ')]);
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
 }
+
+export const VENDORS = [
+  { key: 'sanmar', label: 'SanMar' },
+  { key: 'ss_activewear', label: 'S&S Activewear' },
+] as const;
+
+export const vendorLabel = (key: string | null | undefined) =>
+  VENDORS.find((v) => v.key === key)?.label ?? key ?? '';
+
+/** Suggest the next PO number: one more than the highest all-digit PO number so far. Blank if there isn't one. */
+export function nextPoNumber(existing: (string | null)[]) {
+  const nums = existing.filter((n): n is string => !!n && /^\d+$/.test(n.trim())).map((n) => n.trim());
+  if (nums.length === 0) return '';
+  const max = nums.reduce((a, b) => (BigInt(b) > BigInt(a) ? b : a));
+  return (BigInt(max) + 1n).toString().padStart(max.length, '0');
+}
+
+/** Marker in purchase_orders.notes that ties a PO to the import batch it came from. */
+export const batchTag = (batchId: string) => `[import:${batchId}]`;
+
+/** po_line_items rows: one per style / color / size. */
+export function poLineRows(po: PurchaseOrder, poId: string) {
+  return po.lines.flatMap((l) =>
+    sortSizes(Object.keys(l.bySize)).map((size) => ({
+      po_id: poId,
+      style_number: l.mfg_sku?.trim() || 'MISSING',
+      color: l.color,
+      size,
+      quantity: l.bySize[size],
+      unit_cost: null,
+      total_cost: null,
+      brand: null,
+      description: l.product_name,
+      source: 'inksoft',
+      source_order_id: null,
+      source_order_name: l.orders.join(' '),
+      job_id: null,
+    })),
+  );
+}

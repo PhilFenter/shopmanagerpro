@@ -28,3 +28,12 @@ describe('buildPurchaseOrder', () => {
     expect(csv.length).toBe(1 + 4);
   });
 });
+
+import { nextPoNumber } from './purchaseOrder';
+describe('nextPoNumber', () => {
+  it('adds one to the highest numeric PO and keeps leading zeros', () => {
+    expect(nextPoNumber(['1001', null, 'SM-55', '1009'])).toBe('1010');
+    expect(nextPoNumber(['0099'])).toBe('0100');
+    expect(nextPoNumber([null, 'ABC'])).toBe('');
+  });
+});
