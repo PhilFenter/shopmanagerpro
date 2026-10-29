@@ -138,3 +138,9 @@ Each import page has a "Whole batch" row:
 - **DTF prints for this batch** — `/production/transfers?batch=ID`. The DTF transfer list filtered to one import, with larger previews, print sizes when the work order lists them, and a 30-second refresh. Meant to stay open at the RIP computer.
 
 No database changes.
+
+## Reset an import (admin only, for training)
+
+Import page → **Delete this import** (admins only; type DELETE to confirm). Runs `prod_delete_import(batch_id)`, which deletes the import and every order that came in with it, with their garments, labels, tasks, table spots and scans, and logs an `import_deleted` event. The uploaded PDF/CSV stay in storage, so dropping the same files in again imports them as new orders (they need approval and new labels). Previously printed labels stop scanning.
+
+Migration: `supabase/migrations/20261029120000_prod_delete_import.sql`; rollback: `supabase/rollbacks/20261029120000_prod_delete_import.down.sql`. To hide the button later, delete `<DeleteImportButton …/>` from `ProductionImportDetail.tsx` (and run the rollback to remove the function).

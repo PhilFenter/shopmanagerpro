@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, '../../..');
 const read = (p: string) => fs.readFileSync(path.join(root, p), 'utf8');
 const phase1 = read('supabase/migrations/20261025120000_paperless_production_phase1.sql');
 const phase2 = read('supabase/migrations/20261025180000_paperless_production_phase2.sql');
+const deleteImport = read('supabase/migrations/20261029120000_prod_delete_import.sql');
 const rollback1 = read('supabase/rollbacks/20261025120000_paperless_production_phase1.down.sql');
 const rollback2 = read('supabase/rollbacks/20261025180000_paperless_production_phase2.down.sql');
 const fixture = (n: string) => JSON.parse(fs.readFileSync(path.join(__dirname, '__fixtures__', `${n}.json`), 'utf8')) as PdfData;
@@ -101,6 +102,7 @@ beforeAll(async () => {
   // an order approved before Phase 2 exists gets its garments from the back-fill
   await importAndApprove('workorder-1002714', 'sha-A');
   await db.exec(phase2);
+  await db.exec(deleteImport);
 }, 60_000);
 
 describe('Phase 2: garments, labels, scanning, spots', () => {
@@ -266,7 +268,39 @@ describe('Phase 2: garments, labels, scanning, spots', () => {
     expect((await db.query(sql)).rows[0]).toEqual({ tables: 5, settings_rows: 1, missing_functions: 0 });
   });
 
+  it('admin reset: deleting an import removes its orders, garments and scans; the file can be imported again', async () => {
+    const ADMIN = '00000000-0000-0000-0000-0000000000ad';
+    await db.exec(`INSERT INTO user_roles VALUES ('${ADMIN}', 'admin')`);
+    const orders = await importAndApprove('workorders-3', 'sha-reset');
+    const nums = orders.map((o) => o.order_number);
+    const g = await garments(nums[0]);
+    expect(g.length).toBeGreaterThan(0);
+    await scan(g[0].token, 'dtf');
+    const batch = (await db.query<{ id: string }>(`SELECT id FROM prod_import_batches WHERE file_sha256 = 'sha-reset'`)).rows[0];
+    const otherOrders = (await db.query(`SELECT 1 FROM prod_orders WHERE NOT (order_number = ANY($1))`, [nums])).rows.length;
+
+    await expect(as(MANAGER, `SELECT prod_delete_import($1)`, [batch.id])).rejects.toThrow(/Only an admin/);
+    await expect(as(STATION, `SELECT prod_delete_import($1)`, [batch.id])).rejects.toThrow(/Only an admin/);
+    await expect(as(STATION, `DELETE FROM prod_orders`)).rejects.toThrow();
+
+    const r = await one<{ r: { orders: number; garments: number; scans: number } }>(ADMIN, `SELECT prod_delete_import($1) AS r`, [batch.id]);
+    expect(r.r.orders).toBe(nums.length);
+    expect(r.r.scans).toBeGreaterThan(0);
+    expect((await db.query(`SELECT 1 FROM prod_orders WHERE order_number = ANY($1)`, [nums])).rows).toHaveLength(0);
+    expect((await db.query(`SELECT 1 FROM prod_garments WHERE id = $1`, [g[0].id])).rows).toHaveLength(0);
+    expect((await db.query(`SELECT 1 FROM prod_scans WHERE garment_id = $1`, [g[0].id])).rows).toHaveLength(0);
+    expect((await db.query(`SELECT 1 FROM prod_orders WHERE NOT (order_number = ANY($1))`, [nums])).rows.length).toBe(otherOrders);
+    expect((await db.query(`SELECT 1 FROM prod_events WHERE action = 'import_deleted'`)).rows).toHaveLength(1);
+    // old label no longer scans as a garment
+    expect(await scan(g[0].token, 'dtf')).toMatchObject({ ok: false });
+
+    const again = await importAndApprove('workorders-3', 'sha-reset');
+    expect(again.map((o) => o.order_number).sort()).toEqual([...nums].sort());
+    expect((await garments(nums[0]))[0].token).not.toBe(g[0].token);
+  });
+
   it('rollback: Phase 2 then Phase 1 leave nothing behind', async () => {
+    await db.exec(read('supabase/rollbacks/20261029120000_prod_delete_import.down.sql'));
     await db.exec(rollback2);
     expect((await db.query(`SELECT 1 FROM pg_tables WHERE tablename IN ('prod_garments','prod_tasks','prod_scans')`)).rows).toHaveLength(0);
     expect((await db.query(`SELECT 1 FROM prod_orders`)).rows.length).toBeGreaterThan(0);

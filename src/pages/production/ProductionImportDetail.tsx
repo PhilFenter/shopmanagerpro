@@ -18,6 +18,7 @@ import { signedUrl } from '@/lib/production/db';
 import { attachCsv, csvToast, readCsvFile } from '@/lib/production/importFile';
 import { fmtDate, PreviewThumb, ReasonDialog, useIsProdManager } from '@/components/production/ProdShared';
 import { cn } from '@/lib/utils';
+import { DeleteImportButton } from '@/components/production/DeleteImportButton';
 
 const OUTCOME: Record<string, { label: string; className: string }> = {
   new: { label: 'New', className: 'bg-blue-100 text-blue-900' },
@@ -170,6 +171,8 @@ export default function ProductionImportDetail() {
           <span className="text-xs text-muted-foreground">
             {approvedCount === 0 ? 'Approve orders first. Labels and DTF prints only include approved orders.' : 'Labels and DTF prints include approved orders only. Labels already printed are skipped.'}
           </span>
+          <div className="flex-1" />
+          <DeleteImportButton batchId={batch.id} fileName={batch.file_name} orderNumbers={orders.map((o) => o.order.order_number).sort()} />
         </CardContent>
       </Card>
 
