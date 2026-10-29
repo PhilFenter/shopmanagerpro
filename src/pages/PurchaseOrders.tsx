@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { JobImportDialog } from '@/components/purchase-orders/JobImportDialog';
 import { format } from 'date-fns';
+import { vendorLabel } from '@/lib/production/purchaseOrder';
 
 function ShippingTracker({ progress, remaining, threshold }: { progress: number; remaining: number; threshold: number }) {
   const isFree = remaining <= 0;
@@ -422,9 +423,9 @@ export default function PurchaseOrders() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{po.po_number || 'Draft PO'}</p>
+                      <p className="font-medium">{po.po_number ? `PO ${po.po_number}` : 'Draft PO'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(po.created_at), 'MMM d, yyyy')}
+                        {vendorLabel(po.supplier)} · {format(new Date(po.created_at), 'MMM d, yyyy')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
