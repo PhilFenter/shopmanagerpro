@@ -15,6 +15,9 @@ export interface TransferSourceDecoration {
   artwork_hash: string | null;
   transfer_printed_at: string | null;
   sizes: { size: string; quantity: number | null }[];
+  /** Print size from the work order, when it's listed. */
+  width_in?: number | null;
+  height_in?: number | null;
 }
 
 export interface TransferLine {
@@ -26,6 +29,8 @@ export interface TransferLine {
   location: string | null;
   artwork_hash: string | null;
   methods_inksoft: string[];
+  /** Print sizes listed on the work orders, e.g. "4.02 × 0.69 in". Empty when not listed. */
+  print_sizes: string[];
   quantity: number;
   printed_quantity: number;
   orders: { order_number: string; quantity: number }[];
@@ -35,8 +40,8 @@ export interface TransferLine {
   open_decoration_ids: string[];
 }
 
-const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL', '4XL', '5XL', '6XL'];
-const sizeRank = (s: string) => {
+export const SIZE_ORDER = ['NB', '6M', '12M', '18M', '24M', '2T', '3T', '4T', '5T', 'YXS', 'YS', 'YM', 'YL', 'YXL', 'XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL', '4XL', '5XL', '6XL', 'OSFA'];
+export const sizeRank = (s: string) => {
   const i = SIZE_ORDER.indexOf(s.toUpperCase());
   return i < 0 ? 100 : i;
 };
@@ -62,6 +67,7 @@ export function buildTransferList(rows: TransferSourceDecoration[]): TransferLin
         location: r.location,
         artwork_hash: r.artwork_hash,
         methods_inksoft: [],
+        print_sizes: [],
         quantity: 0,
         printed_quantity: 0,
         orders: [],
@@ -80,6 +86,10 @@ export function buildTransferList(rows: TransferSourceDecoration[]): TransferLin
     else line.open_decoration_ids.push(r.decoration_id);
     line.decoration_ids.push(r.decoration_id);
     if (r.method_inksoft && !line.methods_inksoft.includes(r.method_inksoft)) line.methods_inksoft.push(r.method_inksoft);
+    if (r.width_in && r.height_in) {
+      const ps = `${r.width_in} × ${r.height_in} in`;
+      if (!line.print_sizes.includes(ps)) line.print_sizes.push(ps);
+    }
     if (!line.artwork_hash && r.artwork_hash) line.artwork_hash = r.artwork_hash;
     line._orders.set(r.order_number, (line._orders.get(r.order_number) ?? 0) + qty);
     for (const s of r.sizes) {

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, ChevronDown, ExternalLink, FileSpreadsheet, Info, Loader2, RotateCcw, ShieldCheck,
+  AlertTriangle, ArrowLeft, CheckCircle2, ChevronDown, ClipboardList, ExternalLink, FileSpreadsheet, Flame, Info, Loader2, Printer, RotateCcw, ShieldCheck,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -152,6 +152,24 @@ export default function ProductionImportDetail() {
               Approve {clean.length} ready order{clean.length === 1 ? '' : 's'}
             </Button>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 p-4">
+          <span className="mr-2 text-sm font-semibold">Whole batch:</span>
+          <Button size="sm" variant="outline" asChild disabled={approvedCount === 0}>
+            <Link to={`/print/labels?batch=${batch.id}&which=unprinted`} target="_blank"><Printer className="mr-1 h-4 w-4" /> Print all labels</Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link to={`/print/po/${batch.id}`} target="_blank"><ClipboardList className="mr-1 h-4 w-4" /> Blank garment order</Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link to={`/production/transfers?batch=${batch.id}`}><Flame className="mr-1 h-4 w-4" /> DTF prints for this batch</Link>
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {approvedCount === 0 ? 'Approve orders first. Labels and DTF prints only include approved orders.' : 'Labels and DTF prints include approved orders only. Labels already printed are skipped.'}
+          </span>
         </CardContent>
       </Card>
 

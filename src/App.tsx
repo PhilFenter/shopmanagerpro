@@ -99,6 +99,7 @@ const ScanLookupP = lazyWithReload(() =>
 const PrintGarmentLabels = lazyWithReload(() =>
   import("./pages/production/ProductionPrintLabels").then((m) => ({ default: m.PrintGarmentLabels }))
 );
+const ProductionPurchaseOrder = lazyWithReload(() => import("./pages/production/ProductionPurchaseOrder"));
 const PrintPickupLabel = lazyWithReload(() =>
   import("./pages/production/ProductionPrintLabels").then((m) => ({ default: m.PrintPickupLabel }))
 );
@@ -472,6 +473,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <PrintGarmentLabels />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/print/po/:batchId"
+                    element={
+                      <ProtectedRoute>
+                        <ProductionPurchaseOrder />
                       </ProtectedRoute>
                     }
                   />
