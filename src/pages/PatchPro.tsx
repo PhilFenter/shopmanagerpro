@@ -4,6 +4,9 @@
 // the shop has been using on its own. This screen shows it full-screen and answers its few
 // requests that need Shop Manager: SanMar hat photos (through our existing sanmar-api login)
 // and going back to the app. See DECISIONS.md, "Patch Pro runs as its own page inside Shop Manager".
+//
+// The designer is on the same site, so it calls window.parent.__patchPro.call() directly.
+// postMessage stays as a fallback: in Safari the replies never reached the designer.
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -75,7 +78,14 @@ export default function PatchPro() {
       }
     }
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    // direct bridge for the same-site designer (see the note at the top)
+    const bridge = { version: 1, call: (op: string, args?: Record<string, unknown>) => handle({ type: "pp:call", id: 0, op, args }) };
+    (window as unknown as { __patchPro?: typeof bridge }).__patchPro = bridge;
+    return () => {
+      window.removeEventListener("message", onMessage);
+      const w = window as unknown as { __patchPro?: typeof bridge };
+      if (w.__patchPro === bridge) delete w.__patchPro;
+    };
   }, [navigate]);
 
   return (

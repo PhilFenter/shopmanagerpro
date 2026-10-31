@@ -1495,7 +1495,21 @@ async function hatMockupPng() {
 
 // ---------- Shop Manager bridge (only when Patch Pro runs inside Shop Manager) ----------
 const SMP = { ready: false, seq: 0, pending: new Map() };
+// Shop Manager is on the same site, so call it directly when it offers a bridge (works in every browser).
+function smpBridge() { try { const b = window.parent !== window && window.parent.__patchPro; return b && typeof b.call === 'function' ? b : null; } catch (e) { return null; } }
+function smpShow() { SMP.ready = true; $('smpHat').hidden = false; $('smpBack').hidden = false; }
+async function toLocal(v) { // a Blob made in Shop Manager's window, copied into this one
+  if (v && typeof v === 'object' && typeof v.arrayBuffer === 'function' && typeof v.size === 'number') return new Blob([await v.arrayBuffer()], { type: v.type || 'image/jpeg' });
+  return v;
+}
 function smpCall(op, args) {
+  const b = smpBridge();
+  if (b) {
+    let timer;
+    const t = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('SanMar took too long to answer. Try again.')), 60000); });
+    return Promise.race([Promise.resolve().then(() => b.call(op, args)).then(toLocal), t])
+      .catch(e => { throw new Error((e && e.message) || String(e)); }).finally(() => clearTimeout(timer));
+  }
   return new Promise((res, rej) => {
     const id = ++SMP.seq; SMP.pending.set(id, { res, rej });
     parent.postMessage({ type: 'pp:call', id, op, args }, location.origin);
@@ -1506,10 +1520,12 @@ if (window.parent !== window) {
   addEventListener('message', e => {
     if (e.origin !== location.origin || e.source !== window.parent) return;
     const d = e.data || {};
-    if (d.type === 'smp:ready') { SMP.ready = true; $('smpHat').hidden = false; $('smpBack').hidden = false; }
-    else if (d.type === 'smp:reply') { const p = SMP.pending.get(d.id); if (p) { SMP.pending.delete(d.id); d.error ? p.rej(new Error(d.error)) : p.res(d.result); } }
+    if (d.type === 'smp:ready') smpShow();
+    else if (d.type === 'smp:reply') { const p = SMP.pending.get(d.id); if (p) { SMP.pending.delete(d.id); d.error ? p.rej(new Error(d.error)) : toLocal(d.result).then(p.res, p.rej); } }
   });
   try { parent.postMessage({ type: 'pp:hello' }, location.origin); } catch (e) { /* not inside Shop Manager */ }
+  // the bridge may be set up a moment after this page starts
+  let tries = 0; const look = () => { if (smpBridge()) smpShow(); else if (++tries < 20) setTimeout(look, 250); }; look();
 }
 
 async function mockupPng() {
