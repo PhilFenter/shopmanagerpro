@@ -306,12 +306,13 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
       <div class="sec" id="secHat">
         <h2>Hat mockup</h2>
         <div id="smpHat" hidden>
-          <div class="row"><label for="hatStyle">SanMar style</label>
+          <div class="row stack"><label for="hatPick">Hat style</label><select id="hatPick"></select></div>
+          <div class="row" id="hatOtherRow" hidden><label for="hatStyle">SanMar style #</label>
             <span class="val"><input type="text" id="hatStyle" placeholder="C112" autocomplete="off" style="width:84px"> <button class="tbtn" id="hatFind" type="button">Find</button></span></div>
-          <div class="row"><label for="hatColor">Color</label><select id="hatColor" disabled><option value="">Find a style first</option></select></div>
+          <div class="row stack"><label for="hatColor">Color</label><select id="hatColor" disabled><option value="">Pick a hat style first</option></select></div>
         </div>
         <div class="tools">
-          <button class="tbtn" id="hatAdd" type="button">Use a hat photo</button>
+          <button class="tbtn" id="hatAdd" type="button">Use your own hat photo</button>
           <button class="tbtn" id="hatShow" type="button" disabled>Show on hat</button>
         </div>
         <input type="file" id="hatIn" accept="image/*" hidden>
@@ -2336,31 +2337,68 @@ $('hatIn').onchange = async () => {
 }));
 ['hatSize', 'hatCurve', 'hatRot'].forEach(id => $(id).addEventListener('change', saveHatFit));
 $('hatReset').onclick = () => { if (!st.hat) return; st.hat.fit = hatDefaults(st.hat); saveHatFit(); syncHatCtl(); draw(); };
-let hatColors = [];
-async function findHat() {
-  const style = $('hatStyle').value.trim().toUpperCase(); if (!style) return;
+// Richardson hats SanMar carries (names as SanMar lists them)
+const HAT_STYLES = {
+  common: [['112', 'Trucker'], ['115', 'Low Pro Trucker'], ['168', '7-Panel Trucker'], ['112FP', 'Five-Panel Trucker'],
+    ['258', '5-Panel Classic Rope'], ['220', 'Relaxed Performance Lite'], ['256', 'Umpqua Gramps'], ['312', 'Solid Twill Trucker']],
+  more: [['111', 'Garment Washed Trucker'], ['112FPC', 'Five-Panel Champ Trucker'], ['112FPR', 'Five-Panel with Rope'],
+    ['112PFP', 'Printed Five-Panel Trucker'], ['112PL', '112+ R-Flex Adjustable Trucker'], ['112PM', 'Printed Mesh Trucker'],
+    ['112PT', 'Printed Tactical Trucker'], ['112T', 'Tactical Trucker'], ['112WH', 'Hawthorne'], ['168P', 'Printed 7-Panel Trucker'],
+    ['169', 'Cannon 7-Panel Flatbill'], ['173', 'Hood River'], ['212', 'Pro Twill Snapback'], ['225', 'Casual Performance Lite'],
+    ['256P', 'Printed Umpqua Gramps'], ['323FPC', 'Full Fabric 5-Panel Champ'], ['326', 'Peached Cotton Twill'], ['336', 'Burnside'],
+    ['355', 'Laser Perf Performance Rope'], ['356', '5-Panel Relaxed Gramps'], ['511', 'Acrylic-Wool Flatbill Trucker'],
+    ['632', 'Laser Perf R-Flex Snapback'], ['810', 'Lite Wide Brim Hat']]
+};
+(() => {
+  const sel = $('hatPick');
+  sel.add(new Option('Choose a Richardson hat…', ''));
+  const group = (label, list) => { const g = document.createElement('optgroup'); g.label = label; list.forEach(([n, t]) => g.appendChild(new Option(n + '  ' + t, n))); sel.appendChild(g); };
+  group('Common Richardson', HAT_STYLES.common); group('More Richardson', HAT_STYLES.more);
+  const o = document.createElement('optgroup'); o.label = 'Other'; o.appendChild(new Option('Another SanMar style…', 'other')); sel.appendChild(o);
+})();
+let hatColors = [], hatStyleNow = '';
+const colorCache = {};
+// colors a shop usually wants first when a style opens
+const PREFERRED = ['Black', 'Charcoal/Black', 'Black/Black', 'Heather Grey/Black', 'Navy', 'Khaki/Coffee'];
+async function findHat(style) {
+  style = (style || '').trim().toUpperCase(); if (!style) return;
+  hatStyleNow = style;
+  const sel = $('hatColor'); sel.disabled = true; sel.innerHTML = ''; sel.add(new Option('Loading colors…', ''));
   $('hatFind').disabled = true; $('hatName').textContent = 'Looking up ' + style + '…';
   try {
-    hatColors = await smpCall('sanmarColors', { style });
-    const sel = $('hatColor'); sel.innerHTML = '';
-    if (!hatColors.length) { sel.add(new Option('No colors with photos', '')); sel.disabled = true; $('hatName').textContent = 'SanMar has no photos for ' + style + '.'; return; }
-    sel.add(new Option('Pick a color', ''));
+    hatColors = colorCache[style] || (colorCache[style] = await smpCall('sanmarColors', { style }));
+    if (hatStyleNow !== style) return; // a newer pick is already loading
+    sel.innerHTML = '';
+    if (!hatColors.length) { sel.add(new Option('No colors with photos', '')); $('hatName').textContent = 'SanMar has no photos for ' + style + '.'; return; }
     hatColors.forEach((c2, i) => sel.add(new Option(c2.color, String(i))));
-    sel.disabled = false; $('hatName').textContent = style + ': ' + hatColors.length + ' colors';
-  } catch (e) { $('hatName').textContent = 'Lookup failed: ' + e.message; }
+    sel.disabled = false;
+    // keep the same color when switching styles, else a common one, else the first
+    const keep = st.hat && st.hat.color, names = hatColors.map(c2 => c2.color);
+    let i = names.indexOf(keep); if (i < 0) i = PREFERRED.map(p => names.indexOf(p)).find(x => x >= 0) ?? 0;
+    sel.value = String(i);
+    await loadHatColor(i);
+  } catch (e) { sel.innerHTML = ''; sel.add(new Option('Lookup failed', '')); $('hatName').textContent = 'Lookup failed: ' + e.message; }
   finally { $('hatFind').disabled = false; }
 }
-$('hatFind').onclick = findHat;
-$('hatStyle').addEventListener('keydown', e => { if (e.key === 'Enter') findHat(); });
-$('hatColor').addEventListener('change', async () => {
-  const c2 = hatColors[+$('hatColor').value]; if (!c2) return;
-  const style = $('hatStyle').value.trim().toUpperCase(); $('hatName').textContent = 'Loading ' + style + ' ' + c2.color + '…';
+async function loadHatColor(i) {
+  const c2 = hatColors[i]; if (!c2) return;
+  const style = hatStyleNow; $('hatName').textContent = 'Loading ' + style + ' ' + c2.color + '…';
   try {
     const blob = await smpCall('sanmarImage', { url: c2.image });
+    if (hatStyleNow !== style) return;
     const u = URL.createObjectURL(blob);
-    await setHat(await loadImg(u), 'sanmar:' + style + ':' + c2.color, style + ' ' + c2.color);
+    await setHat(await loadImg(u), 'sanmar:' + style, style + ' ' + c2.color); // placement is shared by every color of a style
+    st.hat.color = c2.color;
   } catch (e) { $('hatName').textContent = 'Could not load that hat photo: ' + e.message; }
+}
+$('hatPick').addEventListener('change', () => {
+  const v = $('hatPick').value; $('hatOtherRow').hidden = v !== 'other';
+  if (v === 'other') { $('hatStyle').focus(); return; }
+  if (v) findHat(v);
 });
+$('hatFind').onclick = () => findHat($('hatStyle').value);
+$('hatStyle').addEventListener('keydown', e => { if (e.key === 'Enter') findHat($('hatStyle').value); });
+$('hatColor').addEventListener('change', () => loadHatColor(+$('hatColor').value));
 $('showCut').addEventListener('change', draw);
 $('darkBg').addEventListener('change', () => { st.bgChosen = true; $('box').classList.toggle('dark', $('darkBg').checked); });
 const ENGRAVE_HINT = { dark: 'Dark areas burn by shade: black full, greys partial, white none.', all: 'Every part of the art burns solid. See-through areas stay bare leather. Use for white or color art made for dark shirts.', light: 'Light areas burn, dark areas stay bare: the art inverted.' };
