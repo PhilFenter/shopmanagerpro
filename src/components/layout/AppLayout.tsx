@@ -15,6 +15,7 @@ import {
   Printer,
   Flame,
   Scissors,
+  Stamp,
   Users,
   DollarSign,
   Settings,
@@ -75,6 +76,7 @@ const navigation = [
       { name: 'Production Board', href: '/production/orders', icon: ClipboardList },
       { name: 'DTF Transfers', href: '/production/transfers', icon: Flame },
       { name: 'Leather', href: '/leather', icon: Scissors },
+      { name: 'Patch Pro', href: '/patch-pro', icon: Stamp },
     ],
   },
 ];
@@ -102,7 +104,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { isPreviewingAsTeam, togglePreview } = useRolePreview();
   const location = useLocation();
   const [productionExpanded, setProductionExpanded] = useState(() =>
-    ['/embroidery', '/screen-print', '/dtf', '/leather', '/production/orders', '/production/transfers'].some((p) => location.pathname.startsWith(p)),
+    ['/embroidery', '/screen-print', '/dtf', '/leather', '/patch-pro', '/production/orders', '/production/transfers'].some((p) => location.pathname.startsWith(p)),
   );
   const navigate = useNavigate();
   const { handoffs } = useHandoffs();

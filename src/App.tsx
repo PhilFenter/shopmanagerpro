@@ -55,6 +55,7 @@ const Embroidery = lazyWithReload(() => import("./pages/Embroidery"));
 const ScreenPrint = lazyWithReload(() => import("./pages/ScreenPrint"));
 const DTF = lazyWithReload(() => import("./pages/DTF"));
 const Leather = lazyWithReload(() => import("./pages/Leather"));
+const PatchPro = lazyWithReload(() => import("./pages/PatchPro"));
 const Settings = lazyWithReload(() => import("./pages/Settings"));
 const Team = lazyWithReload(() => import("./pages/Team"));
 const Financials = lazyWithReload(() => import("./pages/Financials"));
@@ -277,6 +278,15 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <PrintChecklist />
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Patch Pro: full-screen patch designer; needs both side panels and the big preview */}
+                  <Route
+                    path="/patch-pro"
+                    element={
+                      <ProtectedRoute>
+                        <PatchPro />
                       </ProtectedRoute>
                     }
                   />
