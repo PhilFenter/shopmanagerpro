@@ -5,6 +5,30 @@ Short entries on non-obvious calls made in this app, so nobody (including future
 
 ---
 
+## Patch Pro runs as its own page inside Shop Manager
+**Date:** 2026-10-30
+**What:** `/patch-pro` is the patch designer: cut lines that bridge to floating text, leather patches
+with sew lines and leather mockups, UV patch print sheets (Color, Cut and Build PDFs with Trotec
+registration dots), faux embroidery, and hat mockups. The whole designer is one self-contained file,
+`public/patch-pro/index.html`, shown full-screen in a frame by `src/pages/PatchPro.tsx`. The frame asks
+the page for the few things that need Shop Manager: SanMar hat photos (through `sanmar-api`
+`getProductInfo` and the new `sanmar-image` function) and going back to the app. Messages go both ways
+with `postMessage`, and both sides check they come from the same site and the right window.
+
+**Why:** Phil built and tested the designer as a standalone page and was already using it in
+production. Dropping the same file in keeps it working exactly as tested, and it still works on its own
+outside Shop Manager (the hat photo button still works there; only the SanMar search needs this app).
+SanMar photos go through `sanmar-image` because the browser won't let a page save a mockup built from an
+image it loaded straight off SanMar's servers.
+
+**Don't:**
+- Load SanMar image addresses directly in the designer. The mockup export will fail. Use `sanmar-image`.
+- Widen `sanmar-image` beyond `sanmar.com` addresses. It would become an open fetch-anything proxy.
+- Expect recent jobs, leather photos or hat placements to follow you between computers yet. They are kept
+  in that browser (IndexedDB and localStorage). Moving them into Supabase is the planned next step.
+- Pull pieces of the designer out into React one at a time. It is one file on purpose, so it can be
+  changed and tested as a whole in a browser. If it moves into React later, move it all at once.
+
 ## Team & Costs → Logins & Access: admins set Team / Manager / Admin in the app
 **Date:** 2026-10-25
 **What:** A "Logins & Access" tab on the admin-only Team page lists everyone with a login (name from
