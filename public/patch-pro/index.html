@@ -201,10 +201,10 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
         <h2>Finished size</h2>
         <div class="row">
           <div class="seg" role="group" aria-label="Measure">
-            <button type="button" data-axis="w" aria-pressed="true">Width</button>
-            <button type="button" data-axis="h" aria-pressed="false">Height</button>
+            <button type="button" data-axis="w" aria-pressed="false">Width</button>
+            <button type="button" data-axis="h" aria-pressed="true">Height</button>
           </div>
-          <span class="val"><input type="number" id="sizeIn" min="0.5" max="24" step="0.125" value="3.5"> in</span>
+          <span class="val"><input type="number" id="sizeIn" min="0.5" max="24" step="0.125" value="2.25"> in</span>
         </div>
         <label class="check" id="fitRow" hidden><input type="checkbox" id="fitPlace" checked> Largest that fits the placement</label>
         <div class="row stack" id="refRow">
@@ -318,14 +318,18 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
         <input type="file" id="hatIn" accept="image/*" hidden>
         <div class="file" id="hatName">No hat yet</div>
         <div id="hatCtl" hidden>
-          <div class="row"><label for="hatSize">Size on hat</label><span class="val" id="hatSizeVal"></span></div>
-          <input type="range" id="hatSize" min="0.1" max="0.8" step="0.005" value="0.38">
+          <label class="check"><input type="checkbox" id="hatTrue" checked> True size</label>
+          <div class="row" id="hatWidthRow"><label for="hatWidthIn">Hat width, side to side</label><span class="val"><input type="number" id="hatWidthIn" min="4" max="12" step="0.125" value="7.5"> in</span></div>
+          <div id="hatSizeRow">
+            <div class="row"><label for="hatSize">Size on hat</label><span class="val" id="hatSizeVal"></span></div>
+            <input type="range" id="hatSize" min="0.1" max="0.8" step="0.005" value="0.38">
+          </div>
           <div class="row"><label for="hatCurve">Crown curve</label><span class="val" id="hatCurveVal"></span></div>
           <input type="range" id="hatCurve" min="0" max="1" step="0.05" value="0.45">
           <div class="row"><label for="hatRot">Tilt</label><span class="val" id="hatRotVal"></span></div>
           <input type="range" id="hatRot" min="-20" max="20" step="0.5" value="0">
           <div class="tools"><button class="tbtn" id="hatReset" type="button">Reset placement</button></div>
-          <p class="hint">Drag the patch to move it; drag a corner to resize. The placement is remembered for this hat. Mockup PNG saves the hat with the patch on it.</p>
+          <p class="hint" id="hatHint">Drag the patch to move it. True size shows the patch at its finished size, scaled from the hat's width; adjust the width if a style looks off. Placement is remembered for each style.</p>
         </div>
       </div>
 
@@ -333,15 +337,18 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
         <h2>Embroidery look</h2>
         <label class="check"><input type="checkbox" id="embOn"> Faux embroidery on twill</label>
         <div id="embCtl" hidden>
+          <label class="check"><input type="checkbox" id="embDirect"> Stitch straight onto the hat (no patch)</label>
           <div class="row"><label for="embColors">Thread colors</label><span class="val" id="embColorsVal"></span></div>
           <input type="range" id="embColors" min="2" max="10" step="1" value="6">
           <div class="row"><label for="embAngle">Fill stitch angle</label><span class="val" id="embAngleVal"></span></div>
           <input type="range" id="embAngle" min="0" max="175" step="5" value="45">
           <div class="row"><label for="embStitch">Fill stitch length</label><span class="val" id="embStitchVal"></span></div>
           <input type="range" id="embStitch" min="0.06" max="0.2" step="0.01" value="0.11">
+          <div id="merrowCtl">
           <div class="row"><label for="merrow">Merrow border</label><span class="val" id="merrowVal"></span></div>
           <input type="range" id="merrow" min="0" max="0.25" step="0.0078125" value="0.09375">
           <div class="row"><label for="merrowColor">Merrow thread</label><input type="color" id="merrowColor" value="#1c1c1e" aria-label="Merrow thread color"></div>
+          </div>
           <p class="hint">Open areas become twill in the Patch backing color (white if none). Lettering and narrow shapes get satin stitches; big areas get fill stitches.</p>
         </div>
       </div>
@@ -844,7 +851,7 @@ function compute(rgba, w, h, p, add, erase) {
 // ---------- state ----------
 const st = {
   name: 'Russell logo (sample)', raster: null, rgba: null, srcKind: 'img', srcFile: null, pdf: null,
-  axis: 'w', sizeRef: 'cut', fill: 'none', result: null, busy: false, again: false,
+  axis: 'h', sizeRef: 'cut', fill: 'none', result: null, busy: false, again: false, // hat decoration starts at 2.25 in tall
   bridgeMode: 'round', brush: 'off', strokes: [], live: null, edits: null, view: null, viewMode: 'art', hover: null,
   pad: 0, inner: null, svgVec: null, silCv: null,
   mode: 'uv', attach: 'sew', shape: null, fit: { artH: 1.75, passes: 0 }
@@ -1030,7 +1037,7 @@ function applySettings(j) {
   if (mats.some(m => m.id === j.matSel)) matSel = j.matSel;
   [['data-axis', st.axis], ['data-bmode', st.bridgeMode], ['data-fill', st.fill], ['data-attach', st.attach]]
     .forEach(([attr, val]) => document.querySelectorAll('[' + attr + ']').forEach(b => b.setAttribute('aria-pressed', b.getAttribute(attr) === val)));
-  $('sewInRow').hidden = !$('sewOn').checked; syncSizeUI();
+  $('sewInRow').hidden = !$('sewOn').checked; $('merrowCtl').hidden = $('embDirect').checked; syncSizeUI();
   $('embCtl').hidden = !$('embOn').checked; $('customRow').hidden = $('placement').value !== 'custom'; $('ringRow').hidden = $('shMat').value !== 'dark';
   $('box').classList.toggle('dark', $('darkBg').checked); st.bgChosen = true;
   renderMats(); syncLabels(); syncEngrave(); setStage(j.stage || 'patch');
@@ -1117,7 +1124,8 @@ async function loadFile(file, opts = {}) {
       st.fileDpi = /\.png$/.test(name) || file.type === 'image/png' ? pngDpi(await file.arrayBuffer()) : 0;
       try { await rasterBitmap(url); } finally { URL.revokeObjectURL(url); }
     }
-    if (opts.restore) st.sizeRef = opts.restore.settings.sizeRef; else st.sizeRef = st.srcPPI ? 'file' : (st.sizeRef === 'file' ? 'cut' : st.sizeRef);
+    // new art starts at the 2.25 in default; "As saved" stays one click away when the file has a size
+    if (opts.restore) st.sizeRef = opts.restore.settings.sizeRef; else if (st.sizeRef === 'file' && !st.srcPPI) st.sizeRef = 'cut';
     syncSizeRef();
     process();
   } catch (e) { status('Error'); showWarn(e.message || String(e)); }
@@ -1348,9 +1356,11 @@ function patchFace(ppiOut) {
 const HAT_KEY = 'patchpro.hatfit.';
 function hatDefaults(h) { // centered on the crown, a bit above middle of the hat's outline
   const b = h.box;
-  return { cx: (b[0] + b[2]) / 2 / h.w, cy: (b[1] + (b[3] - b[1]) * 0.36) / h.h, size: 0.38, curve: 0.45, rot: 0 };
+  return { cx: (b[0] + b[2]) / 2 / h.w, cy: (b[1] + (b[3] - b[1]) * 0.36) / h.h, size: 0.38, curve: 0.45, rot: 0, trueSize: true, widthIn: 7.5 };
 }
-function loadHatFit(h) { try { const v = JSON.parse(localStorage.getItem(HAT_KEY + h.key) || 'null'); if (v && isFinite(v.cx)) return v; } catch (e) { /* storage blocked */ } return hatDefaults(h); }
+function loadHatFit(h) { try { const v = JSON.parse(localStorage.getItem(HAT_KEY + h.key) || 'null'); if (v && isFinite(v.cx)) return Object.assign(hatDefaults(h), v); } catch (e) { /* storage blocked */ } return hatDefaults(h); }
+// patch width on the hat photo, in hat pixels
+function hatPatchW(fit, hat, pwIn) { return fit.trueSize ? pwIn * (hat.box[2] - hat.box[0]) / Math.max(1, fit.widthIn) : fit.size * hat.w; }
 function saveHatFit() { if (!st.hat) return; try { localStorage.setItem(HAT_KEY + st.hat.key, JSON.stringify(st.hat.fit)); } catch (e) { /* storage blocked */ } }
 async function setHat(img, key, name) {
   const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
@@ -1369,11 +1379,13 @@ async function setHat(img, key, name) {
 function syncHatCtl() {
   if (!st.hat) return; const f = st.hat.fit;
   $('hatSize').value = f.size; $('hatCurve').value = f.curve; $('hatRot').value = f.rot;
+  $('hatTrue').checked = !!f.trueSize; $('hatWidthIn').value = f.widthIn;
+  $('hatWidthRow').hidden = !f.trueSize; $('hatSizeRow').hidden = !!f.trueSize;
   $('hatSizeVal').textContent = Math.round(f.size * 100) + '% of hat'; $('hatCurveVal').textContent = Math.round(f.curve * 100) + '%'; $('hatRotVal').textContent = f.rot + '°';
 }
 // where a point of the patch (u, v in 0-1) lands on the hat image, in hat pixels
-function hatMapper(fit, aspect, hat) {
-  const W = fit.size * hat.w, H = W * aspect, th = 0.05 + fit.curve * 1.5, half = th / 2, sh = Math.sin(half);
+function hatMapper(fit, aspect, hat, pwIn) {
+  const W = hatPatchW(fit, hat, pwIn), H = W * aspect, th = 0.05 + fit.curve * 1.5, half = th / 2, sh = Math.sin(half);
   const cr = Math.cos(fit.rot * Math.PI / 180), sr = Math.sin(fit.rot * Math.PI / 180), cx = fit.cx * hat.w, cy = fit.cy * hat.h;
   return (u, v) => {
     const ph = (u - 0.5) * th;
@@ -1400,10 +1412,10 @@ function drawHatScene(c, T, opts = {}) {
   const hat = st.hat, [s, ox, oy] = T, CW = c.canvas.width, CH = c.canvas.height, base = c.getTransform();
   c.drawImage(hat.img, ox, oy, hat.w * s, hat.h * s);
   const r = st.result, sh = st.shape, pw = (sh.box[2] - sh.box[0]) / r.pxPerIn, ph = (sh.box[3] - sh.box[1]) / r.pxPerIn;
-  const fit = hat.fit, mapH = hatMapper(fit, ph / pw, hat), toC = (u, v) => { const [x, y] = mapH(u, v); return [ox + x * s, oy + y * s]; };
+  const fit = hat.fit, mapH = hatMapper(fit, ph / pw, hat, pw), toC = (u, v) => { const [x, y] = mapH(u, v); return [ox + x * s, oy + y * s]; };
   // render the face at about the pixel size it will be shown
-  const shownW = fit.size * hat.w * s * (opts.dpr || 1), ppi = Math.max(40, Math.min(450, shownW / pw * 1.1));
-  const key = [sh, st.fill, embOn(), leather(), matSel, Math.round(ppi / 20)].join('|');
+  const shownW = hatPatchW(fit, hat, pw) * s * (opts.dpr || 1), ppi = Math.max(40, Math.min(450, shownW / pw * 1.1));
+  const key = [sh, st.fill, embOn() && JSON.stringify(embParams()), leather(), matSel, Math.round(ppi / 20)].join('|');
   if (!st.face || st.face.key !== key) st.face = { key, cv: patchFace(ppi) };
   const face = st.face.cv, FW = face.width, FH = face.height;
   // warp onto a layer in device pixels
@@ -1440,8 +1452,10 @@ function drawHatScene(c, T, opts = {}) {
   pc.fillStyle = grd; pc.fillRect(-1e5, -1e5, 2e5, 2e5);
   // patch sits on the fabric: soft contact shadow, then the patch
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
-  const px = fit.size * hat.w * s * (opts.dpr || 1) / pw; // device px per inch of patch
-  c.shadowColor = 'rgba(0,0,0,.38)'; c.shadowBlur = Math.max(2, 0.035 * px); c.shadowOffsetY = Math.max(1, 0.015 * px);
+  const px = hatPatchW(fit, hat, pw) * s * (opts.dpr || 1) / pw; // device px per inch of patch
+  if (embOn() && embParams().direct) { // threads sit right on the fabric: only a faint contact shadow
+    c.shadowColor = 'rgba(0,0,0,.3)'; c.shadowBlur = Math.max(1, 0.012 * px); c.shadowOffsetY = Math.max(0.5, 0.005 * px);
+  } else { c.shadowColor = 'rgba(0,0,0,.38)'; c.shadowBlur = Math.max(2, 0.035 * px); c.shadowOffsetY = Math.max(1, 0.015 * px); }
   c.drawImage(P, 0, 0); c.restore();
   return { toC };
 }
@@ -1457,7 +1471,7 @@ function drawHat(c, W, H) {
   const corners = [toC(0, 0), toC(1, 0), toC(1, 1), toC(0, 1)]; st.hatCorners = corners;
   c.save(); c.setLineDash([5, 4]); c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 1;
   c.beginPath(); corners.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.stroke(); c.setLineDash([]);
-  for (const p of corners) { c.fillStyle = '#fff'; c.strokeStyle = cssVar('--accent'); c.lineWidth = 2; c.beginPath(); c.arc(p[0], p[1], 6, 0, 7); c.fill(); c.stroke(); }
+  if (!st.hat.fit.trueSize) for (const p of corners) { c.fillStyle = '#fff'; c.strokeStyle = cssVar('--accent'); c.lineWidth = 2; c.beginPath(); c.arc(p[0], p[1], 6, 0, 7); c.fill(); c.stroke(); }
   c.restore();
 }
 async function hatMockupPng() {
@@ -1474,7 +1488,7 @@ async function hatMockupPng() {
   cv.addEventListener('pointerdown', e => {
     if (st.stage !== 'hat' || !st.hat || !st.hatCorners || st.brush !== 'off') return;
     const p = pos(e), q = st.hatCorners, [s, ox, oy] = st.hatT, f = st.hat.fit;
-    const ci = q.findIndex(c => Math.hypot(c[0] - p[0], c[1] - p[1]) < 14);
+    const ci = f.trueSize ? -1 : q.findIndex(c => Math.hypot(c[0] - p[0], c[1] - p[1]) < 14);
     const cx = ox + f.cx * st.hat.w * s, cy = oy + f.cy * st.hat.h * s;
     if (ci >= 0) drag = { kind: 'size', d0: Math.hypot(p[0] - cx, p[1] - cy), size0: f.size, cx, cy };
     else if (inside(p, q)) drag = { kind: 'move', p0: p, cx0: f.cx, cy0: f.cy };
@@ -1482,7 +1496,7 @@ async function hatMockupPng() {
     e.preventDefault(); cv.setPointerCapture(e.pointerId);
   });
   cv.addEventListener('pointermove', e => {
-    if (st.stage === 'hat' && st.hatCorners && !drag) { const p = pos(e); cv.style.cursor = st.hatCorners.some(c => Math.hypot(c[0] - p[0], c[1] - p[1]) < 14) ? 'nwse-resize' : ''; }
+    if (st.stage === 'hat' && st.hatCorners && !drag) { const p = pos(e); cv.style.cursor = !st.hat.fit.trueSize && st.hatCorners.some(c => Math.hypot(c[0] - p[0], c[1] - p[1]) < 14) ? 'nwse-resize' : ''; }
     if (!drag) return;
     const p = pos(e), [s] = st.hatT, f = st.hat.fit;
     if (drag.kind === 'move') { f.cx = drag.cx0 + (p[0] - drag.p0[0]) / s / st.hat.w; f.cy = drag.cy0 + (p[1] - drag.p0[1]) / s / st.hat.h; }
@@ -1561,7 +1575,7 @@ function cleanArt(r) {
 function warnings(r) {
   const w = [];
   const pieces = st.shape.cut.length;
-  if (embOn() && +$('merrow').value > +$('offIn').value - 0.03) w.push('The merrow border covers the edge of the art. Raise "Offset from art" to about ' + (+$('merrow').value + 0.06).toFixed(2) + ' in, or narrow the merrow.');
+  if (embOn() && !$('embDirect').checked && +$('merrow').value > +$('offIn').value - 0.03) w.push('The merrow border covers the edge of the art. Raise "Offset from art" to about ' + (+$('merrow').value + 0.06).toFixed(2) + ' in, or narrow the merrow.');
   if (st.srcKind === 'img' && st.srcFile && st.srcScale > 1.05) {
     const eff = Math.round(r.pxPerIn / st.srcScale);
     if (eff < 150) w.push('This image is only about ' + eff + ' ppi at this size, so the print will look soft. A larger file or vector art (PDF, SVG) will print sharper.');
@@ -1890,7 +1904,8 @@ function kmeans(px, k) { // px: array of [r,g,b]; returns centers
 }
 function embParams() {
   return { n: +$('embColors').value, angle: +$('embAngle').value * Math.PI / 180, stitch: +$('embStitch').value,
-    merrow: +$('merrow').value, merrowColor: $('merrowColor').value, backing: st.fill !== 'none' ? st.fill : '#f4f4f1' };
+    merrow: $('embDirect').checked ? 0 : +$('merrow').value, merrowColor: $('merrowColor').value, backing: st.fill !== 'none' ? st.fill : '#f4f4f1',
+    direct: $('embDirect').checked };
 }
 // renders thread colors and a stitch height map (0-1) over the patch box at ppiOut
 function embroider(ppiOut) {
@@ -2005,7 +2020,7 @@ function embroider(ppiOut) {
     const isThread = lab[i] !== -1, sheen = isThread ? Math.pow(lam, 10) * 70 : 0;
     const shade = (isThread ? 0.5 + 0.62 * lam : 0.72 + 0.32 * lam) * (0.88 + 0.24 * fib[i]);
     for (let c = 0; c < 3; c++) d[i * 4 + c] = Math.max(0, Math.min(255, base[i * 3 + c] * shade + sheen));
-    d[i * 4 + 3] = cutA[i];
+    d[i * 4 + 3] = p.direct && !isThread ? 0 : cutA[i]; // direct embroidery: only the threads, the hat shows between them
     const b = base.subarray(i * 3, i * 3 + 3); if (isThread && Math.min(b[0], b[1], b[2]) > 232) white[i] = 1;
   }
   oc.putImageData(id, 0, 0);
@@ -2352,6 +2367,12 @@ $('hatIn').onchange = async () => {
   syncHatCtl(); draw();
 }));
 ['hatSize', 'hatCurve', 'hatRot'].forEach(id => $(id).addEventListener('change', saveHatFit));
+$('hatTrue').addEventListener('change', () => {
+  if (!st.hat) return; const f = st.hat.fit;
+  if (!$('hatTrue').checked && st.result && st.shape) { const pw = (st.shape.box[2] - st.shape.box[0]) / st.result.pxPerIn; f.size = hatPatchW(f, st.hat, pw) / st.hat.w; } // start from what's shown
+  f.trueSize = $('hatTrue').checked; saveHatFit(); syncHatCtl(); draw();
+});
+$('hatWidthIn').addEventListener('change', () => { if (!st.hat) return; st.hat.fit.widthIn = Math.max(4, +$('hatWidthIn').value || 7.5); saveHatFit(); syncHatCtl(); draw(); });
 $('hatReset').onclick = () => { if (!st.hat) return; st.hat.fit = hatDefaults(st.hat); saveHatFit(); syncHatCtl(); draw(); };
 // Richardson hats SanMar carries (names as SanMar lists them)
 const HAT_STYLES = {
@@ -2425,16 +2446,16 @@ function resetAll() {
   Object.assign(st, { srcPPI: 0, fileDpi: 0, raster: null, rgba: null, result: null, shape: null, art: null, burn: null, strokes: [], live: null, edits: null,
     view: null, svgVec: null, svgText: null, srcFile: null, pdf: null, srcKind: 'img', name: 'patch', silCv: null, bgChosen: false, lightKey: null });
   $('fileName').textContent = 'No art loaded'; $('pageRow').hidden = true;
-  const vals = { sizeIn: 3.5, bridgeIn: 0.125, smooth: 2, brushIn: 0.12, bgMode: 'auto', speck: 0.0006, detail: 1600,
+  const vals = { sizeIn: 2.25, bridgeIn: 0.125, smooth: 2, brushIn: 0.12, bgMode: 'auto', speck: 0.0006, detail: 1600,
     placement: 'front', maxW: 4, maxH: 2.25, sewIn: 0.13, engrave: 'auto' };
   for (const [id, v] of Object.entries(vals)) $(id).value = v;
   $('largest').checked = false; $('sewOn').checked = true; $('stripOld').checked = true; $('darkBg').checked = false;
   $('box').classList.remove('dark'); $('customRow').hidden = true;
-  [['data-axis', 'w'], ['data-ref', 'cut'], ['data-bmode', 'round'], ['data-brush', 'off'], ['data-fill', 'none'], ['data-attach', 'sew'], ['data-viewmode', 'art']]
+  [['data-axis', 'h'], ['data-ref', 'cut'], ['data-bmode', 'round'], ['data-brush', 'off'], ['data-fill', 'none'], ['data-attach', 'sew'], ['data-viewmode', 'art']]
     .forEach(([attr, v]) => document.querySelectorAll('[' + attr + ']').forEach(b => b.setAttribute('aria-pressed', b.getAttribute(attr) === v)));
-  Object.assign(st, { axis: 'w', sizeRef: 'cut', bridgeMode: 'round', brush: 'off', fill: 'none', attach: 'sew', viewMode: 'art' });
+  Object.assign(st, { axis: 'h', sizeRef: 'cut', bridgeMode: 'round', brush: 'off', fill: 'none', attach: 'sew', viewMode: 'art' });
   st.qtyAuto = true; st.thumb = null; st.emb = null; $('shQty').value = 1;
-  $('embOn').checked = false; $('embCtl').hidden = true; $('embColors').value = 6; $('embAngle').value = 45; $('embStitch').value = 0.11; $('merrow').value = 0.09375; $('buildCon').value = 1;
+  $('embOn').checked = false; $('embDirect').checked = false; $('merrowCtl').hidden = false; $('embCtl').hidden = true; $('embColors').value = 6; $('embAngle').value = 45; $('embStitch').value = 0.11; $('merrow').value = 0.09375; $('buildCon').value = 1;
   syncSizeRef(); setMode(st.mode); updateEditBtns(); showWarn(''); updateReadout(); syncLabels();
   status('Drop art to start'); draw();
 }
@@ -2457,6 +2478,7 @@ const embChanged = () => { syncLabels(); st.emb = null; st.thumb = null; clearTi
 $('embOn').addEventListener('change', () => { $('embCtl').hidden = !$('embOn').checked; embChanged(); if (st.result) showWarn(warnings(st.result)); });
 $('merrow').addEventListener('change', () => { if (st.result) showWarn(warnings(st.result)); });
 ['embColors', 'embAngle', 'embStitch', 'merrow', 'merrowColor'].forEach(id => $(id).addEventListener('input', embChanged));
+$('embDirect').addEventListener('change', () => { $('merrowCtl').hidden = $('embDirect').checked; embChanged(); if (st.result) showWarn(warnings(st.result)); });
 $('buildCon').addEventListener('input', () => { syncLabels(); if (st.viewMode !== 'build') document.querySelector('[data-viewmode=build]').click(); else draw(); });
 $('exSheetAll').onclick = () => exportSheet(['COLOR', 'CUT', 'BUILD']);
 $('exSheetColor').onclick = () => exportSheet(['COLOR']);
