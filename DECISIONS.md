@@ -13,7 +13,9 @@ registration dots), faux embroidery, and hat mockups. The whole designer is one 
 `public/patch-pro/index.html`, shown full-screen in a frame by `src/pages/PatchPro.tsx`. The frame asks
 the page for the few things that need Shop Manager: SanMar hat photos (through `sanmar-api`
 `getProductInfo` and the new `sanmar-image` function) and going back to the app. Messages go both ways
-with `postMessage`, and both sides check they come from the same site and the right window.
+through a direct bridge (`window.parent.__patchPro.call`, possible because the designer is on the
+same site), with `postMessage` as a fallback. In Safari, `postMessage` replies never reached the designer,
+so hat lookups timed out; the direct bridge fixed that.
 
 **Why:** Phil built and tested the designer as a standalone page and was already using it in
 production. Dropping the same file in keeps it working exactly as tested, and it still works on its own

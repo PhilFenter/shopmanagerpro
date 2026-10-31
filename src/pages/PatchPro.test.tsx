@@ -59,6 +59,21 @@ describe("PatchPro screen", () => {
     expect(replies[0]).toMatchObject({ type: "smp:reply", id: 3, error: "Edge Function returned a non-2xx status code" });
   });
 
+  it("offers a direct bridge the same-site designer can call", async () => {
+    invoke.mockResolvedValue({ data: { items: [{ color: "Black", frontFlat: "https://cdnm.sanmar.com/b.jpg" }] }, error: null });
+    const { unmount } = render(
+      <MemoryRouter>
+        <PatchPro />
+      </MemoryRouter>,
+    );
+    const bridge = (window as unknown as { __patchPro?: { call: (op: string, args?: object) => Promise<unknown> } }).__patchPro;
+    expect(bridge).toBeTruthy();
+    await expect(bridge!.call("sanmarColors", { style: "112" })).resolves.toEqual([{ color: "Black", image: "https://cdnm.sanmar.com/b.jpg", swatch: "" }]);
+    await expect(bridge!.call("sanmarImage", { url: "x" })).rejects.toThrow();
+    unmount();
+    expect((window as unknown as { __patchPro?: unknown }).__patchPro).toBeUndefined();
+  });
+
   it("ignores messages that don't come from the designer", () => {
     const { replies, send } = setup();
     send({ type: "pp:hello" }, window);
