@@ -2457,7 +2457,7 @@ function resetAll() {
   Object.assign(st, { srcPPI: 0, fileDpi: 0, raster: null, rgba: null, result: null, shape: null, art: null, burn: null, strokes: [], live: null, edits: null,
     view: null, svgVec: null, svgText: null, srcFile: null, pdf: null, srcKind: 'img', name: 'patch', silCv: null, bgChosen: false, lightKey: null });
   $('fileName').textContent = 'No art loaded'; $('pageRow').hidden = true;
-  const vals = { sizeIn: 2.25, bridgeIn: 0.125, smooth: 2, brushIn: 0.12, bgMode: 'auto', speck: 0.0006, detail: 1600,
+  const vals = { shape: 'contour', sizeIn: 2.25, bridgeIn: 0.125, smooth: 2, brushIn: 0.12, bgMode: 'auto', speck: 0.0006, detail: 1600,
     placement: 'front', maxW: 4, maxH: 2.25, sewIn: 0.13, engrave: 'auto' };
   for (const [id, v] of Object.entries(vals)) $(id).value = v;
   $('largest').checked = false; $('sewOn').checked = true; $('stripOld').checked = true; $('darkBg').checked = false;
@@ -2503,7 +2503,7 @@ function setMode(m) {
   if (m === 'leather' && st.stage === 'sheet') setStage('patch');
   if (m === 'leather' && st.viewMode === 'build') document.querySelector('[data-viewmode=art]').click();
   const L = m === 'leather';
-  $('offIn').value = L ? 0.25 : 0.0625; $('shape').value = L ? 'hex' : 'contour';
+  $('offIn').value = L ? 0.25 : 0.0625; // HCD standard border: 1/4 in leather, 1/16 in UV. The shape stays as chosen (contour leather patches are common).
   if (L) { $('fitPlace').checked = true; st.axis = 'h'; document.querySelectorAll('[data-axis]').forEach(x => x.setAttribute('aria-pressed', x.dataset.axis === 'h')); $('sizeIn').value = limits()[1]; }
   syncSizeUI();
   $('exPrintSvg').innerHTML = L ? 'Laser file SVG<small>engrave, sew, cut</small>' : 'Print + cut SVG<small>art, backing, cut</small>';
