@@ -233,6 +233,7 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
         </div>
         <div class="row"><label for="offIn">Offset from art</label><span class="val" id="offVal"></span></div>
         <input type="range" id="offIn" min="0" max="0.5" step="0.0078125" value="0.0625">
+        <p class="hint" id="offHint"></p>
         <div class="row"><label for="bridgeIn">Bridge gaps up to</label><span class="val" id="bridgeVal"></span></div>
         <input type="range" id="bridgeIn" min="0" max="0.6" step="0.0078125" value="0.125">
         <div class="row"><label>Bridge direction</label>
@@ -873,7 +874,15 @@ function inch(v) {
   return v.toFixed(3) + ' in' + (f ? ' <em>(' + f[1] + ')</em>' : '');
 }
 const dim = (w, h) => w.toFixed(2) + ' × ' + h.toFixed(2) + ' in';
+function offsetHint() { // says which way a bigger offset goes, so nobody is surprised
+  const n = $('offHint'); if (!n) return;
+  const sz = (+$('sizeIn').value || 0).toFixed(2).replace(/0$/, ''), dimW = st.axis === 'h' ? 'tall' : 'wide';
+  if (leather()) n.textContent = $('fitPlace').checked ? 'The patch stays within the placement; the art shrinks to make room.' : 'The patch stays ' + sz + ' in ' + dimW + '; the art shrinks to make room.';
+  else if (st.sizeRef === 'cut') n.textContent = 'The patch stays ' + sz + ' in ' + dimW + '; the art shrinks to make room.';
+  else n.textContent = 'The art keeps its size, so a bigger offset makes the patch bigger. Pick Cut line under Finished size to keep the patch size.';
+}
 function syncLabels() {
+  offsetHint();
   $('offVal').innerHTML = inch(+$('offIn').value);
   $('bridgeVal').innerHTML = inch(+$('bridgeIn').value);
   $('smoothVal').innerHTML = $('smooth').value === '0' ? 'off' : inch(+$('smooth').value * 0.02);
@@ -1087,7 +1096,7 @@ async function openJob(j) {
   st.jobId = j.id; renderJobs();
 }
 function syncSizeUI() {
-  const L = leather();
+  const L = leather(); setTimeout(offsetHint, 0);
   $('fitRow').hidden = $('fitHint').hidden = !L; $('refRow').hidden = $('sizeHint').hidden = L;
   if (L) $('sizeIn').disabled = $('fitPlace').checked; else syncSizeRef();
 }
