@@ -60,6 +60,11 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .seg button + button { border-left: 1px solid var(--line) }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel) }
 .seg button:disabled { opacity: .4; cursor: not-allowed }
+.shapes { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; margin: 4px 0 6px }
+.shapes button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px; cursor: pointer; color: var(--muted); line-height: 0 }
+.shapes button svg { width: 100%; height: auto; fill: color-mix(in srgb, currentColor 18%, transparent); stroke: currentColor; stroke-width: 1.4 }
+.shapes button:hover { color: var(--ink) }
+.shapes button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink) }
 .swatches { display: flex; gap: 6px; align-items: center }
 .sw { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; padding: 0; position: relative }
 .sw[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px }
@@ -222,7 +227,8 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
       <div class="sec">
         <h2>Cut path</h2>
         <div class="row"><label for="shape">Shape</label>
-          <select id="shape">
+          <span class="val" id="shapeName">Contour</span>
+          <select id="shape" hidden aria-hidden="true" tabindex="-1">
             <option value="contour">Contour</option>
             <option value="hex">Hexagon</option>
             <option value="hull">Hull (convex)</option>
@@ -231,6 +237,8 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
             <option value="oval">Oval</option>
           </select>
         </div>
+        <div class="shapes" id="shapePick" role="group" aria-label="Patch shape"></div>
+        <p class="hint">Every shape sizes itself around the art and its offset. The art sits in the shape's best spot, like the top of a shield.</p>
         <div class="row"><label for="offIn">Offset from art</label><span class="val" id="offVal"></span></div>
         <input type="range" id="offIn" min="0" max="0.5" step="0.0078125" value="0.0625">
         <p class="hint" id="offHint"></p>
@@ -816,7 +824,7 @@ const CutCore = (() => {
     return { sil: mask, loops: simp, sewLoops, artBox, cutBox: [bx0, by0, bx1, by1], bgMode: am.mode, pxPerIn: o.pxPerIn, ringsRemoved, stripMask };
   }
 
-  return { run, toBeziers, edt, artMask, signedArea, components };
+  return { run, toBeziers, edt, artMask, signedArea, components, contours, rdpClosed };
 })();
 if (typeof module !== 'undefined') module.exports = CutCore;
 </script>
@@ -1156,6 +1164,11 @@ function params() {
     speckIn2: +$('speck').value, smooth: +$('smooth').value, bridgeMode: st.bridgeMode, sewIn: 0, inset: st.pad,
     fixedPPI: st.sizeRef === 'file' && st.srcPPI ? st.srcPPI : 0, mirrorX: $('mirrorX').checked
   };
+  if (!leather() && p.sizeRef === 'cut' && $('shape').value !== 'contour') { // a drawn shape is bigger than the offset line, so size the art until the shape matches
+    const key = [p.sizeIn, p.axis, p.offIn, $('shape').value, $('mirrorX').checked].join();
+    if (!st.uvFit || st.uvFit.key !== key || st.uvFit.ras !== st.raster || st.uvFit.ed !== st.edits) st.uvFit = { key, ras: st.raster, ed: st.edits, art: Math.max(0.1, p.sizeIn - 2 * p.offIn), passes: 0 };
+    Object.assign(p, { sizeRef: 'art', sizeIn: st.uvFit.art });
+  }
   if (leather()) {
     Object.assign(p, { sizeRef: 'art', axis: 'h', sizeIn: Math.max(0.2, st.fit.artH), stripOld: $('stripOld').checked });
     const contour = $('shape').value === 'contour';
@@ -1191,6 +1204,12 @@ async function process() {
       f = (v - 2 * off) / Math.max(0.05, cur - 2 * off); label = v + ' in ' + (st.axis === 'h' ? 'tall' : 'wide');
     }
     if (Math.abs(f - 1) > 0.002 && st.fit.passes < 6) { st.fit.artH *= f; st.fit.passes++; status('Sizing to ' + label + '…'); process(); return; }
+  }
+  else if (st.sizeRef === 'cut' && $('shape').value !== 'contour' && st.uvFit) {
+    const sh = st.shape, v = Math.max(0.25, +$('sizeIn').value || 3.5), off = p.offIn;
+    const cur = (st.axis === 'h' ? sh.box[3] - sh.box[1] : sh.box[2] - sh.box[0]) / r.pxPerIn;
+    const f = (v - 2 * off) / Math.max(0.05, cur - 2 * off);
+    if (Math.abs(f - 1) > 0.002 && st.uvFit.passes < 6) { st.uvFit.art *= f; st.uvFit.passes++; status('Sizing to ' + v + ' in…'); process(); return; }
   }
   if (!st.bgChosen) { $('darkBg').checked = artIsLight(); $('box').classList.toggle('dark', $('darkBg').checked); }
   syncEngrave(); syncSheet();
@@ -1583,7 +1602,7 @@ function cleanArt(r) {
 }
 function warnings(r) {
   const w = [];
-  const pieces = st.shape.cut.length;
+  const pieces = st.shape.pieces || st.shape.cut.length;
   if (embOn() && !$('embDirect').checked && +$('merrow').value > +$('offIn').value - 0.03) w.push('The merrow border covers the edge of the art. Raise "Offset from art" to about ' + (+$('merrow').value + 0.06).toFixed(2) + ' in, or narrow the merrow.');
   if (st.srcKind === 'img' && st.srcFile && st.srcScale > 1.05) {
     const eff = Math.round(r.pxPerIn / st.srcScale);
@@ -1610,7 +1629,7 @@ function updateReadout() {
   const s = r.pxPerIn, [cx0, cy0, cx1, cy1] = st.shape.box, [ax0, ay0, ax1, ay1] = r.artBox;
   $('roCut').textContent = dim((cx1 - cx0) / s, (cy1 - cy0) / s);
   $('roArt').textContent = dim((ax1 - ax0) / s, (ay1 - ay0) / s);
-  $('roPieces').textContent = st.shape.cut.length;
+  $('roPieces').textContent = st.shape.pieces || st.shape.cut.length;
   $('roNodes').textContent = st.shape.cut.reduce((a, l) => a + l.length, 0);
   $('ppiNote').textContent = 'Working resolution ' + Math.round(s) + ' ppi';
 }
@@ -1678,6 +1697,170 @@ function boxOf(paths) {
   for (const P of paths) for (const sg of P) for (const q of [sg.a, sg.b]) { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
   return [x0, y0, x1, y1];
 }
+// ---------- standard patch shapes ----------
+// Each shape draws itself in a W x H box from (0,0). Notches and points scale with the
+// shorter side so they stay round at any proportion. fitLib() sizes the shape around the art.
+function shapePen() {
+  const segs = []; let cur = null, start = null;
+  const P = {
+    segs,
+    M(x, y) { cur = start = [x, y]; return P; },
+    L(x, y) { const b = [x, y]; if (Math.hypot(b[0] - cur[0], b[1] - cur[1]) > 1e-6) segs.push({ t: 'L', a: cur, b }); cur = b; return P; },
+    C(c1x, c1y, c2x, c2y, x, y) { const b = [x, y]; segs.push({ t: 'C', a: cur, c1: [c1x, c1y], c2: [c2x, c2y], b }); cur = b; return P; },
+    A(cx, cy, r, a0, a1) { // arc from angle a0 to a1 (radians, y down), in pieces of 90 degrees or less
+      const n = Math.max(1, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 2) - 1e-9)), da = (a1 - a0) / n, k = 4 / 3 * Math.tan(da / 4);
+      for (let i = 0; i < n; i++) {
+        const t0 = a0 + i * da, t1 = t0 + da, p0 = [cx + r * Math.cos(t0), cy + r * Math.sin(t0)], p1 = [cx + r * Math.cos(t1), cy + r * Math.sin(t1)];
+        if (!cur) P.M(p0[0], p0[1]); else if (Math.hypot(p0[0] - cur[0], p0[1] - cur[1]) > 1e-6) P.L(p0[0], p0[1]);
+        P.C(p0[0] - k * r * Math.sin(t0), p0[1] + k * r * Math.cos(t0), p1[0] + k * r * Math.sin(t1), p1[1] - k * r * Math.cos(t1), p1[0], p1[1]);
+      }
+      return P;
+    },
+    Z() { P.L(start[0], start[1]); return segs; }
+  };
+  return P;
+}
+const PI = Math.PI;
+// A panel with optional concave corner notches and a feature on each edge.
+// o: { r: notch radius, top/bot: 'flat'|'peak'|'arch'|'dip', side: 'flat'|'point'|'arch', t: edge feature depth (y), s: side feature depth (x) }
+function panel(W, H, o) {
+  const m = Math.min(W, H), r = (o.r || 0) * m, t = (o.t || 0) * m, s = (o.s || 0) * m;
+  const out = f => f === 'peak' || f === 'arch' || f === 'point'; // feature reaches the outer box
+  const y0 = out(o.top) ? t : 0, y1 = out(o.bot) ? H - t : H, x0 = out(o.side) ? s : 0, x1 = out(o.side) ? W - s : W;
+  const p = shapePen();
+  // horizontal edge from (ax,y) to (bx,y); dir -1 = top (outside is up), +1 = bottom
+  const hEdge = (ax, bx, y, f, dir) => {
+    const L = bx - ax, mx = (ax + bx) / 2, d = dir * t;
+    if (f === 'arch' || f === 'dip') { const b = (f === 'arch' ? d : -d) * 4 / 3; p.C(ax + L / 4, y + b, bx - L / 4, y + b, bx, y); }
+    else if (f === 'peak') { const q = L * 0.2; p.L(mx - q * 1.6, y).C(mx - q * 0.6, y, mx - q * 0.35, y + d, mx, y + d).C(mx + q * 0.35, y + d, mx + q * 0.6, y, mx + q * 1.6, y).L(bx, y); }
+    else p.L(bx, y);
+  };
+  const vEdge = (ay, by, x, f, dir) => {
+    const L = by - ay, my = (ay + by) / 2, d = dir * s;
+    if (f === 'arch') { const b = d * 4 / 3; p.C(x + b, ay + L / 4, x + b, by - L / 4, x, by); }
+    else if (f === 'point') p.L(x, my - Math.abs(L) * 0.12).L(x + d, my).L(x, my + Math.abs(L) * 0.12).L(x, by);
+    else p.L(x, by);
+  };
+  // corners: concave quarter circles centered on the panel corner
+  p.M(x0 + r, y0);
+  hEdge(x0 + r, x1 - r, y0, o.top, -1);
+  if (r) p.A(x1, y0, r, PI, PI / 2);
+  vEdge(y0 + r, y1 - r, x1, o.side, 1);
+  if (r) p.A(x1, y1, r, -PI / 2, -PI);
+  hEdge(x1 - r, x0 + r, y1, o.bot, 1);
+  if (r) p.A(x0, y1, r, 0, -PI / 2);
+  vEdge(y1 - r, y0 + r, x0, o.side, -1);
+  if (r) p.A(x0, y0, r, PI / 2, 0);
+  return [p.Z()];
+}
+const poly = P => { const p = shapePen(); p.M(...P[0]); for (const q of P.slice(1)) p.L(...q); return p.Z(); };
+// name, natural height/width, how far the proportions may stretch, drawing
+const SHAPE_LIB = {
+  shield: { name: 'Shield', aspect: 1.15, stretch: [0.8, 1.35], draw: (W, H) => { const p = shapePen(); p.M(0, 0).L(W, 0).L(W, 0.42 * H).C(W, 0.72 * H, 0.78 * W, 0.9 * H, 0.5 * W, H).C(0.22 * W, 0.9 * H, 0, 0.72 * H, 0, 0.42 * H); return [p.Z()]; } },
+  shieldArch: { name: 'Arched shield', aspect: 1.2, stretch: [0.8, 1.35], draw: (W, H) => { const p = shapePen(), t = 0.09 * H; p.M(0, t).C(0.25 * W, -t / 3, 0.75 * W, -t / 3, W, t).L(W, 0.45 * H).C(W, 0.74 * H, 0.78 * W, 0.9 * H, 0.5 * W, H).C(0.22 * W, 0.9 * H, 0, 0.74 * H, 0, 0.45 * H); return [p.Z()]; } },
+  shieldPeak: { name: 'Peaked shield', aspect: 1.2, stretch: [0.8, 1.35], draw: (W, H) => { const p = shapePen(), t = 0.08 * H; p.M(0, t).C(0.2 * W, t, 0.42 * W, t * 0.6, 0.5 * W, 0).C(0.58 * W, t * 0.6, 0.8 * W, t, W, t).L(W, 0.5 * H).C(W, 0.76 * H, 0.75 * W, 0.92 * H, 0.5 * W, H).C(0.25 * W, 0.92 * H, 0, 0.76 * H, 0, 0.5 * H); return [p.Z()]; } },
+  antique: { name: 'Antique', aspect: 0.62, stretch: [0.7, 1.5], draw: (W, H) => panel(W, H, { r: 0.13, top: 'peak', bot: 'peak', side: 'point', t: 0.12, s: 0.07 }) },
+  fan: { name: 'Fan', aspect: 0.45, stretch: [0.7, 1.6], draw: (W, H) => { const p = shapePen(), t = 0.12 * H; p.M(0, t).C(0.25 * W, t - 4 / 3 * t, 0.75 * W, t - 4 / 3 * t, W, t).L(0.87 * W, H).L(0.13 * W, H); return [p.Z()]; } },
+  bubble: { name: 'Bubble plaque', aspect: 0.55, stretch: [0.7, 1.6], draw: (W, H) => panel(W, H, { r: 0.12, top: 'arch', bot: 'arch', side: 'flat', t: 0.12 }) },
+  ticket: { name: 'Ticket', aspect: 0.55, stretch: [0.5, 1.8], draw: (W, H) => panel(W, H, { r: 0.12, top: 'flat', bot: 'flat', side: 'flat' }) },
+  cloud: { name: 'Cloud plaque', aspect: 0.62, stretch: [0.7, 1.5], draw: (W, H) => panel(W, H, { r: 0.13, top: 'arch', bot: 'arch', side: 'arch', t: 0.1, s: 0.06 }) },
+  scroll: { name: 'Scroll plaque', aspect: 0.5, stretch: [0.6, 1.7], draw: (W, H) => panel(W, H, { r: 0.12, top: 'dip', bot: 'dip', side: 'flat', t: 0.06 }) },
+  eartag: { name: 'Ear tag', aspect: 1.15, stretch: [0.85, 1.35], tag: true, draw: (W, H) => {
+    const p = shapePen(), R = 0.17 * W, cy = 0.04 * H + R;
+    p.M(0, H).L(0, 0.55 * H).C(0, 0.42 * H, 0.3 * W, 0.36 * H, 0.5 * W - R * 0.95, cy + R * 0.3).A(0.5 * W, cy, R, PI - 0.3, 2 * PI + 0.3).C(0.7 * W, 0.36 * H, W, 0.42 * H, W, 0.55 * H).L(W, H);
+    const h = shapePen(); h.A(0.5 * W, cy, 0.3 * R, 0, -2 * PI); h.Z(); // the hole runs the other way
+    return [p.Z(), h.segs];
+  } },
+  crest: { name: 'Crest', aspect: 0.5, stretch: [0.7, 1.6], draw: (W, H) => [poly([[0, 0.2 * H], [0.5 * W, 0], [W, 0.2 * H], [0.93 * W, 0.65 * H], [0.5 * W, H], [0.07 * W, 0.65 * H]])] },
+  pentagon: { name: 'Tapered', aspect: 0.8, stretch: [0.7, 1.4], draw: (W, H) => [poly([[0, 0.12 * H], [0.5 * W, 0], [W, 0.12 * H], [0.85 * W, H], [0.5 * W, 0.97 * H], [0.15 * W, H]])] },
+  banner: { name: 'Banner', aspect: 0.45, stretch: [0.7, 1.6], draw: (W, H) => { const p = shapePen(), t = 0.12 * H; p.M(0, t).C(0.25 * W, t - 4 / 3 * t, 0.75 * W, t - 4 / 3 * t, W, t).L(0.97 * W, 0.78 * H).C(0.8 * W, 0.8 * H, 0.6 * W, 0.86 * H, 0.5 * W, H).C(0.4 * W, 0.86 * H, 0.2 * W, 0.8 * H, 0.03 * W, 0.78 * H); return [p.Z()]; } },
+  circle: { name: 'Circle', aspect: 1, fixed: true, draw: (W, H) => [ovalPath(W / 2, H / 2, W / 2, H / 2)] },
+  diamond: { name: 'Diamond', aspect: 1, stretch: [0.8, 1.25], draw: (W, H) => [poly([[0.5 * W, 0], [W, 0.5 * H], [0.5 * W, H], [0, 0.5 * H]])] },
+  square: { name: 'Rounded square', aspect: 1, fixed: true, draw: (W, H) => [rrectPath(0, 0, W, H, 0.12 * W)] }
+};
+// The picker: library shapes plus the fitted ones built in buildShape. Order follows the shop's chart.
+const SHAPE_PICK = ['contour', 'shield', 'shieldArch', 'shieldPeak', 'antique', 'fan', 'bubble', 'ticket', 'cloud', 'scroll', 'eartag', 'circle', 'diamond', 'hex', 'oval', 'rect', 'rrect', 'square', 'crest', 'pentagon', 'banner', 'hull'];
+const SHAPE_NAMES = { contour: 'Contour', hex: 'Hexagon', hull: 'Hull (convex)', rect: 'Rectangle', rrect: 'Rounded rectangle', oval: 'Oval' };
+function flatten(segs, n = 10) {
+  const P = [];
+  for (const g of segs) {
+    if (g.t === 'L') { P.push(g.a); continue; }
+    for (let i = 0; i < n; i++) { const t = i / n, u = 1 - t; P.push([u * u * u * g.a[0] + 3 * u * u * t * g.c1[0] + 3 * u * t * t * g.c2[0] + t * t * t * g.b[0], u * u * u * g.a[1] + 3 * u * u * t * g.c1[1] + 3 * u * t * t * g.c2[1] + t * t * t * g.b[1]]); }
+  }
+  return P;
+}
+function insidePolys(x, y, polys) { // even-odd, so the ear tag hole counts as outside
+  let c = false;
+  for (const P of polys) for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+    const [xi, yi] = P[i], [xj, yj] = P[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+const polyArea = P => Math.abs(CutCore.signedArea(P));
+// Smallest version of the shape that holds every point, trying a range of proportions and
+// letting the art ride a little high or low (a shield's art sits in its upper part).
+function fitLib(def, pts, cx, cy, artW, artH) {
+  const step = Math.max(1, Math.ceil(pts.length / 180)), test = pts.filter((_, i) => i % step === 0);
+  const asp = def.fixed ? [def.aspect] : Array.from({ length: 7 }, (_, i) => def.aspect * (def.stretch[0] + (def.stretch[1] - def.stretch[0]) * i / 6));
+  const shifts = def.fixed ? [0] : [-0.12, -0.06, 0, 0.06, 0.12];
+  const holds = (W, a, dy) => {
+    const H = W * a, ox = cx - W / 2, oy = cy + dy * H - H / 2;
+    const polys = def.draw(W, H).map(s => flatten(s));
+    for (const [x, y] of test) if (!insidePolys(x - ox, y - oy, polys)) return null;
+    return { W, H, ox, oy, area: polyArea(polys[0]) };
+  };
+  let best = null;
+  for (const a of asp) for (const dy of shifts) {
+    let lo = Math.max(artW, artH / a) * 0.5, hi = lo * 2, ok = holds(hi, a, dy), g = 0;
+    while (!ok && g++ < 6) { lo = hi; hi *= 2; ok = holds(hi, a, dy); }
+    if (!ok) continue;
+    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2, f = holds(mid, a, dy); if (f) { hi = mid; ok = f; } else lo = mid; }
+    if (!best || ok.area < best.area) best = ok;
+  }
+  return best;
+}
+const moveSegs = (segs, dx, dy) => segs.map(g => g.t === 'L' ? { t: 'L', a: [g.a[0] + dx, g.a[1] + dy], b: [g.b[0] + dx, g.b[1] + dy] }
+  : { t: 'C', a: [g.a[0] + dx, g.a[1] + dy], c1: [g.c1[0] + dx, g.c1[1] + dy], c2: [g.c2[0] + dx, g.c2[1] + dy], b: [g.b[0] + dx, g.b[1] + dy] });
+// Sew line an even distance inside any shape: paint it, measure in from the edge, trace.
+function insetAny(segs, d) {
+  const P = flatten(segs, 16); let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of P) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const k = Math.min(4, 1400 / Math.max(x1 - x0, y1 - y0)), w = Math.ceil((x1 - x0) * k) + 4, h = Math.ceil((y1 - y0) * k) + 4;
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const c = cv.getContext('2d'); c.beginPath(); P.forEach(([x, y], i) => c[i ? 'lineTo' : 'moveTo']((x - x0) * k + 2, (y - y0) * k + 2)); c.closePath(); c.fill();
+  const a = c.getImageData(0, 0, w, h).data, mask = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) mask[i] = a[i * 4 + 3] > 127 ? 1 : 0;
+  const dist = CutCore.edt(mask, w, h, 0);
+  const loops = CutCore.contours(dist, w, h, d * k);
+  if (!loops.length) return null;
+  let L = loops[0]; for (const l of loops) if (polyArea(l) > polyArea(L)) L = l;
+  return polyPath(CutCore.rdpClosed(L, 0.3).map(([x, y]) => [(x - 2) / k + x0, (y - 2) / k + y0]));
+}
+function libShape(def, pts, s, sewOn, ins) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const f = fitLib(def, pts, (x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0);
+  if (!f) return null;
+  const cut = def.draw(f.W, f.H).map(g => moveSegs(g, f.ox, f.oy));
+  const sewP = sewOn ? insetAny(cut[0], ins) : null;
+  return { cut, sew: sewP ? [sewP] : null, box: boxOf(cut), sewJoin: 'round', pieces: 1 };
+}
+// little pictures for the picker
+function shapeIcon(id) {
+  const def = SHAPE_LIB[id], W = def ? Math.min(40, 32 / def.aspect) : 40;
+  let segs;
+  if (def) { const a = def.aspect, H = W * a; segs = def.draw(W, H).map(g => moveSegs(g, (48 - W) / 2, (36 - H) / 2)); }
+  else segs = ({
+    contour: [bzPath([[8, 22], [12, 9], [22, 6], [30, 10], [38, 8], [41, 18], [36, 27], [26, 25], [20, 31], [11, 30]])],
+    hex: [poly([[24, 4], [40, 10], [40, 26], [24, 32], [8, 26], [8, 10]])],
+    hull: [poly([[8, 24], [14, 8], [30, 5], [41, 16], [36, 30], [18, 31]])],
+    rect: [poly([[6, 9], [42, 9], [42, 27], [6, 27]])],
+    rrect: [rrectPath(6, 9, 42, 27, 5)],
+    oval: [ovalPath(24, 18, 18, 11)]
+  })[id];
+  return '<svg viewBox="0 0 48 36" aria-hidden="true"><path d="' + segs.map(S => 'M' + S[0].a.map(v => v.toFixed(1)).join(' ') + S.map(g => g.t === 'L' ? 'L' + g.b.map(v => v.toFixed(1)).join(' ') : 'C' + [g.c1, g.c2, g.b].map(p => p.map(v => v.toFixed(1)).join(' ')).join(' ')).join('') + 'Z').join('') + '" fill-rule="evenodd"/></svg>';
+}
 function buildShape(r) {
   const shape = $('shape').value, s = r.pxPerIn;
   const sewOn = leather() && $('sewOn').checked, ins = (+$('sewIn').value || 0.13) * s;
@@ -1694,6 +1877,7 @@ function buildShape(r) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
   const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  if (SHAPE_LIB[shape]) { const L = libShape(SHAPE_LIB[shape], pts, s, sewOn, ins); if (L) return L; }
   let cut, sew = null, box, join = 'miter';
   if (shape === 'hex') {
     // pointed top and bottom, vertical sides; slants just clear the outermost art
@@ -1776,6 +1960,7 @@ function silhouette() {
   c.putImageData(id, 0, 0); st.silCv = cv; return cv;
 }
 function draw() {
+  syncShapePick();
   const cv = $('view'), box = $('box');
   const dpr = window.devicePixelRatio || 1, W = box.clientWidth, H = box.clientHeight;
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -2533,7 +2718,22 @@ $('fitPlace').addEventListener('change', () => {
 });
 $('sewOn').addEventListener('change', () => { $('sewInRow').hidden = !$('sewOn').checked; later(); });
 $('stripOld').addEventListener('change', later);
-$('shape').addEventListener('change', () => leather() || $('shape').value === 'contour' ? later() : redraw());
+{ // shape picker; the hidden select stays the saved value
+  const sel = $('shape'), pick = $('shapePick');
+  for (const id of SHAPE_PICK) {
+    const name = SHAPE_LIB[id] ? SHAPE_LIB[id].name : SHAPE_NAMES[id];
+    if (!sel.querySelector('option[value="' + id + '"]')) sel.add(new Option(name, id));
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.shape = id; b.title = name; b.setAttribute('aria-label', name); b.innerHTML = shapeIcon(id);
+    b.onclick = () => { if (sel.value !== id) { sel.value = id; sel.dispatchEvent(new Event('change')); } };
+    pick.appendChild(b);
+  }
+}
+function syncShapePick() {
+  const v = $('shape').value; $('shapeName').textContent = $('shape').selectedOptions[0]?.text || '';
+  document.querySelectorAll('#shapePick button').forEach(b => b.setAttribute('aria-pressed', b.dataset.shape === v));
+}
+syncShapePick();
+$('shape').addEventListener('change', () => { syncShapePick(); later(); }); // re-run so the size holds on the new shape's cut line
 ['offIn', 'bridgeIn', 'smooth', 'speck'].forEach(id => $(id).addEventListener('input', later));
 ['sizeIn', 'bgMode', 'mirrorX'].forEach(id => $(id).addEventListener('change', later));
 $('largest').addEventListener('change', () => leather() ? later() : redraw());
