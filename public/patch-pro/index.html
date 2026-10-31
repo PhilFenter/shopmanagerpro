@@ -2072,11 +2072,13 @@ function patchColorCanvas(ppiOut, opts = {}) {
 function drawSheet(c, W, H) {
   const L = syncSheet(); if (!L) return;
   const { sp } = L, m = 24, k = Math.min((W - 2 * m) / sp.W, (H - 2 * m) / sp.H), ox = (W - sp.W * k) / 2, oy = (H - sp.H * k) / 2;
-  c.save(); c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 10; c.fillStyle = sp.dark ? '#1f1f21' : '#fbfbf9'; c.fillRect(ox, oy, sp.W * k, sp.H * k); c.restore();
+  const bv = st.viewMode === 'build'; // Build view: show the sheet as the Build PDF will be (grayscale height on white)
+  c.save(); c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 10; c.fillStyle = bv ? '#ffffff' : sp.dark ? '#1f1f21' : '#fbfbf9'; c.fillRect(ox, oy, sp.W * k, sp.H * k); c.restore();
   c.setLineDash([4, 4]); c.strokeStyle = sp.dark ? 'rgba(255,255,255,.3)' : 'rgba(0,0,0,.25)'; c.lineWidth = 1;
   c.strokeRect(ox + sp.margin * k, oy + sp.margin * k, (sp.W - 2 * sp.margin) * k, (sp.H - 2 * sp.margin) * k); c.setLineDash([]);
   const tppi = Math.round(Math.min(300, Math.max(40, k * (window.devicePixelRatio || 1) * 1.25)));
-  if (!st.thumb || st.thumb.key !== st.shape || st.thumb.fill !== st.fill || st.thumb.emb !== embOn() || st.thumb.ppi !== tppi) st.thumb = { key: st.shape, fill: st.fill, emb: embOn(), ppi: tppi, cv: patchColorCanvas(tppi, { transparent: true }) };
+  const tkey = [st.fill, embOn() && JSON.stringify(embParams()), tppi, bv, bv && $('buildCon').value].join('|');
+  if (!st.thumb || st.thumb.key !== st.shape || st.thumb.k2 !== tkey) st.thumb = { key: st.shape, k2: tkey, cv: bv ? buildPreviewCanvas(tppi) : patchColorCanvas(tppi, { transparent: true }) };
   const r = st.result, sh = st.shape, [bx0, by0] = sh.box;
   for (const cell of L.cells) {
     c.save(); c.translate(ox + (cell.rot ? cell.x + L.ph : cell.x) * k, oy + cell.y * k); if (cell.rot) c.rotate(Math.PI / 2);
@@ -2086,7 +2088,7 @@ function drawSheet(c, W, H) {
     c.restore();
   }
   for (const [dx, dy] of dotCenters(sp)) {
-    if (sp.dark) { c.fillStyle = '#fff'; c.beginPath(); c.arc(ox + dx * k, oy + dy * k, Math.max(2.5, sp.ringD / 2 * k), 0, 7); c.fill(); }
+    if (sp.dark && !bv) { c.fillStyle = '#fff'; c.beginPath(); c.arc(ox + dx * k, oy + dy * k, Math.max(2.5, sp.ringD / 2 * k), 0, 7); c.fill(); }
     c.fillStyle = '#000'; c.beginPath(); c.arc(ox + dx * k, oy + dy * k, Math.max(1.5, sp.dotD / 2 * k), 0, 7); c.fill();
   }
   c.fillStyle = cssVar('--muted'); c.font = '12px ' + cssVar('--f-num'); c.textAlign = 'left';
