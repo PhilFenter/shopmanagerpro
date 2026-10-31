@@ -7,7 +7,7 @@ Short entries on non-obvious calls made in this app, so nobody (including future
 
 ## Patch Pro runs as its own page inside Shop Manager
 **Date:** 2026-10-30
-**What:** `/patch-pro` is the patch designer: cut lines that bridge to floating text, leather patches
+**What:** `/patch-pro` (main sidebar, right under Counter Quote, so the front counter can reach it) is the patch designer: cut lines that bridge to floating text, leather patches
 with sew lines and leather mockups, UV patch print sheets (Color, Cut and Build PDFs with Trotec
 registration dots), faux embroidery, and hat mockups. The whole designer is one self-contained file,
 `public/patch-pro/index.html`, shown full-screen in a frame by `src/pages/PatchPro.tsx`. The frame asks
