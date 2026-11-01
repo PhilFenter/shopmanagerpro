@@ -239,6 +239,8 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
         </div>
         <div class="shapes" id="shapePick" role="group" aria-label="Patch shape"></div>
         <p class="hint">Every shape sizes itself around the art and its offset. The art sits in the shape's best spot, like the top of a shield.</p>
+        <label class="check"><input type="checkbox" id="useFileCut" checked> Use the red cut line in my file</label>
+        <p class="hint" id="fileCutHint">To make your own shape, save the SVG, reshape the red cut line in Illustrator or Corel, and load the file again. Patch Pro cuts on your line and leaves it out of the art.</p>
         <div class="row"><label for="offIn">Offset from art</label><span class="val" id="offVal"></span></div>
         <input type="range" id="offIn" min="0" max="0.5" step="0.0078125" value="0.0625">
         <p class="hint" id="offHint"></p>
@@ -713,12 +715,22 @@ const CutCore = (() => {
       tol: Math.max(0.35, (0.0008 + 0.00035 * p.smooth) * ppi)
     };
   }
+  // The inside of a closed red cut line drawn in the file, out to the middle of the line.
+  // Small gaps in a thin line are bridged first. Returns null when the line doesn't enclose anything.
+  function cutFromLine(red, W, H, half) {
+    const g = 3, d1 = edt(red, W, H, 1), dil = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) dil[i] = d1[i] <= g ? 1 : 0;
+    const filled = fillHoles(dil, W, H), d2 = edt(filled, W, H, 0), cut = new Uint8Array(W * H);
+    let area = 0, lineArea = 0;
+    for (let i = 0; i < W * H; i++) { if (d2[i] > g + half) { cut[i] = 1; area++; } if (dil[i]) lineArea++; }
+    return area > lineArea * 2 && area > 400 ? cut : null;
+  }
   function run(img, o) {
     if (typeof o.scale !== 'function') { const p = o; o = Object.assign({}, o, { scale: (a, b) => scaleFrom(a, b, p) }); }
     const { rgba, w: W, h: H } = img;
     const inset = (o.inset || 0) + 1;
-    let am, ringsRemoved = 0, stripMask = null;
-    if (o.stripOld) {
+    let am, ringsRemoved = 0, stripMask = null, fileCut = null, artOutside = 0;
+    if (o.stripOld || o.useFileCut) {
       // red hairlines (old cut lines): thin red strokes only, so solid red art stays
       const isRed = i => { const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2]; return rgba[i * 4 + 3] > 10 && r > 140 && r - Math.max(g, b) > 28 && Math.abs(g - b) < 50; }; // includes the pink anti-aliased edge of a hairline
       const red = new Uint8Array(W * H); let anyRed = false;
@@ -729,6 +741,19 @@ const CutCore = (() => {
         for (let i = 0; i < W * H; i++) if (labels[i] && depth[i] > maxD[labels[i]]) maxD[labels[i]] = depth[i];
         const thin = Math.max(2.5, 0.006 * W / 4); // about a 1 pt stroke or less
         for (let i = 0; i < W * H; i++) if (labels[i] && maxD[labels[i]] <= thin) force[i] = 1;
+        if (o.useFileCut) { // a drawn cut line may be a little heavier than a hairline, with fatter joins
+          const line = new Uint8Array(W * H), lim = thin * 2;
+          for (let i = 0; i < W * H; i++) if (labels[i] && maxD[labels[i]] <= lim) line[i] = 1;
+          fileCut = cutFromLine(line, W, H, maxD.reduce((a, v) => v <= lim && v > a ? v : a, 1));
+          if (fileCut) { // only a line that goes around the art is a cut line (not red lettering)
+            const pre = artMask(rgba, W, H, o.bgMode, o.whiteTol, false, inset, line);
+            let art = 0, out = 0;
+            for (let i = 0; i < W * H; i++) if (pre.mask[i]) { art++; if (!fileCut[i]) out++; }
+            if (!art || out > art * 0.03) fileCut = null; else artOutside = out / art;
+          }
+          if (fileCut) for (let i = 0; i < W * H; i++) if (line[i]) force[i] = 1;
+        }
+        if (!o.stripOld && !fileCut) force.fill(0); // thin red is art unless it is the cut line
       }
       const grow = m => { const d = edt(m, W, H, 1); for (let i = 0; i < W * H; i++) m[i] = d[i] <= 1.5 ? 1 : 0; }; // catch anti-aliased edges
       if (anyRed) grow(force);
@@ -737,7 +762,7 @@ const CutCore = (() => {
       const ink = new Uint8Array(W * H);
       for (let i = 0; i < W * H; i++) ink[i] = am.isBg(i) ? 0 : 1;
       const before = ink.slice();
-      ringsRemoved = stripRings(ink, W, H);
+      if (o.stripOld) ringsRemoved = stripRings(ink, W, H);
       for (let i = 0; i < W * H; i++) if (before[i] && !ink[i]) force[i] = 1;
       if (ringsRemoved) grow(force);
       if (ringsRemoved) am = artMask(rgba, W, H, am.mode, o.whiteTol, false, inset, force);
@@ -751,6 +776,14 @@ const CutCore = (() => {
     };
     let [x0, y0, x1, y1] = bbox(am.mask);
     if (x1 < 0) return { error: 'No artwork found. Try a different background setting.' };
+    let cutB = null;
+    if (fileCut) { // a red cut line drawn in the file sets the shape; sized on that line when sizing by the cut
+      cutB = bbox(fileCut);
+      if (o.sizeRef === 'cut' && !o.fixedPPI) {
+        const dim = (o.axis === 'h' ? cutB[3] - cutB[1] : cutB[2] - cutB[0]) + 1, q = Object.assign({}, o, { fixedPPI: dim / Math.max(0.1, o.sizeIn) });
+        o = Object.assign({}, o, { scale: (a, b) => scaleFrom(a, b, q) });
+      }
+    }
     // o.scale(artWidthPx, artHeightPx) -> {pxPerIn, offPx, bridgePx, speckPx, blur, tol}
     let sc = o.scale(x1 - x0 + 1, y1 - y0 + 1);
     const mask = removeSpecks(am.mask, W, H, sc.speckPx);
@@ -761,6 +794,7 @@ const CutCore = (() => {
     const artBox = [x0, y0, x1 + 1, y1 + 1];
     // hand-painted "add" strokes join the silhouette before bridging/offset
     if (o.add) { for (let i = 0; i < W * H; i++) if (o.add[i]) mask[i] = 1; [x0, y0, x1, y1] = bbox(mask); }
+    if (cutB) { x0 = Math.min(x0, cutB[0]); y0 = Math.min(y0, cutB[1]); x1 = Math.max(x1, cutB[2]); y1 = Math.max(y1, cutB[3]); }
     const pad = Math.ceil(o.offPx + o.bridgePx + o.blur * 2 + (o.smoothPx || 0) * 2 + 6);
     const w = x1 - x0 + 1 + pad * 2, h = y1 - y0 + 1 + pad * 2;
     let m = new Uint8Array(w * h);
@@ -775,10 +809,14 @@ const CutCore = (() => {
       m = fillHoles(m, w, h);
       bridge = Math.min(bridge, 0.03 * o.pxPerIn); // light rounding where the fill meets the art
     }
-    let cm = cutMask(m, w, h, o.offPx, bridge).mask;
+    let cm;
+    if (fileCut) {
+      cm = new Uint8Array(w * h);
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) cm[(y - y0 + pad) * w + (x - x0 + pad)] = fileCut[y * W + x];
+    } else cm = cutMask(m, w, h, o.offPx, bridge).mask;
     // smoothing: round off bumps and notches smaller than the smoothing size,
     // but never let the cut come closer to the art than half the offset
-    if (o.smoothPx >= 1) {
+    if (o.smoothPx >= 1 && !fileCut) {
       const f = blurField(cm, w, h, Math.round(o.smoothPx)), dA = edt(m, w, h, 1), floor = o.offPx * 0.5, t = new Uint8Array(w * h);
       for (let i = 0; i < w * h; i++) t[i] = f[i] > 0.5 || dA[i] <= floor ? 1 : 0;
       // close at the same scale so anything the floor kept (a far speck) rejoins the outline in a smooth curve
@@ -821,7 +859,7 @@ const CutCore = (() => {
     }).sort((a, b) => Math.abs(signedArea(b)) - Math.abs(signedArea(a)));
     let bx0 = INF, by0 = INF, bx1 = -INF, by1 = -INF;
     for (const l of simp) for (const [x, y] of l) { bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x); by1 = Math.max(by1, y); }
-    return { sil: mask, loops: simp, sewLoops, artBox, cutBox: [bx0, by0, bx1, by1], bgMode: am.mode, pxPerIn: o.pxPerIn, ringsRemoved, stripMask };
+    return { sil: mask, loops: simp, sewLoops, artBox, cutBox: [bx0, by0, bx1, by1], bgMode: am.mode, pxPerIn: o.pxPerIn, ringsRemoved, stripMask, fileCut: !!fileCut, artOutside };
   }
 
   return { run, toBeziers, edt, artMask, signedArea, components, contours, rdpClosed };
@@ -1162,7 +1200,7 @@ function params() {
     sizeIn: Math.max(0.25, +$('sizeIn').value || 3.5), sizeRef: st.sizeRef, axis: st.axis,
     offIn: +$('offIn').value, bridgeIn: +$('bridgeIn').value,
     speckIn2: +$('speck').value, smooth: +$('smooth').value, bridgeMode: st.bridgeMode, sewIn: 0, inset: st.pad,
-    fixedPPI: st.sizeRef === 'file' && st.srcPPI ? st.srcPPI : 0, mirrorX: $('mirrorX').checked
+    fixedPPI: st.sizeRef === 'file' && st.srcPPI ? st.srcPPI : 0, mirrorX: $('mirrorX').checked, useFileCut: $('useFileCut').checked
   };
   if (!leather() && p.sizeRef === 'cut' && $('shape').value !== 'contour') { // a drawn shape is bigger than the offset line, so size the art until the shape matches
     const key = [p.sizeIn, p.axis, p.offIn, $('shape').value, $('mirrorX').checked].join();
@@ -1171,7 +1209,7 @@ function params() {
   }
   if (leather()) {
     Object.assign(p, { sizeRef: 'art', axis: 'h', sizeIn: Math.max(0.2, st.fit.artH), stripOld: $('stripOld').checked });
-    const contour = $('shape').value === 'contour';
+    const contour = $('shape').value === 'contour' || $('useFileCut').checked; // a file cut line traces like a contour
     if (st.attach === 'sew' && contour) { p.bridgeMode = 'round'; p.bridgeIn = Math.max(p.bridgeIn, SEW_MIN_R); }
     if ($('sewOn').checked && contour) p.sewIn = Math.max(0.01, +$('sewIn').value || 0.13);
   }
@@ -1593,7 +1631,7 @@ async function mockupPng() {
 
 // the art used for preview and engraving, with ignored outlines and red cut lines removed
 function cleanArt(r) {
-  if (!leather() || !r.stripMask) return st.raster;
+  if (!r.stripMask || !(leather() || r.fileCut)) return st.raster;
   const cv = blankCanvas(st.raster.width, st.raster.height), c = cv.getContext('2d');
   c.drawImage(st.raster, 0, 0);
   const id = c.getImageData(0, 0, cv.width, cv.height), d = id.data, m = r.stripMask;
@@ -1608,9 +1646,10 @@ function warnings(r) {
     const eff = Math.round(r.pxPerIn / st.srcScale);
     if (eff < 150) w.push('This image is only about ' + eff + ' ppi at this size, so the print will look soft. A larger file or vector art (PDF, SVG) will print sharper.');
   }
+  if (r.fileCut && r.artOutside > 0.002) w.push('Some of the art runs past the red cut line in your file and will be cut off. Move the line out a little in Illustrator or Corel.');
   if (pieces > 1) w.push(pieces + ' separate cut paths. Raise "Bridge gaps" to join them into one patch, or keep only the largest piece.');
   if (leather()) {
-    if (r.ringsRemoved) w.push('Ignored ' + (r.ringsRemoved > 1 ? r.ringsRemoved + ' old outlines' : 'an old outline') + ' around the art. Uncheck "Ignore old cut and sew lines" if that was part of the design.');
+    if (r.ringsRemoved && !r.fileCut) w.push('Ignored ' + (r.ringsRemoved > 1 ? r.ringsRemoved + ' old outlines' : 'an old outline') + ' around the art. Uncheck "Ignore old cut and sew lines" if that was part of the design.');
     const [mw, mh] = limits(), s = r.pxPerIn, b = st.shape.box;
     if ((b[2] - b[0]) / s > mw + 0.02 || (b[3] - b[1]) / s > mh + 0.02) w.push('Patch is over the ' + mw + ' × ' + mh + ' in limit.');
     // leather engraves in black and greys; flag color art
@@ -1638,6 +1677,21 @@ function updateReadout() {
 // a path is a closed list of segments {t:'L'|'C', a, b, c1, c2} in raster px
 const bzPath = loop => CutCore.toBeziers(loop).map(s => Object.assign({ t: 'C' }, s));
 const polyPath = P => P.map((a, i) => ({ t: 'L', a, b: P[(i + 1) % P.length] }));
+// Like bzPath, but a point where the line turns sharply stays a sharp corner (one node, no rounding).
+function bzPathCorners(P) {
+  const n = P.length, corner = P.map((b, i) => {
+    const a = P[(i - 1 + n) % n], c = P[(i + 1) % n], u = [b[0] - a[0], b[1] - a[1]], v = [c[0] - b[0], c[1] - b[1]];
+    const cos = (u[0] * v[0] + u[1] * v[1]) / ((Math.hypot(...u) * Math.hypot(...v)) || 1);
+    return cos < 0.64; // turns more than about 50 degrees
+  });
+  return CutCore.toBeziers(P).map((s, i) => {
+    const j = (i + 1) % n, L = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]) / 3, g = Object.assign({ t: 'C' }, s);
+    const dir = [(s.b[0] - s.a[0]) / (3 * L || 1), (s.b[1] - s.a[1]) / (3 * L || 1)];
+    if (corner[i]) g.c1 = [s.a[0] + dir[0] * L, s.a[1] + dir[1] * L];
+    if (corner[j]) g.c2 = [s.b[0] - dir[0] * L, s.b[1] - dir[1] * L];
+    return corner[i] && corner[j] ? { t: 'L', a: s.a, b: s.b } : g;
+  });
+}
 function hull(pts) {
   const P = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -1866,6 +1920,11 @@ function buildShape(r) {
   const sewOn = leather() && $('sewOn').checked, ins = (+$('sewIn').value || 0.13) * s;
   let loops = r.loops;
   if ($('largest').checked && loops.length > 1) loops = [loops[0]];
+  if (r.fileCut) { // the red line from the file; keep its sharp corners
+    const cut = loops.map(bzPathCorners);
+    const sew = sewOn && r.sewLoops ? r.sewLoops.map(bzPathCorners) : null;
+    return { cut, sew, box: boxOf(cut), sewJoin: 'round', fromFile: true };
+  }
   if (shape === 'contour') {
     const cut = loops.map(bzPath);
     const sew = sewOn && r.sewLoops ? r.sewLoops.map(bzPath) : null;
@@ -2645,7 +2704,7 @@ function resetAll() {
   const vals = { shape: 'contour', sizeIn: 2.25, bridgeIn: 0.125, smooth: 2, brushIn: 0.12, bgMode: 'auto', speck: 0.0006, detail: 1600,
     placement: 'front', maxW: 4, maxH: 2.25, sewIn: 0.13, engrave: 'auto' };
   for (const [id, v] of Object.entries(vals)) $(id).value = v;
-  $('largest').checked = false; $('sewOn').checked = true; $('stripOld').checked = true; $('darkBg').checked = false;
+  $('largest').checked = false; $('sewOn').checked = true; $('stripOld').checked = true; $('useFileCut').checked = true; $('darkBg').checked = false;
   $('box').classList.remove('dark'); $('customRow').hidden = true;
   [['data-axis', 'h'], ['data-ref', 'cut'], ['data-bmode', 'round'], ['data-brush', 'off'], ['data-fill', 'none'], ['data-attach', 'sew'], ['data-viewmode', 'art']]
     .forEach(([attr, v]) => document.querySelectorAll('[' + attr + ']').forEach(b => b.setAttribute('aria-pressed', b.getAttribute(attr) === v)));
@@ -2718,19 +2777,26 @@ $('fitPlace').addEventListener('change', () => {
 });
 $('sewOn').addEventListener('change', () => { $('sewInRow').hidden = !$('sewOn').checked; later(); });
 $('stripOld').addEventListener('change', later);
+$('useFileCut').addEventListener('change', later);
 { // shape picker; the hidden select stays the saved value
   const sel = $('shape'), pick = $('shapePick');
   for (const id of SHAPE_PICK) {
     const name = SHAPE_LIB[id] ? SHAPE_LIB[id].name : SHAPE_NAMES[id];
     if (!sel.querySelector('option[value="' + id + '"]')) sel.add(new Option(name, id));
     const b = document.createElement('button'); b.type = 'button'; b.dataset.shape = id; b.title = name; b.setAttribute('aria-label', name); b.innerHTML = shapeIcon(id);
-    b.onclick = () => { if (sel.value !== id) { sel.value = id; sel.dispatchEvent(new Event('change')); } };
+    b.onclick = () => { // picking a shape while cutting on the file's line switches back to drawn shapes
+      if (st.shape && st.shape.fromFile) { $('useFileCut').checked = false; sel.value = id; sel.dispatchEvent(new Event('change')); return; }
+      if (sel.value !== id) { sel.value = id; sel.dispatchEvent(new Event('change')); } };
     pick.appendChild(b);
   }
 }
 function syncShapePick() {
-  const v = $('shape').value; $('shapeName').textContent = $('shape').selectedOptions[0]?.text || '';
-  document.querySelectorAll('#shapePick button').forEach(b => b.setAttribute('aria-pressed', b.dataset.shape === v));
+  const v = $('shape').value, file = !!(st.shape && st.shape.fromFile);
+  $('shapeName').textContent = file ? 'From your file' : $('shape').selectedOptions[0]?.text || '';
+  document.querySelectorAll('#shapePick button').forEach(b => b.setAttribute('aria-pressed', !file && b.dataset.shape === v));
+  $('fileCutHint').textContent = file
+    ? 'Cutting on the red line in your file, so the offset, bridge and smoothing settings are skipped. Pick a shape above to go back to a drawn one.'
+    : 'To make your own shape, save the SVG, reshape the red cut line in Illustrator or Corel, and load the file again. Patch Pro cuts on your line and leaves it out of the art.';
 }
 syncShapePick();
 $('shape').addEventListener('change', () => { syncShapePick(); later(); }); // re-run so the size holds on the new shape's cut line
