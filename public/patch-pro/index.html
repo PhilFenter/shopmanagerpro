@@ -365,14 +365,21 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
       </div>
 
       <div class="sec" id="secBacking">
-        <h2>Patch backing</h2>
+        <h2>Leatherette</h2>
+        <div class="swatches" role="group" aria-label="Leatherette">
+          <button type="button" class="sw" data-uvmat="light" style="background:#fbfbf9" aria-pressed="true" title="White leatherette" aria-label="White leatherette"></button>
+          <button type="button" class="sw" data-uvmat="dark" style="background:#1f1f21" aria-pressed="false" title="Black leatherette" aria-label="Black leatherette"></button>
+          <span class="val" id="uvMatName">White leatherette</span>
+        </div>
+        <p class="hint">The material you print on. It shows behind the art and sets the sheet's registration marks. It isn't printed.</p>
+        <h2 style="margin-top:14px">Patch backing</h2>
         <div class="swatches" role="group" aria-label="Backing fill">
           <button type="button" class="sw none" data-fill="none" aria-pressed="true" title="No fill" aria-label="No fill"></button>
           <button type="button" class="sw" data-fill="#ffffff" style="background:#ffffff" aria-pressed="false" title="White" aria-label="White"></button>
           <button type="button" class="sw" data-fill="#000000" style="background:#000000" aria-pressed="false" title="Black" aria-label="Black"></button>
           <input type="color" id="fillPick" value="#c8102e" title="Custom color" aria-label="Custom backing color">
         </div>
-        <p class="hint">Fills inside the cut line behind the art in print exports.</p>
+        <p class="hint">Prints a solid color inside the cut line behind the art. Leave on No fill to print straight onto the leatherette.</p>
       </div>
 
       <div class="sec" id="secSheet">
@@ -385,7 +392,7 @@ input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var
           <select id="shOrient"><option value="auto">Auto (fit most)</option><option value="up">Upright</option><option value="rot">Rotated 90°</option></select></div>
         <div class="row"><label for="shQty">Patches on sheet</label><span class="val"><input type="number" id="shQty" min="1" step="1" value="1"> <em id="shMax">of –</em></span></div>
         <div class="row"><label for="shMat">Sheet material</label>
-          <select id="shMat"><option value="light">Light (white leatherette)</option><option value="dark">Dark (black)</option></select></div>
+          <select id="shMat"><option value="light">Light (white leatherette)</option><option value="dark">Dark (black leatherette)</option></select></div>
         <div class="row" id="ringRow" hidden><label for="ringD">White ring behind dots</label><span class="val"><input type="number" id="ringD" min="0.3" max="1.5" step="0.0625" value="0.5"> in</span></div>
         <div class="row"><label for="dotN">Registration dots</label>
           <select id="dotN"><option value="4">4, corners</option><option value="6">6, + top and bottom middle</option><option value="8">8, + all edge middles</option></select></div>
@@ -1405,6 +1412,14 @@ function renderLeather(c, sh, map, k, ox, oy, ppi, opts = {}) {
 }
 // ---------- hat mockups ----------
 // The patch "face": the finished patch as it looks, transparent outside the cut, at ppiOut.
+// the leatherette a UV patch is printed on (preview and mockups only; never printed)
+const UV_MATS = { light: { name: 'White leatherette', color: '#fbfbf9' }, dark: { name: 'Black leatherette', color: '#1f1f21' } };
+const uvMat = () => UV_MATS[$('shMat').value] || UV_MATS.light;
+const uvFace = () => st.fill !== 'none' ? st.fill : uvMat().color;
+function syncUvMat() {
+  const v = $('shMat').value; $('uvMatName').textContent = uvMat().name;
+  document.querySelectorAll('[data-uvmat]').forEach(b => b.setAttribute('aria-pressed', b.dataset.uvmat === v));
+}
 function patchFace(ppiOut) {
   const r = st.result, sh = st.shape, k = ppiOut / r.pxPerIn, [bx0, by0, bx1, by1] = sh.box;
   const cv = blankCanvas(Math.max(1, Math.round((bx1 - bx0) * k)), Math.max(1, Math.round((by1 - by0) * k))), c = cv.getContext('2d');
@@ -1414,7 +1429,7 @@ function patchFace(ppiOut) {
   else if (embOn()) c.drawImage(embroider(ppiOut).color, 0, 0, cv.width, cv.height);
   else {
     const path = pathFor(sh.cut, map);
-    c.fillStyle = st.fill !== 'none' ? st.fill : '#ffffff'; c.fill(path, 'evenodd');
+    c.fillStyle = uvFace(); c.fill(path, 'evenodd');
     c.save(); c.clip(path, 'evenodd'); c.drawImage(st.raster, ox, oy, st.raster.width * k, st.raster.height * k); c.restore();
   }
   return cv;
@@ -1481,7 +1496,7 @@ function drawHatScene(c, T, opts = {}) {
   const fit = hat.fit, mapH = hatMapper(fit, ph / pw, hat, pw), toC = (u, v) => { const [x, y] = mapH(u, v); return [ox + x * s, oy + y * s]; };
   // render the face at about the pixel size it will be shown
   const shownW = hatPatchW(fit, hat, pw) * s * (opts.dpr || 1), ppi = Math.max(40, Math.min(450, shownW / pw * 1.1));
-  const key = [sh, st.fill, embOn() && JSON.stringify(embParams()), leather(), matSel, Math.round(ppi / 20)].join('|');
+  const key = [sh, st.fill, $('shMat').value, embOn() && JSON.stringify(embParams()), leather(), matSel, Math.round(ppi / 20)].join('|');
   if (!st.face || st.face.key !== key) st.face = { key, cv: patchFace(ppi) };
   const face = st.face.cv, FW = face.width, FH = face.height;
   // warp onto a layer in device pixels
@@ -1623,7 +1638,7 @@ async function mockupPng() {
   } else { // UV patch: printed blank with the art, no cut line
     const path = pathFor(sh.cut, map);
     c.save(); c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 0.06 * ppiOut; c.shadowOffsetY = 0.025 * ppiOut;
-    c.fillStyle = st.fill !== 'none' ? st.fill : '#ffffff'; c.fill(path, 'evenodd'); c.restore();
+    c.fillStyle = uvFace(); c.fill(path, 'evenodd'); c.restore();
     c.save(); c.clip(path, 'evenodd'); c.drawImage(st.raster, ox, oy, st.raster.width * k, st.raster.height * k); c.restore();
   }
   return await new Promise(res => cv.toBlob(res, 'image/png'));
@@ -2019,7 +2034,7 @@ function silhouette() {
   c.putImageData(id, 0, 0); st.silCv = cv; return cv;
 }
 function draw() {
-  syncShapePick();
+  syncShapePick(); syncUvMat();
   const cv = $('view'), box = $('box');
   const dpr = window.devicePixelRatio || 1, W = box.clientWidth, H = box.clientHeight;
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -2051,7 +2066,7 @@ function draw() {
   const mock = leather() && sh && st.viewMode === 'art';
   if (sh) {
     path = pathFor(sh.cut, map);
-    if (st.viewMode === 'art' && !leather() && st.fill !== 'none') { c.fillStyle = st.fill; c.fill(path, 'evenodd'); }
+    if (st.viewMode === 'art' && !leather()) { c.fillStyle = uvFace(); c.fill(path, 'evenodd'); }
   }
   const sil = st.viewMode === 'sil' ? silhouette() : null;
   const pv = r ? Math.min(300, Math.max(60, k * r.pxPerIn * (window.devicePixelRatio || 1))) : 100;
@@ -2702,10 +2717,10 @@ function resetAll() {
     view: null, svgVec: null, svgText: null, srcFile: null, pdf: null, srcKind: 'img', name: 'patch', silCv: null, bgChosen: false, lightKey: null });
   $('fileName').textContent = 'No art loaded'; $('pageRow').hidden = true;
   const vals = { shape: 'contour', sizeIn: 2.25, bridgeIn: 0.125, smooth: 2, brushIn: 0.12, bgMode: 'auto', speck: 0.0006, detail: 1600,
-    placement: 'front', maxW: 4, maxH: 2.25, sewIn: 0.13, engrave: 'auto' };
+    placement: 'front', maxW: 4, maxH: 2.25, sewIn: 0.13, engrave: 'auto', shMat: 'light' }; // white leatherette is the default stock
   for (const [id, v] of Object.entries(vals)) $(id).value = v;
   $('largest').checked = false; $('sewOn').checked = true; $('stripOld').checked = true; $('useFileCut').checked = true; $('darkBg').checked = false;
-  $('box').classList.remove('dark'); $('customRow').hidden = true;
+  $('box').classList.remove('dark'); $('customRow').hidden = true; $('ringRow').hidden = true;
   [['data-axis', 'h'], ['data-ref', 'cut'], ['data-bmode', 'round'], ['data-brush', 'off'], ['data-fill', 'none'], ['data-attach', 'sew'], ['data-viewmode', 'art']]
     .forEach(([attr, v]) => document.querySelectorAll('[' + attr + ']').forEach(b => b.setAttribute('aria-pressed', b.getAttribute(attr) === v)));
   Object.assign(st, { axis: 'h', sizeRef: 'cut', bridgeMode: 'round', brush: 'off', fill: 'none', attach: 'sew', viewMode: 'art' });
@@ -2726,7 +2741,12 @@ function setStage(v) {
 }
 document.querySelectorAll('[data-stage]').forEach(b => b.onclick = () => setStage(b.dataset.stage));
 ['shW', 'shH', 'shMargin', 'shGap', 'shOrient', 'dotD', 'dotIn', 'shMat', 'ringD', 'dotN'].forEach(id => $(id).addEventListener('change', () => { setStage('sheet'); }));
-$('shMat').addEventListener('change', () => { $('ringRow').hidden = $('shMat').value !== 'dark'; });
+$('shMat').addEventListener('change', () => { $('ringRow').hidden = $('shMat').value !== 'dark'; syncUvMat(); st.face = null; draw(); });
+document.querySelectorAll('[data-uvmat]').forEach(b => b.onclick = () => { // stays on the current view (the sheet's own menu jumps to the sheet)
+  if ($('shMat').value === b.dataset.uvmat) return;
+  $('shMat').value = b.dataset.uvmat; $('ringRow').hidden = b.dataset.uvmat !== 'dark'; syncUvMat(); st.face = null; draw();
+});
+syncUvMat();
 $('shQty').addEventListener('change', () => { st.qtyAuto = false; setStage('sheet'); });
 let embT;
 const embChanged = () => { syncLabels(); st.emb = null; st.thumb = null; clearTimeout(embT); embT = setTimeout(draw, 60); };
