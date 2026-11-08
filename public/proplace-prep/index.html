@@ -158,6 +158,7 @@ canvas#sheetPreview{display:block;margin:0 auto;max-width:100%;height:auto;borde
         <label class="check"><input type="checkbox" id="guides" checked> Include guide lines in the PNG</label>
         <label class="check"><input type="checkbox" id="joblabel" checked> Include job label at the bottom</label>
         <label class="check"><input type="checkbox" id="rotate" checked> Rotate 180° for ProPlace (exported file only; preview stays upright)</label>
+        <div class="check"><input type="checkbox" id="solid"><label for="solid">Send the art as one solid color, easier to see on the platen (exported file only)</label><input type="color" id="solidColor" value="#000000" aria-label="Solid color for the projection" style="flex:0 0 auto;width:40px;height:28px;padding:0;border:1px solid var(--line);border-radius:4px;background:var(--bg)"></div>
         <button class="primary" id="export" type="button">Download projection PNG</button>
         <div id="exportMsg" aria-live="polite"></div>
       </section>
@@ -274,11 +275,20 @@ function bgeom(){
   return {art:a, aw, ah, x: BW/2 - aw/2, y: S.bk.down};
 }
 
+/* Same shape, one flat color: for white art that is hard to see when projected. Projection file only. */
+function tint(img, color){
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
+  return c;
+}
+
 /* ---------- drawing (shared by preview and export) ---------- */
 function draw(g, s, ox, oy, forExport){
   const G = geom(), B = bgeom(), red = forExport ? '#ff2a2a' : cssVar('--guide');
-  if(B && B.art) g.drawImage(B.art, ox+B.x*s, oy+B.y*s, B.aw*s, B.ah*s);
-  if(S.art) g.drawImage(S.art, ox+G.x*s, oy+G.y*s, G.aw*s, G.ah*s);
+  const solid = forExport && $('solid').checked ? $('solidColor').value : null;
+  if(B && B.art) g.drawImage(solid ? tint(B.art, solid) : B.art, ox+B.x*s, oy+B.y*s, B.aw*s, B.ah*s);
+  if(S.art) g.drawImage(solid ? tint(S.art, solid) : S.art, ox+G.x*s, oy+G.y*s, G.aw*s, G.ah*s);
   if(S.guides || !forExport){
     g.save(); g.globalAlpha = S.guides ? 1 : 0.35;
     g.strokeStyle = red; g.fillStyle = red;
