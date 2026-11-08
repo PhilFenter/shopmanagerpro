@@ -5,6 +5,25 @@ Short entries on non-obvious calls made in this app, so nobody (including future
 
 ---
 
+## Art Prep and ProPlace Prep run as their own pages inside Shop Manager
+**Date:** 2026-11-08
+**What:** `/art-prep` and `/proplace-prep` (main sidebar, under Patch Pro) are two shop tools built and
+tested as standalone pages. Art Prep checks customer art, knocks out backgrounds, sorts it into a lane
+(A ready, B fixable, C redraw) and saves one named master PNG. ProPlace Prep takes that art, places it on
+the 16 x 20 platen per the placement playbook (tee or hoodie, front and back on one layout), exports the
+Hotronix ProPlace projection PNG (rotated 180 degrees) and builds the DTF print sheet from the same art at
+the same size. Each is one self-contained file in `public/<tool>/index.html`, shown in a frame by
+`src/pages/ShopTool.tsx` inside the normal layout.
+
+**Why:** Same reason as Patch Pro: the files were tested on their own, and dropping them in keeps them
+working exactly as tested. Neither tool needs anything from Shop Manager yet, so there is no bridge.
+
+**Don't:**
+- Edit the copies in `public/` and the standalone versions separately. They are the same file with a
+  doctype wrapper; change one and copy it to the other.
+- Pull pieces into React one at a time (same rule as Patch Pro).
+- Expect settings to follow you between computers. Nothing is saved yet; every job starts fresh.
+
 ## Patch Pro runs as its own page inside Shop Manager
 **Date:** 2026-10-30
 **What:** `/patch-pro` (main sidebar, right under Counter Quote, so the front counter can reach it) is the patch designer: cut lines that bridge to floating text, leather patches
