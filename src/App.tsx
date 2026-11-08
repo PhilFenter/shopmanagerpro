@@ -56,6 +56,7 @@ const ScreenPrint = lazyWithReload(() => import("./pages/ScreenPrint"));
 const DTF = lazyWithReload(() => import("./pages/DTF"));
 const Leather = lazyWithReload(() => import("./pages/Leather"));
 const PatchPro = lazyWithReload(() => import("./pages/PatchPro"));
+const ShopTool = lazyWithReload(() => import("./pages/ShopTool"));
 const Settings = lazyWithReload(() => import("./pages/Settings"));
 const Team = lazyWithReload(() => import("./pages/Team"));
 const Financials = lazyWithReload(() => import("./pages/Financials"));
@@ -278,6 +279,27 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <PrintChecklist />
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Art Prep and ProPlace Prep: self-contained tool pages in public/, shown in the normal layout */}
+                  <Route
+                    path="/art-prep"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ShopTool src="/art-prep/index.html" title="Art Prep" />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/proplace-prep"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ShopTool src="/proplace-prep/index.html" title="ProPlace Prep" />
+                        </AppLayout>
                       </ProtectedRoute>
                     }
                   />
