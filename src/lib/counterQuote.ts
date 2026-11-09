@@ -1,3 +1,4 @@
+import { describeFunctionError } from "./functionError";
 // Counter Quote — pricing + save logic for walk-in customers.
 //
 // Pricing comes straight from supabase/functions/_shared/hcd-pricing.ts, the same
@@ -695,7 +696,7 @@ export async function saveQuickNote(db: any, userId: string, contact: CounterCon
 
 export async function pushToPrintavo(db: any, quoteId: string, actionItemId: string | null) {
   const { data, error } = await db.functions.invoke("push-to-printavo", { body: { quoteId } });
-  if (error) throw error;
+  if (error) throw new Error(await describeFunctionError(error));
   if (data?.error) throw new Error(data.error);
   if (actionItemId) {
     const { data: ai } = await db.from("action_items").select("checklist").eq("id", actionItemId).single();

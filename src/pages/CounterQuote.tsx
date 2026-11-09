@@ -203,7 +203,7 @@ export default function CounterQuote() {
       setPushedId(r.printavoVisualId ?? "sent");
       toast.success(`In Printavo as #${r.printavoVisualId}`);
     } catch (e: any) {
-      toast.error(`Printavo push failed: ${e.message || e}. It's saved; push it from Action Items.`);
+      toast.error(`Printavo push failed: ${e.message || e}. It's saved; push it from Action Items.`, { duration: 15000 });
     } finally {
       setPushing(false);
     }
