@@ -13,6 +13,7 @@ import { Save, Plus, Trash2, Send, Loader2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { describeFunctionError } from '@/lib/functionError';
 import { QuoteLineItemsSummary, useQuoteDetails } from './QuoteLineItemsSummary';
 import { BrandDetailsSection } from './BrandDetailsSection';
 import { stripLegacyBrandInfoFromText } from './brandDetails';
@@ -118,7 +119,7 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onSave }: Acti
       toast.success(`Pushed to Printavo as #${data.printavoVisualId}`);
       queryClient.invalidateQueries({ queryKey: ['quote-details', item.quote_id] });
     } catch (err: any) {
-      toast.error(`Push failed: ${err.message}`);
+      toast.error(`Push failed: ${await describeFunctionError(err)}`, { duration: 15000 });
     } finally {
       setPushing(false);
     }
