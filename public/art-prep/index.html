@@ -27,6 +27,7 @@
   --accent:#3fb3c2; --accent-ink:#0b1416;
   --ok-bg:#16301f; --ok-ink:#7fd39b; --warn-bg:#3a2c12; --warn-ink:#f4c876; --bad-bg:#3a1714; --bad-ink:#ff9a8f; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
 .wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
@@ -49,6 +50,7 @@ h1 span{color:var(--accent)}
 .row{display:flex;flex-wrap:wrap;gap:10px}
 .field{display:flex;flex-direction:column;gap:4px;flex:1 1 120px;min-width:0}
 .field label{font-size:.85rem;color:var(--muted)}
+.card > .field, #ocOpts > .field, #rasterOpts > .field{flex:0 0 auto} /* stacked fields size to their content */
 input[type=text],input[type=number]{font:inherit;width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
 input[type=number]{font-family:var(--mono)}
 input[type=range]{width:100%;accent-color:var(--accent)}
@@ -80,6 +82,12 @@ canvas#view{width:100%;height:auto;max-height:560px;object-fit:contain;display:b
 .actions a{color:var(--accent)}
 .msg .note{font-size:.88rem;border-radius:6px;padding:8px 10px;background:var(--warn-bg);color:var(--warn-ink)}
 .msg .ok{font-size:.88rem;color:var(--ok-ink)}
+.pal{display:flex;flex-wrap:wrap;gap:8px}
+.pal button{font:inherit;font-size:.82rem;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;min-width:56px}
+.pal button[aria-pressed="true"]{border-color:var(--accent);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--accent)}
+.pal .chip{width:28px;height:28px;border-radius:50%;border:1px solid var(--line)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.secondary{font:inherit;font-weight:600;font-size:.95rem;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;cursor:pointer}
 .fallback img{max-width:100%;border:1px solid var(--line);border-radius:6px}
 </style>
 
@@ -140,6 +148,7 @@ canvas#view{width:100%;height:auto;max-height:560px;object-fit:contain;display:b
           <div class="field"><label for="inTol">Tolerance <span id="inTolV">15</span></label><input type="range" id="inTol" min="0" max="60" value="15"></div>
         </div>
         <label class="check"><input type="checkbox" id="trim" checked> Trim empty edges</label>
+        <div id="rasterOpts" style="display:flex;flex-direction:column;gap:10px">
         <label class="check"><input type="checkbox" id="resize" checked> Enlarge to at least 300 ppi at this size (never shrinks the art)</label>
         <div class="field"><label>Edge finish</label>
           <div class="seg" id="finish" role="group" aria-label="Edge finish">
@@ -153,10 +162,51 @@ canvas#view{width:100%;height:auto;max-height:560px;object-fit:contain;display:b
           <div class="field"><label for="angle">Angle (degrees)</label><input type="number" id="angle" min="0" max="90" step="0.5" value="22.5"></div>
         </div>
         <p class="hint" id="finishHint"></p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="l-oc">
+        <div class="label" id="l-oc">4 · One color + vector (patches &amp; laser)</div>
+        <label class="check"><input type="checkbox" id="ocOn"> Make it one color and trace it to vector</label>
+        <div id="ocOpts" style="display:flex;flex-direction:column;gap:10px" hidden>
+          <div class="field"><label>What becomes ink</label>
+            <div class="seg" id="ocMethod" role="group" aria-label="How to choose the ink">
+              <button type="button" data-m="color" aria-pressed="true">Pick colors</button>
+              <button type="button" data-m="bright" aria-pressed="false">By brightness</button>
+            </div>
+          </div>
+          <div class="field" id="ocColorRow">
+            <label>Tap a color to switch it between ink and clear</label>
+            <div class="pal" id="ocPal"></div>
+            <button type="button" class="linkbtn" id="ocSwap">Swap ink and clear</button>
+          </div>
+          <div class="field" id="ocBrightRow" hidden>
+            <label for="ocThr">Darker than <span id="ocThrV">128</span> becomes ink</label>
+            <input type="range" id="ocThr" min="1" max="254" value="128">
+            <label class="check"><input type="checkbox" id="ocInv"> Invert (light areas become ink)</label>
+          </div>
+          <div class="row">
+            <div class="field"><label for="ocSpeck">Remove specks under <span id="ocSpeckV">0.0005</span> sq in</label><input type="range" id="ocSpeck" min="0" max="0.005" step="0.0001" value="0.0005"></div>
+            <div class="field"><label for="ocThick">Thicken lines <span id="ocThickV">0</span> pt</label><input type="range" id="ocThick" min="0" max="1.5" step="0.1" value="0"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="ocMin">Thinnest line allowed (pt)</label><input type="number" id="ocMin" min="0.1" max="3" step="0.1" value="0.5"></div>
+            <div class="field"><label for="ocCorner">Sharp corner at turns over <span id="ocCornerV">55</span>°</label><input type="range" id="ocCorner" min="30" max="120" step="5" value="55"></div>
+          </div>
+          <div class="field"><label>Preview</label>
+            <div class="seg" id="ocView" role="group" aria-label="Preview">
+              <button type="button" data-v="vec" aria-pressed="true">Vector</button>
+              <button type="button" data-v="orig" aria-pressed="false">Original</button>
+              <button type="button" data-v="over" aria-pressed="false">Overlay</button>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="ocNodes"> Show nodes</label>
+          <p class="hint">Red in the preview marks lines thinner than the minimum. The SVG is solid black (RGB 0,0,0), sized in inches, ready for Patch Pro or CorelDRAW.</p>
+        </div>
       </section>
 
       <section class="card" aria-labelledby="l-save">
-        <div class="label" id="l-save">4 · Save the master file</div>
+        <div class="label" id="l-save">5 · Save the master file</div>
         <div class="row">
           <div class="field"><label for="client">Client</label><input type="text" id="client" placeholder="Client name"></div>
           <div class="field"><label for="desc">Job description</label><input type="text" id="desc" placeholder="e.g. Staff Tees"></div>
@@ -166,9 +216,9 @@ canvas#view{width:100%;height:auto;max-height:560px;object-fit:contain;display:b
           <div class="field"><label for="dateOut">Date</label><input type="text" id="dateOut" readonly></div>
         </div>
         <div class="out" id="outName"></div>
-        <button class="primary" id="save" type="button">Download master PNG</button>
+        <div class="btnrow"><button class="primary" id="save" type="button">Download master PNG</button><button class="secondary" id="savePng" type="button" hidden>Download PNG</button></div>
         <div class="msg" id="saveMsg" aria-live="polite"></div>
-        <p class="hint">Save it to the job's folder under /artwork in Dropbox, then drop it into ProPlace Prep, Laser Prep or Patch Pro.</p>
+        <p class="hint" id="saveHint">Save it to the job's folder under /artwork in Dropbox, then drop it into ProPlace Prep, Laser Prep or Patch Pro.</p>
       </section>
     </div>
 
@@ -207,12 +257,322 @@ const TARGETS = {
   ff:     {name:'Full front', w:12},
   back:   {name:'Back (tee or hoodie)', w:12},
   hat:    {name:'Hat front', h:2.25},
+  patch:  {name:'Patch (leather / UV)', h:1.75},
   cup:    {name:'Tumbler (laser)', w:3.5},
   custom: {name:'Custom', w:6}
 };
 const S = {src:null, name:'', vector:false, origAlpha:true, isSample:true, target:'ff',
   ko:{mode:'off', color:'#ffffff', tol:20, choke:1, soft:30}, trim:true, resize:true, finish:'none', artType:'logo',
   view:'checker', out:null, effPPI:0, outIn:{w:0,h:0}};
+
+/* ---------- one color: palette, black-and-white bitmap, cleanup, thin-line check, vector trace ----------
+   Pure functions on pixel arrays (no page access), so they can be tested on their own. */
+const OC = (() => {
+  const luma = (r, g, b) => 0.299*r + 0.587*g + 0.114*b;
+  const hex = (r, g, b) => '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+
+  /* Main colors of the opaque pixels (k-means, farthest-point start), darkest first. */
+  function palette(d, n, maxK){
+    const step = Math.max(1, Math.floor(n / 40000)), s = [];
+    for(let i = 0; i < n; i += step){ const p = i*4; if(d[p+3] >= 128) s.push(d[p], d[p+1], d[p+2]); }
+    const m = s.length / 3; if(!m) return [];
+    const buckets = new Map();
+    for(let i = 0; i < m; i++){ const k = ((s[3*i]>>4)<<8) | ((s[3*i+1]>>4)<<4) | (s[3*i+2]>>4);
+      const b = buckets.get(k) || [0,0,0,0]; b[0]++; b[1] += s[3*i]; b[2] += s[3*i+1]; b[3] += s[3*i+2]; buckets.set(k, b); }
+    let top = null; for(const b of buckets.values()) if(!top || b[0] > top[0]) top = b;
+    const C = [[top[1]/top[0], top[2]/top[0], top[3]/top[0]]];
+    const near = new Float64Array(m).fill(Infinity);
+    while(C.length < maxK){
+      const c = C[C.length-1]; let bi = -1, bd = 0;
+      for(let i = 0; i < m; i++){ const dr = s[3*i]-c[0], dg = s[3*i+1]-c[1], db = s[3*i+2]-c[2], dd = dr*dr + dg*dg + db*db;
+        if(dd < near[i]) near[i] = dd; if(near[i] > bd){ bd = near[i]; bi = i; } }
+      if(bi < 0 || bd < 45*45) break;
+      C.push([s[3*bi], s[3*bi+1], s[3*bi+2]]);
+    }
+    const lab = new Int32Array(m);
+    for(let it = 0; it < 10; it++){
+      const acc = C.map(() => [0,0,0,0]);
+      for(let i = 0; i < m; i++){ let bj = 0, bd = Infinity;
+        for(let j = 0; j < C.length; j++){ const dr = s[3*i]-C[j][0], dg = s[3*i+1]-C[j][1], db = s[3*i+2]-C[j][2], dd = dr*dr + dg*dg + db*db; if(dd < bd){ bd = dd; bj = j; } }
+        lab[i] = bj; const a = acc[bj]; a[0]++; a[1] += s[3*i]; a[2] += s[3*i+1]; a[3] += s[3*i+2]; }
+      acc.forEach((a, j) => { if(a[0]) C[j] = [a[1]/a[0], a[2]/a[0], a[3]/a[0]]; C[j].n = a[0]; });
+    }
+    let out = C.filter(c => c.n >= m*0.004);
+    for(let i = 0; i < out.length; i++) for(let j = i+1; j < out.length; j++){
+      const a = out[i], b = out[j], dd = (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2;
+      if(dd < 28*28){ const t = a.n + b.n; out[i] = [(a[0]*a.n + b[0]*b.n)/t, (a[1]*a.n + b[1]*b.n)/t, (a[2]*a.n + b[2]*b.n)/t]; out[i].n = t; out.splice(j, 1); j = i; }
+    }
+    // a small cluster sitting between two bigger colors is anti-aliased edge pixels, not a real color
+    out = out.filter((c, i) => {
+      if(c.n >= m*0.08) return true;
+      for(let a = 0; a < out.length; a++) for(let b = a + 1; b < out.length; b++){
+        if(a === i || b === i || out[a].n < c.n || out[b].n < c.n) continue;
+        const A = out[a], B = out[b], ab = [B[0]-A[0], B[1]-A[1], B[2]-A[2]], L2 = ab[0]**2 + ab[1]**2 + ab[2]**2; if(!L2) continue;
+        const t = Math.max(0, Math.min(1, ((c[0]-A[0])*ab[0] + (c[1]-A[1])*ab[1] + (c[2]-A[2])*ab[2]) / L2));
+        if(t > 0.05 && t < 0.95 && (c[0]-A[0]-t*ab[0])**2 + (c[1]-A[1]-t*ab[1])**2 + (c[2]-A[2]-t*ab[2])**2 < 26*26) return false;
+      }
+      return true;
+    });
+    return out.map(c => ({r:c[0], g:c[1], b:c[2], share:c.n/m, luma:luma(c[0], c[1], c[2]), hex:hex(c[0], c[1], c[2])}))
+              .sort((a, b) => a.luma - b.luma);
+  }
+  /* Near-white is left clear; everything else is ink. Art that is all light (made for dark shirts) is all ink. */
+  function defaultInk(pal){
+    const isWhite = c => c.luma > 215 && Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) < 30;
+    if(pal.every(c => c.luma > 190)) return pal.map(() => true);
+    return pal.map(c => !isWhite(c));
+  }
+  function otsu(d, n){
+    const h = new Float64Array(256); let tot = 0;
+    for(let i = 0; i < n; i++){ const p = i*4; if(d[p+3] < 128) continue; h[Math.round(luma(d[p], d[p+1], d[p+2]))]++; tot++; }
+    if(!tot) return 128;
+    let sum = 0; for(let t = 0; t < 256; t++) sum += t*h[t];
+    let sB = 0, wB = 0, best = 0, thr = 128;
+    for(let t = 0; t < 256; t++){ wB += h[t]; if(!wB) continue; const wF = tot - wB; if(!wF) break;
+      sB += t*h[t]; const mB = sB/wB, mF = (sum - sB)/wF, v = wB*wF*(mB - mF)**2; if(v > best){ best = v; thr = t + 0.5; } }
+    return Math.round(thr);
+  }
+  function toBits(d, W, H, cfg){
+    const n = W*H, bits = new Uint8Array(n);
+    if(cfg.method === 'color'){
+      const P = cfg.palette, ink = cfg.ink; if(!P.length) return bits;
+      for(let i = 0; i < n; i++){ const p = i*4; if(d[p+3] < 128) continue;
+        let bj = 0, bd = Infinity;
+        for(let j = 0; j < P.length; j++){ const dr = d[p]-P[j].r, dg = d[p+1]-P[j].g, db = d[p+2]-P[j].b, dd = dr*dr + dg*dg + db*db; if(dd < bd){ bd = dd; bj = j; } }
+        if(ink[bj]) bits[i] = 1; }
+    } else {
+      const T = cfg.threshold;
+      for(let i = 0; i < n; i++){ const p = i*4; if(d[p+3] < 128) continue;
+        const L = luma(d[p], d[p+1], d[p+2]); if(cfg.invert ? L >= T : L < T) bits[i] = 1; }
+    }
+    return bits;
+  }
+
+  /* Visits connected areas of one value; cb(list, size, touchesEdge). */
+  function regions(bits, W, H, value, eight, cb){
+    const n = W*H, seen = new Uint8Array(n), stack = new Int32Array(n), list = new Int32Array(n);
+    for(let s = 0; s < n; s++){
+      if(seen[s] || bits[s] !== value) continue;
+      let sp = 0, len = 0, edge = false; stack[sp++] = s; seen[s] = 1;
+      while(sp){ const i = stack[--sp]; list[len++] = i; const x = i % W, y = (i / W) | 0;
+        if(x === 0 || y === 0 || x === W-1 || y === H-1) edge = true;
+        for(let dy = -1; dy <= 1; dy++) for(let dx = -1; dx <= 1; dx++){
+          if(!dx && !dy) continue; if(!eight && dx && dy) continue;
+          const nx = x + dx, ny = y + dy; if(nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          const j = ny*W + nx; if(!seen[j] && bits[j] === value){ seen[j] = 1; stack[sp++] = j; } } }
+      cb(list, len, edge);
+    }
+  }
+  /* Drops ink specks and fills pinholes smaller than minArea pixels. */
+  function despeck(bits, W, H, minArea){
+    if(minArea < 1) return bits;
+    regions(bits, W, H, 1, true, (l, len) => { if(len < minArea) for(let k = 0; k < len; k++) bits[l[k]] = 0; });
+    regions(bits, W, H, 0, false, (l, len, edge) => { if(!edge && len < minArea) for(let k = 0; k < len; k++) bits[l[k]] = 1; });
+    return bits;
+  }
+
+  /* Exact distance from every pixel to the nearest pixel where mask is 1 (Felzenszwalb and Huttenlocher). */
+  function edt(mask, W, H){
+    const INF = 1e20, g = new Float64Array(W*H);
+    for(let i = 0; i < W*H; i++) g[i] = mask[i] ? 0 : INF;
+    const N = Math.max(W, H), f = new Float64Array(N), dd = new Float64Array(N), v = new Int32Array(N), z = new Float64Array(N + 1);
+    const pass = (len) => {
+      let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+      for(let q = 1; q < len; q++){
+        let s = ((f[q] + q*q) - (f[v[k]] + v[k]*v[k])) / (2*q - 2*v[k]);
+        while(s <= z[k]){ k--; s = ((f[q] + q*q) - (f[v[k]] + v[k]*v[k])) / (2*q - 2*v[k]); }
+        k++; v[k] = q; z[k] = s; z[k+1] = INF;
+      }
+      k = 0; for(let q = 0; q < len; q++){ while(z[k+1] < q) k++; dd[q] = (q - v[k])*(q - v[k]) + f[v[k]]; }
+    };
+    for(let x = 0; x < W; x++){ for(let y = 0; y < H; y++) f[y] = g[y*W + x]; pass(H); for(let y = 0; y < H; y++) g[y*W + x] = dd[y]; }
+    for(let y = 0; y < H; y++){ for(let x = 0; x < W; x++) f[x] = g[y*W + x]; pass(W); for(let x = 0; x < W; x++) g[y*W + x] = dd[x]; }
+    const out = new Float32Array(W*H); for(let i = 0; i < W*H; i++) out[i] = Math.sqrt(g[i]); return out;
+  }
+  /* Grows the ink by r pixels on every side. */
+  function thicken(bits, W, H, r){
+    if(r <= 0) return bits;
+    const d = edt(bits, W, H); for(let i = 0; i < W*H; i++) if(d[i] <= r) bits[i] = 1; return bits;
+  }
+  /* Ink narrower than minPx: whatever a disk minPx wide can't reach when rolled around inside the ink. */
+  function thinParts(bits, W, H, minPx){
+    const n = W*H, r = minPx/2, white = new Uint8Array(n);
+    for(let i = 0; i < n; i++) white[i] = bits[i] ? 0 : 1;
+    const din = edt(white, W, H), core = new Uint8Array(n);
+    for(let i = 0; i < n; i++){ if(!bits[i]) continue; const x = i % W, y = (i / W) | 0;
+      const e = Math.min(din[i], x + 1, W - x, y + 1, H - y); if(e >= r + 0.25) core[i] = 1; }
+    const dc = edt(core, W, H), thin = new Uint8Array(n);
+    for(let i = 0; i < n; i++) if(bits[i] && dc[i] > r + 0.5) thin[i] = 1;
+    let area = 0, count = 0; const minA = Math.max(4, r*r);
+    regions(thin, W, H, 1, true, (l, len) => { if(len < minA) for(let k = 0; k < len; k++) thin[l[k]] = 0; else { area += len; count++; } });
+    let ink = 0; for(let i = 0; i < n; i++) ink += bits[i];
+    return {thin, area, count, ink};
+  }
+
+  /* ---- tracing: pixel outlines, then one node per sharp corner with smooth curves between ---- */
+  const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
+  const bitOf = m => (m & 1) ? 0 : (m & 2) ? 1 : (m & 4) ? 2 : 3;
+  /* Closed outlines along pixel edges, ink always on the right: outer shapes run clockwise, holes counterclockwise. */
+  function outlines(bits, W, H){
+    const VW = W + 1, out = new Uint8Array(VW*(H + 1));
+    const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 0 : bits[y*W + x];
+    for(let y = 0; y < H; y++) for(let x = 0; x < W; x++){ if(!bits[y*W + x]) continue;
+      if(!at(x, y-1)) out[y*VW + x] |= 1;
+      if(!at(x+1, y)) out[y*VW + x + 1] |= 2;
+      if(!at(x, y+1)) out[(y+1)*VW + x + 1] |= 4;
+      if(!at(x-1, y)) out[(y+1)*VW + x] |= 8; }
+    const loops = [];
+    for(let pass = 0; pass < 2; pass++) for(let v = 0; v < out.length; v++){
+      while(out[v] && (pass === 1 || (out[v] & (out[v] - 1)) === 0)){
+        const sx = v % VW, sy = (v / VW) | 0; let x = sx, y = sy, d = bitOf(out[v]); const pts = [];
+        for(;;){
+          pts.push(x, y); out[y*VW + x] &= ~(1 << d); x += DX[d]; y += DY[d];
+          if(x === sx && y === sy) break;
+          const m = out[y*VW + x]; if(!m) break;
+          if((m & (m - 1)) === 0) d = bitOf(m);
+          else { const L = (d + 3) & 3, R = (d + 1) & 3; d = (m & (1 << L)) ? L : (m & (1 << R)) ? R : bitOf(m); } // diagonal ink stays joined
+        }
+        loops.push(pts);
+      }
+    }
+    return loops;
+  }
+
+  // cubic Bezier fitting (Schneider, "An Algorithm for Automatically Fitting Digitized Curves")
+  const sub = (a, b) => [a[0]-b[0], a[1]-b[1]], add = (a, b) => [a[0]+b[0], a[1]+b[1]], mul = (a, k) => [a[0]*k, a[1]*k];
+  const dot = (a, b) => a[0]*b[0] + a[1]*b[1], len = a => Math.hypot(a[0], a[1]);
+  const unit = a => { const l = len(a); return l > 1e-9 ? [a[0]/l, a[1]/l] : [1, 0]; };
+  const bez = (b, t) => { const s = 1 - t; return [s*s*s*b[0][0] + 3*s*s*t*b[1][0] + 3*s*t*t*b[2][0] + t*t*t*b[3][0], s*s*s*b[0][1] + 3*s*s*t*b[1][1] + 3*s*t*t*b[2][1] + t*t*t*b[3][1]]; };
+  function generate(d, f, l, u, t1, t2){
+    let c00 = 0, c01 = 0, c11 = 0, x0 = 0, x1 = 0; const P0 = d[f], P3 = d[l];
+    for(let i = 0; i <= l - f; i++){ const t = u[i], s = 1 - t, b0 = s*s*s, b1 = 3*s*s*t, b2 = 3*s*t*t, b3 = t*t*t;
+      const A1 = mul(t1, b1), A2 = mul(t2, b2); c00 += dot(A1, A1); c01 += dot(A1, A2); c11 += dot(A2, A2);
+      const tmp = sub(d[f + i], add(mul(P0, b0 + b1), mul(P3, b2 + b3))); x0 += dot(A1, tmp); x1 += dot(A2, tmp); }
+    const det = c00*c11 - c01*c01, seg = len(sub(P3, P0));
+    let al = det ? (x0*c11 - x1*c01)/det : 0, ar = det ? (c00*x1 - c01*x0)/det : 0;
+    if(al < 1e-6*seg || ar < 1e-6*seg || al > 3*seg || ar > 3*seg){ al = ar = seg/3; }
+    return [P0, add(P0, mul(t1, al)), add(P3, mul(t2, ar)), P3];
+  }
+  function maxError(d, f, l, b, u){
+    let m = 0, at = ((l - f + 1) / 2 | 0) + f;
+    for(let i = f + 1; i < l; i++){ const p = bez(b, u[i - f]), e = (p[0] - d[i][0])**2 + (p[1] - d[i][1])**2; if(e >= m){ m = e; at = i; } }
+    return [m, at];
+  }
+  function newton(b, P, t){
+    const q = bez(b, t), s = 1 - t;
+    const q1 = [3*(s*s*(b[1][0]-b[0][0]) + 2*s*t*(b[2][0]-b[1][0]) + t*t*(b[3][0]-b[2][0])), 3*(s*s*(b[1][1]-b[0][1]) + 2*s*t*(b[2][1]-b[1][1]) + t*t*(b[3][1]-b[2][1]))];
+    const q2 = [6*(s*(b[2][0] - 2*b[1][0] + b[0][0]) + t*(b[3][0] - 2*b[2][0] + b[1][0])), 6*(s*(b[2][1] - 2*b[1][1] + b[0][1]) + t*(b[3][1] - 2*b[2][1] + b[1][1]))];
+    const num = (q[0]-P[0])*q1[0] + (q[1]-P[1])*q1[1], den = q1[0]*q1[0] + q1[1]*q1[1] + (q[0]-P[0])*q2[0] + (q[1]-P[1])*q2[1];
+    if(!den) return t; const r = t - num/den; return r < 0 ? 0 : r > 1 ? 1 : r;
+  }
+  function chord(d, f, l){ const u = [0]; for(let i = f + 1; i <= l; i++) u.push(u[u.length-1] + len(sub(d[i], d[i-1])));
+    const L = u[u.length-1] || 1; return u.map(x => x/L); }
+  function fitCubic(d, f, l, t1, t2, err2, out, K, depth){
+    if(l - f === 1 || depth > 40){ const dist = len(sub(d[l], d[f]))/3; out.push([d[f], add(d[f], mul(t1, dist)), add(d[l], mul(t2, dist)), d[l]]); return; }
+    let u = chord(d, f, l), b = generate(d, f, l, u, t1, t2), [e, split] = maxError(d, f, l, b, u);
+    if(e < err2){ out.push(b); return; }
+    if(e < err2*36){ for(let it = 0; it < 12; it++){ u = u.map((t, i) => newton(b, d[f + i], t)); b = generate(d, f, l, u, t1, t2); [e, split] = maxError(d, f, l, b, u); if(e < err2){ out.push(b); return; } } }
+    split = Math.max(f + 1, Math.min(l - 1, split));
+    const w = Math.max(1, Math.min(K, split - f, l - split)), tc = unit(sub(d[split - w], d[split + w]));
+    fitCubic(d, f, split, t1, tc, err2, out, K, depth + 1);
+    fitCubic(d, split, l, mul(tc, -1), t2, err2, out, K, depth + 1);
+  }
+  /* One closed outline -> segments: {line:[p0,p1]} or {curve:[p0,c1,c2,p3]}. */
+  function fitLoop(P, opt){
+    const n = P.length / 2, V = i => { i = ((i % n) + n) % n; return [P[2*i], P[2*i+1]]; };
+    if(n < 12){ // tiny shape: keep the turns as a polygon
+      const pts = []; for(let i = 0; i < n; i++){ const a = V(i-1), b = V(i), c = V(i+1); if((b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0]) !== 0) pts.push(b); }
+      return pts.map((p, i) => ({line:[p, pts[(i+1) % pts.length]]}));
+    }
+    const K = Math.max(2, Math.min(opt.K, Math.floor(n/6))), thr = opt.cornerDeg*Math.PI/180, ang = new Float64Array(n);
+    for(let i = 0; i < n; i++){ const a = sub(V(i), V(i-K)), b = sub(V(i+K), V(i));
+      const c = dot(a, b)/(len(a)*len(b) || 1); ang[i] = Math.acos(Math.max(-1, Math.min(1, c))); }
+    const corners = [], PW = Math.max(1, Math.ceil(K/2)); // close corners (the two ends of a thin stroke) both survive
+    for(let i = 0; i < n; i++){ if(ang[i] < thr) continue; let peak = true;
+      for(let j = 1; j <= PW && peak; j++){ if(ang[(i - j + n) % n] >= ang[i] || ang[(i + j) % n] > ang[i]) peak = false; }
+      if(peak) corners.push(i); }
+    const Mraw = new Float64Array(2*n);
+    for(let i = 0; i < n; i++){ const a = V(i), b = V(i+1); Mraw[2*i] = (a[0]+b[0])/2; Mraw[2*i+1] = (a[1]+b[1])/2; }
+    const S = opt.smooth | 0, after = new Uint8Array(n); // after[m]: a corner sits between midpoint m and m+1
+    for(const c of corners) after[(c - 1 + n) % n] = 1;
+    const Ms = new Float64Array(2*n);
+    for(let i = 0; i < n; i++){ // average along the outline, but never across a corner
+      let x = Mraw[2*i], y = Mraw[2*i+1], c = 1;
+      for(let j = 1, k = i; j <= S; j++){ if(after[k]) break; k = (k + 1) % n; x += Mraw[2*k]; y += Mraw[2*k+1]; c++; }
+      for(let j = 1, k = i; j <= S; j++){ const prev = (k - 1 + n) % n; if(after[prev]) break; k = prev; x += Mraw[2*k]; y += Mraw[2*k+1]; c++; }
+      Ms[2*i] = x/c; Ms[2*i+1] = y/c; }
+    const M = i => { i = ((i % n) + n) % n; return [Ms[2*i], Ms[2*i+1]]; };
+    const err2 = opt.tol*opt.tol, segs = [];
+    const fitRun = (a, b, t1, t2) => { // vertex a to vertex b (b > a, unrolled), smoothed by edge midpoints
+      const Q = [corners.length ? V(a) : M(a)]; for(let i = a + (corners.length ? 0 : 1); i < b; i++) Q.push(M(i)); Q.push(corners.length ? V(b) : M(b));
+      const p0 = Q[0], p1 = Q[Q.length-1], ch = sub(p1, p0), cl = len(ch);
+      if(cl > 0 && t1 === null){ let dev = 0; for(const q of Q){ const dd = Math.abs((q[0]-p0[0])*ch[1] - (q[1]-p0[1])*ch[0])/cl; if(dd > dev) dev = dd; }
+        if(dev <= opt.lineTol){ segs.push({line:[p0, p1]}); return; } }
+      const k = Math.min(K, Q.length - 1);
+      const T1 = t1 || unit(sub(Q[k], Q[0])), T2 = t2 || unit(sub(Q[Q.length-1-k], Q[Q.length-1]));
+      const out = []; fitCubic(Q, 0, Q.length - 1, T1, T2, err2, out, K, 0);
+      out.forEach(c => segs.push({curve:c}));
+    };
+    if(!corners.length){ // smooth closed shape: split into two halves with matching tangents
+      let far = 0, fd = -1; const p0 = V(0); for(let i = 1; i < n; i++){ const q = V(i), dd = (q[0]-p0[0])**2 + (q[1]-p0[1])**2; if(dd > fd){ fd = dd; far = i; } }
+      const tA = unit(sub(M(-K), M(K))), tB = unit(sub(M(far - K), M(far + K)));
+      fitRun(0, far, mul(tA, -1), tB); fitRun(far, n, mul(tB, -1), tA);
+      return segs;
+    }
+    for(let c = 0; c < corners.length; c++){ const a = corners[c], b = c + 1 < corners.length ? corners[c+1] : corners[0] + n; fitRun(a, b, null, null); }
+    return segs;
+  }
+  const r2 = v => Math.round(v*100)/100;
+  function loopArea(P){ let a = 0; const n = P.length/2; for(let i = 0; i < n; i++){ const j = (i + 1) % n; a += P[2*i]*P[2*j+1] - P[2*j]*P[2*i+1]; } return a/2; }
+  function segsArea(segs){ let a = 0; for(const s of segs){ const pts = s.line ? s.line : [0, 0.25, 0.5, 0.75, 1].map(t => bez(s.curve, t));
+      for(let i = 0; i + 1 < pts.length; i++) a += pts[i][0]*pts[i+1][1] - pts[i+1][0]*pts[i][1]; } return a/2; }
+  function polyFallback(P, tol){ // straight-line outline (Douglas-Peucker on the pixel corners)
+    const n = P.length/2, pts = []; for(let i = 0; i < n; i++) pts.push([P[2*i], P[2*i+1]]);
+    const keep = new Uint8Array(n); keep[0] = 1; let far = 0, fd = -1; for(let i = 1; i < n; i++){ const dd = (pts[i][0]-pts[0][0])**2 + (pts[i][1]-pts[0][1])**2; if(dd > fd){ fd = dd; far = i; } } keep[far] = 1;
+    const dp = (a, b) => { const A = pts[a], B = pts[b % n], ch = sub(B, A), cl = len(ch) || 1; let m = 0, at = -1;
+      for(let i = a + 1; i < b; i++){ const q = pts[i % n], dd = Math.abs((q[0]-A[0])*ch[1] - (q[1]-A[1])*ch[0])/cl; if(dd > m){ m = dd; at = i; } }
+      if(m > tol){ keep[at % n] = 1; dp(a, at); dp(at, b); } };
+    dp(0, far); dp(far, n);
+    const v = []; for(let i = 0; i < n; i++) if(keep[i]) v.push(pts[i]);
+    return v.map((p, i) => ({line:[p, v[(i+1) % v.length]]}));
+  }
+  /* Flat curves become lines, and lines that run on in the same direction merge: one segment per straight edge. */
+  function tidy(segs){
+    const off = (p, a, ch, cl) => Math.abs((p[0]-a[0])*ch[1] - (p[1]-a[1])*ch[0])/cl;
+    segs = segs.map(s => { if(!s.curve) return s; const [a, b, c, d] = s.curve, ch = sub(d, a), cl = len(ch); if(!cl) return s;
+      const t1 = dot(sub(b, a), ch)/(cl*cl), t2 = dot(sub(c, a), ch)/(cl*cl);
+      return off(b, a, ch, cl) < 0.35 && off(c, a, ch, cl) < 0.35 && t1 > -0.02 && t2 < 1.02 ? {line:[a, d]} : s; });
+    const joins = (u, v) => { const a = u.line[0], m = u.line[1], e = v.line[1], ch = sub(e, a), cl = len(ch);
+      return cl > 0 && off(m, a, ch, cl) < 0.35 && dot(sub(m, a), ch) > 0 && dot(sub(e, m), ch) > 0; };
+    const out = [];
+    for(const s of segs){ const last = out[out.length-1]; if(s.line && last && last.line && joins(last, s)) out[out.length-1] = {line:[last.line[0], s.line[1]]}; else out.push(s); }
+    while(out.length > 2 && out[0].line && out[out.length-1].line && joins(out[out.length-1], out[0])){ const l = out.pop(); out[0] = {line:[l.line[0], out[0].line[1]]}; }
+    return out;
+  }
+  function trace(bits, W, H, opt){
+    const loops = outlines(bits, W, H); let d = '', nodes = [], perim = 0;
+    for(const P of loops){
+      perim += P.length/2;
+      let segs = fitLoop(P, opt); if(!segs.length) continue;
+      const a0 = Math.abs(loopArea(P)), a1 = Math.abs(segsArea(segs));
+      if(a0 > 0 && Math.abs(a1 - a0) > Math.max(2, 0.25*a0)) segs = polyFallback(P, 0.75); // the curve fit lost the shape: keep it straight-edged
+      segs = tidy(segs);
+      const s0 = segs[0].line ? segs[0].line[0] : segs[0].curve[0];
+      d += `M${r2(s0[0])} ${r2(s0[1])}`;
+      segs.forEach((s, i) => {
+        const last = i === segs.length - 1;
+        if(s.line){ if(!last) d += `L${r2(s.line[1][0])} ${r2(s.line[1][1])}`; }
+        else { const c = s.curve; d += `C${r2(c[1][0])} ${r2(c[1][1])} ${r2(c[2][0])} ${r2(c[2][1])} ${r2(c[3][0])} ${r2(c[3][1])}`; }
+        nodes.push(s.line ? s.line[0] : s.curve[0]);
+      });
+      d += 'Z';
+    }
+    return {d, nodes, shapes: loops.length, perim};
+  }
+  return {palette, defaultInk, otsu, toBits, despeck, thicken, thinParts, trace, outlines, edt};
+})();
+
+S.oc = {on:false, method:'color', pal:[], ink:[], thr:128, thrTouched:false, inv:false, speck:0.0005, thick:0, minPt:0.5, corner:55, view:'vec', nodes:false, res:null, wkey:''};
 
 /* ---------- sample (logo on a white box, so the cleanup has something to do) ---------- */
 function makeSample(){
@@ -238,7 +598,7 @@ async function getPdfLib(){
 }
 const RASTER = 4000;
 function setSource(src, name, note, vector){
-  S.src = src; S.name = name; S.vector = vector; S.isSample = false; S.solidWarned = false;
+  S.src = src; S.name = name; S.vector = vector; S.isSample = false; S.solidWarned = false; S.oc.thrTouched = false;
   S.origAlpha = hasTransparency(src);
   S.ko.color = sampleEdge(src); $('koColor').value = S.ko.color;
   if(!S.origAlpha && S.ko.mode === 'off') setKoMode(S.artType === 'illo' ? 'soft' : 'bg');
@@ -413,12 +773,20 @@ function targetInches(art){
 }
 function rebuild(){
   if(!S.src) return;
-  let a = S.ko.mode !== 'off' ? knockout(S.src, S.ko) : S.src;
-  if(S.inner.on) a = knockout(a, {mode:'all', color:S.inner.color, tol:S.inner.tol, choke:0});
-  if(S.trim) a = trimCanvas(a);
+  const key = JSON.stringify([S.ko, S.inner, S.trim]);
+  let a;
+  if(S.stage && S.stage.src === S.src && S.stage.key === key) a = S.stage.a; // cleanup unchanged: reuse it
+  else {
+    a = S.ko.mode !== 'off' ? knockout(S.src, S.ko) : S.src;
+    if(S.inner.on) a = knockout(a, {mode:'all', color:S.inner.color, tol:S.inner.tol, choke:0});
+    if(S.trim) a = trimCanvas(a);
+    S.stage = {src:S.src, key, a, id:(S.stage ? S.stage.id : 0) + 1};
+  }
   const inch = targetInches(a), [aw] = dims(a);
   S.effPPI = Math.round(aw / inch.w);
   S.outIn = inch;
+  syncSaveButtons();
+  if(S.oc.on){ buildOneColor(a, inch); S.out = S.oc.res ? S.oc.res.inkCanvas : null; render(); assess(); updateName(); return; }
   let out = a;
   const tw = Math.max(1, Math.round(inch.w*PPI)), th = Math.max(1, Math.round(inch.h*PPI));
   if(S.resize && tw > aw){ out = scaleCanvas(a, tw, th); } // only ever enlarges; the master keeps its full detail
@@ -429,6 +797,62 @@ function rebuild(){
   }
   S.out = out;
   render(); assess(); updateName();
+}
+
+/* ---------- one color + vector ---------- */
+function buildOneColor(a, inch){
+  const o = S.oc, long = Math.max(inch.w, inch.h);
+  const ppi = Math.min(Math.max(long*600, 1000), 2000) / long; // work at 1000-2000 px on the long side
+  const W = Math.max(1, Math.round(inch.w*ppi)), H = Math.max(1, Math.round(inch.h*ppi));
+  const wkey = S.stage.id + '|' + W + 'x' + H;
+  if(o.wkey !== wkey){
+    o.work = scaleCanvas(a, W, H);
+    o.data = o.work.getContext('2d', {willReadFrequently:true}).getImageData(0, 0, W, H).data;
+    const prev = o.pal.map((c, i) => ({c, ink:o.ink[i]})), pal = OC.palette(o.data, W*H, 6), def = OC.defaultInk(pal);
+    o.ink = pal.map((c, i) => { let best = null, bd = 40*40;
+      for(const p of prev){ const dd = (p.c.r-c.r)**2 + (p.c.g-c.g)**2 + (p.c.b-c.b)**2; if(dd < bd){ bd = dd; best = p; } }
+      return best ? best.ink : def[i]; });
+    o.pal = pal;
+    if(!o.thrTouched){ o.thr = OC.otsu(o.data, W*H); $('ocThr').value = o.thr; $('ocThrV').textContent = o.thr; }
+    o.W = W; o.H = H; o.ppi = ppi; o.wkey = wkey;
+    renderPalette();
+  }
+  const bits = OC.toBits(o.data, W, H, o.method === 'color' ? {method:'color', palette:o.pal, ink:o.ink} : {method:'bright', threshold:o.thr, invert:o.inv});
+  OC.despeck(bits, W, H, Math.round(o.speck*ppi*ppi));
+  if(o.thick > 0) OC.thicken(bits, W, H, o.thick/72*ppi/2);
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for(let y = 0; y < H; y++) for(let x = 0; x < W; x++) if(bits[y*W + x]){ if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; }
+  if(x1 < 0){ o.res = {empty:true, W, H, ppi}; return; }
+  x1++; y1++;
+  const T = TARGETS[S.target], perIn = T.h && S.target !== 'custom' ? (y1 - y0)/inch.h : (x1 - x0)/inch.w; // ink box fills the print size
+  const thin = OC.thinParts(bits, W, H, o.minPt/72*perIn);
+  const tr = OC.trace(bits, W, H, {K:4, cornerDeg:o.corner, tol:0.8, lineTol:1.2, smooth:4});
+  const path = new Path2D(tr.d);
+  // how closely the vector follows the pixels
+  const chk = document.createElement('canvas'); chk.width = W; chk.height = H;
+  const cg = chk.getContext('2d', {willReadFrequently:true}); cg.fill(path, 'evenodd');
+  const cd = cg.getImageData(0, 0, W, H).data; let off = 0;
+  for(let i = 0; i < W*H; i++) if((cd[i*4+3] >= 128) !== !!bits[i]) off++;
+  // ink as an image (PNG and preview), red marks for thin lines
+  const ink = document.createElement('canvas'); ink.width = x1 - x0; ink.height = y1 - y0;
+  const ig = ink.getContext('2d'), iid = ig.createImageData(ink.width, ink.height);
+  for(let y = y0; y < y1; y++) for(let x = x0; x < x1; x++) if(bits[y*W + x]) iid.data[((y - y0)*ink.width + (x - x0))*4 + 3] = 255;
+  ig.putImageData(iid, 0, 0);
+  const red = document.createElement('canvas'); red.width = W; red.height = H;
+  if(thin.count){ const rg = red.getContext('2d'), rid = rg.createImageData(W, H);
+    for(let i = 0; i < W*H; i++) if(thin.thin[i]){ rid.data[i*4] = 226; rid.data[i*4+1] = 38; rid.data[i*4+2] = 38; rid.data[i*4+3] = 235; }
+    rg.putImageData(rid, 0, 0); }
+  o.res = {W, H, ppi, perIn, box:[x0, y0, x1, y1], inW:(x1 - x0)/perIn, inH:(y1 - y0)/perIn, tr, path, thin, red, inkCanvas:ink,
+    offIn: tr.perim ? off/tr.perim/perIn : 0};
+}
+function renderPalette(){
+  const o = S.oc;
+  $('ocPal').innerHTML = o.pal.length ? o.pal.map((c, i) => `<button type="button" data-i="${i}" aria-pressed="${!!o.ink[i]}" title="${c.hex.toUpperCase()}, ${Math.max(1, Math.round(c.share*100))}% of the art"><span class="chip" style="background:${c.hex}"></span><span>${o.ink[i] ? 'Ink' : 'Clear'}</span></button>`).join('')
+    : '<span class="hint">No solid colors found in the art.</span>';
+}
+function svgText(){
+  const r = S.oc.res, [x0, y0, x1, y1] = r.box;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${r.inW.toFixed(4)}in" height="${r.inH.toFixed(4)}in" viewBox="${x0} ${y0} ${x1 - x0} ${y1 - y0}">\n<path fill="#000000" fill-rule="evenodd" d="${r.tr.d}"/>\n</svg>\n`;
 }
 
 /* ---------- preview ---------- */
@@ -442,12 +866,30 @@ function render(){
     for(let y = 0; y < cv.height; y += sz) for(let x = 0; x < cv.width; x += sz){
       g.fillStyle = ((x/sz + y/sz) % 2 === 0) ? '#ffffff' : '#c9cfd2'; g.fillRect(x, y, sz, sz); }
   } else { g.fillStyle = S.view; g.fillRect(0, 0, cv.width, cv.height); }
+  if(S.oc.on){ renderOneColor(g, cv, dpr); return; }
   if(!S.out) return;
   const [w, h] = dims(S.out), pad = 24*dpr;
   const k = Math.min((cv.width - 2*pad)/w, (cv.height - 2*pad)/h);
   g.imageSmoothingQuality = 'high';
   g.drawImage(S.out, (cv.width - w*k)/2, (cv.height - h*k)/2, w*k, h*k);
   $('viewHead').textContent = `Result · ${w} × ${h} px · ${fmt(S.outIn.w)} × ${fmt(S.outIn.h)} in`;
+}
+
+function renderOneColor(g, cv, dpr){
+  const o = S.oc, r = o.res;
+  if(!r || r.empty){ $('viewHead').textContent = 'One color \u00b7 nothing is set to ink'; return; }
+  const [x0, y0, x1, y1] = r.box, w = x1 - x0, h = y1 - y0, pad = 24*dpr;
+  const k = Math.min((cv.width - 2*pad)/w, (cv.height - 2*pad)/h), ox = (cv.width - w*k)/2 - x0*k, oy = (cv.height - h*k)/2 - y0*k;
+  g.imageSmoothingQuality = 'high';
+  if(o.view !== 'vec'){ g.save(); g.globalAlpha = o.view === 'over' ? 0.4 : 1; g.drawImage(o.work, ox, oy, r.W*k, r.H*k); g.restore(); }
+  if(o.view === 'vec'){
+    g.save(); g.setTransform(k, 0, 0, k, ox, oy); g.fillStyle = S.view === '#000000' ? '#ffffff' : '#000000'; g.fill(r.path, 'evenodd'); g.restore();
+    if(r.thin.count) g.drawImage(r.red, ox, oy, r.W*k, r.H*k);
+  }
+  if(o.view === 'over'){ g.save(); g.setTransform(k, 0, 0, k, ox, oy); g.lineWidth = 1.5*dpr/k; g.strokeStyle = '#e8590c'; g.stroke(r.path); g.restore(); }
+  if(o.nodes){ const s = 5*dpr; g.save(); g.lineWidth = dpr; g.strokeStyle = '#0b5e69'; g.fillStyle = '#ffffff';
+    for(const p of r.tr.nodes){ const x = ox + p[0]*k, y = oy + p[1]*k; g.fillRect(x - s/2, y - s/2, s, s); g.strokeRect(x - s/2, y - s/2, s, s); } g.restore(); }
+  $('viewHead').textContent = `One color \u00b7 ${r.tr.shapes} shapes \u00b7 ${r.tr.nodes.length} nodes \u00b7 ${fmt(r.inW)} \u00d7 ${fmt(r.inH)} in`;
 }
 
 /* ---------- checks and lane ---------- */
@@ -457,14 +899,19 @@ function assess(){
   items.push(S.vector ? ['ok','Vector source (SVG or PDF). Sharp at any size.'] : ['ok', `Raster source, ${dims(S.src).join(' \u00d7 ')} px.`]);
   if(S.origAlpha) items.push(['ok','Background is already transparent.']);
   else if(S.ko.mode !== 'off') items.push(['warn','Background was solid and has been knocked out. Check the edges on black and on the garment color.']);
+  else if(!S.oc.on) items.push(['bad','Solid background. Turn on a knockout before saving.']);
   if(S.inner.on) items.push(['warn', `${S.inner.color.toUpperCase()} removed inside the art too. Check it against the garment color.`]);
-  else items.push(['bad','Solid background. Turn on a knockout before saving.']);
   let detail = 'ok';
   const size = `${T.name.toLowerCase()} size`;
   if(!S.vector){
     if(S.effPPI >= 250) items.push(['ok', `${S.effPPI} ppi at ${size}. Plenty of detail.`]);
     else if(S.effPPI >= 150){ detail = 'warn'; items.push(['warn', `${S.effPPI} ppi at ${size}. Usable. ${illo ? 'An AI upscale will print sharper.' : 'A vectorized version will print sharper.'}`]); }
     else { detail = 'bad'; items.push(['bad', `${S.effPPI} ppi at ${size}. Too soft to print well as is.`]); }
+  }
+  if(S.oc.on){
+    const last = items[items.length - 1];
+    if(!S.vector && last && /ppi at/.test(last[1]) && detail !== 'ok') last[1] = `${S.effPPI} ppi at ${size}. Low detail: the trace may come out lumpy. Compare it in Overlay, or use Vectorizer.AI for a cleaner trace.`;
+    assessOneColor(items, detail); return;
   }
   if(illo && S.finish !== 'halftone') items.push(['warn','Illustrations usually have soft fades. Halftone fades keeps them printable on DTF.']);
   if(S.finish === 'hard') items.push(['ok','Hard edges: no semi-transparent pixels in the file.']);
@@ -491,15 +938,62 @@ function assess(){
   $('actions').innerHTML = links;
 }
 
+function assessOneColor(items, detail){
+  const o = S.oc, r = o.res, show = () => $('checks').innerHTML = items.map(([k, t]) => `<li><span class="pill ${k}">${k === 'ok' ? 'OK' : k === 'warn' ? 'Check' : 'Fix'}</span><span>${t}</span></li>`).join('');
+  let lane, title, text, links = '';
+  if(!r || r.empty){
+    items.push(['bad', o.method === 'color' ? 'Nothing is set to ink. Tap a color above to make it ink.' : 'Nothing is dark enough to become ink. Move the slider or turn on Invert.']);
+    lane = 'B'; title = 'Pick the ink'; text = 'Choose which parts of the art burn or print, then check the trace.';
+  } else {
+    items.push(['ok', o.method === 'color' ? `One color: ${o.ink.filter(Boolean).length} of ${o.pal.length} colors become ink.` : `One color: darker than ${o.thr} becomes ink${o.inv ? ' (inverted)' : ''}.`]);
+    const sz = `${fmt(r.inW)} \u00d7 ${fmt(r.inH)} in`;
+    if(r.thin.count) items.push(['warn', `${r.thin.count} ${r.thin.count === 1 ? 'spot is' : 'spots are'} thinner than ${o.minPt} pt at ${sz} (red in the preview). Thicken lines, size up, or simplify the art.`]);
+    else items.push(['ok', `No lines thinner than ${o.minPt} pt at ${sz}.`]);
+    const off = r.offIn < 0.0005 ? 'under 0.0005' : r.offIn.toFixed(4);
+    const many = r.tr.nodes.length > 4000;
+    items.push([many ? 'warn' : 'ok', `Vector: ${r.tr.shapes} ${r.tr.shapes === 1 ? 'shape' : 'shapes'}, ${r.tr.nodes.length} nodes, within ${off} in of the art on average.${many ? ' Very detailed: simplify the art or remove more specks for a clean patch.' : ''}`]);
+    if(!S.vector && S.effPPI < 75){
+      lane = 'C'; title = 'Redraw'; text = 'Too low-res to trace cleanly here. Run it through Vectorizer.AI and drop the SVG back in, or order a redraw from Ignition Drawing.';
+      links = `<a href="https://vectorizer.ai" target="_blank" rel="noopener">Open Vectorizer.AI</a><span class="hint">Download the result as SVG, then drop it here.</span>`;
+    } else if(r.thin.count || many || detail !== 'ok'){
+      lane = 'B'; title = 'Fixable';
+      const why = [];
+      if(r.thin.count) why.push('fix the red thin spots');
+      if(detail !== 'ok') why.push('check the trace in Overlay, since the source is low-res');
+      if(many) why.push('simplify the art or remove more specks');
+      text = `Traced here. Before saving the SVG: ${why.join('; ')}.`;
+      if(detail !== 'ok') links = `<a href="https://vectorizer.ai" target="_blank" rel="noopener">Open Vectorizer.AI</a><span class="hint">Optional: a cleaner trace for low-res art.</span>`;
+    } else { lane = 'A'; title = 'Ready'; text = 'Clean one-color vector. Save the SVG and drop it into Patch Pro (or open it in CorelDRAW).'; }
+  }
+  if(S.isSample) title += ' (sample)';
+  show();
+  $('lane').innerHTML = `<div class="lane-badge lane-${lane}" aria-hidden="true">${lane}</div><div><h2>Lane ${lane} \u00b7 ${title}</h2><p>${text}</p></div>`;
+  $('actions').innerHTML = links;
+}
+
 /* ---------- naming and saving ---------- */
 const today = (() => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; })();
 $('dateOut').value = today;
 const clean = v => v.trim().replace(/[^A-Za-z0-9]+/g, '').slice(0, 40);
-function fileName(){
+function fileName(ext){
   const v = Math.max(1, Math.min(99, parseInt($('ver').value) || 1));
-  return `${clean($('client').value) || 'ClientName'}_${clean($('desc').value) || 'JobDescription'}_${today}_v${String(v).padStart(2,'0')}.png`;
+  ext = ext || (S.oc.on ? 'svg' : 'png');
+  return `${clean($('client').value) || 'ClientName'}_${clean($('desc').value) || 'JobDescription'}_${today}_v${String(v).padStart(2,'0')}${S.oc.on ? '_1C' : ''}.${ext}`;
 }
 function updateName(){ $('outName').textContent = fileName(); }
+function syncSaveButtons(){
+  $('save').textContent = S.oc.on ? 'Download vector SVG' : 'Download master PNG';
+  $('savePng').hidden = !S.oc.on;
+  $('saveHint').textContent = S.oc.on ? 'Save it to the job\u2019s folder under /artwork in Dropbox, then drop the SVG into Patch Pro or open it in CorelDRAW.'
+    : 'Save it to the job\u2019s folder under /artwork in Dropbox, then drop it into ProPlace Prep, Laser Prep or Patch Pro.';
+}
+async function deliver(blob, name, note){
+  const msg = $('saveMsg');
+  if(downloads){
+    try{ await downloads.save({filename:name, data:blob}); msg.innerHTML = `<div class="ok">Saved ${name}. ${note}</div>`; }
+    catch(err){ if(!(err && err.code === 'declined')) showFallback(blob, name); }
+  } else { plainSave(blob, name); msg.innerHTML = `<div class="ok">Downloaded ${name}. ${note}</div>`; }
+}
 ['client','desc','ver'].forEach(id => $(id).addEventListener('input', updateName));
 
 const CRC = (() => { const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -518,6 +1012,12 @@ $('save').addEventListener('click', async () => {
   const msg = $('saveMsg'), btn = $('save');
   if(S.isSample){ msg.innerHTML = '<div class="note">Drop the customer’s art first. The sample is only here to show how it works.</div>'; return; }
   if(!S.origAlpha && S.ko.mode === 'off' && !S.solidWarned){ S.solidWarned = true; msg.innerHTML = '<div class="note">The art still has a solid background. Turn on a knockout, or click Download again to save it as is.</div>'; return; }
+  if(S.oc.on){
+    const r = S.oc.res; if(!r || r.empty){ msg.innerHTML = '<div class="note">Nothing is set to ink yet.</div>'; return; }
+    msg.innerHTML = '';
+    await deliver(new Blob([svgText()], {type:'image/svg+xml'}), fileName('svg'), `Vector, ${fmt(r.inW)} \u00d7 ${fmt(r.inH)} in.`);
+    return;
+  }
   btn.disabled = true; btn.textContent = 'Building file…'; msg.innerHTML = '';
   try{
     const raw = await new Promise(r => S.out.toBlob(r, 'image/png'));
@@ -528,6 +1028,12 @@ $('save').addEventListener('click', async () => {
       catch(err){ if(!(err && err.code === 'declined')) showFallback(blob, name); }
     } else { plainSave(blob, name); msg.innerHTML = `<div class="ok">Downloaded ${name}. It opens at ${fmt(S.outIn.w)} × ${fmt(S.outIn.h)} in.</div>`; }
   } finally { btn.disabled = false; btn.textContent = 'Download master PNG'; }
+});
+$('savePng').addEventListener('click', async () => {
+  const r = S.oc.res; if(S.isSample){ $('saveMsg').innerHTML = '<div class="note">Drop the customer\u2019s art first. The sample is only here to show how it works.</div>'; return; }
+  if(!r || r.empty){ $('saveMsg').innerHTML = '<div class="note">Nothing is set to ink yet.</div>'; return; }
+  const raw = await new Promise(res => r.inkCanvas.toBlob(res, 'image/png'));
+  await deliver(await withDPI(raw, r.perIn), fileName('png'), `Black on clear, ${fmt(r.inW)} \u00d7 ${fmt(r.inH)} in.`);
 });
 /* Outside a Claude artifact (for example inside Shop Manager) a plain download link works. */
 function plainSave(blob, name){
@@ -545,6 +1051,7 @@ function buildTargets(){
   const T = TARGETS[S.target];
   $('customRow').hidden = S.target !== 'custom';
   $('targetHint').textContent = S.target === 'custom' ? 'Sets the print width used to check detail and size the file.'
+    : S.target === 'patch' ? 'Checked and sized at 1.75 in tall: the art inside a 2.25 in patch.'
     : T.h ? `Checked and sized at ${T.h} in tall.` : `Checked and sized at ${T.w} in wide.`;
 }
 $('targets').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.target = b.dataset.t; buildTargets(); rebuild(); });
@@ -583,6 +1090,27 @@ $('inOn').addEventListener('change', e => { S.inner.on = e.target.checked; $('in
 $('inColor').addEventListener('input', e => { S.inner.color = e.target.value; later(); });
 $('inTol').addEventListener('input', e => { S.inner.tol = +e.target.value; $('inTolV').textContent = S.inner.tol; later(); });
 ['lpi','angle'].forEach(id => $(id).addEventListener('input', () => later()));
+function setSeg(id, attr, val){ [...$(id).children].forEach(x => x.setAttribute('aria-pressed', x.dataset[attr] === val)); }
+$('ocOn').addEventListener('change', e => {
+  S.oc.on = e.target.checked; $('ocOpts').hidden = !S.oc.on; $('rasterOpts').hidden = S.oc.on;
+  if(S.oc.on){
+    if(['lc','ff','back'].includes(S.target)){ S.target = 'patch'; buildTargets(); }
+    if(S.view === 'checker'){ S.view = '#ffffff'; document.querySelectorAll('.sw').forEach(x => x.setAttribute('aria-pressed', x.dataset.bg === '#ffffff')); }
+  }
+  rebuild();
+});
+$('ocMethod').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.oc.method = b.dataset.m; setSeg('ocMethod', 'm', S.oc.method);
+  $('ocColorRow').hidden = S.oc.method !== 'color'; $('ocBrightRow').hidden = S.oc.method === 'color'; rebuild(); });
+$('ocPal').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; const i = +b.dataset.i; S.oc.ink[i] = !S.oc.ink[i]; renderPalette(); rebuild(); });
+$('ocSwap').addEventListener('click', () => { S.oc.ink = S.oc.ink.map(v => !v); renderPalette(); rebuild(); });
+$('ocThr').addEventListener('input', e => { S.oc.thr = +e.target.value; S.oc.thrTouched = true; $('ocThrV').textContent = S.oc.thr; later(); });
+$('ocInv').addEventListener('change', e => { S.oc.inv = e.target.checked; rebuild(); });
+$('ocSpeck').addEventListener('input', e => { S.oc.speck = +e.target.value; $('ocSpeckV').textContent = S.oc.speck.toFixed(4); later(); });
+$('ocThick').addEventListener('input', e => { S.oc.thick = +e.target.value; $('ocThickV').textContent = S.oc.thick.toFixed(1); later(); });
+$('ocMin').addEventListener('input', e => { const v = parseFloat(e.target.value); if(v > 0){ S.oc.minPt = v; later(); } });
+$('ocCorner').addEventListener('input', e => { S.oc.corner = +e.target.value; $('ocCornerV').textContent = S.oc.corner; later(); });
+$('ocView').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.oc.view = b.dataset.v; setSeg('ocView', 'v', S.oc.view); render(); });
+$('ocNodes').addEventListener('change', e => { S.oc.nodes = e.target.checked; render(); });
 document.querySelector('.swatches').addEventListener('click', e => {
   const b = e.target.closest('button.sw'); if(!b) return;
   S.view = b.dataset.bg; document.querySelectorAll('.sw').forEach(x => x.setAttribute('aria-pressed', x === b)); render();
