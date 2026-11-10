@@ -74,7 +74,7 @@ canvas#sheetPreview{display:block;margin:0 auto;max-width:100%;height:auto;borde
 <div class="wrap">
   <header>
     <h1>HCD <span>ProPlace</span> Prep</h1>
-    <p class="sub">Drop art, pick the placement, download a 16 × 20 in projection PNG at 300 dpi for the Hotronix cloud.</p>
+    <p class="sub">Drop art, pick the placement, download a 16 × 20 in (kids 11 × 15) projection PNG at 300 dpi for the Hotronix cloud.</p>
   </header>
 
   <div class="grid">
@@ -92,6 +92,12 @@ canvas#sheetPreview{display:block;margin:0 auto;max-width:100%;height:auto;borde
 
       <section class="card" aria-labelledby="l-place">
         <div class="label" id="l-place">2 · Placement</div>
+        <div class="field"><label>Size</label>
+          <div class="seg" id="size" role="group" aria-label="Size">
+            <button type="button" data-k="adult" aria-pressed="true">Adult (16 × 20 platen)</button>
+            <button type="button" data-k="kids" aria-pressed="false">Kids (11 × 15 platen)</button>
+          </div>
+        </div>
         <div class="field"><label>Garment</label>
           <div class="seg" id="garment" role="group" aria-label="Garment">
             <button type="button" data-g="tee" aria-pressed="true">T-shirt</button>
@@ -107,7 +113,7 @@ canvas#sheetPreview{display:block;margin:0 auto;max-width:100%;height:auto;borde
           <div class="seg" id="downs" role="group" aria-label="Down distance"></div>
         </div>
         <div id="lcOpts" class="row">
-          <label class="check"><input type="checkbox" id="plus"> Plus sizes (4.5 in offset)</label>
+          <label class="check"><input type="checkbox" id="plus"> <span id="plusTxt">Plus sizes (4.5 in offset)</span></label>
           <div class="field" style="flex-basis:100%">
             <label>Left chest sits on this side of the centerline, as laid out in your Corel template before rotating (right chest goes opposite)</label>
             <div class="seg" id="sides" role="group" aria-label="Offset side">
@@ -189,7 +195,7 @@ canvas#sheetPreview{display:block;margin:0 auto;max-width:100%;height:auto;borde
 
     <section class="stage" aria-label="Platen preview">
       <div class="stage-head">
-        <div class="label">Platen 16 × 20 in · collar seam at top edge</div>
+        <div class="label" id="platenLbl">Platen 16 × 20 in · collar seam at top edge</div>
         <div class="out" id="outname"></div>
       </div>
       <canvas id="preview" width="620" height="760" aria-label="Preview of the platen with art and guides"></canvas>
@@ -205,16 +211,25 @@ canvas#sheetPreview{display:block;margin:0 auto;max-width:100%;height:auto;borde
 
 <script>
 (function(){
-const PPI = 300, BW = 16, BH = 20;
+const PPI = 300; let BW = 16, BH = 20;
 const PLACEMENTS = {
   lc:     {name:'Left chest',   file:'LeftChest', downs:[2.5,3],   width:3.5, offset:true},
   rc:     {name:'Right chest',  file:'RightChest',downs:[2.5,3],   width:3.5, offset:true, flip:true},
   ff:     {name:'Full front',   file:'FullFront', downs:[1.5,2,2.5,3], def:2.5, width:12},
   back:   {name:'Back',         file:'Back',      downs:[3.5,4],   width:12}
 };
+/* Kids platen is 11 x 15. Only the values that differ from adult are listed. */
+const KIDS = {
+  lc:   {downs:[1.5,2], def:1.5, width:3},
+  rc:   {downs:[1.5,2], def:1.5, width:3},
+  ff:   {downs:[1.5,2], def:1.5, width:9},
+  back: {width:9}
+};
+const PL = k => S.kids ? {...PLACEMENTS[k], ...KIDS[k]} : PLACEMENTS[k];
 const S = {placement:'lc', down:2.5, width:3.5, plus:false, side:'right', trim:true,
            guides:true, label:true, src:null, art:null, srcName:'', isSample:true, hasAlpha:true};
 S.garment = 'tee';
+S.kids = false;
 S.bk = {on:false, src:null, art:null, down:3.5, width:12, hasAlpha:true};
 
 const $ = id => document.getElementById(id);
@@ -255,19 +270,19 @@ function trimSrc(src){
 
 /* ---------- geometry ---------- */
 function geom(){
-  const P = PLACEMENTS[S.placement];
+  const P = PL(S.placement);
   const aw = S.width, ah = S.art ? S.width * S.art.height / S.art.width : 0;
-  const off = P.offset ? (S.plus ? 4.5 : 4) : 0;
+  const off = P.offset ? (S.kids ? (S.plus ? 4 : 3.5) : (S.plus ? 4.5 : 4)) : 0;
   const dir = (S.side==='right' ? 1 : -1) * (P.flip ? -1 : 1);
   const cx = BW/2 + dir*off;
   return {P, aw, ah, off, cx, x: cx - aw/2, y: S.down};
 }
 const fmt = n => (Math.round(n*100)/100).toString();
-const backDowns = () => S.garment === 'hoodie' ? [5.5,6] : [3.5,4];
-const placeDowns = () => S.placement === 'back' ? backDowns() : PLACEMENTS[S.placement].downs;
+const backDowns = () => S.kids ? (S.garment === 'hoodie' ? [5] : [3,4]) : (S.garment === 'hoodie' ? [5.5,6] : [3.5,4]);
+const placeDowns = () => S.placement === 'back' ? backDowns() : PL(S.placement).downs;
 const pocketOn = () => S.garment === 'hoodie' && S.placement !== 'back';
 const pocketY = () => { const v = parseFloat($('pocket').value); return v > 0 ? v : 11; };
-const placeName = () => (S.garment === 'hoodie' ? 'Hoodie ' + PLACEMENTS[S.placement].name.toLowerCase() : PLACEMENTS[S.placement].name);
+const placeName = () => (S.kids ? 'Kids ' : '') + (S.garment === 'hoodie' ? 'Hoodie ' + PL(S.placement).name.toLowerCase() : PL(S.placement).name);
 function backOn(){ return S.bk.on && S.placement !== 'back'; }
 function bgeom(){
   if(!backOn()) return null;
@@ -317,7 +332,7 @@ function draw(g, s, ox, oy, forExport){
   }
   if(S.label && forExport){
     const P = G.P; const parts = [$('cust').value.trim(), $('job').value.trim(),
-      `${placeName()}${P.offset && S.plus?' (plus)':''}`, `${fmt(S.down)}" down`, `${fmt(S.width)}" wide`, B ? `Back ${fmt(B.y)}" down, ${fmt(B.aw)}" wide` : ''].filter(Boolean);
+      `${placeName()}${P.offset && S.plus ? (S.kids ? ' (4 in offset)' : ' (plus)') : ''}`, `${fmt(S.down)}" down`, `${fmt(S.width)}" wide`, B ? `Back ${fmt(B.y)}" down, ${fmt(B.aw)}" wide` : ''].filter(Boolean);
     g.save(); g.fillStyle = red; g.font = `500 ${0.24*s}px "JetBrains Mono", monospace`;
     g.textAlign = 'left'; g.textBaseline = 'bottom';
     g.fillText(parts.join('  ·  '), ox+0.3*s, oy+(BH-0.25)*s); g.restore();
@@ -350,8 +365,8 @@ function renderPreview(){
 
 function filename(){
   const clean = v => v.trim().replace(/[^A-Za-z0-9]+/g,'').slice(0,40);
-  const P = PLACEMENTS[S.placement];
-  const bits = [clean($('cust').value)||'Customer', clean($('job').value)||'Job', (S.garment === 'hoodie' ? 'Hoodie' : '') + P.file + (P.offset && S.plus ? 'Plus' : ''), fmt(S.down).replace('.','-')+'in'];
+  const P = PL(S.placement);
+  const bits = [clean($('cust').value)||'Customer', clean($('job').value)||'Job', (S.kids ? 'Kids' : '') + (S.garment === 'hoodie' ? 'Hoodie' : '') + P.file + (P.offset && S.plus ? (S.kids ? 'Off4' : 'Plus') : ''), fmt(S.down).replace('.','-')+'in'];
   if(backOn()) bits.push('Back' + fmt(S.bk.down).replace('.','-') + 'in');
   return bits.join('_') + '.png';
 }
@@ -385,7 +400,7 @@ function updateInfo(){
 function buildPlacements(){
   $('placements').innerHTML = Object.entries(PLACEMENTS).map(([k,p]) =>
     `<button type="button" data-p="${k}" aria-pressed="${k===S.placement}">${p.name}</button>`).join('');
-  const P = PLACEMENTS[S.placement];
+  const P = PL(S.placement);
   $('downs').innerHTML = placeDowns().map(d =>
     `<button type="button" data-d="${d}" aria-pressed="${d===S.down}">${fmt(d)} in</button>`).join('');
   $('lcOpts').hidden = !P.offset;
@@ -396,7 +411,7 @@ function buildPlacements(){
 }
 $('placements').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
-  S.placement = b.dataset.p; const P = PLACEMENTS[S.placement];
+  S.placement = b.dataset.p; const P = PL(S.placement);
   { const ds = placeDowns(); S.down = (S.placement !== 'back' && ds.includes(P.def)) ? P.def : ds[0]; }
   S.width = P.width; $('width').value = P.width;
   buildPlacements(); renderPreview();
@@ -510,6 +525,20 @@ $('garment').addEventListener('click', e => {
   buildPlacements(); renderPreview();
 });
 $('pocket').addEventListener('input', () => renderPreview());
+$('size').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  S.kids = b.dataset.k === 'kids';
+  [...$('size').children].forEach(x => x.setAttribute('aria-pressed', x === b));
+  BW = S.kids ? 11 : 16; BH = S.kids ? 15 : 20;
+  const P = PL(S.placement), ds = placeDowns();
+  S.down = (S.placement !== 'back' && ds.includes(P.def)) ? P.def : ds[0];
+  S.width = P.width; $('width').value = P.width;
+  S.bk.down = backDowns()[0]; S.bk.width = S.kids ? 9 : 12; $('bkWidth').value = S.bk.width;
+  $('pocket').value = S.kids ? 8 : 11;
+  $('plusTxt').textContent = S.kids ? 'Use 4 in offset (instead of 3.5)' : 'Plus sizes (4.5 in offset)';
+  $('platenLbl').textContent = `Platen ${BW} × ${BH} in${S.kids ? ' (kids)' : ''} · collar seam at top edge`;
+  buildPlacements(); renderPreview();
+});
 $('bkDowns').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.bk.down = parseFloat(b.dataset.bd); buildPlacements(); renderPreview(); });
 $('bkWidth').addEventListener('input', e => { const v = parseFloat(e.target.value); if(v > 0){ S.bk.width = v; renderPreview(); } });
 window.addEventListener('paste', e => { const it = [...(e.clipboardData?.files||[])].find(f=>f.type.startsWith('image/') || f.type==='application/pdf'); if(it) loadFile(it); });
@@ -535,7 +564,7 @@ $('export').addEventListener('click', async () => {
   const btn = $('export'), msg = $('exportMsg');
   if(S.isSample){ msg.innerHTML = '<div class="note">Drop the customer’s art first. The sample isn’t meant for the press.</div>'; return; }
   if(backOn() && !S.bk.art){ msg.innerHTML = '<div class="note">Back print is on but has no art. Add the back art or untick the back print.</div>'; return; }
-  btn.disabled = true; btn.textContent = 'Building 4800 × 6000 px file…'; msg.innerHTML = '';
+  btn.disabled = true; btn.textContent = `Building ${BW*PPI} × ${BH*PPI} px file…`; msg.innerHTML = '';
   try{
     const c = document.createElement('canvas'); c.width = BW*PPI; c.height = BH*PPI;
     const cg = c.getContext('2d');
