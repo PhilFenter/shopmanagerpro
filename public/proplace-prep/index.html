@@ -209,7 +209,7 @@ const PPI = 300, BW = 16, BH = 20;
 const PLACEMENTS = {
   lc:     {name:'Left chest',   file:'LeftChest', downs:[2.5,3],   width:3.5, offset:true},
   rc:     {name:'Right chest',  file:'RightChest',downs:[2.5,3],   width:3.5, offset:true, flip:true},
-  ff:     {name:'Full front',   file:'FullFront', downs:[2.5,3],   width:12},
+  ff:     {name:'Full front',   file:'FullFront', downs:[1.5,2,2.5,3], def:2.5, width:12},
   back:   {name:'Back',         file:'Back',      downs:[3.5,4],   width:12}
 };
 const S = {placement:'lc', down:2.5, width:3.5, plus:false, side:'right', trim:true,
@@ -397,7 +397,8 @@ function buildPlacements(){
 $('placements').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   S.placement = b.dataset.p; const P = PLACEMENTS[S.placement];
-  S.down = placeDowns()[0]; S.width = P.width; $('width').value = P.width;
+  { const ds = placeDowns(); S.down = (S.placement !== 'back' && ds.includes(P.def)) ? P.def : ds[0]; }
+  S.width = P.width; $('width').value = P.width;
   buildPlacements(); renderPreview();
 });
 $('downs').addEventListener('click', e => {
