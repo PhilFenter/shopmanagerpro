@@ -2806,6 +2806,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
       upsert_shift: {
         Args: {
           p_ends_at: string
