@@ -538,7 +538,7 @@ export async function saveCounterQuote(
   extras: CounterExtras,
   lines: CounterLine[],
   priced: Record<string, Priced | undefined>,
-): Promise<{ quoteId: string; quoteNumber: string | null; actionItemId: string | null }> {
+): Promise<{ quoteId: string; quoteNumber: string | null; actionItemId: string | null; customerId: string | null }> {
   const customerId = await upsertCustomer(db, contact);
 
   const considerations = [
@@ -672,7 +672,7 @@ export async function saveCounterQuote(
     .single();
   if (aiErr) console.error("counter action item failed", aiErr);
 
-  return { quoteId: quote.id, quoteNumber: quote.quote_number ?? null, actionItemId: ai?.id ?? null };
+  return { quoteId: quote.id, quoteNumber: quote.quote_number ?? null, actionItemId: ai?.id ?? null, customerId };
 }
 
 /** Quick note — when there's no time for a full quote. Still lands in Action Items, not on a sticky note. */

@@ -72,6 +72,8 @@ export default function CounterQuote() {
   const [extras, setExtras] = useState<CounterExtras>(emptyExtras);
   const [returning, setReturning] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Customer ticks this themselves. Starts unchecked; never carried over.
+  const [emailOptIn, setEmailOptIn] = useState(false);
   const [saved, setSaved] = useState<{ quoteId: string; quoteNumber: string | null; actionItemId: string | null } | null>(null);
   const [pushing, setPushing] = useState(false);
   const [pushedId, setPushedId] = useState<string | null>(null);
@@ -188,6 +190,11 @@ export default function CounterQuote() {
       const r = await saveCounterQuote(supabase, user.id, contact, extras, lines, priced);
       setSaved(r);
       setStep("done");
+      if (emailOptIn && contact.email.trim() && r.customerId) {
+        // The quote is already saved; a Klaviyo problem only shows a notice.
+        const { data, error } = await supabase.functions.invoke("klaviyo-subscribe", { body: { customer_id: r.customerId } });
+        if (error || !data?.ok) toast.error("Quote saved, but the email-list signup didn't go through. Add them from their customer record.");
+      }
     } catch (e: any) {
       toast.error(`Couldn't save: ${e.message || e}`);
     } finally {
@@ -212,7 +219,7 @@ export default function CounterQuote() {
   const reset = () => {
     const l = newLine("tee");
     setLines([l]); setActiveId(l.id); setContact(emptyContact); setExtras(emptyExtras);
-    setReturning(null); setSaved(null); setPushedId(null); setStep("build");
+    setReturning(null); setSaved(null); setPushedId(null); setStep("build"); setEmailOptIn(false);
   };
 
   const saveNote = async () => {
@@ -667,6 +674,10 @@ export default function CounterQuote() {
                 <div className="space-y-1.5"><Label htmlFor="cq-email" className="text-base">Email</Label><Input id="cq-email" className="h-14 text-xl md:text-xl" type="email" value={contact.email} onBlur={lookup} onChange={(e) => setContact({ ...contact, email: e.target.value })} /></div>
                 <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="cq-company" className="text-base">Business or team (optional)</Label><Input id="cq-company" className="h-14 text-xl md:text-xl" value={contact.company} onChange={(e) => setContact({ ...contact, company: e.target.value })} /></div>
               </div>
+              <label className={cn("flex max-w-2xl items-center gap-3 text-lg", !contact.email.trim() && "opacity-50")}>
+                <input type="checkbox" className="h-6 w-6" checked={emailOptIn && !!contact.email.trim()} disabled={!contact.email.trim()} onChange={(e) => setEmailOptIn(e.target.checked)} />
+                <span>Send me HCD deals and order deadlines by email. <span className="text-muted-foreground">Optional. Unsubscribe anytime.</span></span>
+              </label>
             </Section>
 
             <Section title="When do you need it?">
