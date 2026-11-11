@@ -4,6 +4,7 @@ import {
   screenPrintMin, screenFees, HAT_SIDE_FLAG, HAT_STITCH_LIMIT, HAT_STITCH_NOTE, CUSTOM_QUOTE_QTY, SCREEN_FEE, SCREEN_FEE_WAIVE_QTY,
   SMALL_MIN, SMALL_ORDER_UNDER, SMALL_ORDER_FEE, DIGITIZING_FEE, DIGITIZING_WAIVE_QTY, type Tier,
 } from "../_shared/hcd-pricing.ts";
+import { subscribeToEmailList } from "../_shared/klaviyo.ts";
 
 const HEALTH_CHECK_EMAIL = "systemcheck@hellscanyondesigns.com";
 
@@ -680,6 +681,9 @@ Deno.serve(async (req) => {
       artworkNotes,
       artworkUrl: rawArtworkUrl,
       estimate: rawEstimate,
+      // The website's "send me deals and deadlines" box. It starts unchecked,
+      // and only a literal true counts as a yes.
+      marketing_opt_in,
     } = payload;
 
     const resolvedCompany = company || customer_company || null;
@@ -1148,6 +1152,27 @@ Deno.serve(async (req) => {
         console.error("Email send failed:", emailErr);
         // Don't fail the whole request if email fails
       }
+    }
+
+    // 9. Email-list signup — only when the customer ticked the opt-in box.
+    // Runs after the health-check return above, so the nightly test never
+    // subscribes anyone. A Klaviyo problem never fails the quote.
+    if (marketing_opt_in === true && email && customerId) {
+      const signup = await subscribeToEmailList({
+        email,
+        name: customer_name,
+        company: resolvedCompany,
+        source: "website-quote-form",
+        detail: typeof source === "string" ? source.slice(0, 100) : null,
+      });
+      const now = new Date().toISOString();
+      await serviceClient.from("customers").update({
+        email_marketing_consent: true,
+        email_marketing_consent_at: now,
+        email_marketing_consent_source: "website",
+        ...(signup.ok ? { klaviyo_synced_at: now } : {}),
+      }).eq("id", customerId);
+      if (!signup.ok) console.error("Klaviyo signup failed:", signup.error);
     }
 
     return new Response(

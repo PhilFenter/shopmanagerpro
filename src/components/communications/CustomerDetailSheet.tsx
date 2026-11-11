@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MessageThread } from './MessageThread';
+import { EmailListSignup } from '@/components/customers/EmailListSignup';
 import { SendMessageDialog } from './SendMessageDialog';
 import { useCustomerMessages } from '@/hooks/useCustomerMessages';
 import { useCustomers } from '@/hooks/useCustomers';
@@ -52,6 +53,13 @@ export function CustomerDetailSheet({ customer, open, onOpenChange }: CustomerDe
   }, [customer]);
 
   if (!customer) return null;
+
+  // Added by migration 20261110170000; not yet in the generated types.
+  const consent = customer as Customer & {
+    email_marketing_consent?: boolean;
+    email_marketing_consent_at?: string | null;
+    email_marketing_consent_source?: string | null;
+  };
 
   const formatCurrency = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -143,6 +151,15 @@ export function CustomerDetailSheet({ customer, open, onOpenChange }: CustomerDe
                   </div>
                 </div>
               </div>
+
+              {/* Email list (Klaviyo) */}
+              <EmailListSignup
+                customerId={customer.id}
+                email={customer.email}
+                consented={Boolean(consent.email_marketing_consent)}
+                consentedAt={consent.email_marketing_consent_at ?? null}
+                consentSource={consent.email_marketing_consent_source ?? null}
+              />
 
               {/* Company Section */}
               <div className="space-y-3">
