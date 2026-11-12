@@ -1,17 +1,27 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 const invoke = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke: (...a: unknown[]) => invoke(...a) } } }));
 
+const auth = vi.hoisted(() => ({ role: "admin" as string | null }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ role: auth.role }) }));
+
 import PatchPro from "./PatchPro";
+
+function Where() {
+  return <div data-testid="where">{useLocation().pathname}</div>;
+}
 
 // Sends a message as if it came from the designer inside the frame, and collects what the screen sends back.
 function setup() {
   const { container } = render(
-    <MemoryRouter>
-      <PatchPro />
+    <MemoryRouter initialEntries={["/patch-pro"]}>
+      <Routes>
+        <Route path="/patch-pro" element={<PatchPro />} />
+        <Route path="*" element={<Where />} />
+      </Routes>
     </MemoryRouter>,
   );
   const frame = container.querySelector("iframe")!;
@@ -22,11 +32,14 @@ function setup() {
   });
   const send = (data: unknown, source: unknown = win) =>
     window.dispatchEvent(new MessageEvent("message", { data, origin: window.location.origin, source: source as Window }));
-  return { frame, replies, send };
+  return { frame, replies, send, container };
 }
 
 describe("PatchPro screen", () => {
-  beforeEach(() => invoke.mockReset());
+  beforeEach(() => {
+    invoke.mockReset();
+    auth.role = "admin";
+  });
 
   it("opens the designer full screen", () => {
     const { frame } = setup();
@@ -79,5 +92,18 @@ describe("PatchPro screen", () => {
     send({ type: "pp:hello" }, window);
     expect(replies).toEqual([]);
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("Back to Shop Manager goes to Leather for staff", async () => {
+    const { send, container } = setup();
+    send({ type: "pp:call", id: 7, op: "navigate", args: { to: "/leather" } });
+    await waitFor(() => expect(container.querySelector('[data-testid="where"]')?.textContent).toBe("/leather"));
+  });
+
+  it("a counter login goes back to Counter Quote instead", async () => {
+    auth.role = "counter";
+    const { send, container } = setup();
+    send({ type: "pp:call", id: 8, op: "navigate", args: { to: "/dashboard" } });
+    await waitFor(() => expect(container.querySelector('[data-testid="where"]')?.textContent).toBe("/counter"));
   });
 });

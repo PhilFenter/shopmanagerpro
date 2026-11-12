@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, StickyNote, Trash2, Send, RotateCcw, Sparkles,
+  ArrowLeft, ArrowRight, Check, LogOut, Stamp, Loader2, Minus, Plus, StickyNote, Trash2, Send, RotateCcw, Sparkles,
 } from "lucide-react";
 import {
   ITEMS, METHOD_LABELS, DTF_SIZES, DTF_SIZED_PLACEMENTS, HAT_STYLES, TIER_LABELS, dtfSummary, screenColorsFor, screenSummary, itemLabel,
@@ -62,7 +62,8 @@ function addDays(n: number) {
 }
 
 export default function CounterQuote() {
-  const { user } = useAuth();
+  const { user, role, signOut } = useAuth();
+  const isCounterLogin = role === "counter";
   const [step, setStep] = useState<"build" | "info" | "done">("build");
   const [lines, setLines] = useState<CounterLine[]>([newLine("tee")]);
   const [activeId, setActiveId] = useState(lines[0].id);
@@ -448,7 +449,8 @@ export default function CounterQuote() {
           {step === "info" ? (
             <button type="button" onClick={goBuild} className="text-muted-foreground hover:text-foreground" title="Back to the order"><ArrowLeft className="h-5 w-5" /></button>
           ) : (
-            <Link to="/action-items" className="text-muted-foreground hover:text-foreground" title="Back to Shop Manager"><ArrowLeft className="h-5 w-5" /></Link>
+            // Counter logins get no way into the rest of Shop Manager
+            !isCounterLogin && <Link to="/action-items" className="text-muted-foreground hover:text-foreground" title="Back to Shop Manager"><ArrowLeft className="h-5 w-5" /></Link>
           )}
           <div className="text-2xl font-bold">Hells Canyon Designs</div>
           <div className="text-xl text-muted-foreground">Let's price your order</div>
@@ -469,9 +471,21 @@ export default function CounterQuote() {
             </button>
           ))}
         </div>
-        <Button variant="outline" size="lg" className="text-base" onClick={() => setNoteOpen(true)}>
-          <StickyNote className="mr-2 h-5 w-5" /> Quick note
-        </Button>
+        <div className="flex items-center gap-2">
+          {isCounterLogin && (
+            <Button asChild variant="outline" size="lg" className="text-base">
+              <Link to="/patch-pro"><Stamp className="mr-2 h-5 w-5" /> Patch Pro</Link>
+            </Button>
+          )}
+          <Button variant="outline" size="lg" className="text-base" onClick={() => setNoteOpen(true)}>
+            <StickyNote className="mr-2 h-5 w-5" /> Quick note
+          </Button>
+          {isCounterLogin && (
+            <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => signOut()} title="Sign out" aria-label="Sign out">
+              <LogOut className="h-5 w-5" />
+            </Button>
+          )}
+        </div>
       </header>
 
       {/* Quick note */}
