@@ -51,9 +51,9 @@ export default function Auth() {
     if (reason === 'no_role') {
       toast({
         variant: 'destructive',
-        title: 'Signed out — no role assigned',
+        title: 'Waiting for approval',
         description:
-          'Your account does not have a role yet. Please ask an admin to assign you a role before signing in.',
+          'Your account is set up, but an admin still needs to give you access. Ask an admin to approve you under Team → Logins & Access.',
       });
     } else if (reason === 'role_fetch_failed') {
       toast({
@@ -140,7 +140,7 @@ export default function Auth() {
 
     toast({
       title: 'Account created',
-      description: 'Check your email to confirm your account, then sign in.',
+      description: 'Check your email to confirm your account. An admin then needs to approve it before you can sign in.',
     });
     setSuFullName('');
     setSuEmail('');

@@ -5,6 +5,44 @@ Short entries on non-obvious calls made in this app, so nobody (including future
 
 ---
 
+## New sign-ups wait for an admin; data is staff-only
+**Date:** 2026-11-11
+**What:** The login page lets anyone create an account. Until now `handle_new_user()` gave every new
+account the Team role, and 71 table policies plus 13 storage policies only checked "is signed in". So
+anyone on the internet could sign up and read or edit jobs, customers, quotes and files. Migration
+`20261111180000_staff_only_access.sql` (applied to HCD Confluence DB on 2026-11-11) changes that:
+- New accounts get a profile but no role. They show in **Team → Logins & Access** as "Waiting for
+  approval", and an admin gives them access there. Until then the app signs them out with a message to
+  ask an admin.
+- `public.is_staff(uid)` means "has any role". Every "signed in" policy now requires it instead.
+- Left public on purpose: the website's anonymous artwork upload ("Public can upload quote artwork") and
+  "Public read access for sop media".
+
+**Why:** Self sign-up stays convenient for new staff, but a login alone no longer grants access.
+Tests: `src/lib/db/staffOnlyAccess.test.ts`. Rollback: `supabase/rollbacks/20261111180000_staff_only_access.down.sql`.
+
+**Don't:**
+- Put the automatic Team role back in `handle_new_user()`.
+- Write new policies as `USING (true)` or `auth.uid() IS NOT NULL` for staff data. Use
+  `(SELECT public.is_staff(auth.uid()))`, or `has_role` / `has_financial_access` for tighter access.
+- Apply Lovable's `drizzle/migrations/0000_staff_only_policies.sql` here. It was run against the old
+  Lovable Cloud database, and its storage section would block the website's anonymous artwork upload.
+
+---
+
+## The app must point at HCD Confluence DB (`fzkxeodjkaeqkwqhwcdv`)
+**Date:** 2026-11-11
+**What:** `.github/workflows/check-supabase-target.yml` runs `scripts/check-supabase-target.sh` on every
+push and PR. It fails if `.env` or `supabase/config.toml` points at any other project. On `main` it also
+opens a "Don't Publish" issue, which closes itself when a fixed commit passes.
+
+**Why:** Lovable's bot has twice rewritten `.env` to the old Lovable Cloud project (August, and 58946c2
+on 2026-11-10). Publishing that build sent the live app to the wrong database until #71 reverted it.
+
+**Don't:** Click Publish in Lovable while that check is red or the issue is open.
+
+---
+
 ## Art Prep and ProPlace Prep run as their own pages inside Shop Manager
 **Date:** 2026-11-08
 **What:** `/art-prep` and `/proplace-prep` (main sidebar, under Patch Pro) are two shop tools built and

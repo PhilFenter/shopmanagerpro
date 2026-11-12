@@ -1,0 +1,55 @@
+# Fails if the app is pointed at any Supabase project other than HCD Confluence DB.
+# Lovable's bot has twice rewritten .env to the old Lovable Cloud database, and
+# publishing that build sends the live app's reads and writes to the wrong place.
+# On main, a failure also opens a GitHub issue so someone sees it before clicking
+# Publish. The issue closes itself once a fixed commit passes.
+name: Check Supabase target
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: check-supabase-target-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: App must point at HCD Confluence DB
+        run: bash scripts/check-supabase-target.sh
+
+      - name: Open an alert issue
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Don't Publish: the app points at the wrong database"
+        run: |
+          body="Commit ${GITHUB_SHA::7} by **${GITHUB_ACTOR}** points the app at the wrong Supabase project. Do **not** click Publish in Lovable until it's fixed.
+
+          Fix: restore \`.env\` and \`supabase/config.toml\` to \`fzkxeodjkaeqkwqhwcdv\` (the same change as PR #71). This issue closes by itself once a fixed commit passes.
+
+          Details: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
+          fi
+
+      - name: Close the alert issue once fixed
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Don't Publish: the app points at the wrong database"
+        run: |
+          for n in $(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number --jq '.[].number' 2>/dev/null); do
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "Fixed in ${GITHUB_SHA::7}. The app points at HCD Confluence DB again, so it's safe to Publish." || true
+          done
