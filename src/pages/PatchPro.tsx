@@ -9,6 +9,8 @@
 // postMessage stays as a fallback: in Safari the replies never reached the designer.
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { COUNTER_HOME } from "@/lib/counterMode";
 import { supabase } from "@/integrations/supabase/client";
 import { hatColorsFromSanMar, PATCH_PRO_NAV_TARGETS } from "@/lib/patchPro";
 
@@ -31,6 +33,8 @@ async function errorText(error: unknown): Promise<string> {
 export default function PatchPro() {
   const frame = useRef<HTMLIFrameElement>(null);
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const isCounter = role === "counter";
 
   useEffect(() => {
     const origin = window.location.origin;
@@ -57,6 +61,11 @@ export default function PatchPro() {
         }
         case "navigate": {
           const to = String(args.to ?? "");
+          // The designer's "Back to Shop Manager" button: a counter login goes back to Counter Quote.
+          if (isCounter) {
+            navigate(COUNTER_HOME);
+            return true;
+          }
           navigate((PATCH_PRO_NAV_TARGETS as readonly string[]).includes(to) ? to : "/leather");
           return true;
         }
@@ -86,7 +95,7 @@ export default function PatchPro() {
       const w = window as unknown as { __patchPro?: typeof bridge };
       if (w.__patchPro === bridge) delete w.__patchPro;
     };
-  }, [navigate]);
+  }, [navigate, isCounter]);
 
   return (
     <iframe

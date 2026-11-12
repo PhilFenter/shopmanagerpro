@@ -18,14 +18,15 @@ import {
 // New sign-ups get a profile but no role (migration 20261111180000_staff_only_access),
 // so they show here as "Waiting for approval" until an admin gives them access.
 
-type AppRole = 'admin' | 'manager' | 'team';
+type AppRole = 'admin' | 'manager' | 'team' | 'counter';
 
 const ROLE_INFO: Record<AppRole, { label: string; help: string }> = {
+  counter: { label: 'Counter', help: 'Front-counter iMac only: Counter Quote and Patch Pro. Every other page sends them back to Counter Quote.' },
   team: { label: 'Team', help: 'Day-to-day screens: jobs, schedule, production, counter quotes, knowledge, training. No financials, customer list, or settings.' },
   manager: { label: 'Manager', help: 'Team access plus quotes, customers, messages, purchase orders, financials, integrations, settings, and approving InkSoft imports.' },
   admin: { label: 'Admin', help: 'Everything, including Team & Costs (wages) and changing who has access.' },
 };
-const RANK: Record<AppRole, number> = { team: 0, manager: 1, admin: 2 };
+const RANK: Record<AppRole, number> = { counter: -0.5, team: 0, manager: 1, admin: 2 };
 
 interface Login {
   user_id: string;
@@ -119,7 +120,7 @@ export function AccessSection() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-2 text-sm sm:grid-cols-3">
+        <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
           {(Object.keys(ROLE_INFO) as AppRole[]).map((r) => (
             <div key={r} className="rounded-md border p-2">
               <div className="font-semibold">{ROLE_INFO[r].label}</div>

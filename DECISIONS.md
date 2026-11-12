@@ -5,6 +5,28 @@ Short entries on non-obvious calls made in this app, so nobody (including future
 
 ---
 
+## Counter logins only see Counter Quote and Patch Pro
+**Date:** 2026-11-12
+**What:** New role `counter` (migration `20261112120000_counter_role.sql`), given in **Team → Logins &
+Access**. A counter login lands on `/counter` and can open only `/counter` and `/patch-pro`
+(`src/lib/counterMode.ts`). `ProtectedRoute` sends every other page back to Counter Quote, so typed URLs,
+the login page's `/dashboard` redirect, and old bookmarks all end up at the counter. On Counter Quote the
+"Back to Shop Manager" arrow is hidden for counter logins; they get a Patch Pro button and a sign-out button
+instead. Patch Pro's "Back to Shop Manager" button takes a counter login back to Counter Quote.
+
+**Why:** The front-counter iMac is used by customers and by staff who don't need the admin side. The arrow on
+Counter Quote led straight into Action Items and the rest of Shop Manager.
+
+**Limits:** This is a screen-level lock. `is_staff()` means "has any role", so a counter login has Team's
+database access; Counter Quote needs it to save customers, quotes and action items. Locking the role down in
+the database policies too is a separate change.
+
+**Don't:**
+- Treat "has a role" as Team in `useAuth`. The role order is admin, manager, team, counter.
+- Add pages to `COUNTER_PATHS` without checking they don't link into the rest of Shop Manager.
+
+---
+
 ## New sign-ups wait for an admin; data is staff-only
 **Date:** 2026-11-11
 **What:** The login page lets anyone create an account. Until now `handle_new_user()` gave every new

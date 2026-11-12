@@ -24,7 +24,8 @@ function setSignOutReason(reason: SignOutReason) {
   }
 }
 
-type AppRole = 'admin' | 'manager' | 'team';
+/** Highest role wins. 'counter' is the front-counter iMac login: Counter Quote and Patch Pro only. */
+export type AppRole = 'admin' | 'manager' | 'team' | 'counter';
 
 interface AuthContextType {
   user: User | null;
@@ -122,8 +123,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole('admin');
       } else if (roles.includes('manager')) {
         setRole('manager');
-      } else if (roles.length > 0) {
+      } else if (roles.includes('team')) {
         setRole('team');
+      } else if (roles.includes('counter')) {
+        setRole('counter');
       } else {
         // No roles assigned — fail closed
         console.error('No roles assigned to user — signing out');
